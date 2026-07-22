@@ -341,7 +341,7 @@ namespace ClawTweaksSetup.Core
             // report "ready" prematurely. Wait for it to settle, then require the pad on TWO consecutive
             // probes so a transient enumeration blip doesn't pass as healthy.
             step.Detail = "Waiting for the virtual controller to settle…"; Notify();
-            await Task.Delay(2000).ConfigureAwait(false);
+            await Task.Delay(5000).ConfigureAwait(false);
             step.Detail = "Verifying the virtual pad…"; Notify();
 
             bool healthy = false;
