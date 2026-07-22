@@ -33,7 +33,13 @@ namespace ClawTweaksSetup.Core
     /// </summary>
     public sealed class OnboardingRunner
     {
-        private const int AutoJumpPosition = 3; // Microsoft occupies the first two Game Bar slots.
+        private const int AutoJumpPositionDefault = 3; // Microsoft occupies the first two Game Bar slots.
+
+        /// <summary>The Game Bar slot the user says ClawTweaks sits at (1-based). The exact position is
+        /// not readable (see RE_GameBar_WidgetBar_Order.md), so the user enters/confirms it in the auto-
+        /// jump step; the helper taps RB (value − 1) times to hop onto it. Default 3.</summary>
+        public int AutoJumpPositionValue { get; set; } = AutoJumpPositionDefault;
+
         public const int StepHwHealth = 0;
         public const int StepCenterM = 1;
         public const int StepVirtualController = 2;
@@ -159,47 +165,44 @@ namespace ClawTweaksSetup.Core
                 }
             }
 
-            // Step 3 — Add ClawTweaks to the Game Bar. A user task with automatic completion: we detect
-            // presence live via the widget's Favorited state (the only reliable signal — the Game Bar
-            // profiles don't persist bar membership; see RE_GameBar_WidgetBar_Order.md). No button action —
-            // the user favorites CTW in the Game Bar and this flips to done on the FavoritedChanged push.
+            // Step 3 — Add ClawTweaks to the Game Bar. The user favorites CTW in the Game Bar; the Run
+            // button re-CHECKS presence via the widget's Favorited state (the only reliable signal — the
+            // Game Bar profiles don't persist bar membership; see RE_GameBar_WidgetBar_Order.md). It also
+            // auto-completes on the live FavoritedChanged push, so the button is a manual fallback.
             var bar = Steps[StepAddToBar];
             if (bar.State != OnboardingStepState.Working)
             {
                 bool ready = _verifiedThisSession || _controllerEnabled == true;
-                bar.Actionable = false; // never a button — completion is driven by the Favorited push
                 if (!ready)
                 {
-                    bar.State = OnboardingStepState.Pending;
+                    bar.State = OnboardingStepState.Pending; bar.Actionable = false;
                     bar.Detail = "Enable the virtual controller first.";
                 }
                 else if (_favorited == true)
                 {
-                    bar.State = OnboardingStepState.Ok;
+                    bar.State = OnboardingStepState.Ok; bar.Actionable = false;
                     bar.Detail = "ClawTweaks is in your Game Bar.";
                 }
-                else if (_favorited == false)
+                else
                 {
-                    bar.State = OnboardingStepState.Pending;
-                    bar.Detail = "Open the Game Bar (Win+G) and favorite ClawTweaks — this completes on its own.";
-                }
-                else // null — the widget hasn't reported yet (only runs once Game Bar activates it)
-                {
-                    bar.State = OnboardingStepState.Pending;
-                    bar.Detail = "Open the Game Bar (Win+G) so ClawTweaks can check its state.";
+                    // Ready, but CTW isn't (yet) reported as favorited — offer a manual re-check button.
+                    bar.State = OnboardingStepState.Pending; bar.Actionable = true;
+                    bar.Detail = _favorited == false
+                        ? "Not in the bar yet — favorite ClawTweaks in the Game Bar (Win+G), then Check."
+                        : "Open the Game Bar (Win+G), favorite ClawTweaks, then Check.";
                 }
             }
 
-            // Step 4 — Activate auto-jump. Needs CTW to actually be in the bar (step 3). Sends the
-            // (user-confirmable, default 3) slot number to the helper for RB-hop navigation — the exact
-            // position is not readable, so this is a best-effort default the user can adjust.
+            // Step 4 — Activate auto-jump. Needs CTW actually in the bar (step 3). The user enters the
+            // slot number in the UI (AutoJumpPositionValue); the helper taps RB (value − 1) times to hop
+            // onto it. The exact position is not readable, so the user confirms it.
             var aj = Steps[StepAutoJump];
             if (aj.State != OnboardingStepState.Working)
             {
                 bool present = _favorited == true;
                 aj.Actionable = present && aj.State != OnboardingStepState.Ok;
                 if (!present) aj.Detail = "Add ClawTweaks to the Game Bar first.";
-                else if (string.IsNullOrEmpty(aj.Detail)) aj.Detail = $"Sets auto-jump to position {AutoJumpPosition} (adjust if your bar differs).";
+                else if (aj.State != OnboardingStepState.Ok) aj.Detail = "Enter the slot ClawTweaks sits at, then Run.";
             }
 
             Notify();
@@ -255,9 +258,27 @@ namespace ClawTweaksSetup.Core
                 case StepHwHealth: await ProbeHwHealthAsync(log).ConfigureAwait(false); break;
                 case StepCenterM: await RunCenterMAsync().ConfigureAwait(false); break;
                 case StepVirtualController: await RunVirtualControllerAsync(log).ConfigureAwait(false); break;
-                // StepAddToBar has no button — it auto-completes on the widget's Favorited push.
+                case StepAddToBar: await RunCheckPresenceAsync().ConfigureAwait(false); break;
                 case StepAutoJump: RunAutoJump(); break;
             }
+        }
+
+        /// <summary>Re-checks whether ClawTweaks is favorited into the Game Bar: asks the helper for a
+        /// fresh status snapshot and waits briefly for the widget's Favorited push. The widget only runs
+        /// once the Game Bar has activated it, so if nothing comes back the user is told to open the Game
+        /// Bar and favorite CTW first, then Check again. RecomputeGating renders the resulting state.</summary>
+        private async Task RunCheckPresenceAsync()
+        {
+            var step = Steps[StepAddToBar];
+            step.State = OnboardingStepState.Working; step.Detail = "Checking the Game Bar…"; Notify();
+
+            PipeClient.RequestStatusRefresh();
+            for (int i = 0; i < 8 && _favorited != true; i++)
+                await Task.Delay(400).ConfigureAwait(false);
+
+            // Hand back to RecomputeGating (Ok when favorited, otherwise pending + re-check guidance).
+            step.State = OnboardingStepState.Pending;
+            RecomputeGating();
         }
 
         /// <summary>Runs the helper-side HW-controller health probe and reflects the verdict in step 0.</summary>
@@ -314,15 +335,24 @@ namespace ClawTweaksSetup.Core
             }
             _controllerEnabled = true;
 
-            // Post-activation diagnosis: give the virtual pad a moment to mount, then confirm it's there.
+            // Post-activation diagnosis. Let the virtual pad AND the physical controller finish
+            // (re)initialising before probing: the ViGEm pad enumerates within ~1s, but the controller
+            // re-inits a moment later (visible as the LEDs blinking ~2s in), so an immediate probe can
+            // report "ready" prematurely. Wait for it to settle, then require the pad on TWO consecutive
+            // probes so a transient enumeration blip doesn't pass as healthy.
+            step.Detail = "Waiting for the virtual controller to settle…"; Notify();
+            await Task.Delay(2000).ConfigureAwait(false);
             step.Detail = "Verifying the virtual pad…"; Notify();
+
             bool healthy = false;
             HealthResult health = null;
-            for (int attempt = 0; attempt < 5 && !healthy; attempt++)
+            int consecutive = 0;
+            for (int attempt = 0; attempt < 6 && !healthy; attempt++)
             {
                 if (attempt > 0) await Task.Delay(1000).ConfigureAwait(false);
                 health = await Task.Run(() => ControllerHealth.Probe()).ConfigureAwait(false);
-                healthy = health.VirtualPadCount >= 1;
+                if (health.VirtualPadCount >= 1) { consecutive++; if (consecutive >= 2) healthy = true; }
+                else consecutive = 0;
             }
 
             if (healthy)
@@ -346,17 +376,18 @@ namespace ClawTweaksSetup.Core
             RecomputeGating();
         }
 
-        // Step 3 ("Add ClawTweaks to the Game Bar") has no run action: it auto-completes when the widget
-        // reports Favorited=true. The programmatic widget-order rewrite was proven impossible on-device —
-        // the order/membership is not persisted anywhere, only reconstructed at runtime in GameBar.exe
-        // (see reverse_engineered/RE_GameBar_WidgetBar_Order.md). Presence is the only obtainable signal.
+        // Note: the programmatic widget-order rewrite was proven impossible on-device — the order/
+        // membership is not persisted anywhere, only reconstructed at runtime in GameBar.exe (see
+        // reverse_engineered/RE_GameBar_WidgetBar_Order.md). So the user enters the slot and the helper
+        // navigates to it by RB hops; we neither read nor move the widget.
 
         private void RunAutoJump()
         {
             var step = Steps[StepAutoJump];
-            bool sent = PipeClient.SetProperty(Function.GameBarWidgetPosition, AutoJumpPosition);
+            int pos = AutoJumpPositionValue < 1 ? 1 : (AutoJumpPositionValue > 10 ? 10 : AutoJumpPositionValue);
+            bool sent = PipeClient.SetProperty(Function.GameBarWidgetPosition, pos);
             step.State = sent ? OnboardingStepState.Ok : OnboardingStepState.Error;
-            step.Detail = sent ? $"Auto-jump to position {AutoJumpPosition}." : "Could not reach the helper.";
+            step.Detail = sent ? $"Auto-jump set to position {pos}." : "Could not reach the helper.";
             step.Actionable = false;
             RecomputeGating();
         }

@@ -480,15 +480,45 @@ namespace ClawTweaksSetup
                 bool enabled = step.Actionable && !working && !_onboarding.IsConnecting;
                 var runBtn = new Button
                 {
-                    Content = working ? "Working…" : "Run",
+                    Content = working ? "Working…" : (index == OnboardingRunner.StepAddToBar ? "Check" : "Run"),
                     Style = (Style)Application.Current.Resources["SetupButton"],
                     IsEnabled = enabled,
                     Opacity = enabled ? 1.0 : 0.4,
                     MinWidth = 90,
                 };
                 runBtn.Click += (_, __) => _ = _onboarding.RunStepAsync(index, msg => Dispatcher.Invoke(RenderOnboarding));
-                Grid.SetColumn(runBtn, 2);
-                row.Children.Add(runBtn);
+
+                // The auto-jump step lets the user enter the slot ClawTweaks sits at (it can't be read).
+                // A small −/N/+ stepper keeps it controller-navigable; Run then sends the number.
+                var rightPanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                if (index == OnboardingRunner.StepAutoJump)
+                {
+                    bool stepEnabled = step.Actionable && !working && !_onboarding.IsConnecting;
+                    Button StepBtn(string glyphTxt) => new Button
+                    {
+                        Content = glyphTxt,
+                        Style = (Style)Application.Current.Resources["SetupButton"],
+                        IsEnabled = stepEnabled, Opacity = stepEnabled ? 1.0 : 0.4,
+                        MinWidth = 40, Margin = new Thickness(0, 0, 4, 0),
+                    };
+                    var minus = StepBtn("−");
+                    var plus = StepBtn("+");
+                    var posText = new TextBlock
+                    {
+                        Text = _onboarding.AutoJumpPositionValue.ToString(),
+                        FontSize = 16, Foreground = UiHelpers.Text, MinWidth = 24,
+                        TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(0, 0, 8, 0),
+                    };
+                    minus.Click += (_, __) => { if (_onboarding.AutoJumpPositionValue > 1) { _onboarding.AutoJumpPositionValue--; RenderOnboarding(); } };
+                    plus.Click += (_, __) => { if (_onboarding.AutoJumpPositionValue < 10) { _onboarding.AutoJumpPositionValue++; RenderOnboarding(); } };
+                    rightPanel.Children.Add(minus);
+                    rightPanel.Children.Add(posText);
+                    rightPanel.Children.Add(plus);
+                }
+                rightPanel.Children.Add(runBtn);
+                Grid.SetColumn(rightPanel, 2);
+                row.Children.Add(rightPanel);
 
                 var card = new Border
                 {
