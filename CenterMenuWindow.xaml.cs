@@ -49,6 +49,8 @@ namespace ClawTweaksSetup
         private SetupVersionCheck.Result _setupVersionCheck;
         private WindowsChannelDetect.Result _windowsChannel;
         private int _selectedIndex = -1;
+        private int _onbSelectedIndex = 0;      // controller cursor over the onboarding step cards
+        private FrameworkElement _onbSelectedCard; // for BringIntoView after a selection move
         private bool _busy;
         private bool _confirming;
         private bool _blockedForDevice;
@@ -404,6 +406,7 @@ namespace ClawTweaksSetup
         private void OpenOnboarding()
         {
             _view = View.Onboarding;
+            _onbSelectedIndex = 0;
             RenderOnboarding();
             RefreshActionBar();
             _ = _onboarding.RefreshStatusAsync(msg => Dispatcher.Invoke(RenderOnboarding));
@@ -436,10 +439,20 @@ namespace ClawTweaksSetup
                 ContentHost.Children.Add(connectingRow);
             }
 
+            if (_onbSelectedIndex < 0) _onbSelectedIndex = 0;
+            if (_onbSelectedIndex >= _onboarding.Steps.Count) _onbSelectedIndex = _onboarding.Steps.Count - 1;
+            _onbSelectedCard = null;
+
+            // Two-column grid of numbered step cards; the controller cursor highlights one with an accent
+            // outline (D-pad moves it, A runs it — see MoveSelection / RefreshActionBar).
+            var onbGrid = new UniformGrid { Columns = 2 };
+            ContentHost.Children.Add(onbGrid);
+
             for (int i = 0; i < _onboarding.Steps.Count; i++)
             {
                 int index = i; // capture
                 var step = _onboarding.Steps[i];
+                bool selectedCard = index == _onbSelectedIndex;
                 bool working = step.State == OnboardingStepState.Working;
 
                 // A step reads as "done" (green check) ONLY when its state is Ok. A non-actionable step is
@@ -471,7 +484,7 @@ namespace ClawTweaksSetup
                 row.Children.Add(statusEl);
 
                 var textStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 10, 0) };
-                textStack.Children.Add(new TextBlock { Text = step.Title, FontSize = 16, Foreground = UiHelpers.Text });
+                textStack.Children.Add(new TextBlock { Text = $"{index + 1}. {step.Title}", FontSize = 16, Foreground = UiHelpers.Text, TextWrapping = TextWrapping.Wrap });
                 if (!string.IsNullOrEmpty(step.Detail))
                     textStack.Children.Add(new TextBlock { Text = step.Detail, FontSize = 13, Foreground = UiHelpers.Subtle });
                 Grid.SetColumn(textStack, 1);
@@ -523,11 +536,17 @@ namespace ClawTweaksSetup
                 var card = new Border
                 {
                     Background = UiHelpers.Card, CornerRadius = new CornerRadius(10),
-                    Padding = new Thickness(16, 12, 16, 12), Margin = new Thickness(0, 0, 0, 8),
+                    Padding = new Thickness(16, 12, 16, 12), Margin = new Thickness(0, 0, 10, 10),
+                    BorderBrush = selectedCard ? UiHelpers.Accent : Brushes.Transparent,
+                    BorderThickness = new Thickness(selectedCard ? 2 : 0),
                     Child = row,
                 };
-                ContentHost.Children.Add(card);
+                if (selectedCard) _onbSelectedCard = card;
+                onbGrid.Children.Add(card);
             }
+
+            _onbSelectedCard?.BringIntoView();
+            RefreshActionBar(); // keep the A="Run" footer action in sync with the selected step
         }
 
         private Border BuildHomeTile(string title, string detail, bool clickable, Action onClick = null)
@@ -727,6 +746,7 @@ namespace ClawTweaksSetup
         /// </summary>
         private void MoveSelection(PadButton dir)
         {
+            if (_view == View.Onboarding) { MoveOnboardingSelection(dir); return; }
             if (_view != View.Browse || _busy || _confirming || _flat.Count == 0) return;
 
             int delta = dir switch
@@ -747,6 +767,43 @@ namespace ClawTweaksSetup
             _selectedIndex = next;
             RenderBrowse();
             if (_rowElements.TryGetValue(_flat[_selectedIndex], out var el)) el.BringIntoView();
+        }
+
+        /// <summary>D-pad navigation over the onboarding step cards (2-column grid: Left/Right by one,
+        /// Up/Down by a row). The auto-jump card sits alone in the last row, so Left/Right there adjust
+        /// the slot number instead of moving. A (footer) runs the selected step.</summary>
+        private void MoveOnboardingSelection(PadButton dir)
+        {
+            if (_busy || _confirming || _onboarding.IsConnecting) return;
+            var steps = _onboarding.Steps;
+            if (steps.Count == 0) return;
+
+            if (_onbSelectedIndex == OnboardingRunner.StepAutoJump
+                && (dir == PadButton.Left || dir == PadButton.Right)
+                && steps[OnboardingRunner.StepAutoJump].Actionable)
+            {
+                if (dir == PadButton.Left && _onboarding.AutoJumpPositionValue > 1) _onboarding.AutoJumpPositionValue--;
+                else if (dir == PadButton.Right && _onboarding.AutoJumpPositionValue < 10) _onboarding.AutoJumpPositionValue++;
+                RenderOnboarding();
+                return;
+            }
+
+            int delta = dir switch
+            {
+                PadButton.Left => -1,
+                PadButton.Right => 1,
+                PadButton.Up => -2,
+                PadButton.Down => 2,
+                _ => 0,
+            };
+            if (delta == 0) return;
+            int next = _onbSelectedIndex + delta;
+            if (next < 0) next = 0;
+            if (next >= steps.Count) next = steps.Count - 1;
+            if (next == _onbSelectedIndex) return;
+
+            _onbSelectedIndex = next;
+            RenderOnboarding();
         }
         #endregion
 
@@ -787,6 +844,10 @@ namespace ClawTweaksSetup
 
             if (_view == View.Onboarding)
             {
+                var sel = (_onbSelectedIndex >= 0 && _onbSelectedIndex < _onboarding.Steps.Count)
+                    ? _onboarding.Steps[_onbSelectedIndex] : null;
+                bool canRun = sel != null && sel.Actionable && !_onboarding.IsConnecting;
+                AddAction(PadButton.A, "Run", canRun, () => _ = _onboarding.RunStepAsync(_onbSelectedIndex, msg => Dispatcher.Invoke(RenderOnboarding)));
                 AddAction(PadButton.Y, "Refresh status", !_onboarding.IsConnecting, () => _ = _onboarding.RefreshStatusAsync(msg => Dispatcher.Invoke(RenderOnboarding)));
                 AddAction(PadButton.B, "Back", true, GoHome);
                 return;
