@@ -271,6 +271,42 @@ namespace ClawTweaksSetup.Core
         }
 
         /// <summary>
+        /// Asks the helper to run the physical-controller health probe (open the Claw command HID +
+        /// read-only round-trip) and waits for the resulting ControllerHwHealth push. Returns the raw
+        /// "key=value;…" payload, or null on timeout. Onboarding step 0 parses this to gate the chain.
+        /// </summary>
+        public async Task<string> RequestControllerHealthAsync(TimeSpan timeout)
+        {
+            if (!IsConnected) return null;
+            var tcs = new TaskCompletionSource<string>();
+            void Handler(Function f, string c)
+            {
+                if (f == Function.ControllerHwHealth) tcs.TrySetResult(c);
+            }
+
+            PropertyUpdated += Handler;
+            try
+            {
+                lock (_writeLock)
+                {
+                    _writer.WriteLine("{\"RequestId\":0,\"Command\":0,\"Function\":0,\"CenterRequestHealth\":true}");
+                    _writer.Flush();
+                }
+
+                var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeout)).ConfigureAwait(false);
+                return completed == tcs.Task ? tcs.Task.Result : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+            finally
+            {
+                PropertyUpdated -= Handler;
+            }
+        }
+
+        /// <summary>
         /// Sets a property, then waits (via the PropertyUpdated push, not polling a request/response)
         /// until the helper confirms the expected value — or times out. Used for onboarding steps that
         /// must not proceed until the previous one is actually done (e.g. Center M fully disabled).
