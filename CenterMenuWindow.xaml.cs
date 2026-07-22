@@ -442,12 +442,13 @@ namespace ClawTweaksSetup
                 var step = _onboarding.Steps[i];
                 bool working = step.State == OnboardingStepState.Working;
 
-                // A step that isn't actionable (its target is already satisfied) reads as done — show the
-                // green check on the left too, not just for the ones we explicitly ran this session.
-                // Gated on being connected & not mid-connect so nothing is marked done before we have data.
+                // A step reads as "done" (green check) ONLY when its state is Ok. A non-actionable step is
+                // NOT necessarily done — in the dependency chain it is usually just GATED, waiting for an
+                // earlier step (e.g. "Disable MSI Center M first."), and must show the neutral circle, not
+                // a check. The runner sets Ok explicitly for genuinely-satisfied steps, so state is the
+                // single source of truth. Gated on being connected & not mid-connect.
                 bool doneNoAction = !working && !_onboarding.IsConnecting
-                    && step.State != OnboardingStepState.Error
-                    && (step.State == OnboardingStepState.Ok || !step.Actionable);
+                    && step.State == OnboardingStepState.Ok;
                 string glyph = step.State == OnboardingStepState.Error ? "✕" : (doneNoAction ? "✓" : "○");
                 Brush glyphBrush = step.State == OnboardingStepState.Error ? UiHelpers.Error
                     : (doneNoAction ? UiHelpers.Ok : UiHelpers.Subtle);
