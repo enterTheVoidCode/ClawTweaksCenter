@@ -42,14 +42,19 @@ namespace ClawTweaksSetup.Core
                 Process.Start(new ProcessStartInfo
                 {
                     FileName = exePath,
-                    Arguments = string.Join(" ", args.Select(EscapeArg)),
+                    Arguments = string.Join(" ", (args ?? Array.Empty<string>()).Select(EscapeArg)),
                     UseShellExecute = true,
                     Verb = "runas",
                 });
             }
-            catch (Win32Exception ex) when (ex.NativeErrorCode == 1223) // ERROR_CANCELLED
+            catch (Exception)
             {
-                return false; // user clicked "No" on the UAC prompt
+                // Any relaunch failure — the user declined the UAC prompt (ERROR_CANCELLED 1223), or the
+                // shell couldn't start the elevated process at all — must NOT propagate: on a background
+                // thread it would crash the whole app, and even on the UI thread the caller can present a
+                // clean "administrator rights are required" message instead. Returning false (without
+                // shutting down) leaves this instance usable so that message can be shown.
+                return false;
             }
 
             Application.Current.Shutdown();

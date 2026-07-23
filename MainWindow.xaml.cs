@@ -165,7 +165,7 @@ namespace ClawTweaksSetup
 
             // B = Back (except on the first phase).
             if (_index > 0)
-                actions.Add(new PhaseAction(PadButton.B, "Zurück", GoBack));
+                actions.Add(new PhaseAction(PadButton.B, "Back", GoBack));
 
             // Phase-specific actions (A = primary, Y = re-check, ...).
             actions.AddRange(phase.Actions);
@@ -174,7 +174,7 @@ namespace ClawTweaksSetup
             bool last = _index == _phases.Count - 1;
             actions.Add(new PhaseAction(
                 PadButton.Menu,
-                last ? "Fertig" : "Weiter",
+                last ? "Finish" : "Continue",
                 GoForward,
                 () => phase.CanContinue));
 

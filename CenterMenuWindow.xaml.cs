@@ -40,7 +40,7 @@ namespace ClawTweaksSetup
 
         /// <summary>Which idle screen ContentHost shows — Confirm/Install are transient overlays
         /// triggered from Browse and don't need their own value here.</summary>
-        private enum View { Home, Browse, Onboarding }
+        private enum View { Home, Browse, Onboarding, Maintenance }
         private View _view = View.Home;
 
         private DeviceDetect.Model _deviceModel = DeviceDetect.Model.Unknown;
@@ -49,6 +49,7 @@ namespace ClawTweaksSetup
         private SetupVersionCheck.Result _setupVersionCheck;
         private WindowsChannelDetect.Result _windowsChannel;
         private int _selectedIndex = -1;
+        private int _homeSelectedIndex = 0;     // controller cursor over the 3 Home tiles (0=Browse,1=Onboarding,2=Maintenance)
         private int _onbSelectedIndex = 0;      // controller cursor over the onboarding step cards
         private FrameworkElement _onbSelectedCard; // for BringIntoView after a selection move
         private bool _busy;
@@ -120,7 +121,12 @@ namespace ClawTweaksSetup
                 // away instead of waiting for the user to find the tile.
                 if (_startOnboardingOnLoad) OpenOnboarding();
             };
-            Closed += (_, __) => _nav?.Dispose();
+            Closed += (_, __) =>
+            {
+                _nav?.Dispose();
+                try { _onboarding.PipeClient?.Dispose(); } catch { }
+                try { _maintenance.PipeClient?.Dispose(); } catch { }
+            };
 
             // Keyboard fallbacks for desk testing.
             KeyDown += (_, e) =>
@@ -265,6 +271,7 @@ namespace ClawTweaksSetup
             {
                 case View.Home: RenderHome(); break;
                 case View.Onboarding: RenderOnboarding(); break;
+                case View.Maintenance: RenderMaintenance(); break;
                 default: RenderBrowse(); break;
             }
         }
@@ -294,6 +301,17 @@ namespace ClawTweaksSetup
             _view = View.Browse;
             RenderBrowse();
             RefreshActionBar();
+        }
+
+        /// <summary>A on the Home screen: opens whichever of the 3 tiles the controller cursor is on.</summary>
+        private void ActivateHomeTile()
+        {
+            switch (_homeSelectedIndex)
+            {
+                case 0: OpenBrowse(); break;
+                case 1: OpenOnboarding(); break;
+                case 2: OpenMaintenance(); break;
+            }
         }
 
         private void RenderHome()
@@ -362,20 +380,32 @@ namespace ClawTweaksSetup
             var mainRow = new Grid();
             mainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             mainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            mainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            if (_homeSelectedIndex < 0) _homeSelectedIndex = 0;
+            if (_homeSelectedIndex > 2) _homeSelectedIndex = 2;
 
             var releaseTile = BuildHomeTile(
                 "Update & Release", "Browse GitHub releases, test builds, and Drive nightlies to install.",
-                clickable: true, onClick: OpenBrowse);
+                clickable: true, onClick: () => { _homeSelectedIndex = 0; OpenBrowse(); }, selected: _homeSelectedIndex == 0);
             Grid.SetColumn(releaseTile, 0);
             releaseTile.Margin = new Thickness(0, 0, 7, 10);
             mainRow.Children.Add(releaseTile);
 
             var onboardingTile = BuildHomeTile(
                 "Onboarding", "Center M, virtual controller, Game Bar auto-jump.",
-                clickable: true, onClick: OpenOnboarding);
+                clickable: true, onClick: () => { _homeSelectedIndex = 1; OpenOnboarding(); }, selected: _homeSelectedIndex == 1);
             Grid.SetColumn(onboardingTile, 1);
-            onboardingTile.Margin = new Thickness(7, 0, 0, 10);
+            onboardingTile.Margin = new Thickness(7, 0, 7, 10);
             mainRow.Children.Add(onboardingTile);
+
+            // Third column (right of Onboarding): the Reset / Backup / Restore maintenance tools.
+            var maintenanceTile = BuildHomeTile(
+                "Reset · Backup · Restore", "Full factory reset, or back up and restore all your profiles.",
+                clickable: true, onClick: () => { _homeSelectedIndex = 2; OpenMaintenance(); }, selected: _homeSelectedIndex == 2);
+            Grid.SetColumn(maintenanceTile, 2);
+            maintenanceTile.Margin = new Thickness(7, 0, 0, 10);
+            mainRow.Children.Add(maintenanceTile);
 
             ContentHost.Children.Add(mainRow);
 
@@ -549,7 +579,7 @@ namespace ClawTweaksSetup
             RefreshActionBar(); // keep the A="Run" footer action in sync with the selected step
         }
 
-        private Border BuildHomeTile(string title, string detail, bool clickable, Action onClick = null)
+        private Border BuildHomeTile(string title, string detail, bool clickable, Action onClick = null, bool selected = false)
         {
             var stack = new StackPanel();
             stack.Children.Add(new TextBlock
@@ -568,14 +598,20 @@ namespace ClawTweaksSetup
                     Foreground = UiHelpers.Accent, Margin = new Thickness(0, 10, 0, 0),
                 });
 
+            // Focus model: the controller cursor highlights ONE clickable tile with a thick accent
+            // outline; the other clickable tiles show only a thin subtle border so the selected one is
+            // unmistakable. Non-clickable ("coming soon") tiles never get the accent.
+            Brush borderBrush = selected ? UiHelpers.Accent : (clickable ? UiHelpers.Subtle : Brushes.Transparent);
+            double borderThickness = selected ? 3 : (clickable ? 1 : 0);
+
             var border = new Border
             {
                 Background = UiHelpers.Card,
                 CornerRadius = new CornerRadius(12),
                 Padding = new Thickness(20, 18, 20, 18),
                 Margin = new Thickness(0, 0, 10, 10),
-                BorderBrush = clickable ? UiHelpers.Accent : Brushes.Transparent,
-                BorderThickness = new Thickness(clickable ? 2 : 0),
+                BorderBrush = borderBrush,
+                BorderThickness = new Thickness(borderThickness),
                 Opacity = clickable ? 1.0 : 0.55,
                 Child = stack,
                 Cursor = clickable ? Cursors.Hand : Cursors.Arrow,
@@ -746,7 +782,9 @@ namespace ClawTweaksSetup
         /// </summary>
         private void MoveSelection(PadButton dir)
         {
+            if (_view == View.Home) { MoveHomeSelection(dir); return; }
             if (_view == View.Onboarding) { MoveOnboardingSelection(dir); return; }
+            if (_view == View.Maintenance) { MoveMaintenanceSelection(dir); return; }
             if (_view != View.Browse || _busy || _confirming || _flat.Count == 0) return;
 
             int delta = dir switch
@@ -767,6 +805,25 @@ namespace ClawTweaksSetup
             _selectedIndex = next;
             RenderBrowse();
             if (_rowElements.TryGetValue(_flat[_selectedIndex], out var el)) el.BringIntoView();
+        }
+
+        /// <summary>D-pad navigation over the 3 Home tiles (a single row: Left/Right move the cursor,
+        /// A opens the selected one — wired in RefreshActionBar). The "coming soon" placeholder tiles
+        /// below are non-actionable, so the cursor stays on the top row.</summary>
+        private void MoveHomeSelection(PadButton dir)
+        {
+            int next = _homeSelectedIndex;
+            if (dir == PadButton.Left) next--;
+            else if (dir == PadButton.Right) next++;
+            else return; // Up/Down: nothing to move to (placeholders are non-actionable)
+
+            if (next < 0) next = 0;
+            if (next > 2) next = 2;
+            if (next == _homeSelectedIndex) return;
+
+            _homeSelectedIndex = next;
+            RenderHome();
+            RefreshActionBar();
         }
 
         /// <summary>D-pad navigation over the onboarding step cards (2-column grid: Left/Right by one,
@@ -822,22 +879,14 @@ namespace ClawTweaksSetup
                 return;
             }
 
-            // Nothing is actionable mid-download/install — an empty bar beats four dead-looking chips.
-            if (_busy) return;
-
-            // Once an install has run to completion (success or failure), the only thing left to do
-            // is close — re-launch the Center for another round rather than silently falling back
-            // into the same picker.
-            if (_installFinished)
-            {
-                AddAction(PadButton.B, "Exit", true, () => Application.Current.Shutdown());
-                AddScrollHint();
-                return;
-            }
-
+            // View-specific footers come BEFORE the _busy/_installFinished gates below: those gates are
+            // about the build browse/download/install flow (Browse view) and must NOT blank the footer
+            // of Home/Onboarding/Maintenance. A background source refresh (RefreshSourcesAsync sets
+            // _busy) otherwise left onboarding with an empty footer — D-pad navigation still worked (it's
+            // handled in Invoke's fallback), but A/B/Y never bound, so pressing A did nothing.
             if (_view == View.Home)
             {
-                AddAction(PadButton.A, "Open Update & Release", true, OpenBrowse);
+                AddAction(PadButton.A, "Open", true, ActivateHomeTile);
                 AddAction(PadButton.B, "Exit", true, () => Application.Current.Shutdown());
                 return;
             }
@@ -850,6 +899,26 @@ namespace ClawTweaksSetup
                 AddAction(PadButton.A, "Run", canRun, () => _ = _onboarding.RunStepAsync(_onbSelectedIndex, msg => Dispatcher.Invoke(RenderOnboarding)));
                 AddAction(PadButton.Y, "Refresh status", !_onboarding.IsConnecting, () => _ = _onboarding.RefreshStatusAsync(msg => Dispatcher.Invoke(RenderOnboarding)));
                 AddAction(PadButton.B, "Back", true, GoHome);
+                return;
+            }
+
+            if (_view == View.Maintenance)
+            {
+                RefreshMaintenanceActionBar();
+                return;
+            }
+
+            // Browse-view flow states below (these never apply to the views handled above).
+            // Nothing is actionable mid-download/install — an empty bar beats four dead-looking chips.
+            if (_busy) return;
+
+            // Once an install has run to completion (success or failure), the only thing left to do
+            // is close — re-launch the Center for another round rather than silently falling back
+            // into the same picker.
+            if (_installFinished)
+            {
+                AddAction(PadButton.B, "Exit", true, () => Application.Current.Shutdown());
+                AddScrollHint();
                 return;
             }
 

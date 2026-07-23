@@ -34,8 +34,20 @@ namespace ClawTweaksSetup
             // log it so a recurrence is diagnosable, and keep going instead of crashing.
             DispatcherUnhandledException += (_, ex) =>
             {
-                LogCrash(ex.Exception);
+                LogCrash(ex.Exception, "DispatcherUnhandledException");
                 ex.Handled = true;
+            };
+
+            // The dispatcher handler above only catches UI-thread exceptions. A fault on a background
+            // thread (Task.Run install work, the elevated relaunch, a finalizer) is fatal in .NET and
+            // invisible without these — they can't stop the process from ending, but they capture WHAT
+            // and WHERE before it does, so the install-crash is actually diagnosable from the log.
+            AppDomain.CurrentDomain.UnhandledException += (_, ea) =>
+                LogCrash(ea.ExceptionObject as Exception, $"AppDomain.UnhandledException (terminating={ea.IsTerminating})");
+            System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, ea) =>
+            {
+                LogCrash(ea.Exception, "UnobservedTaskException");
+                ea.SetObserved();
             };
 
             // Gate #0: Center must be running from its installed location (Program Files) before
@@ -66,13 +78,14 @@ namespace ClawTweaksSetup
                 return;
             }
 
-            // Release-folder run (msix/cer sit next to the exe, as Build-Setup.ps1 assembles it) →
-            // unchanged behavior, straight into the wizard. Standalone run (naked exe) → the Center
-            // menu lets the user pick and download a build first; it repoints SetupContext.AssetRoot
-            // and opens MainWindow itself once staged.
-            bool standalone = PackageInstaller.FindPackage() == null && CertInstaller.FindSiblingCer() == null;
-            Window window = standalone ? new CenterMenuWindow() : new MainWindow(e.Args);
-            ShowForeground(window);
+            // The local-package install wizard (MainWindow) is DELIBERATELY DISABLED: even when a sibling
+            // .msix/.cer is present (the packaged "Center + msix" bundle), Center never runs the local
+            // install path. It isn't needed — Center is installed as a Windows app and then downloads the
+            // actual ClawTweaks widget releases from GitHub / nightlies from Google Drive via
+            // CenterMenuWindow (which does the full tools → cert → MSIX install for a chosen build). The
+            // local-msix entry also had an unresolved startup issue on the packaged bundle. User decision
+            // 2026-07-23: always go to the Center menu regardless of any sibling package.
+            ShowForeground(new CenterMenuWindow());
         }
 
         /// <summary>
@@ -114,14 +127,31 @@ namespace ClawTweaksSetup
         [System.Runtime.InteropServices.DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
-        private static void LogCrash(Exception ex)
+        private static void LogCrash(Exception ex, string source = null)
+        {
+            string line = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {(source != null ? source + ": " : "")}{(ex?.ToString() ?? "(no exception object)")}\n\n";
+            // %TEMP% (legacy location) AND a stable, discoverable path next to the other Center logs
+            // (center_onboarding.log) so a user can find and send it after an install crash.
+            foreach (var path in new[]
+            {
+                Path.Combine(Path.GetTempPath(), "ClawTweaksCenter_crash.log"),
+                SafeLocalAppDataCrashPath(),
+            })
+            {
+                if (path == null) continue;
+                try { File.AppendAllText(path, line); } catch { }
+            }
+        }
+
+        private static string SafeLocalAppDataCrashPath()
         {
             try
             {
-                string path = Path.Combine(Path.GetTempPath(), "ClawTweaksCenter_crash.log");
-                File.AppendAllText(path, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex}\n\n");
+                var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClawTweaks");
+                Directory.CreateDirectory(dir);
+                return Path.Combine(dir, "center_crash.log");
             }
-            catch { }
+            catch { return null; }
         }
 
         /// <summary>

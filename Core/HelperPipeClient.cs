@@ -248,6 +248,52 @@ namespace ClawTweaksSetup.Core
         }
 
         /// <summary>
+        /// Sends a request carrying a single Extra key (the helper's PipeServer_MessageReceived dispatches
+        /// on Extra keys — FactoryReset / BackupCreate / BackupRestore) and waits for the helper's
+        /// correlated Response push on <paramref name="resultFunction"/>. Returns the compact "key=value;…"
+        /// result content, or null on timeout / not-connected. This is the Reset/Backup/Restore transport:
+        /// the reply comes back on THIS (Center) pipe only, as a Function+Content push the read loop
+        /// already parses — no RequestId/ack plumbing needed on the Center side.
+        /// </summary>
+        public async Task<string> RequestWithResultAsync(string extraKey, object extraValue, Function resultFunction, TimeSpan timeout)
+        {
+            if (!IsConnected) return null;
+
+            var tcs = new TaskCompletionSource<string>();
+            void Handler(Function f, string c) { if (f == resultFunction) tcs.TrySetResult(c); }
+            PropertyUpdated += Handler;
+            try
+            {
+                // Extra value: bool → true/false literal; anything else → a JSON string (paths carry
+                // backslashes/quotes, so they MUST be JSON-escaped or the helper mis-parses the message).
+                string extraJson = extraValue is bool bVal
+                    ? (bVal ? "true" : "false")
+                    : "\"" + EscapeJson(Convert.ToString(extraValue, System.Globalization.CultureInfo.InvariantCulture)) + "\"";
+                string json = $"{{\"RequestId\":0,\"Command\":0,\"Function\":0,\"{extraKey}\":{extraJson}}}";
+
+                lock (_writeLock)
+                {
+                    _writer.WriteLine(json);
+                    _writer.Flush();
+                }
+
+                var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeout)).ConfigureAwait(false);
+                return completed == tcs.Task ? tcs.Task.Result : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+            finally
+            {
+                PropertyUpdated -= Handler;
+            }
+        }
+
+        private static string EscapeJson(string s) =>
+            (s ?? "").Replace("\\", "\\\\").Replace("\"", "\\\"").Replace("\n", "\\n").Replace("\r", "\\r").Replace("\t", "\\t");
+
+        /// <summary>
         /// Asks the helper to push its current state for the properties onboarding cares about (see
         /// Program.PipeHandlers.cs PushCenterStatusSnapshot — replies only on this pipe, never the
         /// widget's). Fire-and-forget; caller awaits the resulting PropertyUpdated pushes separately.
