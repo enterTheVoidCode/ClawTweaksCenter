@@ -19,7 +19,7 @@
         </Grid.RowDefinitions>
 
         <!-- Header: 2 columns — title/subtitle left, device banner right. -->
-        <StackPanel Grid.Row="0" Margin="32,28,32,8">
+        <StackPanel Grid.Row="0" Margin="64,28,64,8">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -47,7 +47,7 @@
 
         <!-- Build list / progress host -->
         <ScrollViewer x:Name="ContentScroller" Grid.Row="1" VerticalScrollBarVisibility="Auto"
-                      Padding="32,16,32,16" Focusable="False">
+                      Padding="64,16,64,16" Focusable="False">
             <StackPanel x:Name="ContentHost" Focusable="False" />
         </ScrollViewer>
 

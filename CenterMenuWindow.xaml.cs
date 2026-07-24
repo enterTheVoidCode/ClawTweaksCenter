@@ -59,12 +59,24 @@ namespace ClawTweaksSetup
         private BuildSource _pendingBuild;
         private XInputNavigator _nav;
 
-        private readonly OnboardingRunner _onboarding = new OnboardingRunner();
+        // ONE shared helper connection for the whole Center. The helper's ClawTweaksCenter pipe accepts a
+        // single server instance (NamedPipeServer maxNumberOfServerInstances=1), so onboarding and
+        // maintenance MUST reuse the same client — two keep-alive clients starved each other (one grabbed
+        // the slot and its auto-reconnect held it, timing the other out on every action).
+        private readonly Core.HelperPipeClient _helperPipe;
+        private readonly OnboardingRunner _onboarding;
         private readonly bool _startOnboardingOnLoad;
 
         public CenterMenuWindow(bool startOnboarding = false)
         {
             _startOnboardingOnLoad = startOnboarding;
+
+            // Build the shared pipe client and both runners BEFORE anything uses them (field initializers
+            // across partial files have no guaranteed cross-file order, so wire them here explicitly).
+            _helperPipe = new Core.HelperPipeClient();
+            _onboarding = new OnboardingRunner(_helperPipe);
+            _maintenance = new MaintenanceRunner(_helperPipe);
+
             InitializeComponent();
 
             _onboarding.StepsChanged += () => Dispatcher.Invoke(() =>
@@ -124,8 +136,7 @@ namespace ClawTweaksSetup
             Closed += (_, __) =>
             {
                 _nav?.Dispose();
-                try { _onboarding.PipeClient?.Dispose(); } catch { }
-                try { _maintenance.PipeClient?.Dispose(); } catch { }
+                try { _helperPipe?.Dispose(); } catch { } // single shared client for both runners
             };
 
             // Keyboard fallbacks for desk testing.
@@ -451,7 +462,7 @@ namespace ClawTweaksSetup
             ContentHost.Children.Clear();
             ContentHost.Children.Add(UiHelpers.Title("Onboarding"));
             ContentHost.Children.Add(UiHelpers.Body(
-                "Helps set the most important ClawTweaks settings (preview not yet complete)."));
+                "Helps set the most important ClawTweaks settings."));
 
             if (_onboarding.IsConnecting)
             {

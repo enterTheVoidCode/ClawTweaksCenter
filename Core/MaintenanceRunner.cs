@@ -18,9 +18,17 @@ namespace ClawTweaksSetup.Core
     /// </summary>
     public sealed class MaintenanceRunner
     {
-        public HelperPipeClient PipeClient { get; } = new HelperPipeClient();
+        public HelperPipeClient PipeClient { get; }
 
         public bool IsConnected => PipeClient.IsConnected;
+
+        /// <summary>The Center runs a SINGLE shared HelperPipeClient (the helper's ClawTweaksCenter pipe
+        /// accepts only one instance). Reuse the app-wide client so onboarding and maintenance never
+        /// compete for the single server slot; a null client falls back to a private one.</summary>
+        public MaintenanceRunner(HelperPipeClient sharedClient = null)
+        {
+            PipeClient = sharedClient ?? new HelperPipeClient();
+        }
 
         /// <summary>Default folder for user backups + the automatic pre-restore backups (mirrors the
         /// helper's BackupService.GetBackupsFolder so both sides look in the same place).</summary>

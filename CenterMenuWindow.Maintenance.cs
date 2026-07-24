@@ -21,7 +21,7 @@ namespace ClawTweaksSetup
     /// </summary>
     public partial class CenterMenuWindow
     {
-        private readonly MaintenanceRunner _maintenance = new MaintenanceRunner();
+        private readonly MaintenanceRunner _maintenance; // assigned in the main ctor with the shared pipe client
 
         private enum MaintPage { Menu, ResetConfirm, BackupConfirm, RestoreList, RestoreConfirm, Busy, Result }
         private MaintPage _maintPage = MaintPage.Menu;
@@ -94,7 +94,7 @@ namespace ClawTweaksSetup
         {
             ContentHost.Children.Add(UiHelpers.Title("Reset · Backup · Restore"));
             ContentHost.Children.Add(UiHelpers.Body(
-                "Manage your ClawTweaks settings. All work runs through the helper — no extra admin prompt."));
+                "Manage your ClawTweaks settings — back them up, restore a previous backup, or reset everything to a clean state."));
 
             bool unlocked = MaintenanceUnlocked;
             if (!unlocked)
@@ -116,15 +116,23 @@ namespace ClawTweaksSetup
                 ("Restore Backup", "Bring back a previous backup. A safety copy of the current state is taken automatically first."),
             };
 
+            // Two columns — the three cards are far too wide at full window width in one column. 3 items
+            // fill row0: [Reset][Backup], row1: [Restore]. D-pad nav is 2D (see MoveMaintenanceSelection).
+            var grid = new UniformGrid { Columns = 2 };
+            ContentHost.Children.Add(grid);
+
             for (int i = 0; i < items.Length; i++)
             {
                 int index = i;
                 bool selected = index == _maintMenuIndex;
                 var card = BuildMaintCard(items[i].title, items[i].detail, selected, () => ActivateMaintMenu(index));
+                // Gap between the two columns (right margin on the left column only) on top of the card's
+                // own bottom margin, so the grid cells don't touch.
+                card.Margin = new Thickness(0, 0, index % 2 == 0 ? 12 : 0, 12);
                 // Dim the cards when locked so it's clear they're not usable yet (the banner above says why).
                 if (!unlocked) card.Opacity = 0.45;
                 if (selected) _maintSelectedCard = card;
-                ContentHost.Children.Add(card);
+                grid.Children.Add(card);
             }
         }
 
@@ -144,8 +152,8 @@ namespace ClawTweaksSetup
                 bullets.Children.Add(new TextBlock { Text = line, FontSize = 15, Foreground = UiHelpers.Text, Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap });
             ContentHost.Children.Add(bullets);
 
-            ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Warning, "This cannot be undone",
-                "Consider creating a backup first. The Game Bar will be closed — reopen it (Win+G) afterwards."));
+            ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Info, "A safety backup is saved first",
+                "An automatic backup of your current settings is created before the reset, so you can restore it later from Restore Backup. The Game Bar will be closed — reopen it (Win+G) afterwards."));
         }
 
         private void RenderBackupConfirm()
@@ -280,8 +288,16 @@ namespace ClawTweaksSetup
         {
             if (_maintPage == MaintPage.Menu)
             {
-                if (dir == PadButton.Up && _maintMenuIndex > 0) { _maintMenuIndex--; RenderMaintenance(); }
-                else if (dir == PadButton.Down && _maintMenuIndex < MaintMenuCount - 1) { _maintMenuIndex++; RenderMaintenance(); }
+                // 2-column grid nav: Left/Right step one card, Up/Down jump a row (±2). Items:
+                // 0=(r0,c0) 1=(r0,c1) 2=(r1,c0). Clamped to the valid range.
+                int idx = _maintMenuIndex;
+                if (dir == PadButton.Left) idx -= 1;
+                else if (dir == PadButton.Right) idx += 1;
+                else if (dir == PadButton.Up) idx -= 2;
+                else if (dir == PadButton.Down) idx += 2;
+                if (idx < 0) idx = 0;
+                if (idx > MaintMenuCount - 1) idx = MaintMenuCount - 1;
+                if (idx != _maintMenuIndex) { _maintMenuIndex = idx; RenderMaintenance(); }
             }
             else if (_maintPage == MaintPage.RestoreList && _maintBackups.Count > 0)
             {
@@ -385,8 +401,11 @@ namespace ClawTweaksSetup
             EnterBusy("Resetting all ClawTweaks settings…");
             var r = await _maintenance.ResetAsync();
             if (r.Ok)
+            {
+                string pre = string.IsNullOrEmpty(r.Path) ? "" : $"\nSafety copy of the previous state: {r.Path}";
                 ShowResult(StatusKind.Ok, "Reset complete",
-                    "All ClawTweaks settings were reset to a clean state. Reopen the Game Bar (Win+G) to continue.");
+                    $"All ClawTweaks settings were reset to a clean state. Reopen the Game Bar (Win+G) to continue.{pre}");
+            }
             else
                 ShowResult(StatusKind.Error, "Reset failed", r.Error ?? "Unknown error.");
         }

@@ -40,16 +40,20 @@ namespace ClawTweaksSetup
             _mode = mode;
             InitializeComponent();
 
+            // Title is context-sensitive (default "Install ClawTweaks Center" from XAML). The sub-heading
+            // was removed by design; AlreadyInstalled still needs its guidance, shown via StatusText.
             switch (mode)
             {
                 case InstallCenterMode.Update:
                     TitleText.Text = "Update ClawTweaks Center";
-                    DescriptionText.Text = $"Updates the installed copy from {installedVersion} to {runningVersion}.";
+                    TitleIcon.Text = ((char)0xE777).ToString(); // Segoe Fluent "UpdateRestore"
                     break;
                 case InstallCenterMode.AlreadyInstalled:
                     TitleText.Text = "ClawTweaks Center is already installed";
-                    DescriptionText.Text = $"Version {installedVersion} is already installed. Open it from the Start Menu " +
-                                            "or the ClawTweaks Game Bar widget instead of running this Setup file again.";
+                    TitleIcon.Text = ((char)0xE73E).ToString(); // Segoe Fluent "CheckMark"
+                    StatusText.Visibility = Visibility.Visible;
+                    StatusText.Text = $"Version {installedVersion} is already installed. Open it from the Start Menu " +
+                                       "or the ClawTweaks Game Bar widget instead of running this Setup file again.";
                     break;
             }
 
@@ -143,3 +147,4 @@ namespace ClawTweaksSetup
         }
     }
 }
+

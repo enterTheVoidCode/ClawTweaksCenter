@@ -33,7 +33,10 @@ namespace ClawTweaksSetup.Core
     /// </summary>
     public sealed class OnboardingRunner
     {
-        private const int AutoJumpPositionDefault = 3; // Microsoft occupies the first two Game Bar slots.
+        // Match the widget/helper semantics: 1 = default = auto-jump off. The real value is read back from
+        // the helper (Function.GameBarWidgetPosition) and applied on first arrival — this is only the value
+        // shown until then. (Was 3, a hardcoded guess that ignored the helper and always showed "3".)
+        private const int AutoJumpPositionDefault = 1;
 
         /// <summary>The Game Bar slot the user says ClawTweaks sits at (1-based). The exact position is
         /// not readable (see RE_GameBar_WidgetBar_Order.md), so the user enters/confirms it in the auto-
@@ -46,7 +49,7 @@ namespace ClawTweaksSetup.Core
         public const int StepAddToBar = 3;
         public const int StepAutoJump = 4;
 
-        public HelperPipeClient PipeClient { get; } = new HelperPipeClient();
+        public HelperPipeClient PipeClient { get; }
 
         public IReadOnlyList<OnboardingStep> Steps { get; } = new List<OnboardingStep>
         {
@@ -70,17 +73,37 @@ namespace ClawTweaksSetup.Core
         private bool? _favorited;           // from GameBarWidgetFavorited pushes — is CTW in the Game Bar
                                             // home bar? null until the widget reports (it only runs when
                                             // Game Bar has activated it). See RE_GameBar_WidgetBar_Order.md.
+        private int? _autoJumpStoredPos;    // persisted Game Bar slot from the helper (1-based); >1 = the
+                                            // user already configured auto-jump → step auto-completes.
+        private bool _autoJumpPosApplied;   // the helper's slot has been reflected into the stepper once
+        private bool _settling;             // a background status-settle loop is already running
 
         private void Notify() => StepsChanged?.Invoke();
 
-        public OnboardingRunner()
+        /// <summary>The Center runs a SINGLE shared HelperPipeClient (the helper's ClawTweaksCenter pipe
+        /// accepts only one instance — see NamedPipeServer maxNumberOfServerInstances). Onboarding and
+        /// maintenance must therefore reuse the same connection; pass the shared client in. A null client
+        /// (standalone/tests) falls back to a private one.</summary>
+        public OnboardingRunner(HelperPipeClient sharedClient = null)
         {
+            PipeClient = sharedClient ?? new HelperPipeClient();
             PipeClient.PropertyUpdated += (function, content) =>
             {
                 bool value = string.Equals(content, "True", StringComparison.OrdinalIgnoreCase);
                 if (function == Function.MsiCenterActive) { _centerMRunning = value; RecomputeGating(); }
                 else if (function == Function.ControllerEmulationEnabled) { _controllerEnabled = value; RecomputeGating(); }
                 else if (function == Function.GameBarWidgetFavorited) { _favorited = value; RecomputeGating(); }
+                else if (function == Function.GameBarWidgetPosition)
+                {
+                    if (int.TryParse(content, out var p) && p >= 1 && p <= 10)
+                    {
+                        _autoJumpStoredPos = p;
+                        // Reflect the helper's real slot in the stepper the first time we learn it — don't
+                        // clobber a later manual edit the user makes in the stepper.
+                        if (!_autoJumpPosApplied) { AutoJumpPositionValue = p; _autoJumpPosApplied = true; }
+                    }
+                    RecomputeGating();
+                }
             };
         }
 
@@ -200,9 +223,21 @@ namespace ClawTweaksSetup.Core
             if (aj.State != OnboardingStepState.Working)
             {
                 bool present = _favorited == true;
-                aj.Actionable = present && aj.State != OnboardingStepState.Ok;
-                if (!present) aj.Detail = "Add ClawTweaks to the Game Bar first.";
-                else if (aj.State != OnboardingStepState.Ok) aj.Detail = "Enter the slot ClawTweaks sits at, then Run.";
+                // A stored position > 1 means the user has already configured auto-jump (helper persists
+                // it), so complete the step automatically — position 1 = default/off = still to do. Keep it
+                // re-runnable so the slot can still be changed.
+                if (present && aj.State != OnboardingStepState.Ok && _autoJumpStoredPos is int sp && sp > 1)
+                {
+                    aj.State = OnboardingStepState.Ok;
+                    aj.Actionable = true;
+                    aj.Detail = $"Auto-jump active (position {sp}).";
+                }
+                else
+                {
+                    aj.Actionable = present && aj.State != OnboardingStepState.Ok;
+                    if (!present) aj.Detail = "Add ClawTweaks to the Game Bar first.";
+                    else if (aj.State != OnboardingStepState.Ok) aj.Detail = "Enter the slot ClawTweaks sits at, then Run.";
+                }
             }
 
             Notify();
@@ -231,6 +266,11 @@ namespace ClawTweaksSetup.Core
                 }
 
                 PipeClient.RequestStatusRefresh();
+                // Right after an install/helper restart the virtual controller can take several seconds to
+                // (re)mount, and the Center pipe only learns state when it ASKS — so keep re-requesting in
+                // the background until it resolves, so step 3 (and favorited/auto-jump) tick themselves
+                // without a manual Refresh. Fire-and-forget; RecomputeGating runs on each push.
+                _ = SettleStatusAsync();
             }
             finally
             {
@@ -242,6 +282,26 @@ namespace ClawTweaksSetup.Core
             // click. Skipped when the virtual controller is already active (probe would be moot + greyed).
             if (_controllerEnabled != true)
                 await ProbeHwHealthAsync(log).ConfigureAwait(false);
+        }
+
+        /// <summary>Re-requests the helper status a few times so a virtual controller that mounts a few
+        /// seconds after an install/restart is detected automatically (no manual Refresh). Stops early
+        /// once the controller reports enabled. Guarded so only one loop runs at a time.</summary>
+        private async Task SettleStatusAsync()
+        {
+            if (_settling) return;
+            _settling = true;
+            try
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    await Task.Delay(1500).ConfigureAwait(false);
+                    if (!PipeClient.IsConnected) break;
+                    if (_controllerEnabled == true) break; // resolved — nothing more to wait for
+                    PipeClient.RequestStatusRefresh();
+                }
+            }
+            finally { _settling = false; }
         }
 
         public async Task RunStepAsync(int index, Action<string> log = null)
