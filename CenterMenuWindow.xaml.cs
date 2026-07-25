@@ -66,10 +66,18 @@ namespace ClawTweaksSetup
         private readonly Core.HelperPipeClient _helperPipe;
         private readonly OnboardingRunner _onboarding;
         private readonly bool _startOnboardingOnLoad;
+        private readonly BuildSource _resumeInstallBuild;
 
-        public CenterMenuWindow(bool startOnboarding = false)
+        /// <summary>Command-line arg prefix used to resume straight into InstallSelectedAsync after an
+        /// elevated relaunch (see InstallSelectedAsync's elevation gate) — the build the user picked
+        /// before the UAC prompt is written to a temp JSON file; the path follows this prefix as one
+        /// argument, e.g. "--resume-install=C:\...\ClawTweaksCenter_resume_XXXX.json".</summary>
+        public const string ResumeInstallArgPrefix = "--resume-install=";
+
+        public CenterMenuWindow(bool startOnboarding = false, BuildSource resumeInstallBuild = null)
         {
             _startOnboardingOnLoad = startOnboarding;
+            _resumeInstallBuild = resumeInstallBuild;
 
             // Build the shared pipe client and both runners BEFORE anything uses them (field initializers
             // across partial files have no guaranteed cross-file order, so wire them here explicitly).
@@ -132,6 +140,11 @@ namespace ClawTweaksSetup
                 // path) — the helper is already confirmed running there, so open onboarding right
                 // away instead of waiting for the user to find the tile.
                 if (_startOnboardingOnLoad) OpenOnboarding();
+
+                // Resuming after an elevated relaunch triggered from InstallSelectedAsync's elevation
+                // gate — go straight back into installing the SAME build instead of making the user
+                // find and re-pick it (they already clicked Install once, before the UAC prompt).
+                if (_resumeInstallBuild != null) _ = InstallSelectedAsync(_resumeInstallBuild);
             };
             Closed += (_, __) =>
             {
@@ -1051,6 +1064,46 @@ namespace ClawTweaksSetup
         private async Task InstallSelectedAsync(BuildSource build)
         {
             if (_busy) return;
+
+            // Installing/verifying the required drivers needs admin — PawnIO in particular can ONLY be
+            // detected elevated (ToolDetect.PawnIO() opens \\.\PawnIO, which an unelevated process gets
+            // Access Denied on even when the driver is installed and working). Center runs unelevated by
+            // default, and this quick "pick a build, install it" flow used to skip elevation entirely
+            // (each tool installer prompting for its own UAC) — which meant PawnIO looked "missing" here
+            // even when it wasn't, the winget reinstall attempt ran unelevated too (so it could never
+            // actually fix anything and no UAC ever appeared), and the post-install re-check failed the
+            // same way again. Gate the whole flow up front instead: one UAC prompt, then every check
+            // below sees the real state.
+            if (!ElevationGate.IsAdmin())
+            {
+                string resumeFile = null;
+                try
+                {
+                    resumeFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                        $"ClawTweaksCenter_resume_{Guid.NewGuid():N}.json");
+                    System.IO.File.WriteAllText(resumeFile, System.Text.Json.JsonSerializer.Serialize(
+                        build, new System.Text.Json.JsonSerializerOptions { IncludeFields = true }));
+                }
+                catch { resumeFile = null; }
+
+                if (resumeFile != null)
+                {
+                    var realArgs = Environment.GetCommandLineArgs().Skip(1)
+                        .Where(a => !a.StartsWith(ResumeInstallArgPrefix, StringComparison.OrdinalIgnoreCase))
+                        .Append(ResumeInstallArgPrefix + resumeFile)
+                        .ToArray();
+                    ElevationGate.EnsureElevatedOrRelaunch(realArgs);
+                }
+
+                // Either the relaunch is under way (this instance is shutting down) or it failed / the
+                // user declined the UAC prompt — either way THIS unelevated instance must not proceed.
+                RefreshActionBar();
+                ContentHost.Children.Clear();
+                ContentHost.Children.Add(BuildBigStatusCard(StatusKind.Error, "Administrator rights required",
+                    "Installing ClawTweaks needs administrator rights. Approve the UAC prompt to continue — if it didn't appear or you declined it, click Install again."));
+                return;
+            }
+
             _busy = true;
             _installFinished = false;
             RefreshActionBar();
@@ -1208,12 +1261,14 @@ namespace ClawTweaksSetup
                 // Add-AppxPackage → Game Bar → wait for helper); the release-folder path still gets the
                 // full guided wizard via MainWindow, unchanged.
                 //
-                // DELIBERATE EXCEPTION (confirmed with the user 2026-07-21): unlike ToolsPhase/
-                // InstallPhase, this flow does NOT call ElevationGate up front for one shared elevation.
-                // Each tool install (HidHide/RTSS/PawnIO/usbip via winget or their own installers) ends
-                // up requesting UAC independently, so this dev/fast-iteration path shows several UAC
-                // prompts in a row instead of one. The user explicitly asked to keep it this way here —
-                // do not "fix" this to match the single-elevation model without asking again first.
+                // UPDATE (2026-07-25): the "DELIBERATE EXCEPTION" this comment used to document (no
+                // up-front ElevationGate, each tool prompting its own UAC) was reverted — running
+                // unelevated broke ToolDetect.PawnIO() specifically: it can only open \\.\PawnIO
+                // elevated, so it reported PawnIO as missing even when it was installed and working,
+                // which then drove a pointless unelevated winget reinstall attempt (no UAC ever shown)
+                // that could never fix anything. The elevation gate now sits at the top of
+                // InstallSelectedAsync, before this method is called — by the time we get here we are
+                // already elevated, so every ToolDetect check below sees the real state.
                 progressBar.IsIndeterminate = true;
                 bool ok = true;
 

@@ -22,6 +22,11 @@ namespace ClawTweaksSetup.Core
     /// </summary>
     public static class ElevationGate
     {
+        /// <summary>Plain IsInRole check — cheap enough to call before deciding whether a relaunch (and
+        /// the file/arg plumbing that goes with resuming after one) is even needed.</summary>
+        public static bool IsAdmin() =>
+            new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
+
         /// <summary>
         /// Returns true if already elevated (continue with the privileged action). Otherwise relaunches
         /// Center elevated with the same command-line arguments and shuts down this instance, then
@@ -30,7 +35,7 @@ namespace ClawTweaksSetup.Core
         /// </summary>
         public static bool EnsureElevatedOrRelaunch(string[] args)
         {
-            if (new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator))
+            if (IsAdmin())
                 return true;
 
             string exePath = Process.GetCurrentProcess().MainModule?.FileName;

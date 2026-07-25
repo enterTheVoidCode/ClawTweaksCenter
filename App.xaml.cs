@@ -85,7 +85,32 @@ namespace ClawTweaksSetup
             // CenterMenuWindow (which does the full tools → cert → MSIX install for a chosen build). The
             // local-msix entry also had an unresolved startup issue on the packaged bundle. User decision
             // 2026-07-23: always go to the Center menu regardless of any sibling package.
-            ShowForeground(new CenterMenuWindow());
+            ShowForeground(new CenterMenuWindow(resumeInstallBuild: LoadAndConsumeResumeInstallBuild(e.Args)));
+        }
+
+        /// <summary>
+        /// Reached only on the elevated relaunch triggered by CenterMenuWindow.InstallSelectedAsync's
+        /// elevation gate: the build the user picked before the UAC prompt was written to a temp JSON
+        /// file, whose path travels as a "--resume-install=" command-line arg (see
+        /// CenterMenuWindow.ResumeInstallArgPrefix). Reads it back, deletes the temp file, and returns
+        /// null on any failure or when this isn't a resume launch — a missing/unparsable file must never
+        /// crash startup, it just falls back to the normal menu.
+        /// </summary>
+        private static Core.Sources.BuildSource LoadAndConsumeResumeInstallBuild(string[] args)
+        {
+            string arg = Array.Find(args, a => a.StartsWith(CenterMenuWindow.ResumeInstallArgPrefix,
+                StringComparison.OrdinalIgnoreCase));
+            if (arg == null) return null;
+
+            string path = arg.Substring(CenterMenuWindow.ResumeInstallArgPrefix.Length);
+            try
+            {
+                string json = File.ReadAllText(path);
+                return System.Text.Json.JsonSerializer.Deserialize<Core.Sources.BuildSource>(
+                    json, new System.Text.Json.JsonSerializerOptions { IncludeFields = true });
+            }
+            catch (Exception ex) { LogCrash(ex, "LoadAndConsumeResumeInstallBuild"); return null; }
+            finally { try { File.Delete(path); } catch { } }
         }
 
         /// <summary>
