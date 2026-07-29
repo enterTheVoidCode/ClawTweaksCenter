@@ -682,19 +682,15 @@ namespace ClawTweaksSetup
                 Text = $"ClawTweaks Center update available: {check.LatestVersion}",
                 FontSize = 19, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Text,
             });
+            // ONE line. An update card is read at a glance; explaining the download/verify/UAC mechanics
+            // here just buried the one thing the user has to decide. What happens is visible as it
+            // happens (progress, "Verifying…", then the installer's own window).
             stack.Children.Add(new TextBlock
             {
-                Text = $"You're running {check.RunningVersion}. The update is downloaded, its checksum "
-                     + "verified, and then started — you'll confirm the install and see one UAC prompt.",
+                Text = "Updating is strongly recommended so future releases install cleanly.",
                 FontSize = 14, Foreground = UiHelpers.Subtle,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
             });
-            if (!string.IsNullOrWhiteSpace(check.LatestNotes))
-                stack.Children.Add(new TextBlock
-                {
-                    Text = check.LatestNotes, FontSize = 14, Foreground = UiHelpers.Subtle,
-                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
-                });
 
             if (!string.IsNullOrEmpty(_centerUpdateStatus))
                 stack.Children.Add(new TextBlock

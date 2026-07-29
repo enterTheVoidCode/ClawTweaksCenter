@@ -42,7 +42,6 @@ namespace ClawTweaksSetup.Core
             public Version LatestVersion;
             public string LatestUrl;
             public string LatestSha256;
-            public string LatestNotes;
 
             /// <summary>True only when the manifest advertises a NEWER build AND everything needed to
             /// fetch it safely is present and well-formed. A half-filled manifest entry must never
@@ -77,7 +76,6 @@ namespace ClawTweaksSetup.Core
                     RunningVersion = running,
                     Message = GetString(root, "message")
                         ?? "This ClawTweaks Center build is outdated. Please download the latest build.",
-                    LatestNotes = GetString(root, "latestSetupNotes"),
                 };
 
                 // The update half is optional and independently validated: a manifest that only has
