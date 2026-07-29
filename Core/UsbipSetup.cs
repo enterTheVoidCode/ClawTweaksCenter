@@ -39,16 +39,11 @@ namespace ClawTweaksSetup.Core
                     return Result.Failed;
                 }
 
-                log?.Invoke("Signature OK — launching installer (confirm the driver prompt)…");
-                var psi = new ProcessStartInfo { FileName = exePath, Arguments = "/NORESTART", UseShellExecute = false };
-                using var proc = Process.Start(psi);
-                if (proc == null) return Result.Failed;
-                if (!proc.WaitForExit(10 * 60 * 1000))
-                {
-                    try { proc.Kill(); } catch { }
-                    return Result.Failed;
-                }
-                int code = proc.ExitCode;
+                log?.Invoke("Signature OK — launching installer (confirm the administrator and driver prompts)…");
+                // Elevated via ShellExecute so this works with Center running unelevated; see
+                // ToolInstaller.RunElevated for why UseShellExecute = false cannot work here.
+                int code = ToolInstaller.RunElevated(exePath, "/NORESTART", 10 * 60 * 1000, log);
+                if (code == ToolInstaller.UserDeclinedUac || code == ToolInstaller.LaunchFailed) return Result.Failed;
                 log?.Invoke($"Installer finished (exit {code}).");
                 return code == 3010 ? Result.RebootRequired : (code == 0 ? Result.Success : Result.Failed);
             }

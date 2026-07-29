@@ -35,10 +35,12 @@ namespace ClawTweaksSetup.Core
                 log?.Invoke("Downloading signed PawnIO installer…");
                 if (Download(DownloadUrl, exePath) && VerifyAuthenticode(exePath))
                 {
-                    log?.Invoke("Signature OK — installing silently…");
-                    var psi = new ProcessStartInfo { FileName = exePath, Arguments = "/S", UseShellExecute = false };
-                    using var proc = Process.Start(psi);
-                    if (proc != null && proc.WaitForExit(5 * 60 * 1000) && ToolDetect.PawnIO().Installed)
+                    log?.Invoke("Signature OK — installing (confirm the administrator prompt)…");
+                    // Elevated via ShellExecute so this works with Center running unelevated; see
+                    // ToolInstaller.RunElevated for why UseShellExecute = false cannot work here.
+                    int code = ToolInstaller.RunElevated(exePath, "/S", 5 * 60 * 1000, log);
+                    if (code == ToolInstaller.UserDeclinedUac) return Result.Failed;
+                    if (ToolDetect.PawnIO().Installed)
                     {
                         log?.Invoke("PawnIO installed.");
                         return Result.Success;

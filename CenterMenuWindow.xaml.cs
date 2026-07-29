@@ -1061,49 +1061,62 @@ namespace ClawTweaksSetup
         #endregion
 
         #region Install
+        /// <summary>
+        /// Elevates for the ClawTweaks install step (certificate + package). Returns true when we are
+        /// already elevated and may continue; false when this instance must stop — either because the
+        /// relaunch is under way or because the user declined.
+        ///
+        /// The relaunched instance resumes via the same resume file the old up-front gate used and runs
+        /// InstallSelectedAsync again from the top. That is safe and deliberately not optimised away:
+        /// the tool steps are all "detect, then install only if missing", so on the second pass they
+        /// find everything present and fall straight through to here.
+        /// </summary>
+        private bool EnsureElevatedForClawTweaksInstall(BuildSource build)
+        {
+            if (ElevationGate.IsAdmin()) return true;
+
+            string resumeFile = null;
+            try
+            {
+                resumeFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
+                    $"ClawTweaksCenter_resume_{Guid.NewGuid():N}.json");
+                System.IO.File.WriteAllText(resumeFile, System.Text.Json.JsonSerializer.Serialize(
+                    build, new System.Text.Json.JsonSerializerOptions { IncludeFields = true }));
+            }
+            catch { resumeFile = null; }
+
+            if (resumeFile != null)
+            {
+                var realArgs = Environment.GetCommandLineArgs().Skip(1)
+                    .Where(a => !a.StartsWith(ResumeInstallArgPrefix, StringComparison.OrdinalIgnoreCase))
+                    .Append(ResumeInstallArgPrefix + resumeFile)
+                    .ToArray();
+                ElevationGate.EnsureElevatedOrRelaunch(realArgs);
+            }
+
+            RefreshActionBar();
+            ContentHost.Children.Clear();
+            ContentHost.Children.Add(BuildBigStatusCard(StatusKind.Error, "Administrator rights required",
+                "Installing ClawTweaks needs administrator rights. Approve the UAC prompt to continue — if it didn't appear or you declined it, click Install again."));
+            return false;
+        }
+
         private async Task InstallSelectedAsync(BuildSource build)
         {
             if (_busy) return;
 
-            // INSTALLING the drivers, trusting the certificate and deploying the package need admin, so
-            // this flow gates once up front rather than letting each tool installer raise its own UAC.
+            // NO up-front elevation. Center is meant to run unelevated and prompt only for the things
+            // that genuinely need rights (see ElevationGate and the Center elevation plan):
             //
-            // NOTE (2026-07-29): DETECTION is no longer a reason to elevate. This comment used to say
-            // PawnIO "can ONLY be detected elevated" because ToolDetect.PawnIO() got Access Denied on
-            // \\.\PawnIO unelevated — but access-denied means the device EXISTS; only ERROR_FILE_NOT_FOUND
-            // means absent. ToolDetect now distinguishes the two and reports the truth at any privilege
-            // level, so read-only status screens (ToolsPhase) never need a prompt. The gate here remains
-            // only because this method really does install things.
-            if (!ElevationGate.IsAdmin())
-            {
-                string resumeFile = null;
-                try
-                {
-                    resumeFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
-                        $"ClawTweaksCenter_resume_{Guid.NewGuid():N}.json");
-                    System.IO.File.WriteAllText(resumeFile, System.Text.Json.JsonSerializer.Serialize(
-                        build, new System.Text.Json.JsonSerializerOptions { IncludeFields = true }));
-                }
-                catch { resumeFile = null; }
-
-                if (resumeFile != null)
-                {
-                    var realArgs = Environment.GetCommandLineArgs().Skip(1)
-                        .Where(a => !a.StartsWith(ResumeInstallArgPrefix, StringComparison.OrdinalIgnoreCase))
-                        .Append(ResumeInstallArgPrefix + resumeFile)
-                        .ToArray();
-                    ElevationGate.EnsureElevatedOrRelaunch(realArgs);
-                }
-
-                // Either the relaunch is under way (this instance is shutting down) or it failed / the
-                // user declined the UAC prompt — either way THIS unelevated instance must not proceed.
-                RefreshActionBar();
-                ContentHost.Children.Clear();
-                ContentHost.Children.Add(BuildBigStatusCard(StatusKind.Error, "Administrator rights required",
-                    "Installing ClawTweaks needs administrator rights. Approve the UAC prompt to continue — if it didn't appear or you declined it, click Install again."));
-                return;
-            }
-
+            //   * DETECTION never needs it. This used to gate here because ToolDetect.PawnIO() reported
+            //     PawnIO as missing unelevated — a detection bug, not a privilege problem: access-denied
+            //     on a device object proves the device EXISTS, only ERROR_FILE_NOT_FOUND means absent.
+            //     Fixed 2026-07-29. Do not re-add elevation for a status check.
+            //   * TOOL INSTALLS raise their own UAC, one per installer, via ToolInstaller.RunElevated.
+            //     That keeps the driver vendors' installers in charge of their own rights.
+            //   * Only the ClawTweaks part itself — trusting the signing certificate into the machine
+            //     store and deploying the package — elevates, and it does so right before that step
+            //     (see EnsureElevatedForClawTweaksInstall below).
             _busy = true;
             _installFinished = false;
             RefreshActionBar();
@@ -1275,6 +1288,13 @@ namespace ClawTweaksSetup
                 var rtss = await Task.Run(() => ToolDetect.Rtss());
                 var usbip = await Task.Run(() => ToolDetect.Usbip());
                 var pawnio = await Task.Run(() => ToolDetect.PawnIO());
+
+                // Record the privilege level and what each check actually saw. Both matter when reading
+                // this log back: the tool steps are supposed to run unelevated here, and each Detail
+                // says WHY a tool counted as present (device, file, or a leftover registry entry).
+                LogDetail($"Center elevated: {ElevationGate.IsAdmin()}");
+                foreach (var t in new[] { hidhide, rtss, usbip, pawnio })
+                    LogDetail($"  {t.Name}: installed={t.Installed} ({t.Detail})");
                 if (!hidhide.Installed || !rtss.Installed || !usbip.Installed || !pawnio.Installed)
                 {
                     // Each result is ANDed into ok — previously discarded, so a genuine failure (e.g. a
@@ -1341,6 +1361,17 @@ namespace ClawTweaksSetup
                         "One or more required tools failed to install — see the log above for details. " +
                         "Fix the issue (e.g. check the system clock for the winget/certificate error) and try again.");
                     FinishLogRow(currentLogBadge, false);
+                    _busy = false;
+                    _installFinished = true;
+                    RefreshActionBar();
+                    return;
+                }
+
+                // From here on it is the ClawTweaks install itself: the signing certificate goes into the
+                // machine store and the package gets deployed. THIS is the one thing in this flow that
+                // needs Center's own rights, so this is where the single UAC prompt belongs.
+                if (!EnsureElevatedForClawTweaksInstall(build))
+                {
                     _busy = false;
                     _installFinished = true;
                     RefreshActionBar();
