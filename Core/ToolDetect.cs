@@ -18,7 +18,10 @@ namespace ClawTweaksSetup.Core
     /// service-key / file checks — no PowerShell, so it is instant and safe to run repeatedly.
     ///
     /// The detection logic mirrors the helper's own checks (Setup-Tools.ps1 Test-*Installed,
-    /// HidHideHelper.IsInstalled, RTSSHelper) so the setup and the in-app Setup tab agree.
+    /// HidHideHelper.IsInstalled, RTSSHelper) so the setup and the in-app Setup tab agree. Keep them in
+    /// step: when these four surfaces disagree, the user sees a green tick for something that does not
+    /// work. The helper can go further than this class does — it opens the driver's control device — so
+    /// treat the helper's answer as the authority and this one as the cheap, no-PowerShell approximation.
     /// ViGEm is intentionally NOT checked — VIIPER (usbip) is the sole virtual-controller backend.
     /// </summary>
     public static class ToolDetect
@@ -37,13 +40,27 @@ namespace ClawTweaksSetup.Core
                     return Ok("HidHide", cli);
             }
 
-            // 2) Kernel-driver service registered
-            if (ServiceKeyExists("HidHide"))
-                return Ok("HidHide", "driver service present");
+            // 2) Kernel-driver service registered AND its binary actually on disk.
+            //     The service key alone is NOT proof: a failed/rolled-back install, an AV removal, or a
+            //     third-party tool that bundles HidHide and then uninstalls it all leave the key behind
+            //     while HidHide.sys is gone. Counting that as "installed" is what let a Claw 8 EX run for
+            //     days with the physical pad unhidden (doubled input) while every surface in ClawTweaks
+            //     claimed HidHide was fine and the setup skipped the install. Same rule as RTSS below:
+            //     the registry is a POINTER to an install, never proof of one.
+            bool serviceKey = ServiceKeyExists("HidHide");
+            bool vendorKey = RegKeyExists(RegistryHive.LocalMachine, @"SOFTWARE\Nefarius Software Solutions e.U.\HidHide");
+            string sys = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "drivers", "HidHide.sys");
 
-            // 3) Vendor registry marker
-            if (RegKeyExists(RegistryHive.LocalMachine, @"SOFTWARE\Nefarius Software Solutions e.U.\HidHide"))
-                return Ok("HidHide", "vendor registry key present");
+            if (serviceKey && File.Exists(sys))
+                return Ok("HidHide", "driver service + HidHide.sys present");
+
+            if (serviceKey || vendorKey)
+                return new ToolStatus
+                {
+                    Name = "HidHide",
+                    Installed = false,
+                    Detail = "BROKEN: leftover registry entries but no driver binary — reinstall and reboot"
+                };
 
             return Missing("HidHide");
         }
