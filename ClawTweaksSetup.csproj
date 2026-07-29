@@ -64,4 +64,21 @@
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 
+  <!--
+    Every published Center exe is copied to ClawTweaksSetup\PortableExe\ so there is ONE obvious place
+    holding the shippable builds. The publish output is buried under
+    bin\Release\net10.0-windows\win-x64\publish\ next to same-named intermediates that are NOT portable
+    (the loose-DLL apphost one level up is 0.3 MB and looks identical by name), and bin\ is wiped by any
+    clean — so the artifacts either got lost or the wrong file got shipped.
+
+    Only the exe is copied: the pdbs stay in bin. PortableExe is gitignored; these are ~63 MB binaries.
+  -->
+  <Target Name="CopyPortableExe" AfterTargets="Publish">
+    <MakeDir Directories="$(MSBuildProjectDirectory)\PortableExe" />
+    <Copy SourceFiles="$(PublishDir)$(AssemblyName).exe"
+          DestinationFolder="$(MSBuildProjectDirectory)\PortableExe"
+          SkipUnchangedFiles="false" />
+    <Message Importance="high" Text="Portable exe -> PortableExe\$(AssemblyName).exe" />
+  </Target>
+
 </Project>
