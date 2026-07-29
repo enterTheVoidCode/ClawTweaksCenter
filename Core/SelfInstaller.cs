@@ -61,14 +61,9 @@ namespace ClawTweaksSetup.Core
         /// to install or update. Caller should shut down right after calling this.</summary>
         public static void LaunchInstalledAndExit(Action<string> log = null)
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo(InstalledExePath) { UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                log?.Invoke($"Could not launch the installed copy: {ex.Message}");
-            }
+            // Unelevated even if we happen to be elevated right now — see ElevationGate.LaunchUnelevated
+            // for why inheriting the token here is what broke UAC prompting for everything downstream.
+            ElevationGate.LaunchUnelevated(InstalledExePath, log);
         }
 
         /// <summary>
@@ -101,8 +96,13 @@ namespace ClawTweaksSetup.Core
                 CreateStartMenuShortcut();
                 RegisterUninstallEntry();
 
+                // THE spot that mattered: we are necessarily elevated here (the Program Files copy and
+                // the HKLM key above need it), so a plain start would hand the relaunched Center our
+                // admin token and it would keep it for its whole run — never prompting again for
+                // anything. Drop back to the shell's Medium integrity instead; the next privileged
+                // action then asks for elevation properly, at the moment it is actually needed.
                 log?.Invoke("Relaunching from install location...");
-                Process.Start(new ProcessStartInfo(InstalledExePath) { UseShellExecute = true });
+                ElevationGate.LaunchUnelevated(InstalledExePath, log);
                 return true;
             }
             catch (Exception ex)

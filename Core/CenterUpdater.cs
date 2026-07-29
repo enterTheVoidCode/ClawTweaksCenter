@@ -126,16 +126,10 @@ namespace ClawTweaksSetup.Core
         /// </summary>
         public static bool LaunchInstaller(string exePath, Action<string> log = null)
         {
-            try
-            {
-                Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
-                return true;
-            }
-            catch (Exception ex)
-            {
-                log?.Invoke($"Could not start the update: {ex.Message}");
-                return false;
-            }
+            // Unelevated on purpose: if this Center is elevated for any reason, the installer must not
+            // inherit that, or its own elevation gate finds IsAdmin() already true and installs without
+            // ever prompting. See ElevationGate.LaunchUnelevated.
+            return ElevationGate.LaunchUnelevated(exePath, log);
         }
 
         private static async Task DownloadFileAsync(string url, string destPath, IProgress<int> progress)
