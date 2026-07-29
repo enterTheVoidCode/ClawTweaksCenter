@@ -17,9 +17,9 @@ namespace ClawTweaksSetup.Core
     /// ── Why this is shaped the way it is: antivirus ──────────────────────────────────────────────
     /// "Download an executable and run it" is the textbook dropper behaviour, and Center is unsigned,
     /// so Defender's ML has nothing but behaviour to judge us on. The project already learned this
-    /// once — see HelperControl's note on why the helper deploys itself via its own signed --setup
-    /// instead of the setup writing an exe + scheduled task, and why Install.ps1 stopped doing
-    /// script-driven persistence. Every rule below exists to keep this path boring:
+    /// once — see HelperControl's note on why the helper deploys and registers its own task from its
+    /// own signed exe instead of the setup writing an exe + scheduled task, and why Install.ps1 stopped
+    /// doing script-driven persistence. Every rule below exists to keep this path boring:
     ///
     ///   • NEVER silent. The download only starts from an explicit click on an Update button. A
     ///     background self-download is the single most heuristic-tripping thing we could do, and it is

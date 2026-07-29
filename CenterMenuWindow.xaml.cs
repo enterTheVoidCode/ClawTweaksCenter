@@ -1553,6 +1553,14 @@ namespace ClawTweaksSetup
                 }
                 else if (ok)
                 {
+                    // Stop the old helper BEFORE registering the new package, the same way Install.ps1
+                    // does and through the same shared protocol: ask, and kill only what does not
+                    // answer. Add-AppxPackage's -ForceApplicationShutdown never reaches the deployed
+                    // helper (plain exe outside the package), so without this the old build stays alive
+                    // across the swap and briefly shares MSI WMI/EC, the HidHide/ViGEm mounts and the
+                    // single-instance mutex with the new one.
+                    await Task.Run(() => HelperControl.StopHelpers("center", Log));
+
                     var deps = PackageInstaller.FindDependencies(pkg);
                     ok &= await Task.Run(() => PackageInstaller.Install(pkg, deps, Log));
                 }
@@ -1616,8 +1624,8 @@ namespace ClawTweaksSetup
         /// itself after a few seconds so the user sees this panel, not just the overlay — long enough
         /// for the widget to actually finish loading and kick off the helper; 1s wasn't, observed live:
         /// the Game Bar closed before the widget had a chance to start it), wait for the FRESH
-        /// helper (surfacing the UAC prompt prominently if the helper's own first-run --setup needs
-        /// one), check for and remove any stale helper left over from before the update, then run the
+        /// helper (surfacing the UAC prompt prominently if registering the helper's scheduled task
+        /// needs one), verify no stale helper is left over from before the update, then run the
         /// controller diagnostic (HW vs. virtual mode). Settles for a fixed ~20s total before
         /// declaring the install done, so nothing flaky shows up right after. Every step is shown live
         /// in <paramref name="statusPanel"/> (the big current-step card, the only place that keeps the
@@ -1637,9 +1645,9 @@ namespace ClawTweaksSetup
             HelperControl.CloseGameBarBestEffort(); // best-effort — the big UAC card below is the fallback if this doesn't land
 
             // 1) Wait for the FRESH helper, running ELEVATED — surfacing the UAC prompt prominently
-            // while we wait. A new PID can appear before its own elevation request is even shown (an
-            // initial unelevated instance that then requests --setup elevation itself), so "PID
-            // exists" alone isn't proof the UAC was confirmed. Checking TokenElevation is the actual,
+            // while we wait. A new PID can appear before its own elevation request is even shown (the
+            // unelevated MSIX helper deploys first and only then elevates the deployed copy to register
+            // the task), so "PID exists" alone isn't proof the UAC was confirmed. TokenElevation is the
             // verifiable signal instead of guessing from timing.
             bool FreshHelperUp() => HelperControl.GetHelperPids()
                 .Any(pid => !priorHelperPids.Contains(pid) && HelperControl.IsProcessElevated(pid));
@@ -1682,9 +1690,10 @@ namespace ClawTweaksSetup
             AddHistory(true, isUpdate ? "New update — background helper started" : "Installed — background helper started", "");
             progress?.Report(70);
 
-            // 2) Duplicate-helper check: a stale instance from before the update often exits on its
-            // own within a few seconds once it notices the fresh one; give it that grace period, then
-            // forcibly remove anything still left over so only the new helper keeps running.
+            // 2) Duplicate-helper check — now a VERIFICATION, not a policy. The pre-install step already
+            // asked every helper to shut down (HelperControl.StopHelpers) and killed whatever refused,
+            // so a survivor here means that failed. Center no longer runs its own grace-period-then-kill
+            // logic: it re-uses the same shared handover and keeps the kill only as a last resort.
             statusPanel.Content = BuildBigStatusCard(StatusKind.Working, "Checking for duplicate helpers…", "");
             bool AnyStaleAlive() => priorHelperPids.Any(IsProcessAlive);
 
@@ -1694,26 +1703,16 @@ namespace ClawTweaksSetup
             }
             else
             {
-                for (int i = 0; i < 5 && AnyStaleAlive(); i++)
-                    await Task.Delay(1000);
+                statusPanel.Content = BuildBigStatusCard(StatusKind.Warning, "Removing leftover helper…",
+                    "A helper from before the update is still running.");
 
-                if (AnyStaleAlive())
-                {
-                    statusPanel.Content = BuildBigStatusCard(StatusKind.Warning, "Removing leftover helper…",
-                        "A helper from before the update is still running.");
-                    int killed = 0;
-                    foreach (var pid in priorHelperPids)
-                    {
-                        if (!IsProcessAlive(pid)) continue;
-                        try { System.Diagnostics.Process.GetProcessById(pid).Kill(); killed++; }
-                        catch { }
-                    }
-                    AddHistory(true, "No duplicate helper detected", $"Removed {killed} leftover helper process(es).");
-                }
-                else
-                {
-                    AddHistory(true, "No duplicate helper detected", "The old helper exited on its own.");
-                }
+                var (handedOver, killed) = await Task.Run(() =>
+                    HelperControl.StopHelpers("center post-install", null));
+
+                AddHistory(true, "No duplicate helper detected",
+                    handedOver + killed == 0
+                        ? "The old helper exited on its own."
+                        : $"Unexpected survivor: {handedOver} handed over, {killed} terminated.");
             }
             progress?.Report(82);
 

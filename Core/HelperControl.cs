@@ -7,19 +7,82 @@ using System.Threading.Tasks;
 namespace ClawTweaksSetup.Core
 {
     /// <summary>
-    /// Post-install helper orchestration. Since the setup is elevated it can query/run the helper's
-    /// scheduled task and kick the Game Bar so the widget (re)deploys + starts the helper.
+    /// Helper orchestration around an install. Since the setup is elevated it can query/run the
+    /// helper's scheduled task, stop a running helper, and kick the Game Bar so the widget
+    /// (re)deploys + starts the helper.
     ///
-    /// We deliberately do NOT create the scheduled task or copy the helper exe from here: the helper
-    /// deploys ITSELF via its own signed --setup (one UAC) on first widget open. That compiled, signed
-    /// path is far less likely to trip Defender's persistence ML than a setup writing an exe + task
-    /// (the exact reason Install.ps1 stopped doing script-driven persistence). So our job is: open
-    /// Game Bar, then wait for the helper to come up.
+    /// We deliberately do NOT create the scheduled task or copy the helper exe from here. The helper
+    /// does that itself, in three steps (rebuilt 2026-07-29 after KB5101684 broke elevating an exe
+    /// under WindowsApps): the unelevated MSIX helper deploys the payload to LocalCache, then elevates
+    /// only the DEPLOYED copy with --setup-task-only to register the scheduled task (that is the one
+    /// UAC), and afterwards starts the task without any further prompt. An earlier comment here
+    /// described a single "--setup" argument doing all of it - that argument no longer exists.
+    /// Keeping the persistence in that compiled, signed path is far less likely to trip Defender's
+    /// persistence ML than a setup writing an exe + task, which is the same reason Install.ps1 stopped
+    /// doing script-driven persistence.
+    ///
+    /// We also do NOT touch the scheduled task itself: it carries no version (it hangs off the package
+    /// family), and updates staying UAC-free depends on it surviving.
     /// </summary>
     public static class HelperControl
     {
         private const string TaskName = @"ClawTweaks\ClawTweaksHelper";
         private const string HelperProcess = "XboxGamingBarHelper";
+
+        /// <summary>Package family the handover files sit under (LocalCache\Local).</summary>
+        private const string PackageFamily = "MSIClaw.ClawTweaks_7eszav2039cvc";
+
+        /// <summary>
+        /// Stops every running helper BEFORE a package install, the polite way: ask via the shared
+        /// handover protocol, fall back to a kill only for what does not answer.
+        ///
+        /// Why before and not after: a helper that survives the package swap owns MSI WMI/EC, the
+        /// HidHide/ViGEm mounts and the single-instance mutex while the new build comes up.
+        /// Add-AppxPackage's -ForceApplicationShutdown does not reach it - the deployed helper is a
+        /// plain exe outside the package, not an app-lifecycle process. Center used to handle this
+        /// after installing, with its own five-second grace period and its own kill loop; that policy
+        /// is gone in favour of the one protocol the helper and Install.ps1 already use.
+        ///
+        /// Returns (handedOver, killed) so the caller can report which route was taken.
+        /// </summary>
+        public static (int handedOver, int killed) StopHelpers(string reason, Action<string> log = null)
+        {
+            string folder = Shared.IPC.HelperHandover.ResolveFolder(PackageFamily);
+            int handedOver = 0, killed = 0;
+
+            foreach (var p in Process.GetProcessesByName(HelperProcess))
+            {
+                try
+                {
+                    if (Shared.IPC.HelperHandover.TryOrderlyShutdown(folder, p, reason, log))
+                    {
+                        handedOver++;
+                        continue;
+                    }
+
+                    log?.Invoke($"Helper PID={p.Id} did not hand over - stopping it directly.");
+                    p.Kill();
+                    if (p.WaitForExit(5000)) killed++;
+                    else log?.Invoke($"Helper PID={p.Id} did not exit within 5s.");
+                }
+                catch (Exception ex)
+                {
+                    // Already gone, or a higher-integrity instance we cannot touch - best effort.
+                    log?.Invoke($"Helper PID={p.Id}: {ex.Message}");
+                }
+                finally { try { p.Dispose(); } catch { } }
+            }
+
+            if (handedOver > 0 || killed > 0)
+            {
+                // Let the kernel tear down the freed process's driver handles and MMIO maps before the
+                // replacement opens them.
+                try { System.Threading.Thread.Sleep(1000); } catch { }
+                log?.Invoke($"Helpers stopped: {handedOver} handed over, {killed} terminated.");
+            }
+
+            return (handedOver, killed);
+        }
 
         public static int HelperCount() => Process.GetProcessesByName(HelperProcess).Length;
         public static bool HelperRunning() => HelperCount() > 0;
@@ -31,17 +94,17 @@ namespace ClawTweaksSetup.Core
         /// (re)install and only treat a PID outside the snapshot as the real signal.</summary>
         public static int[] GetHelperPids() => Process.GetProcessesByName(HelperProcess).Select(p => p.Id).ToArray();
 
-        /// <summary>Best-effort: true while a UAC elevation prompt is up on the secure desktop (e.g.
-        /// the helper's own first-run --setup elevation). Lets a caller tell the user to go confirm it.</summary>
+        /// <summary>Best-effort: true while a UAC elevation prompt is up (e.g. the helper elevating its
+        /// deployed copy to register the scheduled task). Lets a caller tell the user to confirm it.</summary>
         public static bool IsUacPromptShowing() => Process.GetProcessesByName("consent").Length > 0;
 
         /// <summary>
         /// True if the given process is actually running elevated (High/System integrity), checked
         /// via its token's TokenElevation — NOT just "a process with this name exists". A new
-        /// XboxGamingBarHelper PID can appear before the widget's own elevation request is even shown,
-        /// let alone confirmed (e.g. an initial unelevated instance that then requests --setup
-        /// elevation itself), so "PID exists" alone is not proof the UAC was confirmed. This is the
-        /// actual, verifiable signal instead of guessing from timing.
+        /// XboxGamingBarHelper PID can appear before the elevation request is even shown, let alone
+        /// confirmed - the unelevated MSIX helper deploys the payload first and only then elevates the
+        /// deployed copy to register the task - so "PID exists" alone is not proof the UAC was
+        /// confirmed. This is the actual, verifiable signal instead of guessing from timing.
         /// </summary>
         public static bool IsProcessElevated(int pid)
         {
