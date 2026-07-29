@@ -28,7 +28,14 @@ namespace ClawTweaksSetup.Core
     {
         public static ToolStatus HidHide()
         {
-            // 1) HidHideCLI on disk (definitive)
+            // 1) The driver's own control device — the same thing the helper opens, so Center and the
+            //    helper now answer the same question instead of two loosely related ones. Needs no
+            //    elevation (measured: opens outright unelevated; see ProbeDevice for why a denial would
+            //    also count as present).
+            if (ProbeDevice(@"\\.\HidHide") != DeviceProbe.Absent)
+                return Ok("HidHide", "driver control device present");
+
+            // 2) HidHideCLI on disk
             foreach (var cli in new[]
             {
                 @"C:\Program Files\Nefarius Software Solutions\HidHide\x64\HidHideCLI.exe",
@@ -40,7 +47,7 @@ namespace ClawTweaksSetup.Core
                     return Ok("HidHide", cli);
             }
 
-            // 2) Kernel-driver service registered AND its binary actually on disk.
+            // 3) Kernel-driver service registered AND its binary actually on disk.
             //     The service key alone is NOT proof: a failed/rolled-back install, an AV removal, or a
             //     third-party tool that bundles HidHide and then uninstalls it all leave the key behind
             //     while HidHide.sys is gone. Counting that as "installed" is what let a Claw 8 EX run for
@@ -144,23 +151,67 @@ namespace ClawTweaksSetup.Core
         /// </summary>
         public static ToolStatus PawnIO()
         {
-            IntPtr handle = CreateFile(@"\\.\PawnIO", GENERIC_READ, FILE_SHARE_READ,
-                IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
-            bool ok = handle != IntPtr.Zero && handle.ToInt64() != -1;
-            if (ok) CloseHandle(handle);
-            return ok ? Ok("PawnIO", "device opened") : Missing("PawnIO");
+            switch (ProbeDevice(@"\\.\PawnIO"))
+            {
+                case DeviceProbe.Opened: return Ok("PawnIO", "device opened");
+                case DeviceProbe.PresentNoAccess: return Ok("PawnIO", "device present (access denied — unelevated)");
+                default: return Missing("PawnIO");
+            }
         }
 
-        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        /// <summary>Outcome of opening a driver's control device.</summary>
+        private enum DeviceProbe
+        {
+            /// <summary>Handle obtained — the driver is there and we may talk to it.</summary>
+            Opened,
+            /// <summary>ERROR_ACCESS_DENIED. The device EXISTS; we merely lack rights to open it.</summary>
+            PresentNoAccess,
+            /// <summary>ERROR_FILE_NOT_FOUND — no such device object, i.e. the driver is not loaded.</summary>
+            Absent
+        }
+
+        /// <summary>
+        /// Asks whether a kernel driver's control device exists, WITHOUT needing to be elevated.
+        ///
+        /// The distinction that makes this work: opening a device you have no rights to fails with
+        /// ERROR_ACCESS_DENIED, while opening one that does not exist fails with ERROR_FILE_NOT_FOUND.
+        /// Access-denied is therefore positive proof of presence, not a failure to detect.
+        ///
+        /// This used to be missed, and it cost a UAC prompt: PawnIO's device denies an unelevated
+        /// open, the old check treated "no handle" as "not installed", and Center had to elevate the
+        /// whole install flow just to find out whether a driver was already there. Center is meant to
+        /// run unelevated and prompt only for genuinely privileged ACTIONS (see ElevationGate) — asking
+        /// a yes/no question about the system is not one of them.
+        ///
+        /// Measured unelevated on an MSI Claw with both drivers installed and working:
+        ///   \\.\PawnIO  -> rc 5 (denied, present)   \\.\HidHide -> rc 0 (opens)   bogus name -> rc 2
+        /// </summary>
+        private static DeviceProbe ProbeDevice(string devicePath)
+        {
+            IntPtr handle = CreateFile(devicePath, 0, FILE_SHARE_READ | FILE_SHARE_WRITE,
+                IntPtr.Zero, OPEN_EXISTING, 0, IntPtr.Zero);
+            if (handle != IntPtr.Zero && handle.ToInt64() != -1)
+            {
+                CloseHandle(handle);
+                return DeviceProbe.Opened;
+            }
+
+            return Marshal.GetLastWin32Error() == ERROR_ACCESS_DENIED
+                ? DeviceProbe.PresentNoAccess
+                : DeviceProbe.Absent;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
         private static extern IntPtr CreateFile(string lpFileName, uint dwDesiredAccess, uint dwShareMode,
             IntPtr lpSecurityAttributes, uint dwCreationDisposition, uint dwFlagsAndAttributes, IntPtr hTemplateFile);
 
         [DllImport("kernel32.dll", SetLastError = true)]
         private static extern bool CloseHandle(IntPtr hObject);
 
-        private const uint GENERIC_READ = 0x80000000;
         private const uint FILE_SHARE_READ = 0x1;
+        private const uint FILE_SHARE_WRITE = 0x2;
         private const uint OPEN_EXISTING = 3;
+        private const int ERROR_ACCESS_DENIED = 5;
 
         #region helpers
         private static ToolStatus Ok(string name, string detail) =>

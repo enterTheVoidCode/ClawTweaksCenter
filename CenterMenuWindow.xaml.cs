@@ -1065,15 +1065,15 @@ namespace ClawTweaksSetup
         {
             if (_busy) return;
 
-            // Installing/verifying the required drivers needs admin — PawnIO in particular can ONLY be
-            // detected elevated (ToolDetect.PawnIO() opens \\.\PawnIO, which an unelevated process gets
-            // Access Denied on even when the driver is installed and working). Center runs unelevated by
-            // default, and this quick "pick a build, install it" flow used to skip elevation entirely
-            // (each tool installer prompting for its own UAC) — which meant PawnIO looked "missing" here
-            // even when it wasn't, the winget reinstall attempt ran unelevated too (so it could never
-            // actually fix anything and no UAC ever appeared), and the post-install re-check failed the
-            // same way again. Gate the whole flow up front instead: one UAC prompt, then every check
-            // below sees the real state.
+            // INSTALLING the drivers, trusting the certificate and deploying the package need admin, so
+            // this flow gates once up front rather than letting each tool installer raise its own UAC.
+            //
+            // NOTE (2026-07-29): DETECTION is no longer a reason to elevate. This comment used to say
+            // PawnIO "can ONLY be detected elevated" because ToolDetect.PawnIO() got Access Denied on
+            // \\.\PawnIO unelevated — but access-denied means the device EXISTS; only ERROR_FILE_NOT_FOUND
+            // means absent. ToolDetect now distinguishes the two and reports the truth at any privilege
+            // level, so read-only status screens (ToolsPhase) never need a prompt. The gate here remains
+            // only because this method really does install things.
             if (!ElevationGate.IsAdmin())
             {
                 string resumeFile = null;
@@ -1261,14 +1261,13 @@ namespace ClawTweaksSetup
                 // Add-AppxPackage → Game Bar → wait for helper); the release-folder path still gets the
                 // full guided wizard via MainWindow, unchanged.
                 //
-                // UPDATE (2026-07-25): the "DELIBERATE EXCEPTION" this comment used to document (no
-                // up-front ElevationGate, each tool prompting its own UAC) was reverted — running
-                // unelevated broke ToolDetect.PawnIO() specifically: it can only open \\.\PawnIO
-                // elevated, so it reported PawnIO as missing even when it was installed and working,
-                // which then drove a pointless unelevated winget reinstall attempt (no UAC ever shown)
-                // that could never fix anything. The elevation gate now sits at the top of
-                // InstallSelectedAsync, before this method is called — by the time we get here we are
-                // already elevated, so every ToolDetect check below sees the real state.
+                // The elevation gate sits at the top of InstallSelectedAsync, before this method is
+                // called, so the installs below run elevated without a prompt per tool.
+                //
+                // History worth keeping: a 2026-07-25 change blamed unelevated running for
+                // ToolDetect.PawnIO() reporting PawnIO as missing when it was installed and working.
+                // The detection was at fault, not the privilege level — see the note on the gate in
+                // InstallSelectedAsync. Do not reintroduce elevation for the sake of a status check.
                 progressBar.IsIndeterminate = true;
                 bool ok = true;
 
