@@ -49,7 +49,13 @@ namespace ClawTweaksSetup
         private SetupVersionCheck.Result _setupVersionCheck;
         private WindowsChannelDetect.Result _windowsChannel;
         private int _selectedIndex = -1;
-        private int _homeSelectedIndex = 0;     // controller cursor over the 3 Home tiles (0=Browse,1=Onboarding,2=Maintenance)
+        // Controller cursor over the Home tiles (0=Browse, 1=Onboarding, 2=Maintenance). -1 is the
+        // Center self-update card ABOVE that row, and only exists while an update is actually offered
+        // (see CenterUpdateOffered) — Up/Down move between the two, Left/Right within the tile row.
+        private int _homeSelectedIndex = 0;
+        private bool _centerUpdateBusy;
+        private int _centerUpdatePercent = -1;
+        private string _centerUpdateStatus;
         private int _onbSelectedIndex = 0;      // controller cursor over the onboarding step cards
         private FrameworkElement _onbSelectedCard; // for BringIntoView after a selection move
         private bool _busy;
@@ -327,20 +333,32 @@ namespace ClawTweaksSetup
             RefreshActionBar();
         }
 
-        /// <summary>A on the Home screen: opens whichever of the 3 tiles the controller cursor is on.</summary>
+        /// <summary>A on the Home screen: opens whichever of the 3 tiles the controller cursor is on,
+        /// or starts the Center self-update when the cursor is on the update card above them.</summary>
         private void ActivateHomeTile()
         {
             switch (_homeSelectedIndex)
             {
+                case -1: _ = StartCenterSelfUpdateAsync(); break;
                 case 0: OpenBrowse(); break;
                 case 1: OpenOnboarding(); break;
                 case 2: OpenMaintenance(); break;
             }
         }
 
+        /// <summary>True when the manifest advertises a newer Center AND everything needed to fetch it
+        /// safely is present (URL on a GitHub host + SHA-256). See SetupVersionCheck.IsUpdateOffered.</summary>
+        private bool CenterUpdateOffered => _setupVersionCheck?.IsUpdateOffered == true;
+
         private void RenderHome()
         {
             ContentHost.Children.Clear();
+
+            // Center's OWN update, above everything else — it's the one thing on this screen that
+            // changes the app the user is looking at. Distinct from the "Update available on GitHub"
+            // line further down, which is about the installed ClawTweaks app.
+            if (CenterUpdateOffered)
+                ContentHost.Children.Add(BuildCenterUpdateCard());
 
             if (_setupVersionCheck?.Outdated == true)
                 ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Warning, "This Setup build is outdated",
@@ -406,7 +424,10 @@ namespace ClawTweaksSetup
             mainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             mainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
-            if (_homeSelectedIndex < 0) _homeSelectedIndex = 0;
+            // -1 is only a valid cursor position while the update card is actually on screen; if the
+            // offer disappears (manifest re-fetch, update installed) the cursor falls back to the row.
+            int minIndex = CenterUpdateOffered ? -1 : 0;
+            if (_homeSelectedIndex < minIndex) _homeSelectedIndex = minIndex;
             if (_homeSelectedIndex > 2) _homeSelectedIndex = 2;
 
             var releaseTile = BuildHomeTile(
@@ -643,6 +664,134 @@ namespace ClawTweaksSetup
             if (clickable) border.MouseLeftButtonUp += (_, __) => onClick?.Invoke();
             return border;
         }
+
+        /// <summary>
+        /// The Center self-update offer on Home. Deliberately a card the user has to activate — the
+        /// download never starts on its own. See the antivirus note on <see cref="CenterUpdater"/>:
+        /// an unsigned app silently fetching and running an exe is the exact behaviour Defender's ML
+        /// scores as a dropper, and it is also something the user cannot consent to after the fact.
+        /// </summary>
+        private Border BuildCenterUpdateCard()
+        {
+            var check = _setupVersionCheck;
+            bool selected = _homeSelectedIndex == -1;
+
+            var stack = new StackPanel();
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"ClawTweaks Center update available: {check.LatestVersion}",
+                FontSize = 19, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Text,
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = $"You're running {check.RunningVersion}. The update is downloaded, its checksum "
+                     + "verified, and then started — you'll confirm the install and see one UAC prompt.",
+                FontSize = 14, Foreground = UiHelpers.Subtle,
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
+            });
+            if (!string.IsNullOrWhiteSpace(check.LatestNotes))
+                stack.Children.Add(new TextBlock
+                {
+                    Text = check.LatestNotes, FontSize = 14, Foreground = UiHelpers.Subtle,
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
+                });
+
+            if (!string.IsNullOrEmpty(_centerUpdateStatus))
+                stack.Children.Add(new TextBlock
+                {
+                    Text = _centerUpdatePercent >= 0 && _centerUpdateBusy
+                        ? $"{_centerUpdateStatus} {_centerUpdatePercent}%"
+                        : _centerUpdateStatus,
+                    FontSize = 14, FontWeight = FontWeights.SemiBold,
+                    Foreground = _centerUpdateBusy ? UiHelpers.Text : UiHelpers.Warn,
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0),
+                });
+
+            var button = new Button
+            {
+                Content = _centerUpdateBusy ? "Working…" : "Update Center",
+                Style = (Style)Application.Current.Resources["SetupButton"],
+                IsEnabled = !_centerUpdateBusy && !_busy,
+                Opacity = (!_centerUpdateBusy && !_busy) ? 1.0 : 0.4,
+                MinWidth = 150,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 12, 0, 0),
+            };
+            button.Click += (_, __) => _ = StartCenterSelfUpdateAsync();
+            stack.Children.Add(button);
+
+            return new Border
+            {
+                Background = UiHelpers.Card,
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(20, 18, 20, 18),
+                Margin = new Thickness(0, 0, 0, 14),
+                BorderBrush = selected ? UiHelpers.Accent : UiHelpers.Ok,
+                BorderThickness = new Thickness(selected ? 3 : 1),
+                Child = stack,
+            };
+        }
+
+        /// <summary>
+        /// Download → verify → hand over. On success this process shuts down: the new exe copies itself
+        /// over ours in Program Files, which a still-running process would block with a sharing
+        /// violation. Any failure leaves Center running and usable with the message on the card, so the
+        /// manual "download it from GitHub yourself" route is always still there.
+        /// </summary>
+        private async Task StartCenterSelfUpdateAsync()
+        {
+            if (_centerUpdateBusy || _busy || !CenterUpdateOffered) return;
+
+            _centerUpdateBusy = true;
+            _centerUpdatePercent = 0;
+            _centerUpdateStatus = "Starting…";
+            RenderHome();
+            RefreshActionBar();
+
+            void Status(string msg) => Dispatcher.Invoke(() =>
+            {
+                _centerUpdateStatus = msg;
+                if (_view == View.Home) RenderHome();
+            });
+
+            // Throttled to whole-percent changes: the download callback fires per 80 KB chunk, and
+            // re-running the whole RenderHome layout at that rate is what made an earlier progress
+            // display stutter.
+            int lastPercent = -1;
+            var progress = new Progress<int>(p =>
+            {
+                if (p == lastPercent) return;
+                lastPercent = p;
+                _centerUpdatePercent = p;
+                if (_view == View.Home) RenderHome();
+            });
+
+            var result = await CenterUpdater.DownloadAsync(_setupVersionCheck, Status, progress);
+
+            if (!result.Success)
+            {
+                _centerUpdateBusy = false;
+                _centerUpdatePercent = -1;
+                _centerUpdateStatus = result.Error;
+                RenderHome();
+                RefreshActionBar();
+                return;
+            }
+
+            _centerUpdateStatus = "Starting the installer…";
+            RenderHome();
+
+            if (CenterUpdater.LaunchInstaller(result.ExePath, Status))
+            {
+                Application.Current.Shutdown();
+                return;
+            }
+
+            _centerUpdateBusy = false;
+            _centerUpdatePercent = -1;
+            RenderHome();
+            RefreshActionBar();
+        }
         #endregion
 
         #region Build list rendering + grid navigation
@@ -836,12 +985,20 @@ namespace ClawTweaksSetup
         /// below are non-actionable, so the cursor stays on the top row.</summary>
         private void MoveHomeSelection(PadButton dir)
         {
-            int next = _homeSelectedIndex;
-            if (dir == PadButton.Left) next--;
-            else if (dir == PadButton.Right) next++;
-            else return; // Up/Down: nothing to move to (placeholders are non-actionable)
+            if (_centerUpdateBusy) return; // a download is running — don't let the cursor wander off it
 
-            if (next < 0) next = 0;
+            int next = _homeSelectedIndex;
+            // Up/Down only do something when the self-update card is on screen: it is the one row
+            // above the tiles. Without an update offered they stay inert (the "coming soon"
+            // placeholders below are non-actionable, so there is still nothing under the tile row).
+            if (dir == PadButton.Up) next = CenterUpdateOffered ? -1 : next;
+            else if (dir == PadButton.Down) next = next < 0 ? 0 : next;
+            else if (dir == PadButton.Left) next = next < 0 ? next : next - 1;
+            else if (dir == PadButton.Right) next = next < 0 ? next : next + 1;
+            else return;
+
+            int minIndex = CenterUpdateOffered ? -1 : 0;
+            if (next < minIndex) next = minIndex;
             if (next > 2) next = 2;
             if (next == _homeSelectedIndex) return;
 
