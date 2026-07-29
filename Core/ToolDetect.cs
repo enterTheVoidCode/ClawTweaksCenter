@@ -17,12 +17,30 @@ namespace ClawTweaksSetup.Core
     /// Detects the required prerequisite tools (HidHide, usbip-win2, RTSS) using pure registry /
     /// service-key / file checks — no PowerShell, so it is instant and safe to run repeatedly.
     ///
-    /// The detection logic mirrors the helper's own checks (Setup-Tools.ps1 Test-*Installed,
-    /// HidHideHelper.IsInstalled, RTSSHelper) so the setup and the in-app Setup tab agree. Keep them in
-    /// step: when these four surfaces disagree, the user sees a green tick for something that does not
-    /// work. The helper can go further than this class does — it opens the driver's control device — so
-    /// treat the helper's answer as the authority and this one as the cheap, no-PowerShell approximation.
-    /// ViGEm is intentionally NOT checked — VIIPER (usbip) is the sole virtual-controller backend.
+    /// ══ PARITY IS THE GOAL — Center and the helper must agree, on BOTH detection and install ══
+    ///
+    /// Four surfaces answer "is this tool installed?": this class, Setup-Tools.ps1's Test-*Installed,
+    /// HidHideHelper.IsInstalled, and RTSSHelper. When they disagree the user sees a green tick for
+    /// something that does not work, and — worse — the side that believes it is installed skips the
+    /// install, so nothing ever repairs it. That is not hypothetical: it cost a Claw 8 EX user days of
+    /// a dead Game Bar (2026-07-29), because a leftover registry key counted as an install everywhere.
+    ///
+    /// The same rule applies to INSTALLING. If one side can recover from a failed winget and the other
+    /// cannot, then which surface the user happened to click decides whether their machine can be
+    /// fixed. Center was winget-only for HidHide while the helper already had a vendor-MSI fallback —
+    /// that gap is now closed (ToolInstaller.InstallHidHide → HidHideSetup).
+    ///
+    /// So: when you touch tool detection or installation on either side, change BOTH, or write down
+    /// here why the difference is deliberate. Two deliberate ones exist today:
+    ///   • The helper opens the driver control device and can go further than this class does — treat
+    ///     the helper's answer as the authority, this one as the cheap no-PowerShell approximation.
+    ///   • Center verifies Authenticode + publisher on anything it downloads (AuthenticodeVerifier);
+    ///     the helper's PowerShell fallback does not yet. Center's side is the stricter one, so that is
+    ///     the direction to converge in — do not relax Center to match.
+    ///
+    /// ViGEm is intentionally NOT checked here: it is OBSOLETE. VIIPER (usbip) is the virtual-controller
+    /// backend. The helper still installs and gates on ViGEmBus for the legacy backend, which is a known
+    /// remaining divergence and should go away with the legacy path, not be copied into Center.
     /// </summary>
     public static class ToolDetect
     {

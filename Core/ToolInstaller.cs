@@ -15,8 +15,21 @@ namespace ClawTweaksSetup.Core
     /// </summary>
     public static class ToolInstaller
     {
-        public static bool InstallHidHide(Action<string> log = null) =>
-            InstallViaWinget("Nefarius.HidHide", "HidHide", () => ToolDetect.HidHide().Installed, log);
+        /// <summary>
+        /// winget first, then the vendor MSI. HidHide is one of only two tools that carry a fallback
+        /// (PawnIO is the other) because for it a winget failure is not survivable: without HidHide the
+        /// physical pad can never be hidden, and the symptom is silent — see <see cref="HidHideSetup"/>.
+        /// The helper has had this fallback since 0.1.8.31; Center was still winget-only, which is
+        /// exactly the parity gap the note on <see cref="ToolDetect"/> is about.
+        /// </summary>
+        public static bool InstallHidHide(Action<string> log = null)
+        {
+            if (InstallViaWinget("Nefarius.HidHide", "HidHide", () => ToolDetect.HidHide().Installed, log))
+                return true;
+
+            log?.Invoke("winget could not install HidHide — falling back to the vendor MSI…");
+            return HidHideSetup.Run(log);
+        }
 
         public static bool InstallRtss(Action<string> log = null) =>
             InstallViaWinget("Guru3D.RTSS", "RTSS", () => ToolDetect.Rtss().Installed, log);
