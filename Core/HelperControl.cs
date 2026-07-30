@@ -7,9 +7,15 @@ using System.Threading.Tasks;
 namespace ClawTweaksSetup.Core
 {
     /// <summary>
-    /// Helper orchestration around an install. Since the setup is elevated it can query/run the
-    /// helper's scheduled task, stop a running helper, and kick the Game Bar so the widget
-    /// (re)deploys + starts the helper.
+    /// Helper orchestration around an install: query/run the helper's scheduled task, stop a running
+    /// helper, and kick the Game Bar so the widget (re)deploys + starts the helper.
+    ///
+    /// Everything here runs UNELEVATED — Center no longer elevates itself at all. That is not a
+    /// limitation for any of it: schtasks /Query and /Run work per-user, stopping a helper goes through
+    /// the shared handover (the helper exits itself, so no cross-integrity Kill is needed), and reading
+    /// another process's elevation state only needs PROCESS_QUERY_LIMITED_INFORMATION. Anything added
+    /// here must hold to that — an API that quietly needs PROCESS_ALL_ACCESS fails on EVERY call rather
+    /// than obviously once, which is exactly how IsProcessElevated silently broke.
     ///
     /// We deliberately do NOT create the scheduled task or copy the helper exe from here. The helper
     /// does that itself, in three steps (rebuilt 2026-07-29 after KB5101684 broke elevating an exe
@@ -105,15 +111,29 @@ namespace ClawTweaksSetup.Core
         /// confirmed - the unelevated MSIX helper deploys the payload first and only then elevates the
         /// deployed copy to register the task - so "PID exists" alone is not proof the UAC was
         /// confirmed. This is the actual, verifiable signal instead of guessing from timing.
+        ///
+        /// Opens the process with PROCESS_QUERY_LIMITED_INFORMATION, deliberately NOT via
+        /// Process.Handle. Process.Handle asks for PROCESS_ALL_ACCESS, which a Medium-integrity process
+        /// can never get on a High-integrity one: since Center stopped elevating itself, that threw
+        /// "Access denied" for EVERY helper and this method always returned false. The visible symptom
+        /// was the post-install monitor sitting on "Waiting for the ClawTweaks helper to start" until
+        /// its 60s timeout even though the helper had been up for ages. Measured unelevated against a
+        /// live elevated helper (2026-07-30): Process.Handle -> Access denied,
+        /// PROCESS_QUERY_LIMITED_INFORMATION -> elevated=True. That right exists precisely to be
+        /// grantable across integrity levels for a same-user process, and TOKEN_QUERY on the token it
+        /// yields is enough for TokenElevation.
         /// </summary>
         public static bool IsProcessElevated(int pid)
         {
+            IntPtr procHandle = IntPtr.Zero;
             IntPtr tokenHandle = IntPtr.Zero;
             IntPtr tokenInfo = IntPtr.Zero;
             try
             {
-                using var proc = Process.GetProcessById(pid);
-                if (!OpenProcessToken(proc.Handle, TOKEN_QUERY, out tokenHandle)) return false;
+                procHandle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+                if (procHandle == IntPtr.Zero) return false;
+
+                if (!OpenProcessToken(procHandle, TOKEN_QUERY, out tokenHandle)) return false;
 
                 tokenInfo = Marshal.AllocHGlobal(sizeof(int));
                 if (!GetTokenInformation(tokenHandle, TokenElevation, tokenInfo, sizeof(int), out _)) return false;
@@ -125,11 +145,16 @@ namespace ClawTweaksSetup.Core
             {
                 if (tokenInfo != IntPtr.Zero) Marshal.FreeHGlobal(tokenInfo);
                 if (tokenHandle != IntPtr.Zero) CloseHandle(tokenHandle);
+                if (procHandle != IntPtr.Zero) CloseHandle(procHandle);
             }
         }
 
         private const uint TOKEN_QUERY = 0x0008;
         private const int TokenElevation = 20; // TOKEN_INFORMATION_CLASS.TokenElevation
+        private const uint PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr OpenProcess(uint desiredAccess, bool inheritHandle, int processId);
 
         [DllImport("advapi32.dll", SetLastError = true)]
         private static extern bool OpenProcessToken(IntPtr processHandle, uint desiredAccess, out IntPtr tokenHandle);
