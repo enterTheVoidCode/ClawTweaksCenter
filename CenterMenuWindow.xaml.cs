@@ -1350,6 +1350,47 @@ namespace ClawTweaksSetup
                 "ClawTweaks needs these before it can be installed. Center doesn't install them for you — " +
                 "download each one from the vendor and run their installer, then come back and re-check.");
 
+            // HidHide and usbip install KERNEL DRIVERS, and a kernel driver does not exist until the
+            // machine restarts. Skipping this leaves the user in the worst possible state: everything
+            // reports installed, the install completes, and the virtual controller silently does
+            // nothing — which is exactly what happened on 2026-07-30. This has to be impossible to
+            // miss, so it sits at the TOP of the screen rather than as a line on one of the cards.
+            if (missing.Any(t => PrerequisiteGuide.For(t.Name)?.NeedsReboot == true))
+            {
+                var names = missing
+                    .Where(t => PrerequisiteGuide.For(t.Name)?.NeedsReboot == true)
+                    .Select(t => t.Name)
+                    .ToList();
+
+                var rebootStack = new StackPanel();
+                rebootStack.Children.Add(new TextBlock
+                {
+                    Text = "⚠  Restart the device after installing " + string.Join(" and ", names),
+                    FontSize = 20, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Warn,
+                    TextWrapping = TextWrapping.Wrap,
+                });
+                rebootStack.Children.Add(new TextBlock
+                {
+                    Text = string.Join(" and ", names) + " install kernel drivers, and Windows does not " +
+                           "load a new kernel driver until the next restart. Without the restart the " +
+                           "virtual controller cannot start — everything will look installed and simply " +
+                           "not work. Install what's below, reboot, then come back and press Ⓨ.",
+                    FontSize = 15, Foreground = UiHelpers.Text,
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0),
+                });
+
+                root.Children.Add(new Border
+                {
+                    Background = UiHelpers.Card,
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(20, 16, 20, 16),
+                    Margin = new Thickness(0, 4, 0, 16),
+                    BorderBrush = UiHelpers.Warn,
+                    BorderThickness = new Thickness(3),
+                    Child = rebootStack,
+                });
+            }
+
             foreach (var tool in missing)
             {
                 var info = PrerequisiteGuide.For(tool.Name);

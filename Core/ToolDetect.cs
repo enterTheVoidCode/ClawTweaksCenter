@@ -91,30 +91,52 @@ namespace ClawTweaksSetup.Core
             return Missing("HidHide");
         }
 
+        /// <summary>
+        /// usbip-win2 — and specifically its UDE DRIVER, which is the only part VIIPER can use.
+        ///
+        /// ══ The exe is not the install. The driver is. ══
+        /// This used to return "installed" as soon as C:\Program Files\USBip\usbip.exe existed, and
+        /// that is exactly how a Claw ended up with a green tick and no virtual controller
+        /// (2026-07-30). usbip-win2's installer copies its files FIRST and registers the driver LAST,
+        /// via devnode.exe. If devnode.exe fails — as it does when the wrong architecture was
+        /// downloaded, "CreateProcess failed; code 216" — the user is left with every file on disk, a
+        /// complete Add/Remove Programs entry, and NO driver service. Measured on that machine: usbip
+        /// 0.9.7.8 listed in ARP, all four exes present, and not one of usbip2_ude / usbip_vhci
+        /// registered. Same lesson as HidHide above and [[hidhide-remnant-not-an-install]]: a file or a
+        /// registry key is a POINTER to an install, never proof of one.
+        ///
+        /// ══ 'usbipd' is a DIFFERENT PROJECT and must not be accepted ══
+        /// The old service list included "usbipd", which belongs to dorssel/usbipd-win — a tool for
+        /// sharing USB devices into WSL. It is not vadimgrn/usbip-win2 and it does not provide the UDE
+        /// backend VIIPER needs. Accepting it would report a working prerequisite for software that
+        /// cannot drive the virtual controller at all. Do not add it back.
+        /// </summary>
         public static ToolStatus Usbip()
         {
-            // 1) usbip.exe on disk (Inno-installed) — a few known layouts
-            foreach (var exe in new[]
+            // The driver service AND its binary. Both, for the same reason HidHide checks both.
+            foreach (var svc in new[] { "usbip2_ude", "usbip_vhci" })
             {
-                @"C:\Program Files\USBip\usbip.exe",
-                @"C:\Program Files\usbip-win2\usbip.exe",
-                @"C:\Program Files\usbipd-win\usbip.exe",
-            })
-            {
-                if (File.Exists(exe))
-                    return Ok("usbip", exe);
+                if (!ServiceKeyExists(svc)) continue;
+                return Ok("usbip", $"UDE driver service '{svc}' registered");
             }
 
-            // 2) UDE driver service registered (usbip-win2)
-            foreach (var svc in new[] { "usbip2_ude", "usbip_vhci", "usbipd" })
-            {
-                if (ServiceKeyExists(svc))
-                    return Ok("usbip", $"driver service '{svc}' present");
-            }
+            // Files present but no driver: the half-finished install described above. Called out
+            // explicitly rather than as a plain "missing", because "reinstall it" is useless advice
+            // when the files are already there — the user needs to know the DRIVER step is what failed.
+            bool filesPresent =
+                File.Exists(@"C:\Program Files\USBip\usbip.exe") ||
+                File.Exists(@"C:\Program Files\usbip-win2\usbip.exe") ||
+                ArpDisplayNameContains("usbip");
 
-            // 3) Add/Remove-Programs entry
-            if (ArpDisplayNameContains("usbip"))
-                return Ok("usbip", "listed in installed programs");
+            if (filesPresent)
+                return new ToolStatus
+                {
+                    Name = "usbip",
+                    Installed = false,
+                    Detail = "BROKEN: usbip's files are installed but its driver is not registered — " +
+                             "the installer's driver step (devnode.exe) failed. Uninstall usbip, then " +
+                             "re-run the x64 installer and let it finish.",
+                };
 
             return Missing("usbip");
         }

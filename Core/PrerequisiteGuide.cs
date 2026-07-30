@@ -78,10 +78,17 @@ namespace ClawTweaksSetup.Core
             // are for another architecture — but the message talks about the Windows version, so it
             // reads like an OS problem. Hit on an MSI Claw (x64) 2026-07-30. winget gets this right on
             // its own, which is why it is offered first here.
-            WhatToGet = "Take the x64 build — the page also offers ARM64, and the wrong one installs " +
-                        "most of the way before failing with \"CreateProcess failed; code 216\". " +
-                        "It installs a driver, so Windows asks you to confirm the publisher.",
-            WingetId = "USBIPD-WIN.usbipd",
+            WhatToGet = "Take the x64 build — the page also offers other architectures, and the wrong " +
+                        "one copies every file and THEN fails at the driver step with \"CreateProcess " +
+                        "failed; code 216\", leaving usbip looking installed while the driver is " +
+                        "missing. Watch that the installer finishes without an error box, and reboot " +
+                        "afterwards.",
+            // No winget id ON PURPOSE. The obvious candidate, USBIPD-WIN.usbipd, is dorssel/usbipd-win
+            // — a different project for sharing USB devices into WSL. It is not vadimgrn/usbip-win2 and
+            // does not provide the UDE driver VIIPER needs, so suggesting it would send users to
+            // install the wrong software entirely. Recommending it here was an error, made worse by
+            // ToolDetect then accepting its 'usbipd' service as proof; both are fixed.
+            WingetId = null,
             NeedsReboot = true,
         };
 
