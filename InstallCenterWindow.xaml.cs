@@ -57,6 +57,23 @@ namespace ClawTweaksSetup
                     break;
             }
 
+            // Coming from the pre-0.1.9 machine-wide install. Mode is "Install" here — correctly, since
+            // there is nothing in the per-user location yet — but calling it a plain first-time install
+            // would be misleading to someone who has been running Center for months. Say what is
+            // actually happening, and that the old copy survives this and gets dealt with afterwards
+            // (Center can't remove it without admin, and it no longer asks; see BuildLegacyInstallCard).
+            if (mode == InstallCenterMode.Install && SelfInstaller.LegacyInstallPresent())
+            {
+                TitleText.Text = "Move ClawTweaks Center to your user folder";
+                var legacy = SelfInstaller.GetLegacyInstalledVersion();
+                StatusText.Visibility = Visibility.Visible;
+                StatusText.Text =
+                    (legacy != null ? $"Version {legacy} is installed for all users. " : "Center is installed for all users. ") +
+                    "This version installs into your own user folder instead, which is why it — and every " +
+                    "future update — needs no administrator rights. The old copy is left in place; Center " +
+                    "will offer to remove it once this is done.";
+            }
+
             Loaded += (_, __) =>
             {
                 _nav = new XInputNavigator(this);

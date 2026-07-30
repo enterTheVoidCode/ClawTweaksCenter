@@ -53,6 +53,11 @@ namespace ClawTweaksSetup
         // Center self-update card ABOVE that row, and only exists while an update is actually offered
         // (see CenterUpdateOffered) — Up/Down move between the two, Left/Right within the tile row.
         private int _homeSelectedIndex = 0;
+
+        // Migration from the pre-0.1.9 machine-wide install (see BuildLegacyInstallCard). Session-only
+        // by design — the condition is still true next launch, so the notice should come back.
+        private bool _legacyNoticeDismissed;
+        private string _legacyRemovalStatus;
         private int _onbSelectedIndex = 0;      // controller cursor over the onboarding step cards
         private FrameworkElement _onbSelectedCard; // for BringIntoView after a selection move
         private bool _busy;
@@ -357,14 +362,8 @@ namespace ClawTweaksSetup
                 ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Warning, "Windows Insider Preview detected",
                     $"You're on the \"{_windowsChannel.ChannelName}\" channel — the install routine is currently known not to work correctly on Insider builds."));
 
-            // Left over from when Center installed machine-wide. This copy is the live one; the old one
-            // is inert but still listed in Settings → Apps, which is confusing. Removing it needs admin,
-            // which Center deliberately never asks for — so say where to remove it instead of doing it.
-            if (SelfInstaller.LegacyInstallPresent())
-                ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Info, "An older Center install is still on this PC",
-                    $"A previous version is still in {SelfInstaller.LegacyInstallDir}. This one runs from your user " +
-                    "folder and doesn't need it. Remove the old one via Settings → Apps → \"ClawTweaks Center\" " +
-                    "(that entry asks for administrator rights; this app never does)."));
+            if (SelfInstaller.LegacyInstallPresent() && !_legacyNoticeDismissed)
+                ContentHost.Children.Add(BuildLegacyInstallCard());
 
             var versionStack = new StackPanel { Margin = new Thickness(0, 0, 0, 20) };
             if (!_installedVersionChecked)
@@ -713,6 +712,98 @@ namespace ClawTweaksSetup
                 Margin = new Thickness(0, 0, 0, 14),
                 BorderBrush = selected ? UiHelpers.Accent : UiHelpers.Ok,
                 BorderThickness = new Thickness(selected ? 3 : 1),
+                Child = stack,
+            };
+        }
+
+        /// <summary>
+        /// The migration card for users coming from a machine-wide install. Center up to 0.1.8.x lived
+        /// in Program Files with an HKLM entry and a machine-wide Start Menu shortcut; installing this
+        /// version does NOT replace it, because per-user and machine-wide are separate installs. Left
+        /// alone the user ends up with two "ClawTweaks Center" entries in Settings → Apps and two
+        /// identically-named Start Menu shortcuts, one of which launches a stale copy that will keep
+        /// offering to update itself.
+        ///
+        /// The button hands the job to the OLD install's own uninstaller, which elevates itself — so
+        /// the UAC prompt says "ClawTweaks Center" and is about removing it, and Center still asks for
+        /// nothing. See SelfInstaller.RemoveLegacyInstall.
+        /// </summary>
+        private Border BuildLegacyInstallCard()
+        {
+            var stack = new StackPanel();
+            stack.Children.Add(new TextBlock
+            {
+                Text = "An older ClawTweaks Center is still installed",
+                FontSize = 19, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Text,
+            });
+
+            var legacyVersion = SelfInstaller.GetLegacyInstalledVersion();
+            stack.Children.Add(new TextBlock
+            {
+                Text = (legacyVersion != null ? $"Version {legacyVersion} is " : "A previous version is ") +
+                       $"still installed for all users, in {SelfInstaller.LegacyInstallDir}. This version " +
+                       "installs into your own user folder instead, so the old one is no longer used — but " +
+                       "it stays in Settings → Apps and in the Start Menu until it's removed, where it's " +
+                       "easy to launch by mistake.",
+                FontSize = 14, Foreground = UiHelpers.Subtle,
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Removing it needs administrator rights. ClawTweaks Center never asks for those — " +
+                       "the button below starts the old version's own uninstaller, so the prompt you see " +
+                       "comes from it, about removing itself.",
+                FontSize = 14, Foreground = UiHelpers.Subtle,
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
+            });
+
+            if (!string.IsNullOrEmpty(_legacyRemovalStatus))
+                stack.Children.Add(new TextBlock
+                {
+                    Text = _legacyRemovalStatus,
+                    FontSize = 14, FontWeight = FontWeights.SemiBold, Foreground = UiHelpers.Warn,
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0),
+                });
+
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 12, 0, 0) };
+            var remove = new Button
+            {
+                Content = "Remove the old version",
+                Style = (Style)Application.Current.Resources["SetupButton"],
+                MinWidth = 210,
+            };
+            remove.Click += (_, __) =>
+            {
+                if (SelfInstaller.RemoveLegacyInstall(m => _legacyRemovalStatus = m))
+                    _legacyRemovalStatus = "The old version's uninstaller is running — confirm its prompt. " +
+                                           "This notice disappears once it's gone (press Ⓨ to refresh).";
+                RenderHome();
+            };
+            buttons.Children.Add(remove);
+
+            // Not everyone can produce an administrator password on the machine they game on, and this
+            // is not urgent enough to nag through the whole session. Dismissal is deliberately NOT
+            // persisted: the old install is still there next launch, and silently forgetting about it
+            // forever is how a user ends up puzzled by two identical Start Menu entries months later.
+            var later = new Button
+            {
+                Content = "Not now",
+                Style = (Style)Application.Current.Resources["SetupButton"],
+                MinWidth = 110,
+                Margin = new Thickness(10, 0, 0, 0),
+            };
+            later.Click += (_, __) => { _legacyNoticeDismissed = true; RenderHome(); };
+            buttons.Children.Add(later);
+            stack.Children.Add(buttons);
+
+            return new Border
+            {
+                Background = UiHelpers.Card,
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(20, 18, 20, 18),
+                Margin = new Thickness(0, 0, 0, 14),
+                BorderBrush = UiHelpers.Warn,
+                BorderThickness = new Thickness(1),
                 Child = stack,
             };
         }

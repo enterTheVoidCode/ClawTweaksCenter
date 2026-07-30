@@ -13,6 +13,15 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyTitle>ClawTweaks Center</AssemblyTitle>
     <Product>ClawTweaks</Product>
+    <!-- Publisher metadata in the Win32 version resource. Without <Company> the SDK defaults
+         CompanyName to $(AssemblyName), so the exe used to claim its publisher was
+         "CTW_Center_0.1.9.1_Setup" and carried no copyright at all. Nonsense-or-absent publisher
+         fields are a weak input to the ML heuristics that flag this binary as trojan.genericml, and
+         they are free to get right. Not a fix on their own - see the note on the exe being unsigned. -->
+    <Company>ClawTweaks</Company>
+    <Authors>ClawTweaks</Authors>
+    <Copyright>Copyright (c) ClawTweaks</Copyright>
+    <Description>ClawTweaks Center - installer and control panel for ClawTweaks on the MSI Claw.</Description>
     <Version>0.1.9.1</Version>
     <!-- Distributed filename carries the version + "Setup" suffix (e.g. CTW_Center_0.1.0.2_Setup.exe)
          so a user can tell builds apart in their Downloads folder. This is ONLY the distributed

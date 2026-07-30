@@ -83,6 +83,83 @@ namespace ClawTweaksSetup.Core
         /// <summary>Version of the old machine-wide copy, or null if there isn't one.</summary>
         public static Version GetLegacyInstalledVersion() => VersionOf(Path.Combine(LegacyInstallDir, ExeName));
 
+        /// <summary>
+        /// Removes the OLD machine-wide install by running its OWN uninstaller — which elevates itself,
+        /// so this stays true to Center never raising a prompt of its own.
+        ///
+        /// That works for every version that ever shipped, in both eras: the earliest Center declared
+        /// requireAdministrator in its manifest, so Windows elevates it the moment it starts; later ones
+        /// are asInvoker but call ElevationGate.EnsureElevatedOrRelaunch on --uninstall. Either way the
+        /// UAC prompt comes from the old exe, about removing itself, which is exactly what it says on
+        /// the dialog.
+        ///
+        /// The command is read from the registry rather than built from a path, so what runs is
+        /// literally what Windows would run from Settings → Apps — including for any old layout that
+        /// differed from what this build would guess.
+        /// </summary>
+        public static bool RemoveLegacyInstall(Action<string> log = null)
+        {
+            string command = LegacyUninstallCommand();
+            if (command == null)
+            {
+                log?.Invoke("No uninstaller found for the older version.");
+                return false;
+            }
+
+            // "C:\...\CTW_Center.exe" --uninstall  →  exe + args. Only the quoted form is produced by
+            // any version's RegisterUninstallEntry; an unquoted path is handled by taking the whole
+            // string as the exe, which is right for a path with no spaces and no worse than failing.
+            string exe = command, args = "";
+            if (command.StartsWith("\""))
+            {
+                int close = command.IndexOf('"', 1);
+                if (close > 0)
+                {
+                    exe = command.Substring(1, close - 1);
+                    args = command.Substring(close + 1).Trim();
+                }
+            }
+
+            try
+            {
+                // UseShellExecute, but deliberately NO Verb = "runas": we are not the one asking for
+                // rights. The old exe raises its own prompt. If we set runas here, the prompt would name
+                // OUR process and Center would be back to elevating things.
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exe,
+                    Arguments = args,
+                    UseShellExecute = true,
+                });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"Could not start the old uninstaller: {ex.Message}");
+                return false;
+            }
+        }
+
+        /// <summary>The old machine-wide install's UninstallString from HKLM, or a reconstructed one if
+        /// the exe is there but the registry entry isn't. Null when there is nothing to remove. Only
+        /// meaningful while <see cref="LegacyInstallPresent"/> is true — that is what guarantees the exe
+        /// this command points at actually exists.</summary>
+        public static string LegacyUninstallCommand()
+        {
+            try
+            {
+                using var key = Registry.LocalMachine.OpenSubKey(UninstallRegistryKey);
+                string value = key?.GetValue("UninstallString") as string;
+                if (!string.IsNullOrWhiteSpace(value)) return value;
+            }
+            catch { }
+
+            // Registry entry gone but the folder left behind — a half-finished removal. The exe still
+            // understands --uninstall, so it can still clean up after itself.
+            string exe = Path.Combine(LegacyInstallDir, ExeName);
+            return File.Exists(exe) ? $"\"{exe}\" --uninstall" : null;
+        }
+
         private static Version VersionOf(string exePath)
         {
             try
