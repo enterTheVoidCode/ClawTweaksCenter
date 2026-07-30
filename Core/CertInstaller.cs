@@ -172,16 +172,26 @@ namespace ClawTweaksSetup.Core
         /// Opens Explorer with the .cer preselected. The user double-clicks it themselves.
         ///
         /// This deliberately does NOT launch the .cer for them. Center used to (plain ShellExecute of
-        /// the file, which opens the certificate viewer and its "Install Certificate…" wizard) and
-        /// Windows Defender flagged Center for it on 2026-07-30 with
-        /// <c>Behavior:Win32/DefenseEvasion.A!ml</c> — "Dieses Programm ist gefährlich" — then deleted
-        /// the exe and kept flagging every later install. Which is fair: an UNSIGNED process driving a
-        /// certificate into a machine trust store is a documented attack technique (MITRE T1553.004,
-        /// Install Root Certificate), and behavioural ML cannot tell our reason from an attacker's.
+        /// the file, which opens the certificate viewer and its "Install Certificate…" wizard).
         ///
-        /// Opening a folder is not that. The user launching a .cer from Explorer is ordinary desktop
-        /// behaviour attributed to Explorer, not to us, and the trust decision visibly belongs to them.
-        /// Do not "improve" this back into launching the file.
+        /// ── What is actually known, and what is only suspected ───────────────────────────────────
+        /// KNOWN: on 2026-07-30 Defender raised <c>Behavior:Win32/DefenseEvasion.A!ml</c> (threat id
+        /// 2147738096, severity Schwerwiegend) against
+        /// <c>%LOCALAPPDATA%\Programs\ClawTweaks Center\CTW_Center.exe</c>, deleted it, and kept
+        /// flagging later installs. The event log records
+        /// <c>Erkennungstype: FastPath, Erkennungsquelle: System</c> — a BEHAVIOURAL verdict on the
+        /// running process, which is why a plain file scan of the same binary came back clean: it is a
+        /// different engine from the static one behind the trojan.genericml hits.
+        ///
+        /// SUSPECTED: that the certificate step is what triggered it. It fits — the timing matched, and
+        /// an unsigned process driving a certificate into a machine trust store is a documented
+        /// technique (MITRE T1553.004) that behavioural ML cannot distinguish from an attacker's. But
+        /// **FastPath detections do not record the triggering action**, so nothing in the log actually
+        /// says so. Do not repeat this as established fact; it was once already.
+        ///
+        /// So this is cheap insurance, not a proven fix: opening a folder costs the user one extra
+        /// double-click, and launching the .cer from Explorer is ordinary desktop behaviour attributed
+        /// to Explorer rather than to us. The real test is whether the detection recurs without it.
         /// </summary>
         public static bool ShowInExplorer(string cerPath, Action<string> log = null)
         {

@@ -1493,8 +1493,9 @@ namespace ClawTweaksSetup
             });
 
             // Opens the FOLDER; the user double-clicks the .cer themselves. Center used to launch the
-            // file, and Defender flagged Center for it as Behavior:Win32/DefenseEvasion.A!ml — see the
-            // note on CertInstaller.ShowInExplorer. Do not add an "Open the certificate" button back.
+            // file, and dropped that after a behavioural Defender detection whose timing pointed here —
+            // suspected, not proven, see the note on CertInstaller.ShowInExplorer before treating the
+            // link as established.
             var showFolder = new Button
             {
                 Content = "Show the certificate in Explorer",
