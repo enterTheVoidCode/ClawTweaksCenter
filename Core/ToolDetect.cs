@@ -134,8 +134,10 @@ namespace ClawTweaksSetup.Core
                     Name = "usbip",
                     Installed = false,
                     Detail = "BROKEN: usbip's files are installed but its driver is not registered — " +
-                             "the installer's driver step (devnode.exe) failed. Uninstall usbip, then " +
-                             "re-run the x64 installer and let it finish.",
+                             "the installer's driver step (devnode.exe) failed. The usual cause is the " +
+                             "-arm64 download, which the release page lists above the x64 one. " +
+                             "Uninstall usbip, re-run the installer whose name ends in -x64.exe, and " +
+                             "reboot.",
                 };
 
             return Missing("usbip");

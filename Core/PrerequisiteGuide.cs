@@ -71,18 +71,20 @@ namespace ClawTweaksSetup.Core
             Name = "usbip",
             Why = "Provides the virtual controller itself (the VIIPER backend).",
             PageUrl = "https://github.com/vadimgrn/usbip-win2/releases/latest",
-            // The release page carries several architectures under near-identical names, and picking
-            // the wrong one fails LATE and confusingly: the installer runs, copies its files, and only
+            // The release page offers exactly two assets and lists them ALPHABETICALLY, which puts
+            // arm64 ABOVE x64 — so the first download link on the page is the wrong one for the Claw.
+            // Picking it fails LATE and confusingly: the installer runs, copies every file, and only
             // then dies with "Unable to execute file: C:\Program Files\USBip\devnode.exe -
             // CreateProcess failed; code 216". 216 is ERROR_EXE_MACHINE_TYPE_MISMATCH — the binaries
             // are for another architecture — but the message talks about the Windows version, so it
-            // reads like an OS problem. Hit on an MSI Claw (x64) 2026-07-30. winget gets this right on
-            // its own, which is why it is offered first here.
-            WhatToGet = "Take the x64 build — the page also offers other architectures, and the wrong " +
-                        "one copies every file and THEN fails at the driver step with \"CreateProcess " +
-                        "failed; code 216\", leaving usbip looking installed while the driver is " +
-                        "missing. Watch that the installer finishes without an error box, and reboot " +
-                        "afterwards.",
+            // reads like an OS problem. Hit on an MSI Claw (x64) 2026-07-30, twice, by a user who had
+            // already been told "take the x64 build": naming the architecture is not enough, the
+            // filename has to be spelled out, because both assets differ by four characters.
+            WhatToGet = "Take the file ending in -x64.exe (e.g. USBip-0.9.7.8-x64.exe). The page lists " +
+                        "the -arm64 build FIRST — that one is wrong for the Claw: it copies every file " +
+                        "and THEN fails at the driver step with \"CreateProcess failed; code 216\", " +
+                        "leaving usbip looking installed while the driver is missing. Watch that the " +
+                        "installer finishes without an error box, and reboot afterwards.",
             // No winget id ON PURPOSE. The obvious candidate, USBIPD-WIN.usbipd, is dorssel/usbipd-win
             // — a different project for sharing USB devices into WSL. It is not vadimgrn/usbip-win2 and
             // does not provide the UDE driver VIIPER needs, so suggesting it would send users to
