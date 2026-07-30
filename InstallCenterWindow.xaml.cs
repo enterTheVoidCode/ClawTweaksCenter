@@ -26,6 +26,7 @@ namespace ClawTweaksSetup
     {
         private XInputNavigator _nav;
         private bool _installing;
+        private bool _legacyBlocking;
         private readonly InstallCenterMode _mode;
 
         /// <summary>Command-line marker that survives the elevated relaunch (see StartInstall): tells
@@ -58,28 +59,24 @@ namespace ClawTweaksSetup
             }
 
             // Coming from the pre-0.1.9 machine-wide install. Mode is "Install" here — correctly, since
-            // there is nothing in the per-user location yet — but calling it a plain first-time install
-            // would be misleading to someone who has been running Center for months. Say what is
-            // actually happening, and that the old copy survives this and gets dealt with afterwards
-            // (Center can't remove it without admin, and it no longer asks; see BuildLegacyInstallCard).
-            if (mode == InstallCenterMode.Install && SelfInstaller.LegacyInstallPresent())
-            {
-                TitleText.Text = "Move ClawTweaks Center to your user folder";
-                var legacy = SelfInstaller.GetLegacyInstalledVersion();
-                StatusText.Visibility = Visibility.Visible;
-                StatusText.Text =
-                    (legacy != null ? $"Version {legacy} is installed for all users. " : "Center is installed for all users. ") +
-                    "This version installs into your own user folder instead, which is why it — and every " +
-                    "future update — needs no administrator rights. The old copy is left in place; Center " +
-                    "will offer to remove it once this is done.";
-            }
+            // there is nothing in the per-user location yet. The old copy and the new one are two
+            // SEPARATE installs (different folder, different registry hive) — installing on top does
+            // not touch the old one, so the user is left with two "ClawTweaks Center" entries in
+            // Settings → Apps and two Start Menu shortcuts, one of which is stale and will keep offering
+            // to update itself. Center cannot remove the old one itself (that needs admin, and this
+            // version never asks) — so instead of installing anyway and hoping the user notices
+            // BuildLegacyInstallCard's cleanup offer afterwards, this blocks Install/Update up front and
+            // sends the user to do the one thing only they can do: uninstall the old copy first.
+            if (mode == InstallCenterMode.Install)
+                ApplyLegacyGate();
 
             Loaded += (_, __) =>
             {
                 _nav = new XInputNavigator(this);
                 _nav.ButtonPressed += b => Dispatcher.Invoke(() =>
                 {
-                    if (b == PadButton.A && _mode != InstallCenterMode.AlreadyInstalled) StartInstall();
+                    if (b == PadButton.A && _mode != InstallCenterMode.AlreadyInstalled && !_legacyBlocking) StartInstall();
+                    else if (b == PadButton.Y && _legacyBlocking) RecheckLegacy();
                     else if (b == PadButton.B) Application.Current.Shutdown();
                 });
                 _nav.Start();
@@ -87,26 +84,73 @@ namespace ClawTweaksSetup
 
                 // Elevated relaunch already happened and the user already granted the UAC prompt once —
                 // proceed straight into the install instead of landing back on this same screen waiting
-                // for a second click.
-                if (autoStart && _mode != InstallCenterMode.AlreadyInstalled) StartInstall();
+                // for a second click. Never applies while blocked on the old install — that gate exists
+                // precisely to stop an install from happening automatically.
+                if (autoStart && _mode != InstallCenterMode.AlreadyInstalled && !_legacyBlocking) StartInstall();
             };
             Closed += (_, __) => _nav?.Dispose();
 
-            // Keyboard fallback for desk testing, same convention as the other windows.
+            // Keyboard fallback for desk testing, same convention as the other windows (F5 = re-check,
+            // matching CenterMenuWindow's refresh actions).
             KeyDown += (_, e) =>
             {
                 if (e.Key == System.Windows.Input.Key.Escape) { Application.Current.Shutdown(); e.Handled = true; }
+                else if (e.Key == System.Windows.Input.Key.F5 && _legacyBlocking) { RecheckLegacy(); e.Handled = true; }
             };
+        }
+
+        /// <summary>
+        /// Checks whether the old machine-wide install is still around and sets the title/status/action
+        /// bar accordingly. Called at startup and again from <see cref="RecheckLegacy"/> once the user
+        /// says they removed it — re-reads the actual state rather than trusting the claim, since the
+        /// whole point is that Center cannot remove the old install itself and has no other way to know.
+        /// </summary>
+        private void ApplyLegacyGate()
+        {
+            _legacyBlocking = SelfInstaller.LegacyInstallPresent();
+            if (!_legacyBlocking)
+            {
+                // Either there never was an old install, or the re-check just confirmed it's gone —
+                // fall back to the plain first-time-install screen (XAML's defaults).
+                TitleIcon.Text = "";
+                TitleText.Text = "Install ClawTweaks Center";
+                StatusText.Foreground = UiHelpers.Accent;
+                StatusText.Visibility = Visibility.Collapsed;
+                return;
+            }
+
+            TitleIcon.Text = ((char)0xE7BA).ToString(); // Segoe Fluent "Warning"
+            TitleText.Text = "Transition to new Center App - Uninstall the old version";
+            StatusText.Foreground = UiHelpers.Warn;
+            StatusText.Visibility = Visibility.Visible;
+            StatusText.Text =
+                "The new ClawTweaks Center needs no administrator rights and installs to a different location.\n\n" +
+                "Open Windows Settings, go to Apps, find \"ClawTweaks Center\" and uninstall it, then press Re-check.";
+        }
+
+        /// <summary>Re-reads whether the old install is still there. The user has to actually remove it
+        /// in Windows Settings — this only updates what the screen shows, it does not remove anything
+        /// itself (Center never elevates; see SelfInstaller and BuildLegacyInstallCard for why).</summary>
+        private void RecheckLegacy()
+        {
+            ApplyLegacyGate();
+            RenderActionBar();
         }
 
         private void RenderActionBar()
         {
             ActionBar.Children.Clear();
 
+            if (_legacyBlocking)
+            {
+                // No Install/Update chip at all while the old install is still there — Exit and
+                // Re-check are the only options, matching what the status text tells the user.
+                ActionBar.Children.Add(ActionBarBuilder.BuildChip(PadButton.Y, "Re-check", true, RecheckLegacy));
+            }
             // AlreadyInstalled deliberately offers NO shortcut to launch the app from here — the
             // point is to teach the user that Center is a real installed Windows app now, opened via
             // the Start Menu or the Game Bar widget, not by re-running a downloaded Setup file.
-            if (_mode != InstallCenterMode.AlreadyInstalled)
+            else if (_mode != InstallCenterMode.AlreadyInstalled)
             {
                 string label = _mode == InstallCenterMode.Update ? "Update" : "Install";
                 ActionBar.Children.Add(ActionBarBuilder.BuildChip(PadButton.A, label, !_installing, StartInstall));
@@ -119,7 +163,10 @@ namespace ClawTweaksSetup
 
         private void StartInstall()
         {
-            if (_installing) return;
+            // Defense in depth — RenderActionBar already omits this chip and the button handlers
+            // already check _legacyBlocking, so this only matters if something else calls StartInstall
+            // directly. Silently doing nothing is correct here: the status text already says why.
+            if (_installing || _legacyBlocking) return;
             _installing = true;
             RenderActionBar();
 
