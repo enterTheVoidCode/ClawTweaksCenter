@@ -7,14 +7,21 @@ using System.Threading.Tasks;
 namespace ClawTweaksSetup.Core
 {
     /// <summary>
-    /// Reads the curated Center manifest and answers two separate questions about the running
-    /// ClawTweaksSetup.exe's own version (ClawTweaksSetup.csproj &lt;Version&gt;, a separate number from
-    /// the main ClawTweaks app version):
+    /// Reads the curated Center manifest and answers three questions. The first two are about the
+    /// running ClawTweaksSetup.exe's own version (ClawTweaksSetup.csproj &lt;Version&gt;, a separate
+    /// number from the main ClawTweaks app version); the third is about OTHER software entirely.
     ///
     ///   1. "Is this build too old to be trusted?" — <c>minimumSetupVersion</c>, a FLOOR. Only bumped
     ///      when an older Center is known broken, so it normally flags nobody. Produces a warning.
     ///   2. "Is there a newer build?" — <c>latestSetupVersion</c> (+ an optional page to send the user
     ///      to). Produces a NOTIFICATION, and nothing more.
+    ///   3. "Which ClawTweaks builds may still be installed?" — <c>minimumClawTweaksVersion</c>, the
+    ///      floor for the APP builds the picker offers. Do not confuse it with (1): they are different
+    ///      version numbers on different software. It exists because a build's install ROUTINE can go
+    ///      obsolete while its binaries are fine — someone installing a pre-0.1.8.51 release today
+    ///      lands on the retired machine-wide layout and needs migrating all over again. Curating it
+    ///      in the manifest means retiring a build takes effect everywhere at the next Center launch,
+    ///      without shipping a new Center.
     ///
     /// ── Center does not update itself ────────────────────────────────────────────────────────────
     /// There used to be a CenterUpdater that downloaded the advertised exe, checked its SHA-256 and
@@ -48,6 +55,17 @@ namespace ClawTweaksSetup.Core
 
             // --- update notice ---
             public Version LatestVersion;
+
+            // --- floor for the ClawTweaks APP builds Center offers, NOT for Center itself ---
+
+            /// <summary>The oldest ClawTweaks build Center may still install, or null when the manifest
+            /// doesn't set one. See <see cref="AppVersionMessage"/> for why this exists at all.</summary>
+            public Version MinimumAppVersion;
+
+            /// <summary>Shown on the blocked build's tile and on its confirm screen. Curated in the
+            /// manifest so the reason can be specific to whatever made those builds unwanted, rather
+            /// than a generic "too old" baked into a Center release years earlier.</summary>
+            public string AppVersionMessage;
 
             /// <summary>Where to send the user to get it. Always non-null once a newer version is
             /// advertised — it falls back to the repo's releases page, so the notice can never end up
@@ -92,6 +110,17 @@ namespace ClawTweaksSetup.Core
                 // still parses fine and simply offers no update.
                 if (Version.TryParse(GetString(root, "latestSetupVersion") ?? "", out var latest))
                     result.LatestVersion = latest;
+
+                // The app floor is optional and INDEPENDENT of everything above: an unparseable or
+                // absent value simply leaves MinimumAppVersion null, which the picker reads as "no
+                // floor". That fail-open is the whole safety story for this feature — a typo in the
+                // manifest must never be able to make every build in the list uninstallable.
+                if (Version.TryParse(GetString(root, "minimumClawTweaksVersion") ?? "", out var minApp))
+                {
+                    result.MinimumAppVersion = minApp;
+                    result.AppVersionMessage = GetString(root, "clawTweaksVersionMessage")
+                        ?? $"No longer supported — install {minApp} or newer";
+                }
 
                 // Prefer an explicit page, fall back to the direct asset URL older manifests carry, and
                 // finally to the releases page — which always exists, so a manifest that advertises a

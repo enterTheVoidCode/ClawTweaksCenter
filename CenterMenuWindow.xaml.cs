@@ -83,7 +83,7 @@ namespace ClawTweaksSetup
         private FrameworkElement _onbSelectedCard; // for BringIntoView after a selection move
         private bool _busy;
         private bool _confirming;
-        private bool _blockedForDevice;
+        private bool _buildBlocked;     // confirm screen is showing "can't install this" — no A action
         private bool _installFinished;
         private BuildSource _pendingBuild;
         private XInputNavigator _nav;
@@ -489,6 +489,9 @@ namespace ClawTweaksSetup
             foreach (var b in (_releases ?? Enumerable.Empty<BuildSource>()).Concat(_testBuilds ?? Enumerable.Empty<BuildSource>()))
             {
                 if (!TryParseVersion(b.Version, out var v) || v <= _installedVersion) continue;
+                // Never advertise a build the picker will refuse: Home's banner is a call to action,
+                // and pointing it at a greyed-out tile is a dead end the user can't do anything about.
+                if (IsBlocked(b, out _)) continue;
                 if (bestVer == null || v > bestVer) { bestVer = v; best = b; }
             }
             return best;
@@ -1038,8 +1041,8 @@ namespace ClawTweaksSetup
             string tag = VersionTag(b, out var tagBrush);
             if (tag != null) badges.Children.Add(BuildTagBadge(tag, tagBrush));
 
-            if (IsBlockedForDevice(b, out string blockReason))
-                badges.Children.Add(BuildTagBadge("⛔ " + blockReason, UiHelpers.Error));
+            bool blocked = IsBlocked(b, out string blockReason);
+            if (blocked) badges.Children.Add(BuildTagBadge("⛔ " + blockReason, UiHelpers.Error));
 
             if (badges.Children.Count > 0) stack.Children.Add(badges);
 
@@ -1047,6 +1050,13 @@ namespace ClawTweaksSetup
             // latest is the obvious pick at a glance. A selected (controller-highlighted) card always
             // shows at full strength regardless, so the highlight itself is never hard to see.
             double baseOpacity = (isNewest || selected) ? 1.0 : 0.55;
+
+            // A blocked build is greyed out rather than hidden. Hiding it looks tidier right up until
+            // the blocked one IS the current stable — then the Stable Releases section reads "Nothing
+            // found" and Center looks broken, with nothing on screen to say why. Dimmed-with-a-reason
+            // answers the question before it gets asked. The ⛔ badge above carries the reason at full
+            // contrast, so the dimming never costs legibility of the important part.
+            if (blocked && !selected) baseOpacity = Math.Min(baseOpacity, 0.4);
 
             var rowPad = new Thickness(16, 12, 16, 12);
             var border = new Border
@@ -1083,16 +1093,43 @@ namespace ClawTweaksSetup
             return "● Currently installed";
         }
 
-        /// <summary>True if this build predates the detected device's minimum supported version (e.g.
-        /// the Claw 8 EX only landed proper support in 0.1.7.63) — that device may only download and
-        /// install versions at or above that floor.</summary>
-        private bool IsBlockedForDevice(BuildSource b, out string reason)
+        /// <summary>
+        /// The single gate on "may this build be installed at all". Two independent floors feed it,
+        /// and they are checked in that order so the more specific reason wins:
+        ///
+        ///   1. The DEVICE floor — this machine's model needs at least version X (the Claw 8 EX only
+        ///      landed proper support in 0.1.7.63). Baked into DeviceDetect, since it is a fact about
+        ///      hardware and doesn't change after the fact.
+        ///   2. The MANIFEST floor — nobody may install below version Y any more, whatever their
+        ///      hardware. Curated globally (see SetupVersionCheck), because the reason is usually the
+        ///      build's INSTALL ROUTINE rather than the build itself, and that judgement is made long
+        ///      after the build shipped.
+        ///
+        /// Both fail OPEN on anything unexpected: no floor known, an unparseable version string, or a
+        /// manifest we couldn't fetch all leave the build installable. A user who is offline, or whom
+        /// a typo'd manifest would otherwise lock out of installing anything at all, is worse off than
+        /// one who slips an old build past us.
+        /// </summary>
+        private bool IsBlocked(BuildSource b, out string reason)
         {
             reason = null;
-            var min = DeviceDetect.MinimumSupportedVersion(_deviceModel);
-            if (min == null || !TryParseVersion(b.Version, out var v) || v >= min) return false;
-            reason = $"Not supported on this device — needs {min}+";
-            return true;
+            if (!TryParseVersion(b.Version, out var v)) return false;
+
+            var deviceMin = DeviceDetect.MinimumSupportedVersion(_deviceModel);
+            if (deviceMin != null && v < deviceMin)
+            {
+                reason = $"Not supported on this device — needs {deviceMin}+";
+                return true;
+            }
+
+            var appMin = _setupVersionCheck?.MinimumAppVersion;
+            if (appMin != null && v < appMin)
+            {
+                reason = _setupVersionCheck.AppVersionMessage;
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -1210,7 +1247,7 @@ namespace ClawTweaksSetup
 
             if (_confirming)
             {
-                if (_blockedForDevice) { AddAction(PadButton.B, "Back", true, CancelConfirm); AddScrollHint(); return; }
+                if (_buildBlocked) { AddAction(PadButton.B, "Back", true, CancelConfirm); AddScrollHint(); return; }
                 AddAction(PadButton.A, "Yes, install", true, ConfirmInstall);
                 AddAction(PadButton.B, "Cancel", true, CancelConfirm);
                 AddScrollHint(); // the "What's new" section can run long
@@ -1329,16 +1366,16 @@ namespace ClawTweaksSetup
 
             ContentHost.Children.Clear();
 
-            if (IsBlockedForDevice(build, out string blockReason))
+            if (IsBlocked(build, out string blockReason))
             {
-                _blockedForDevice = true;
-                ContentHost.Children.Add(UiHelpers.Title("Not supported on this device"));
+                _buildBlocked = true;
+                ContentHost.Children.Add(UiHelpers.Title("This build can't be installed"));
                 ContentHost.Children.Add(UiHelpers.Body($"{build.Version} — {build.Origin} — {build.Title}"));
                 ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Error, "Blocked", blockReason));
                 RefreshActionBar();
                 return;
             }
-            _blockedForDevice = false;
+            _buildBlocked = false;
 
             ContentHost.Children.Add(UiHelpers.Title($"Install {build.Version}?"));
             ContentHost.Children.Add(UiHelpers.Body($"{build.Origin} — {build.Title}"));
@@ -1368,7 +1405,7 @@ namespace ClawTweaksSetup
         private void CancelConfirm()
         {
             _confirming = false;
-            _blockedForDevice = false;
+            _buildBlocked = false;
             _pendingBuild = null;
             RenderBrowse();
             RefreshActionBar();
@@ -1736,6 +1773,14 @@ namespace ClawTweaksSetup
         private async Task InstallSelectedAsync(BuildSource build, bool reuseStaged = false)
         {
             if (_busy) return;
+
+            // Last line of defence for the version floors. ShowConfirm already refuses a blocked build,
+            // so reaching here means something got past it — most plausibly a timing one: the picker
+            // renders as soon as the GitHub/Drive listings land, while the manifest carrying the floor
+            // arrives on its own request, and until it does IsBlocked answers "not blocked" by design.
+            // A user quick enough to select and confirm inside that window would otherwise install
+            // exactly the build the floor exists to stop. Cheap to re-ask; the check is a comparison.
+            if (IsBlocked(build, out _)) { ShowConfirm(build); return; }
 
             // Leaving whatever hand-off screen we came from — the footer is rebuilt below and must not
             // keep offering a stale Ⓨ. The prerequisites state goes with it, so D-pad input belongs to
