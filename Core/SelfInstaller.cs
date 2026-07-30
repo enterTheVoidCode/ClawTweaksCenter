@@ -152,9 +152,9 @@ namespace ClawTweaksSetup.Core
         }
 
         /// <summary>
-        /// Removes the Start Menu shortcut and Add/Remove Programs entry immediately, then spawns a
-        /// short-lived cmd.exe that waits for this process to exit and deletes the install folder — a
-        /// running exe cannot delete its own file, so the actual folder cleanup happens after exit.
+        /// Removes the Start Menu shortcut and Add/Remove Programs entry immediately, closes any OTHER
+        /// running Center, then spawns a short-lived cmd.exe that deletes the install folder once this
+        /// process has exited — a running exe cannot delete its own file.
         ///
         /// Per-user only, and therefore admin-free. A leftover machine-wide install from before the
         /// move (<see cref="LegacyInstallPresent"/>) is NOT touched: it has its own HKLM Add/Remove
@@ -175,17 +175,34 @@ namespace ClawTweaksSetup.Core
             }
             catch { }
 
+            // Uninstalling from Settings → Apps starts a SECOND Center just to run --uninstall, so the
+            // one the user already had open is still holding CTW_Center.exe. Measured 2026-07-30: the
+            // shortcut and registry entry went, the folder deletion hit a sharing violation, and the
+            // machine was left with an orphaned exe and no way to uninstall it from Settings any more.
+            // Close the others first — the user is uninstalling, so leaving one running to keep its own
+            // files alive is not a kindness.
+            CloseOtherInstances();
+
             try
             {
-                // A running exe can't delete its own file, and this process exits right after
-                // spawning this (via Application.Current.Shutdown() in the caller) — a fixed short
-                // delay is plenty and, unlike a tasklist-polling loop, doesn't depend on `goto`
-                // jumping to a label defined inside a parenthesized block, which cmd.exe handles
-                // unreliably (that's what silently left the folder behind on the first test).
+                // Retried, not a single fixed delay. Even after closing the others there is no instant
+                // at which the handles are guaranteed released: this process is still alive right now
+                // (the caller shuts down immediately after), and Windows frees a terminated process's
+                // file handles asynchronously. Three attempts at ~2 s, ~5 s and ~10 s covers a slow
+                // shutdown without leaving a cmd.exe hanging around for a minute. rmdir on an already
+                // deleted folder is a no-op, so the later attempts cost nothing in the normal case.
+                //
+                // Deliberately NOT a `for /L` loop with a `goto`: cmd handles a label inside a
+                // parenthesized block unreliably, which is what silently left the folder behind the
+                // first time this was written. Three flat statements have no such trap.
+                string dir = InstallDir;
+                string once = $"rmdir /S /Q \"{dir}\"";
                 var psi = new ProcessStartInfo
                 {
                     FileName = "cmd.exe",
-                    Arguments = $"/C \"timeout /t 2 /nobreak >nul & rmdir /S /Q \"{InstallDir}\"\"",
+                    Arguments = $"/C \"timeout /t 2 /nobreak >nul & {once} & " +
+                                $"timeout /t 3 /nobreak >nul & {once} & " +
+                                $"timeout /t 5 /nobreak >nul & {once}\"",
                     WindowStyle = ProcessWindowStyle.Hidden,
                     CreateNoWindow = true,
                     UseShellExecute = false,
@@ -193,6 +210,42 @@ namespace ClawTweaksSetup.Core
                 Process.Start(psi);
             }
             catch { }
+        }
+
+        /// <summary>
+        /// Closes every OTHER Center process, skipping our own. Asks the window to close first and only
+        /// kills what doesn't go — a Center sitting mid-install would otherwise be torn down between two
+        /// file copies.
+        /// </summary>
+        private static void CloseOtherInstances()
+        {
+            int self = Process.GetCurrentProcess().Id;
+
+            // Matched on the exe in OUR install folder, not on process name: the distributed file is
+            // called CTW_Center_<version>_Setup.exe and the installed one CTW_Center.exe, so a name
+            // match would either miss instances or catch a portable copy the user is running from their
+            // Downloads folder, which this has no business closing.
+            foreach (var p in Process.GetProcesses())
+            {
+                if (p.Id == self) { p.Dispose(); continue; }
+                try
+                {
+                    string path = p.MainModule?.FileName;
+                    if (path == null ||
+                        !path.StartsWith(InstallDir.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    if (p.CloseMainWindow() && p.WaitForExit(3000)) continue;
+                    p.Kill();
+                    p.WaitForExit(2000);
+                }
+                catch
+                {
+                    // Access denied on a process we can't inspect, or it exited while we looked at it.
+                    // Either way the retried rmdir above is the backstop.
+                }
+                finally { try { p.Dispose(); } catch { } }
+            }
         }
 
         private static void CopySiblingIfPresent(string sourceDir, string searchPattern)
