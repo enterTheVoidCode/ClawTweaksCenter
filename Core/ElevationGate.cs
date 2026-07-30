@@ -8,74 +8,40 @@ using System.Windows;
 namespace ClawTweaksSetup.Core
 {
     /// <summary>
-    /// Center runs unelevated by default (see app.manifest) and only needs admin for a handful of
-    /// genuinely privileged actions: self-installing into Program Files, installing the certificate/
-    /// MSIX/drivers, and uninstalling. Everything else — including every command sent to the Helper
-    /// (TDP, RGB, fan curves, ...) — works unelevated, the same way the sandboxed Game Bar widget
-    /// already talks to the elevated Helper today; UAC only gates creating a NEW elevated process, not
-    /// sending a pipe message to one that's already running elevated.
+    /// What is left of Center's elevation handling now that Center never elevates: a way to ASK whether
+    /// this process happens to be elevated, and a way to make sure something it starts is NOT.
     ///
-    /// Call <see cref="EnsureElevatedOrRelaunch"/> as the first line of each of those privileged
-    /// actions. It is a plain IsInRole check, so calling it from several different actions across one
-    /// run is cheap: the first privileged click relaunches Center elevated (one UAC prompt); every
-    /// later call in that same (now-elevated) process just falls through without prompting again.
+    /// There used to be an EnsureElevatedOrRelaunch here — call it first in a privileged action, and it
+    /// relaunched Center with a UAC prompt. Every one of its callers is gone: the self-install moved
+    /// into the user's own profile, the driver installs went back to the vendors, and the certificate
+    /// import went to Windows' own wizard. See app.manifest for the full picture. Do not bring it back
+    /// without moving one of those decisions back first — a relaunch-with-UAC that exists "just in
+    /// case" is how the app quietly stops being an unelevated app again.
+    ///
+    /// <see cref="IsAdmin"/> survives because a user can always right-click → Run as administrator, and
+    /// <see cref="LaunchUnelevated"/> needs to know when that happened.
     /// </summary>
     public static class ElevationGate
     {
-        /// <summary>Plain IsInRole check — cheap enough to call before deciding whether a relaunch (and
-        /// the file/arg plumbing that goes with resuming after one) is even needed.</summary>
+        /// <summary>Whether THIS process is running elevated. Not a permission request — a fact about
+        /// the current token, used to decide whether a child needs de-elevating.</summary>
         public static bool IsAdmin() =>
             new WindowsPrincipal(WindowsIdentity.GetCurrent()).IsInRole(WindowsBuiltInRole.Administrator);
-
-        /// <summary>
-        /// Returns true if already elevated (continue with the privileged action). Otherwise relaunches
-        /// Center elevated with the same command-line arguments and shuts down this instance, then
-        /// returns false. Also returns false (without relaunching) if the user declined the UAC prompt —
-        /// callers must check the return value and stop, not assume elevation happened.
-        /// </summary>
-        public static bool EnsureElevatedOrRelaunch(string[] args)
-        {
-            if (IsAdmin())
-                return true;
-
-            string exePath = Process.GetCurrentProcess().MainModule?.FileName;
-            if (string.IsNullOrEmpty(exePath))
-                return false;
-
-            try
-            {
-                Process.Start(new ProcessStartInfo
-                {
-                    FileName = exePath,
-                    Arguments = string.Join(" ", (args ?? Array.Empty<string>()).Select(EscapeArg)),
-                    UseShellExecute = true,
-                    Verb = "runas",
-                });
-            }
-            catch (Exception)
-            {
-                // Any relaunch failure — the user declined the UAC prompt (ERROR_CANCELLED 1223), or the
-                // shell couldn't start the elevated process at all — must NOT propagate: on a background
-                // thread it would crash the whole app, and even on the UI thread the caller can present a
-                // clean "administrator rights are required" message instead. Returning false (without
-                // shutting down) leaves this instance usable so that message can be shown.
-                return false;
-            }
-
-            Application.Current.Shutdown();
-            return false;
-        }
 
         /// <summary>
         /// Starts an exe WITHOUT passing on our own elevation, and returns whether it started.
         ///
         /// This exists because a child process inherits its parent's token: anything Center launches
         /// while elevated comes up elevated too, and stays that way for its whole life. That silently
-        /// defeated the asInvoker design — after a self-install (which legitimately elevates for the
+        /// defeated the asInvoker design — after a self-install (which back then elevated for the
         /// Program Files copy), the relaunched Center ran at High integrity, so every later privileged
         /// action inside it found IsAdmin() already true and never prompted. Measured on-device
         /// 2026-07-29: an update installed into Program Files with no UAC prompt at all, on a machine
         /// with UAC at the normal prompt level and a non-admin user.
+        ///
+        /// Center no longer elevates itself, so that exact sequence can't recur — but a user can always
+        /// right-click → Run as administrator, and then the installed copy this starts would inherit an
+        /// admin token and run that way indefinitely. Still worth the indirection.
         ///
         /// The de-elevation works by handing the path to the ALREADY-RUNNING shell, which lives at
         /// Medium integrity: explorer.exe is single-instance, so this exe hands the request to that
@@ -113,12 +79,6 @@ namespace ClawTweaksSetup.Core
                 log?.Invoke($"Could not start {System.IO.Path.GetFileName(exePath)}: {ex.Message}");
                 return false;
             }
-        }
-
-        private static string EscapeArg(string arg)
-        {
-            if (string.IsNullOrEmpty(arg)) return "\"\"";
-            return arg.IndexOfAny(new[] { ' ', '"', '\t' }) < 0 ? arg : "\"" + arg.Replace("\"", "\\\"") + "\"";
         }
     }
 }

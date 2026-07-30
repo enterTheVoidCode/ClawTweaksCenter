@@ -25,18 +25,19 @@ namespace ClawTweaksSetup.Core
     /// install, so nothing ever repairs it. That is not hypothetical: it cost a Claw 8 EX user days of
     /// a dead Game Bar (2026-07-29), because a leftover registry key counted as an install everywhere.
     ///
-    /// The same rule applies to INSTALLING. If one side can recover from a failed winget and the other
-    /// cannot, then which surface the user happened to click decides whether their machine can be
-    /// fixed. Center was winget-only for HidHide while the helper already had a vendor-MSI fallback —
-    /// that gap is now closed (ToolInstaller.InstallHidHide → HidHideSetup).
+    /// So: when you touch tool DETECTION on either side, change BOTH, or write down here why the
+    /// difference is deliberate. One deliberate difference exists today: the helper opens the driver
+    /// control device and can go further than this class does — treat the helper's answer as the
+    /// authority, this one as the cheap no-PowerShell approximation.
     ///
-    /// So: when you touch tool detection or installation on either side, change BOTH, or write down
-    /// here why the difference is deliberate. Two deliberate ones exist today:
-    ///   • The helper opens the driver control device and can go further than this class does — treat
-    ///     the helper's answer as the authority, this one as the cheap no-PowerShell approximation.
-    ///   • Center verifies Authenticode + publisher on anything it downloads (AuthenticodeVerifier);
-    ///     the helper's PowerShell fallback does not yet. Center's side is the stricter one, so that is
-    ///     the direction to converge in — do not relax Center to match.
+    /// ══ Center no longer INSTALLS these ══
+    /// The parity rule above used to cover installing too, and Center carried winget calls plus a
+    /// download-verify-then-runas path to match the helper. That is gone: Center is an unelevated app
+    /// now, and fetching executables to run elevated was both its last source of UAC prompts and the
+    /// riskiest thing it did from an antivirus-heuristics point of view. Center detects and points the
+    /// user at the vendor (PrerequisiteGuide); the helper keeps its install paths, because it is signed
+    /// and already elevated. So the two sides are deliberately asymmetric here — do not "restore
+    /// parity" by giving Center install logic back.
     ///
     /// ViGEm is intentionally NOT checked here: it is OBSOLETE. VIIPER (usbip) is the virtual-controller
     /// backend. The helper still installs and gates on ViGEmBus for the legacy backend, which is a known
@@ -197,9 +198,9 @@ namespace ClawTweaksSetup.Core
         ///
         /// This used to be missed, and it cost a UAC prompt: PawnIO's device denies an unelevated
         /// open, the old check treated "no handle" as "not installed", and Center had to elevate the
-        /// whole install flow just to find out whether a driver was already there. Center is meant to
-        /// run unelevated and prompt only for genuinely privileged ACTIONS (see ElevationGate) — asking
-        /// a yes/no question about the system is not one of them.
+        /// whole install flow just to find out whether a driver was already there. Center runs
+        /// unelevated and never prompts at all now — but the principle behind the fix stands on its
+        /// own: asking a yes/no question about the system is not a privileged action.
         ///
         /// Measured unelevated on an MSI Claw with both drivers installed and working:
         ///   \\.\PawnIO  -> rc 5 (denied, present)   \\.\HidHide -> rc 0 (opens)   bogus name -> rc 2

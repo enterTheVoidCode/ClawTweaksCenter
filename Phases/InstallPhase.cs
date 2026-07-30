@@ -46,14 +46,8 @@ namespace ClawTweaksSetup.Phases
         public override string Title => "Install";
         public override IReadOnlyList<PhaseAction> Actions => _actions;
 
-        /// <summary>One-shot: set from the constructor when MainWindow is landing back on this phase
-        /// after an elevated relaunch it triggered (ResumeArg). Consumed on the first OnEnter so
-        /// re-visiting this phase later in the same run behaves normally.</summary>
-        private bool _autoResume;
-
-        public InstallPhase(bool autoResume = false)
+        public InstallPhase()
         {
-            _autoResume = autoResume;
             Content = _root;
             _actions = new List<PhaseAction>
             {
@@ -62,12 +56,7 @@ namespace ClawTweaksSetup.Phases
             };
         }
 
-        public override void OnEnter()
-        {
-            bool auto = _autoResume;
-            _autoResume = false;
-            _ = auto ? InstallAsync() : RefreshAsync();
-        }
+        public override void OnEnter() => _ = RefreshAsync();
 
         private async Task RefreshAsync()
         {
@@ -137,31 +126,15 @@ namespace ClawTweaksSetup.Phases
             RaiseActionsChanged();
         }
 
-        /// <summary>Command-line marker that survives an elevated relaunch triggered from here: tells
-        /// MainWindow to land back on this phase and resume automatically. Safe to auto-resume in full
-        /// (unlike ToolsPhase's usbip step) — trusting the cert and installing the MSIX are our own
-        /// signed, silent operations, not a third-party installer window popping up unprompted.</summary>
-        public const string ResumeArg = "--resume-install-widget";
-
         private async Task InstallAsync()
         {
             if (_busy) return;
 
-            // Trusting the certificate and installing the MSIX need admin; Center runs unelevated by
-            // default. Relaunches elevated if needed (covers this and every later privileged step in
-            // the same run) or returns false if the user declined. ResumeArg is appended so the
-            // relaunch knows to auto-continue instead of waiting for a second click.
-            var realArgs = Environment.GetCommandLineArgs().Skip(1)
-                .Where(a => a != ResumeArg)
-                .Append(ResumeArg)
-                .ToArray();
-            if (!ElevationGate.EnsureElevatedOrRelaunch(realArgs))
-            {
-                _log.Text = "Administrator rights are required to install ClawTweaks.";
-                await RefreshAsync();
-                return;
-            }
-
+            // No elevation. Add-AppxPackage is a per-user deployment and needs no rights; the one thing
+            // here that does — getting the signing certificate into the machine store — is handed to
+            // the user through Windows' own import wizard (see the certificate step below and
+            // CertInstaller). There used to be an elevated relaunch here, plus a ResumeArg to carry the
+            // user past the UAC prompt without a second click; both are gone with the prompt.
             _busy = true;
             State = PhaseState.Working;
             _log.Text = "";
@@ -177,18 +150,23 @@ namespace ClawTweaksSetup.Phases
 
             bool ok = true;
 
-            // 1) Certificate
+            // 1) Certificate — checked, never installed by us. It has to land in the machine-wide
+            // TrustedPeople store, which needs admin, so the user imports it through Windows' own
+            // wizard; we open the file and stop here until it's trusted. Once per machine: the same key
+            // signs every build.
             string cer = CertInstaller.FindSiblingCer();
-            if (cer != null)
+            if (cer != null && !CertInstaller.IsTrusted(CertInstaller.ThumbprintOf(cer)))
             {
-                string thumb = CertInstaller.ThumbprintOf(cer);
-                if (!CertInstaller.IsTrusted(thumb))
-                {
-                    Log("Trusting signing certificate…");
-                    ok &= await Task.Run(() => CertInstaller.Install(cer));
-                }
-                else Log("Certificate already trusted.");
+                Log("The ClawTweaks signing certificate isn't trusted yet — opening it now.");
+                Log("In the wizard: Install Certificate… → Local Machine → Place all certificates in " +
+                    "the following store → Browse → Trusted People. Then press Ⓐ again.");
+                CertInstaller.OpenForImport(cer, Log);
+                _busy = false;
+                Dispatcher.Invoke(() => _progress.Visibility = Visibility.Collapsed);
+                await RefreshAsync();
+                return;
             }
+            if (cer != null) Log("Certificate already trusted.");
 
             // 2) Package
             string pkg = PackageInstaller.FindPackage();

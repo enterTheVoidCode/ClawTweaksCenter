@@ -2,14 +2,30 @@
 <assembly manifestVersion="1.0" xmlns="urn:schemas-microsoft-com:asm.v1">
   <assemblyIdentity version="1.0.0.0" name="ClawTweaks.Setup" />
 
-  <!-- Runs unelevated by default. Reading status, browsing the wizard, and talking to the already-
-       elevated Helper over its named pipe (TDP/RGB/fan/etc.) all work without admin — the same way the
-       sandboxed Game Bar widget already does, since UAC only gates creating a NEW elevated process, not
-       sending a pipe message to one that's already running elevated. Admin is requested on demand, at
-       the moment of an actual privileged action (self-install to Program Files, cert/MSIX/driver
-       install, uninstall), via ElevationGate.EnsureElevatedOrRelaunch — see ClawTweaksSetup/Core/
-       ElevationGate.cs. One relaunch covers the rest of that run: IsInRole(Administrator) is checked
-       fresh each call, so once elevated, later privileged actions in the same process don't re-prompt. -->
+  <!-- Runs unelevated, and never asks for administrator rights at any point. Not "asks rarely" —
+       never. Everything Center does itself fits inside an ordinary user token:
+
+         * Installing/updating/uninstalling itself   → per-user (%LOCALAPPDATA%\Programs, the user's
+                                                       own Start Menu, HKCU). See Core/SelfInstaller.cs.
+         * Installing the ClawTweaks widget package  → Add-AppxPackage is a per-user deployment.
+         * Driving the Helper (TDP/RGB/fan/…)        → a pipe message to a process that is ALREADY
+                                                       elevated. UAC gates creating a new elevated
+                                                       process, not talking to an existing one — which
+                                                       is how the sandboxed Game Bar widget has always
+                                                       worked.
+
+       The three things that genuinely need admin are handed to the user, or to something signed:
+
+         * Prerequisite drivers (HidHide/usbip/…)    → the vendor's own installer, with the vendor's
+                                                       signature and prompt. Core/PrerequisiteGuide.cs.
+         * Trusting the signing certificate          → Windows' own Certificate Import Wizard, which
+                                                       asks for the rights itself. Core/CertInstaller.cs.
+         * The Helper's scheduled task               → registered by the Helper's own signed exe, once,
+                                                       on first install. Center only detects it.
+
+       That last split is not just about UAC counts: a signed binary creating persistence for itself
+       scores very differently with Defender's ML than an unsigned installer writing an exe and a
+       scheduled task, which this project has already been flagged for once. -->
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>

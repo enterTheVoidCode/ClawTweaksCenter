@@ -13,15 +13,15 @@ namespace ClawTweaksSetup
             base.OnStartup(e);
 
             // Uninstall callback (registered as the Add/Remove Programs UninstallString) — clean up
-            // and exit immediately, never reaching any window. Removing from Program Files and the
-            // registry needs admin; Center is asInvoker now, so unlike before this is not automatic —
-            // relaunch elevated with the same --uninstall arg if needed (same gate as the install path).
+            // and exit immediately, never reaching any window.
+            //
+            // No elevation: Center installs per-user now (%LOCALAPPDATA%\Programs + HKCU), so removing
+            // it touches nothing outside this user's own profile. An OLD machine-wide install from
+            // before the move is deliberately left alone — it has its own HKLM Add/Remove Programs
+            // entry that elevates itself, which is the honest way for the user to remove it.
             if (Array.Exists(e.Args, a => a.Equals("--uninstall", StringComparison.OrdinalIgnoreCase)))
             {
-                if (ElevationGate.EnsureElevatedOrRelaunch(e.Args))
-                {
-                    SelfInstaller.Uninstall();
-                }
+                SelfInstaller.Uninstall();
                 Shutdown();
                 return;
             }
@@ -50,7 +50,8 @@ namespace ClawTweaksSetup
                 ea.SetObserved();
             };
 
-            // Gate #0: Center must be running from its installed location (Program Files) before
+            // Gate #0: Center must be running from its installed location (per-user, see
+            // SelfInstaller.InstallDir) before
             // anything else — including the widget MSIX — can be installed. A naked/portable run
             // shows the install-self prompt and relaunches from there; this window never opens the
             // rest of the app itself.
@@ -85,32 +86,7 @@ namespace ClawTweaksSetup
             // CenterMenuWindow (which does the full tools → cert → MSIX install for a chosen build). The
             // local-msix entry also had an unresolved startup issue on the packaged bundle. User decision
             // 2026-07-23: always go to the Center menu regardless of any sibling package.
-            ShowForeground(new CenterMenuWindow(resumeInstallBuild: LoadAndConsumeResumeInstallBuild(e.Args)));
-        }
-
-        /// <summary>
-        /// Reached only on the elevated relaunch triggered by CenterMenuWindow.InstallSelectedAsync's
-        /// elevation gate: the build the user picked before the UAC prompt was written to a temp JSON
-        /// file, whose path travels as a "--resume-install=" command-line arg (see
-        /// CenterMenuWindow.ResumeInstallArgPrefix). Reads it back, deletes the temp file, and returns
-        /// null on any failure or when this isn't a resume launch — a missing/unparsable file must never
-        /// crash startup, it just falls back to the normal menu.
-        /// </summary>
-        private static Core.Sources.BuildSource LoadAndConsumeResumeInstallBuild(string[] args)
-        {
-            string arg = Array.Find(args, a => a.StartsWith(CenterMenuWindow.ResumeInstallArgPrefix,
-                StringComparison.OrdinalIgnoreCase));
-            if (arg == null) return null;
-
-            string path = arg.Substring(CenterMenuWindow.ResumeInstallArgPrefix.Length);
-            try
-            {
-                string json = File.ReadAllText(path);
-                return System.Text.Json.JsonSerializer.Deserialize<Core.Sources.BuildSource>(
-                    json, new System.Text.Json.JsonSerializerOptions { IncludeFields = true });
-            }
-            catch (Exception ex) { LogCrash(ex, "LoadAndConsumeResumeInstallBuild"); return null; }
-            finally { try { File.Delete(path); } catch { } }
+            ShowForeground(new CenterMenuWindow());
         }
 
         /// <summary>

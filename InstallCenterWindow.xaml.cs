@@ -109,28 +109,11 @@ namespace ClawTweaksSetup
             StatusText.Visibility = Visibility.Visible;
             StatusText.Text = _mode == InstallCenterMode.Update ? "Updating..." : "Installing...";
 
-            // Center runs unelevated by default; installing/updating writes to Program Files and the
-            // registry, so it needs admin. If we're not already elevated this relaunches Center with
-            // the UAC prompt and shuts this instance down — or, if the user declines, returns false so
-            // the failure branch below can tell them why instead of silently doing nothing.
-            // Skip index 0: GetCommandLineArgs()[0] is the exe path itself, not a real argument —
-            // ElevationGate.EnsureElevatedOrRelaunch expects only the actual CLI args (it supplies the
-            // exe path separately as the relaunched process's FileName). Append ResumeArg so the
-            // elevated relaunch knows to auto-fire the install instead of waiting for a second click.
-            var realArgs = Environment.GetCommandLineArgs().Skip(1)
-                .Where(a => a != ResumeArg)
-                .Append(ResumeArg)
-                .ToArray();
-            if (!ElevationGate.EnsureElevatedOrRelaunch(realArgs))
-            {
-                _installing = false;
-                StatusText.Foreground = UiHelpers.Error;
-                StatusText.Text = "Administrator rights are required to " +
-                                   (_mode == InstallCenterMode.Update ? "update" : "install") + ".";
-                RenderActionBar();
-                return;
-            }
-
+            // No elevation, and no UAC prompt. Center installs per-user — %LOCALAPPDATA%\Programs, the
+            // user's own Start Menu, HKCU's Uninstall hive — so installing and updating are ordinary
+            // file and registry writes inside this user's profile. This used to relaunch elevated here
+            // (and carry a ResumeArg across the prompt so the user didn't have to click Install twice);
+            // moving off Program Files removed the reason for all of it. See SelfInstaller.
             bool ok = SelfInstaller.InstallAndRelaunch(msg => Dispatcher.Invoke(() => StatusText.Text = msg));
             if (ok)
             {

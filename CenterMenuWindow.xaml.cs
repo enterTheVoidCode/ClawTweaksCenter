@@ -53,9 +53,6 @@ namespace ClawTweaksSetup
         // Center self-update card ABOVE that row, and only exists while an update is actually offered
         // (see CenterUpdateOffered) — Up/Down move between the two, Left/Right within the tile row.
         private int _homeSelectedIndex = 0;
-        private bool _centerUpdateBusy;
-        private int _centerUpdatePercent = -1;
-        private string _centerUpdateStatus;
         private int _onbSelectedIndex = 0;      // controller cursor over the onboarding step cards
         private FrameworkElement _onbSelectedCard; // for BringIntoView after a selection move
         private bool _busy;
@@ -72,18 +69,15 @@ namespace ClawTweaksSetup
         private readonly Core.HelperPipeClient _helperPipe;
         private readonly OnboardingRunner _onboarding;
         private readonly bool _startOnboardingOnLoad;
-        private readonly BuildSource _resumeInstallBuild;
 
-        /// <summary>Command-line arg prefix used to resume straight into InstallSelectedAsync after an
-        /// elevated relaunch (see InstallSelectedAsync's elevation gate) — the build the user picked
-        /// before the UAC prompt is written to a temp JSON file; the path follows this prefix as one
-        /// argument, e.g. "--resume-install=C:\...\ClawTweaksCenter_resume_XXXX.json".</summary>
-        public const string ResumeInstallArgPrefix = "--resume-install=";
+        // Gone with the elevation gate: a "--resume-install=<temp json>" argument used to carry the
+        // build the user had picked across the elevated relaunch, so the install could pick up where
+        // the UAC prompt interrupted it. Nothing in the install relaunches any more, so there is
+        // nothing to resume — the user simply stays in the same process the whole way through.
 
-        public CenterMenuWindow(bool startOnboarding = false, BuildSource resumeInstallBuild = null)
+        public CenterMenuWindow(bool startOnboarding = false)
         {
             _startOnboardingOnLoad = startOnboarding;
-            _resumeInstallBuild = resumeInstallBuild;
 
             // Build the shared pipe client and both runners BEFORE anything uses them (field initializers
             // across partial files have no guaranteed cross-file order, so wire them here explicitly).
@@ -146,11 +140,6 @@ namespace ClawTweaksSetup
                 // path) — the helper is already confirmed running there, so open onboarding right
                 // away instead of waiting for the user to find the tile.
                 if (_startOnboardingOnLoad) OpenOnboarding();
-
-                // Resuming after an elevated relaunch triggered from InstallSelectedAsync's elevation
-                // gate — go straight back into installing the SAME build instead of making the user
-                // find and re-pick it (they already clicked Install once, before the UAC prompt).
-                if (_resumeInstallBuild != null) _ = InstallSelectedAsync(_resumeInstallBuild);
             };
             Closed += (_, __) =>
             {
@@ -334,20 +323,20 @@ namespace ClawTweaksSetup
         }
 
         /// <summary>A on the Home screen: opens whichever of the 3 tiles the controller cursor is on,
-        /// or starts the Center self-update when the cursor is on the update card above them.</summary>
+        /// or the Center download page when the cursor is on the update notice above them.</summary>
         private void ActivateHomeTile()
         {
             switch (_homeSelectedIndex)
             {
-                case -1: _ = StartCenterSelfUpdateAsync(); break;
+                case -1: OpenCenterDownloadPage(); break;
                 case 0: OpenBrowse(); break;
                 case 1: OpenOnboarding(); break;
                 case 2: OpenMaintenance(); break;
             }
         }
 
-        /// <summary>True when the manifest advertises a newer Center AND everything needed to fetch it
-        /// safely is present (URL on a GitHub host + SHA-256). See SetupVersionCheck.IsUpdateOffered.</summary>
+        /// <summary>True when the manifest advertises a newer Center than the one running. See
+        /// SetupVersionCheck.IsUpdateOffered.</summary>
         private bool CenterUpdateOffered => _setupVersionCheck?.IsUpdateOffered == true;
 
         private void RenderHome()
@@ -367,6 +356,15 @@ namespace ClawTweaksSetup
             if (_windowsChannel?.IsInsider == true)
                 ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Warning, "Windows Insider Preview detected",
                     $"You're on the \"{_windowsChannel.ChannelName}\" channel — the install routine is currently known not to work correctly on Insider builds."));
+
+            // Left over from when Center installed machine-wide. This copy is the live one; the old one
+            // is inert but still listed in Settings → Apps, which is confusing. Removing it needs admin,
+            // which Center deliberately never asks for — so say where to remove it instead of doing it.
+            if (SelfInstaller.LegacyInstallPresent())
+                ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Info, "An older Center install is still on this PC",
+                    $"A previous version is still in {SelfInstaller.LegacyInstallDir}. This one runs from your user " +
+                    "folder and doesn't need it. Remove the old one via Settings → Apps → \"ClawTweaks Center\" " +
+                    "(that entry asks for administrator rights; this app never does)."));
 
             var versionStack = new StackPanel { Margin = new Thickness(0, 0, 0, 20) };
             if (!_installedVersionChecked)
@@ -666,10 +664,14 @@ namespace ClawTweaksSetup
         }
 
         /// <summary>
-        /// The Center self-update offer on Home. Deliberately a card the user has to activate — the
-        /// download never starts on its own. See the antivirus note on <see cref="CenterUpdater"/>:
-        /// an unsigned app silently fetching and running an exe is the exact behaviour Defender's ML
-        /// scores as a dropper, and it is also something the user cannot consent to after the fact.
+        /// The Center update NOTICE on Home. It tells the user a newer build exists and opens the page
+        /// — it does not download anything and it does not install anything.
+        ///
+        /// This used to be a full self-updater (download → SHA-256 → launch the installer). It is gone
+        /// on purpose: an unsigned app fetching an executable and running it is the dropper shape, and
+        /// verifying the bytes afterwards does not change how that behaviour scores. Updating Center is
+        /// now the same two steps as installing it the first time — download it, run it — which is also
+        /// the one flow that actually gets tested on every release. See SetupVersionCheck.
         /// </summary>
         private Border BuildCenterUpdateCard()
         {
@@ -682,38 +684,25 @@ namespace ClawTweaksSetup
                 Text = $"ClawTweaks Center update available: {check.LatestVersion}",
                 FontSize = 19, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Text,
             });
-            // ONE line. An update card is read at a glance; explaining the download/verify/UAC mechanics
-            // here just buried the one thing the user has to decide. What happens is visible as it
-            // happens (progress, "Verifying…", then the installer's own window).
             stack.Children.Add(new TextBlock
             {
-                Text = "Updating is strongly recommended so future releases install cleanly.",
+                Text = $"You're running {check.RunningVersion}. Download the new Setup file and run it — " +
+                       "it installs over this one, and no administrator rights are needed.",
                 FontSize = 14, Foreground = UiHelpers.Subtle,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
             });
 
-            if (!string.IsNullOrEmpty(_centerUpdateStatus))
-                stack.Children.Add(new TextBlock
-                {
-                    Text = _centerUpdatePercent >= 0 && _centerUpdateBusy
-                        ? $"{_centerUpdateStatus} {_centerUpdatePercent}%"
-                        : _centerUpdateStatus,
-                    FontSize = 14, FontWeight = FontWeights.SemiBold,
-                    Foreground = _centerUpdateBusy ? UiHelpers.Text : UiHelpers.Warn,
-                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 10, 0, 0),
-                });
-
             var button = new Button
             {
-                Content = _centerUpdateBusy ? "Working…" : "Update Center",
+                Content = "Open download page",
                 Style = (Style)Application.Current.Resources["SetupButton"],
-                IsEnabled = !_centerUpdateBusy && !_busy,
-                Opacity = (!_centerUpdateBusy && !_busy) ? 1.0 : 0.4,
-                MinWidth = 150,
+                IsEnabled = !_busy,
+                Opacity = !_busy ? 1.0 : 0.4,
+                MinWidth = 190,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Margin = new Thickness(0, 12, 0, 0),
             };
-            button.Click += (_, __) => _ = StartCenterSelfUpdateAsync();
+            button.Click += (_, __) => OpenCenterDownloadPage();
             stack.Children.Add(button);
 
             return new Border
@@ -728,65 +717,13 @@ namespace ClawTweaksSetup
             };
         }
 
-        /// <summary>
-        /// Download → verify → hand over. On success this process shuts down: the new exe copies itself
-        /// over ours in Program Files, which a still-running process would block with a sharing
-        /// violation. Any failure leaves Center running and usable with the message on the card, so the
-        /// manual "download it from GitHub yourself" route is always still there.
-        /// </summary>
-        private async Task StartCenterSelfUpdateAsync()
+        /// <summary>Opens the release page in the user's browser. Center stays open — the user is going
+        /// to come back to it after downloading, and closing out from under them would lose whatever
+        /// they were in the middle of.</summary>
+        private void OpenCenterDownloadPage()
         {
-            if (_centerUpdateBusy || _busy || !CenterUpdateOffered) return;
-
-            _centerUpdateBusy = true;
-            _centerUpdatePercent = 0;
-            _centerUpdateStatus = "Starting…";
-            RenderHome();
-            RefreshActionBar();
-
-            void Status(string msg) => Dispatcher.Invoke(() =>
-            {
-                _centerUpdateStatus = msg;
-                if (_view == View.Home) RenderHome();
-            });
-
-            // Throttled to whole-percent changes: the download callback fires per 80 KB chunk, and
-            // re-running the whole RenderHome layout at that rate is what made an earlier progress
-            // display stutter.
-            int lastPercent = -1;
-            var progress = new Progress<int>(p =>
-            {
-                if (p == lastPercent) return;
-                lastPercent = p;
-                _centerUpdatePercent = p;
-                if (_view == View.Home) RenderHome();
-            });
-
-            var result = await CenterUpdater.DownloadAsync(_setupVersionCheck, Status, progress);
-
-            if (!result.Success)
-            {
-                _centerUpdateBusy = false;
-                _centerUpdatePercent = -1;
-                _centerUpdateStatus = result.Error;
-                RenderHome();
-                RefreshActionBar();
-                return;
-            }
-
-            _centerUpdateStatus = "Starting the installer…";
-            RenderHome();
-
-            if (CenterUpdater.LaunchInstaller(result.ExePath, Status))
-            {
-                Application.Current.Shutdown();
-                return;
-            }
-
-            _centerUpdateBusy = false;
-            _centerUpdatePercent = -1;
-            RenderHome();
-            RefreshActionBar();
+            string url = _setupVersionCheck?.LatestPageUrl;
+            if (!string.IsNullOrEmpty(url)) PrerequisiteGuide.OpenPage(url);
         }
         #endregion
 
@@ -981,12 +918,10 @@ namespace ClawTweaksSetup
         /// below are non-actionable, so the cursor stays on the top row.</summary>
         private void MoveHomeSelection(PadButton dir)
         {
-            if (_centerUpdateBusy) return; // a download is running — don't let the cursor wander off it
-
             int next = _homeSelectedIndex;
-            // Up/Down only do something when the self-update card is on screen: it is the one row
-            // above the tiles. Without an update offered they stay inert (the "coming soon"
-            // placeholders below are non-actionable, so there is still nothing under the tile row).
+            // Up/Down only do something when the update notice is on screen: it is the one row above
+            // the tiles. Without an update offered they stay inert (the "coming soon" placeholders
+            // below are non-actionable, so there is still nothing under the tile row).
             if (dir == PadButton.Up) next = CenterUpdateOffered ? -1 : next;
             else if (dir == PadButton.Down) next = next < 0 ? 0 : next;
             else if (dir == PadButton.Left) next = next < 0 ? next : next - 1;
@@ -1215,61 +1150,220 @@ namespace ClawTweaksSetup
 
         #region Install
         /// <summary>
-        /// Elevates for the ClawTweaks install step (certificate + package). Returns true when we are
-        /// already elevated and may continue; false when this instance must stop — either because the
-        /// relaunch is under way or because the user declined.
-        ///
-        /// The relaunched instance resumes via the same resume file the old up-front gate used and runs
-        /// InstallSelectedAsync again from the top. That is safe and deliberately not optimised away:
-        /// the tool steps are all "detect, then install only if missing", so on the second pass they
-        /// find everything present and fall straight through to here.
+        /// Ends the install run and hands the screen over to <paramref name="screen"/>. Both hand-off
+        /// screens (missing prerequisites, untrusted certificate) need the exact same bookkeeping, and
+        /// getting it wrong leaves the action bar stuck on "installing" with no way out.
         /// </summary>
-        private bool EnsureElevatedForClawTweaksInstall(BuildSource build)
+        private void StopInstallAndShow(UIElement screen)
         {
-            if (ElevationGate.IsAdmin()) return true;
-
-            string resumeFile = null;
-            try
-            {
-                resumeFile = System.IO.Path.Combine(System.IO.Path.GetTempPath(),
-                    $"ClawTweaksCenter_resume_{Guid.NewGuid():N}.json");
-                System.IO.File.WriteAllText(resumeFile, System.Text.Json.JsonSerializer.Serialize(
-                    build, new System.Text.Json.JsonSerializerOptions { IncludeFields = true }));
-            }
-            catch { resumeFile = null; }
-
-            if (resumeFile != null)
-            {
-                var realArgs = Environment.GetCommandLineArgs().Skip(1)
-                    .Where(a => !a.StartsWith(ResumeInstallArgPrefix, StringComparison.OrdinalIgnoreCase))
-                    .Append(ResumeInstallArgPrefix + resumeFile)
-                    .ToArray();
-                ElevationGate.EnsureElevatedOrRelaunch(realArgs);
-            }
-
-            RefreshActionBar();
+            _busy = false;
+            _installFinished = true;
             ContentHost.Children.Clear();
-            ContentHost.Children.Add(BuildBigStatusCard(StatusKind.Error, "Administrator rights required",
-                "Installing ClawTweaks needs administrator rights. Approve the UAC prompt to continue — if it didn't appear or you declined it, click Install again."));
-            return false;
+            ContentHost.Children.Add(screen);
+            RefreshActionBar();
+        }
+
+        /// <summary>The heading of a "do this, then come back" screen. The caller fills in the cards and
+        /// ends with <see cref="BuildRecheckButton"/>.</summary>
+        private static StackPanel BuildHandoffScreen(string title, string intro)
+        {
+            var root = new StackPanel();
+            root.Children.Add(UiHelpers.Title(title));
+            root.Children.Add(UiHelpers.Body(intro));
+            return root;
+        }
+
+        /// <summary>The retry button both hand-off screens end with. Re-enters InstallSelectedAsync from
+        /// the top, which is safe and deliberately not optimised into a partial resume: every step in
+        /// that method is "check the real state, act only if needed", so a second pass over already-
+        /// satisfied steps costs a few detections and nothing else.</summary>
+        private Button BuildRecheckButton(BuildSource build, string label)
+        {
+            var button = new Button
+            {
+                Content = label,
+                Style = (Style)Application.Current.Resources["SetupButton"],
+                MinWidth = 220,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 20, 0, 0),
+            };
+            button.Click += (_, __) => _ = InstallSelectedAsync(build);
+            return button;
+        }
+
+        /// <summary>
+        /// Shown when a prerequisite tool is missing. Center detects and explains; the USER downloads
+        /// and installs, from the vendor, with the vendor's own signature and elevation prompt.
+        ///
+        /// Center used to do this itself — winget for HidHide/RTSS/PawnIO, download-then-runas for usbip
+        /// and the HidHide MSI. See PrerequisiteGuide for why none of that is coming back: it made an
+        /// unsigned app fetch executables and run them elevated, and it was the last thing forcing UAC
+        /// prompts out of Center.
+        /// </summary>
+        private void ShowMissingPrerequisites(BuildSource build, List<ToolStatus> missing)
+        {
+            var root = BuildHandoffScreen(
+                "Install the missing prerequisites",
+                "ClawTweaks needs these before it can be installed. Center doesn't install them for you — " +
+                "download each one from the vendor and run their installer, then come back and re-check.");
+
+            foreach (var tool in missing)
+            {
+                var info = PrerequisiteGuide.For(tool.Name);
+                var stack = new StackPanel();
+                stack.Children.Add(new TextBlock
+                {
+                    Text = tool.Name, FontSize = 18, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Text,
+                });
+
+                // A tool can be "not installed" for two very different reasons, and the difference
+                // matters: a clean miss just needs installing, whereas ToolDetect's BROKEN verdict means
+                // leftover registry entries with no driver binary — which reads as installed to a lot of
+                // other software and needs a reinstall + reboot to actually clear.
+                bool broken = tool.Detail != null && tool.Detail.StartsWith("BROKEN", StringComparison.Ordinal);
+                if (broken)
+                    stack.Children.Add(new TextBlock
+                    {
+                        Text = tool.Detail, FontSize = 14, FontWeight = FontWeights.SemiBold,
+                        Foreground = UiHelpers.Warn, TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 6, 0, 0),
+                    });
+
+                if (info != null)
+                {
+                    stack.Children.Add(new TextBlock
+                    {
+                        Text = info.Why, FontSize = 14, Foreground = UiHelpers.Subtle,
+                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
+                    });
+                    stack.Children.Add(new TextBlock
+                    {
+                        Text = info.WhatToGet + (info.NeedsReboot ? " A restart is required afterwards." : ""),
+                        FontSize = 14, Foreground = UiHelpers.Subtle,
+                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0),
+                    });
+                    stack.Children.Add(new TextBlock
+                    {
+                        Text = info.PageUrl, FontSize = 13, Foreground = UiHelpers.Subtle,
+                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
+                    });
+
+                    var open = new Button
+                    {
+                        Content = "Open download page",
+                        Style = (Style)Application.Current.Resources["SetupButton"],
+                        MinWidth = 190,
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        Margin = new Thickness(0, 10, 0, 0),
+                    };
+                    string url = info.PageUrl;
+                    open.Click += (_, __) => PrerequisiteGuide.OpenPage(url);
+                    stack.Children.Add(open);
+                }
+
+                root.Children.Add(new Border
+                {
+                    Background = UiHelpers.Card,
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(20, 16, 20, 16),
+                    Margin = new Thickness(0, 0, 0, 12),
+                    BorderBrush = broken ? UiHelpers.Warn : UiHelpers.Subtle,
+                    BorderThickness = new Thickness(1),
+                    Child = stack,
+                });
+            }
+
+            root.Children.Add(BuildRecheckButton(build, "Re-check and continue"));
+            StopInstallAndShow(root);
+        }
+
+        /// <summary>
+        /// Shown when the ClawTweaks signing certificate isn't trusted yet. The user imports it through
+        /// Windows' own Certificate Import Wizard; Center only opens the file and says which store.
+        ///
+        /// The certificate has to go into the MACHINE store for the MSIX to be sideloadable, so writing
+        /// it needs admin — it was the last privileged action left in Center. Handing it to the wizard
+        /// means Windows asks for those rights, for a store the user picked, instead of an unsigned app
+        /// asking for admin and then writing to a certificate store silently. See CertInstaller.
+        ///
+        /// This normally happens exactly once per machine: the same key signs every build, so once it is
+        /// trusted, every future ClawTweaks install and update skips this screen entirely.
+        /// </summary>
+        private void ShowCertificateHandoff(BuildSource build, string cerPath)
+        {
+            var root = BuildHandoffScreen(
+                "Trust the ClawTweaks signing certificate",
+                "ClawTweaks is signed with its own certificate, and Windows only installs a package whose " +
+                "certificate it trusts. You only have to do this once — every future build uses the same one.");
+
+            var stack = new StackPanel();
+            int step = 1;
+            foreach (var line in CertInstaller.ImportSteps)
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = $"{step++}.  {line}",
+                    FontSize = 15, Foreground = UiHelpers.Text,
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 0, 0, 10),
+                });
+            }
+            stack.Children.Add(new TextBlock
+            {
+                Text = cerPath, FontSize = 13, Foreground = UiHelpers.Subtle,
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
+            });
+
+            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 0) };
+            var openCert = new Button
+            {
+                Content = "Open the certificate",
+                Style = (Style)Application.Current.Resources["SetupButton"],
+                MinWidth = 190,
+            };
+            openCert.Click += (_, __) => CertInstaller.OpenForImport(cerPath);
+            buttons.Children.Add(openCert);
+
+            // Fallback for a machine where .cer has no shell handler (rare, but it happens on locked-down
+            // images) — showing the file in Explorer at least gets the user to it.
+            var showFolder = new Button
+            {
+                Content = "Show in folder",
+                Style = (Style)Application.Current.Resources["SetupButton"],
+                MinWidth = 150,
+                Margin = new Thickness(10, 0, 0, 0),
+            };
+            showFolder.Click += (_, __) => CertInstaller.ShowInExplorer(cerPath);
+            buttons.Children.Add(showFolder);
+            stack.Children.Add(buttons);
+
+            root.Children.Add(new Border
+            {
+                Background = UiHelpers.Card,
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(20, 18, 20, 18),
+                BorderBrush = UiHelpers.Subtle,
+                BorderThickness = new Thickness(1),
+                Child = stack,
+            });
+
+            root.Children.Add(BuildRecheckButton(build, "I've done it — continue"));
+            StopInstallAndShow(root);
         }
 
         private async Task InstallSelectedAsync(BuildSource build)
         {
             if (_busy) return;
 
-            // NO up-front elevation. Center is meant to run unelevated and prompt only for the things
-            // that genuinely need rights (see ElevationGate and the Center elevation plan):
+            // NO elevation anywhere in this method, up front or later. Center never asks for
+            // administrator rights: the two steps that need them are handed to the user (missing driver
+            // tools → the vendor's own installer; an untrusted certificate → Windows' own import
+            // wizard), and everything Center does itself — detect, download, Add-AppxPackage — runs
+            // fine as a plain unelevated app.
             //
             //   * DETECTION never needs it. This used to gate here because ToolDetect.PawnIO() reported
             //     PawnIO as missing unelevated — a detection bug, not a privilege problem: access-denied
             //     on a device object proves the device EXISTS, only ERROR_FILE_NOT_FOUND means absent.
             //     Fixed 2026-07-29. Do not re-add elevation for a status check.
-            //   * TOOL INSTALLS raise their own UAC, one per installer, via ToolInstaller.RunElevated.
-            //     That keeps the driver vendors' installers in charge of their own rights.
-            //   * Only the ClawTweaks part itself — trusting the signing certificate into the machine
-            //     store and deploying the package — elevates, and it does so right before that step
-            //     (see EnsureElevatedForClawTweaksInstall below).
             _busy = true;
             _installFinished = false;
             RefreshActionBar();
@@ -1422,18 +1516,20 @@ namespace ClawTweaksSetup
 
                 // Straight into the actual install from here — no manual wizard walk-through. The
                 // Center menu exists for fast iteration on an already-onboarded dev device: pick a
-                // build, the tool triggers the install and watches it succeed. Ported 1:1 from
-                // ToolsPhase.InstallAsync + InstallPhase.InstallAsync (required tools → cert trust →
-                // Add-AppxPackage → Game Bar → wait for helper); the release-folder path still gets the
-                // full guided wizard via MainWindow, unchanged.
+                // build, the tool triggers the install and watches it succeed.
                 //
-                // The elevation gate sits at the top of InstallSelectedAsync, before this method is
-                // called, so the installs below run elevated without a prompt per tool.
+                // NOTHING below elevates. Center is an ordinary unelevated app: the two steps that
+                // genuinely need administrator rights — installing the driver tools, and trusting the
+                // signing certificate into the machine store — are handed to the user, who does them
+                // through the vendor's installer and Windows' own certificate wizard. Everything that
+                // remains here (detection, download, Add-AppxPackage) needs no rights at all.
+                // Add-AppxPackage in particular is a per-user deployment and works fine unelevated —
+                // that is measured, not assumed.
                 //
                 // History worth keeping: a 2026-07-25 change blamed unelevated running for
                 // ToolDetect.PawnIO() reporting PawnIO as missing when it was installed and working.
-                // The detection was at fault, not the privilege level — see the note on the gate in
-                // InstallSelectedAsync. Do not reintroduce elevation for the sake of a status check.
+                // The detection was at fault, not the privilege level. Do not reintroduce elevation for
+                // the sake of a status check.
                 progressBar.IsIndeterminate = true;
                 bool ok = true;
 
@@ -1442,108 +1538,32 @@ namespace ClawTweaksSetup
                 var usbip = await Task.Run(() => ToolDetect.Usbip());
                 var pawnio = await Task.Run(() => ToolDetect.PawnIO());
 
-                // Record the privilege level and what each check actually saw. Both matter when reading
-                // this log back: the tool steps are supposed to run unelevated here, and each Detail
-                // says WHY a tool counted as present (device, file, or a leftover registry entry).
-                LogDetail($"Center elevated: {ElevationGate.IsAdmin()}");
+                // Each Detail says WHY a tool counted as present (device, file, or a leftover registry
+                // entry) — the thing that actually matters when reading a user's log back.
+                Log("Checking prerequisites…");
                 foreach (var t in new[] { hidhide, rtss, usbip, pawnio })
                     LogDetail($"  {t.Name}: installed={t.Installed} ({t.Detail})");
-                if (!hidhide.Installed || !rtss.Installed || !usbip.Installed || !pawnio.Installed)
-                {
-                    // Each result is ANDed into ok — previously discarded, so a genuine failure (e.g. a
-                    // wrong system clock breaking the winget/certificate download, the exact case the
-                    // detailed log message below already explains) silently continued as if everything
-                    // had succeeded instead of stopping before cert/package install.
-                    //
-                    // Each row is also explicitly finalized with ITS OWN result right here — not left
-                    // for the generic "Log() marks the previous row green when the next one starts"
-                    // convenience, and not left for the single end-of-method FinishLogRow(ok) either.
-                    // Both of those attribute whatever the CUMULATIVE outcome ends up being to whichever
-                    // row happens to be current/last at that point, which can be a completely unrelated
-                    // later step (observed: a PawnIO failure here got silently shown as green, while the
-                    // red X landed on "Certificate already trusted." several steps later).
-                    if (!hidhide.Installed)
-                    {
-                        bool r = await Task.Run(() => ToolInstaller.InstallHidHide(Log));
-                        FinishLogRow(currentLogBadge, r);
-                        ok &= r;
-                    }
-                    if (!rtss.Installed)
-                    {
-                        bool r = await Task.Run(() => ToolInstaller.InstallRtss(Log));
-                        FinishLogRow(currentLogBadge, r);
-                        ok &= r;
-                    }
-                    if (!pawnio.Installed)
-                    {
-                        // Silent like HidHide/RTSS (no interactive window), but its own multi-step
-                        // download+verify+install flow is grouped the same way usbip's is below.
-                        Log("Installing PawnIO (driver)…");
-                        bool r = await Task.Run(() => PawnIoSetup.Run(LogDetail)) == PawnIoSetup.Result.Success;
-                        FinishLogRow(currentLogBadge, r);
-                        ok &= r;
-                    }
-                    if (!await Task.Run(() => ToolDetect.Usbip().Installed))
-                    {
-                        // Grouped into one row — UsbipSetup.Run's own internal steps (download, verify,
-                        // launch, exit code) go through LogDetail so they land as sub-lines here instead
-                        // of each becoming its own top-level checkmark.
-                        Log("Installing usbip (driver) — not silent, a separate installer window will open.");
-                        LogDetail("Confirm the driver-install prompt when it appears.");
-                        var usbipResult = await Task.Run(() => UsbipSetup.Run(LogDetail));
-                        if (usbipResult == UsbipSetup.Result.RebootRequired || usbipResult == UsbipSetup.Result.Success)
-                        {
-                            LogDetail("Reboot required for the driver to activate.");
-                            statusPanel.Content = BuildBigStatusCard(StatusKind.Warning, "Reboot required",
-                                "Virtual controller support won't work until you reboot — usbip's driver was just installed and needs it to activate.");
-                            AppendHistory(historyPanel, false, "Reboot required",
-                                "usbip's driver needs a restart before virtual controller mode works.");
-                        }
-                    }
-                }
-                else Log("Required tools (HidHide, RTSS, usbip, PawnIO) already installed.");
 
-                // Stop here, clearly, if a required tool failed — rather than continuing on to the
-                // certificate/package/Game-Bar steps and quietly falling through to nothing with no
-                // explanation (the "it looks frozen" symptom this was fixed from: tools failed, cert
-                // and package steps ran anyway, then the flow just stopped after "Certificate already
-                // trusted." with only an easy-to-miss red X several rows back as the only clue).
-                if (!ok)
+                var missingTools = new[] { hidhide, usbip, rtss, pawnio }.Where(t => !t.Installed).ToList();
+                if (missingTools.Count > 0)
                 {
-                    statusPanel.Content = BuildBigStatusCard(StatusKind.Error, "Installation stopped",
-                        "One or more required tools failed to install — see the log above for details. " +
-                        "Fix the issue (e.g. check the system clock for the winget/certificate error) and try again.");
+                    // Hand over and stop. Not a failure — there is simply something the user has to do
+                    // first, and saying so on a screen with the vendor links beats a red X in a log.
                     FinishLogRow(currentLogBadge, false);
-                    _busy = false;
-                    _installFinished = true;
-                    RefreshActionBar();
+                    ShowMissingPrerequisites(build, missingTools);
                     return;
                 }
+                Log("Required tools (HidHide, RTSS, usbip, PawnIO) already installed.");
 
-                // From here on it is the ClawTweaks install itself: the signing certificate goes into the
-                // machine store and the package gets deployed. THIS is the one thing in this flow that
-                // needs Center's own rights, so this is where the single UAC prompt belongs.
-                if (!EnsureElevatedForClawTweaksInstall(build))
-                {
-                    _busy = false;
-                    _installFinished = true;
-                    RefreshActionBar();
-                    return;
-                }
-
+                // The signing certificate. Same shape: check, and hand over if it isn't trusted yet.
                 string cer = CertInstaller.FindSiblingCer();
-                if (cer != null)
+                if (cer != null && !CertInstaller.IsTrusted(CertInstaller.ThumbprintOf(cer)))
                 {
-                    string thumb = CertInstaller.ThumbprintOf(cer);
-                    if (!CertInstaller.IsTrusted(thumb))
-                    {
-                        Log("Trusting signing certificate…");
-                        bool r = await Task.Run(() => CertInstaller.Install(cer));
-                        FinishLogRow(currentLogBadge, r);
-                        ok &= r;
-                    }
-                    else Log("Certificate already trusted.");
+                    FinishLogRow(currentLogBadge, false);
+                    ShowCertificateHandoff(build, cer);
+                    return;
                 }
+                if (cer != null) Log("Certificate already trusted.");
 
                 string pkg = PackageInstaller.FindPackage();
                 if (pkg == null)
@@ -1567,6 +1587,20 @@ namespace ClawTweaksSetup
 
                 if (ok)
                 {
+                    // The helper's scheduled task is the one piece of this that DOES need administrator
+                    // rights, and Center deliberately doesn't create it — the helper registers it from
+                    // its own signed exe on first run, which is both a single prompt and a far better
+                    // shape for Defender than an installer writing an exe plus a persistence entry.
+                    // See HelperControl. All Center does is notice when it isn't there yet and say what
+                    // the prompt the user is about to see is for.
+                    if (!await Task.Run(() => HelperControl.ScheduledTaskExists()))
+                    {
+                        Log("First install on this PC — Windows will ask for permission once.");
+                        LogDetail("ClawTweaks registers a scheduled task so the helper can start with the " +
+                            "right permissions. Confirm the prompt when it appears. It only happens this " +
+                            "once — later updates never ask again.");
+                    }
+
                     Log("Opening Game Bar — the ClawTweaks widget will start the helper…");
                     progressBar.IsIndeterminate = false;
                     progressBar.Value = 0;

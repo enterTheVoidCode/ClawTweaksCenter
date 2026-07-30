@@ -23,9 +23,14 @@ namespace ClawTweaksSetup
         // straight to the action (no roaming focus).
         private readonly Dictionary<PadButton, PhaseAction> _liveActions = new Dictionary<PadButton, PhaseAction>();
 
-        /// <summary>Index in <see cref="_phases"/> to land on instead of 0, when this launch is an
-        /// elevated relaunch triggered by ToolsPhase/InstallPhase (see their ResumeArg constants) —
-        /// -1 means start at the beginning as usual.</summary>
+        /// <summary>
+        /// Always -1 now: the wizard starts at the beginning.
+        ///
+        /// It used to be able to land mid-wizard, because ToolsPhase and InstallPhase relaunched Center
+        /// elevated and passed a resume argument so the user came back to the phase they had been on.
+        /// Neither phase elevates any more (nothing in Center does), so there is no relaunch to come
+        /// back from. Kept as a field rather than inlined so the intent is visible where GoTo reads it.
+        /// </summary>
         private readonly int _resumeIndex = -1;
 
         public MainWindow() : this(Array.Empty<string>()) { }
@@ -34,22 +39,11 @@ namespace ClawTweaksSetup
         {
             InitializeComponent();
 
-            bool resumeTools = Array.Exists(args, a => a == ToolsPhase.ResumeSilentArg);
-            bool resumeInstall = Array.Exists(args, a => a == InstallPhase.ResumeArg);
-
             _phases.Add(new DetectPhase());
             _phases.Add(new ControllerPhase());
-            _phases.Add(new ToolsPhase(resumeTools));
-            _phases.Add(new InstallPhase(resumeInstall));
+            _phases.Add(new ToolsPhase());
+            _phases.Add(new InstallPhase());
             _phases.Add(new FinalizePhase());
-
-            if (resumeTools) _resumeIndex = 2;
-            else if (resumeInstall) _resumeIndex = 3;
-
-            // The user already stepped through the earlier phases to reach this one before triggering
-            // the elevated relaunch — mark them completed so the stepper reflects that instead of
-            // showing progress lost.
-            for (int i = 0; i < _resumeIndex; i++) _completed.Add(i);
 
             foreach (var p in _phases)
                 p.StateChanged += OnPhaseChanged;
