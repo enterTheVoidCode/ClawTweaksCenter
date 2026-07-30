@@ -157,10 +157,12 @@ namespace ClawTweaksSetup.Phases
             string cer = CertInstaller.FindSiblingCer();
             if (cer != null && !CertInstaller.IsTrusted(CertInstaller.ThumbprintOf(cer)))
             {
-                Log("The ClawTweaks signing certificate isn't trusted yet — opening it now.");
-                Log("In the wizard: Install Certificate… → Local Machine → Place all certificates in " +
-                    "the following store → Browse → Trusted People. Then press Ⓐ again.");
-                CertInstaller.OpenForImport(cer, Log);
+                Log("The ClawTweaks signing certificate isn't trusted yet — opening its folder now.");
+                Log("Double-click the .cer, then: Install Certificate… → Local Machine → Place all " +
+                    "certificates in the following store → Browse → Trusted People. Then press Ⓐ again.");
+                // Opens the FOLDER, never the .cer itself — Defender flagged Center for launching the
+                // certificate as Behavior:Win32/DefenseEvasion.A!ml. See CertInstaller.ShowInExplorer.
+                CertInstaller.ShowInExplorer(cer, Log);
                 _busy = false;
                 Dispatcher.Invoke(() => _progress.Visibility = Visibility.Collapsed);
                 await RefreshAsync();

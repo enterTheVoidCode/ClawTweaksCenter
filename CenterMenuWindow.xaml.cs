@@ -58,6 +58,19 @@ namespace ClawTweaksSetup
         // by design — the condition is still true next launch, so the notice should come back.
         private bool _legacyNoticeDismissed;
         private string _legacyRemovalStatus;
+
+        // Set while a hand-off screen is up (missing prerequisites / untrusted certificate): the thing
+        // Ⓨ does. Every other screen drives its actions from the controller footer, and these two were
+        // the odd ones out with a button buried at the bottom of a scrolling page.
+        private Action _recheckAction;
+        private string _recheckLabel;
+
+        // The staged build folder from the last download, so a re-check does NOT download the ZIP
+        // again. Re-running the whole of InstallSelectedAsync was the simple thing to write and the
+        // wrong thing to do: the user fixes one prerequisite, presses re-check, and sits through
+        // another download of a file already on disk.
+        private string _stagedRoot;
+        private BuildSource _stagedBuild;
         private int _onbSelectedIndex = 0;      // controller cursor over the onboarding step cards
         private FrameworkElement _onbSelectedCard; // for BringIntoView after a selection move
         private bool _busy;
@@ -1115,6 +1128,17 @@ namespace ClawTweaksSetup
             // Nothing is actionable mid-download/install — an empty bar beats four dead-looking chips.
             if (_busy) return;
 
+            // A hand-off screen is up: the user has gone off to install a driver or import the
+            // certificate. Ⓨ re-checks, matching Onboarding's "Refresh status" — checked BEFORE the
+            // _installFinished branch below, which would otherwise offer nothing but Exit.
+            if (_recheckAction != null)
+            {
+                AddAction(PadButton.Y, _recheckLabel ?? "Re-check", true, _recheckAction);
+                AddAction(PadButton.B, "Exit", true, () => Application.Current.Shutdown());
+                AddScrollHint();
+                return;
+            }
+
             // Once an install has run to completion (success or failure), the only thing left to do
             // is close — re-launch the Center for another round rather than silently falling back
             // into the same picker.
@@ -1245,10 +1269,13 @@ namespace ClawTweaksSetup
         /// screens (missing prerequisites, untrusted certificate) need the exact same bookkeeping, and
         /// getting it wrong leaves the action bar stuck on "installing" with no way out.
         /// </summary>
-        private void StopInstallAndShow(UIElement screen)
+        private void StopInstallAndShow(UIElement screen, BuildSource build, string recheckLabel)
         {
             _busy = false;
             _installFinished = true;
+            // Ⓨ resumes the SAME build without downloading it again (reuseStaged).
+            _recheckLabel = recheckLabel;
+            _recheckAction = () => _ = InstallSelectedAsync(build, reuseStaged: true);
             ContentHost.Children.Clear();
             ContentHost.Children.Add(screen);
             RefreshActionBar();
@@ -1264,22 +1291,47 @@ namespace ClawTweaksSetup
             return root;
         }
 
-        /// <summary>The retry button both hand-off screens end with. Re-enters InstallSelectedAsync from
-        /// the top, which is safe and deliberately not optimised into a partial resume: every step in
-        /// that method is "check the real state, act only if needed", so a second pass over already-
-        /// satisfied steps costs a few detections and nothing else.</summary>
+        /// <summary>The footer hint both hand-off screens end with. The action itself lives on Ⓨ in the
+        /// action bar (see StopInstallAndShow) like every other screen's — this is only the on-page
+        /// reminder, since the user has just come back from another window and needs to be told what to
+        /// press. Mouse users can click it too.</summary>
         private Button BuildRecheckButton(BuildSource build, string label)
         {
             var button = new Button
             {
-                Content = label,
+                Content = "Ⓨ  " + label,
                 Style = (Style)Application.Current.Resources["SetupButton"],
                 MinWidth = 220,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Margin = new Thickness(0, 20, 0, 0),
             };
-            button.Click += (_, __) => _ = InstallSelectedAsync(build);
+            button.Click += (_, __) => _ = InstallSelectedAsync(build, reuseStaged: true);
             return button;
+        }
+
+        /// <summary>A read-only, selectable command line the user can copy into their own terminal.
+        /// Center never runs these — see PrerequisiteGuide — but winget resolves the right architecture
+        /// by itself, which is precisely where hand-picking a release asset went wrong for usbip.</summary>
+        private static UIElement BuildCommandBox(string command)
+        {
+            return new Border
+            {
+                Background = new SolidColorBrush(Color.FromRgb(0x1A, 0x1D, 0x24)),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12, 8, 12, 8),
+                Margin = new Thickness(0, 8, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Child = new TextBox
+                {
+                    Text = command,
+                    IsReadOnly = true,
+                    BorderThickness = new Thickness(0),
+                    Background = Brushes.Transparent,
+                    Foreground = UiHelpers.Text,
+                    FontFamily = new FontFamily("Consolas"),
+                    FontSize = 14,
+                },
+            };
         }
 
         /// <summary>
@@ -1350,6 +1402,18 @@ namespace ClawTweaksSetup
                     string url = info.PageUrl;
                     open.Click += (_, __) => PrerequisiteGuide.OpenPage(url);
                     stack.Children.Add(open);
+
+                    if (info.WingetCommand != null)
+                    {
+                        stack.Children.Add(new TextBlock
+                        {
+                            Text = "Or run this yourself in a terminal — winget picks the right " +
+                                   "architecture automatically:",
+                            FontSize = 13, Foreground = UiHelpers.Subtle,
+                            TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0),
+                        });
+                        stack.Children.Add(BuildCommandBox(info.WingetCommand));
+                    }
                 }
 
                 root.Children.Add(new Border
@@ -1365,12 +1429,13 @@ namespace ClawTweaksSetup
             }
 
             root.Children.Add(BuildRecheckButton(build, "Re-check and continue"));
-            StopInstallAndShow(root);
+            StopInstallAndShow(root, build, "Re-check tools");
         }
 
         /// <summary>
         /// Shown when the ClawTweaks signing certificate isn't trusted yet. The user imports it through
-        /// Windows' own Certificate Import Wizard; Center only opens the file and says which store.
+        /// Windows' own Certificate Import Wizard; Center points at the file and says which store, and
+        /// on a re-check names the specific mistake if it went somewhere else.
         ///
         /// The certificate has to go into the MACHINE store for the MSIX to be sideloadable, so writing
         /// it needs admin — it was the last privileged action left in Center. Handing it to the wizard
@@ -1386,6 +1451,29 @@ namespace ClawTweaksSetup
                 "Trust the ClawTweaks signing certificate",
                 "ClawTweaks is signed with its own certificate, and Windows only installs a package whose " +
                 "certificate it trusts. You only have to do this once — every future build uses the same one.");
+
+            // Say what is actually wrong, not just "not trusted". Both of these mistakes leave the user
+            // certain they did the step, and a bare "still not trusted" would send them round the same
+            // loop making the same choice.
+            var placement = CertInstaller.Diagnose(CertInstaller.ThumbprintOf(cerPath));
+            if (placement != CertInstaller.CertPlacement.Missing)
+            {
+                string what = placement switch
+                {
+                    CertInstaller.CertPlacement.WrongScopeCurrentUser =>
+                        "The certificate was imported for your user account instead of the local machine. " +
+                        "Windows only consults the machine store when installing a package, so this has no " +
+                        "effect. Run the import again and pick \"Local Machine\" on the first page.",
+                    CertInstaller.CertPlacement.WrongStoreRoot =>
+                        "The certificate landed in \"Trusted Root Certification Authorities\". That is both " +
+                        "more than ClawTweaks needs — it would make this certificate a trust anchor for " +
+                        "anything, not just this package — and still not where Windows looks. Remove it " +
+                        "from there and import it into \"Trusted People\" instead.",
+                    _ => null,
+                };
+                if (what != null)
+                    root.Children.Add(UiHelpers.StatusRow(StatusKind.Warning, "Almost — but in the wrong place", what));
+            }
 
             var stack = new StackPanel();
             int step = 1;
@@ -1404,28 +1492,19 @@ namespace ClawTweaksSetup
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
             });
 
-            var buttons = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 0) };
-            var openCert = new Button
-            {
-                Content = "Open the certificate",
-                Style = (Style)Application.Current.Resources["SetupButton"],
-                MinWidth = 190,
-            };
-            openCert.Click += (_, __) => CertInstaller.OpenForImport(cerPath);
-            buttons.Children.Add(openCert);
-
-            // Fallback for a machine where .cer has no shell handler (rare, but it happens on locked-down
-            // images) — showing the file in Explorer at least gets the user to it.
+            // Opens the FOLDER; the user double-clicks the .cer themselves. Center used to launch the
+            // file, and Defender flagged Center for it as Behavior:Win32/DefenseEvasion.A!ml — see the
+            // note on CertInstaller.ShowInExplorer. Do not add an "Open the certificate" button back.
             var showFolder = new Button
             {
-                Content = "Show in folder",
+                Content = "Show the certificate in Explorer",
                 Style = (Style)Application.Current.Resources["SetupButton"],
-                MinWidth = 150,
-                Margin = new Thickness(10, 0, 0, 0),
+                MinWidth = 250,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 14, 0, 0),
             };
             showFolder.Click += (_, __) => CertInstaller.ShowInExplorer(cerPath);
-            buttons.Children.Add(showFolder);
-            stack.Children.Add(buttons);
+            stack.Children.Add(showFolder);
 
             root.Children.Add(new Border
             {
@@ -1437,13 +1516,22 @@ namespace ClawTweaksSetup
                 Child = stack,
             });
 
-            root.Children.Add(BuildRecheckButton(build, "I've done it — continue"));
-            StopInstallAndShow(root);
+            root.Children.Add(BuildRecheckButton(build, "Check the certificate and continue"));
+            StopInstallAndShow(root, build, "Check certificate");
         }
 
-        private async Task InstallSelectedAsync(BuildSource build)
+        /// <param name="reuseStaged">Set when this is a re-check from a hand-off screen: the build has
+        /// already been downloaded and unpacked, so skip straight to re-testing the real state. Without
+        /// it the user pays for a fresh download of a file already on disk every time they come back
+        /// from installing one driver.</param>
+        private async Task InstallSelectedAsync(BuildSource build, bool reuseStaged = false)
         {
             if (_busy) return;
+
+            // Leaving whatever hand-off screen we came from — the footer is rebuilt below and must not
+            // keep offering a stale Ⓨ.
+            _recheckAction = null;
+            _recheckLabel = null;
 
             // NO elevation anywhere in this method, up front or later. Center never asks for
             // administrator rights: the two steps that need them are handed to the user (missing driver
@@ -1601,9 +1689,27 @@ namespace ClawTweaksSetup
 
             try
             {
-                bool certTrusted = await Task.Run(() => CertInstaller.IsKnownCertAlreadyTrusted());
-                string staged = await BuildDownloader.DownloadAndStageAsync(build, certTrusted, Log, progress);
-                SetupContext.AssetRoot = staged;
+                // Re-check from a hand-off screen: the bytes are already unpacked on disk. Re-downloading
+                // them would be pure waste and is what the first version did — the user installs one
+                // driver, presses re-check, and sits through the whole ZIP again.
+                bool haveStaged = reuseStaged
+                    && _stagedRoot != null
+                    && ReferenceEquals(_stagedBuild, build)
+                    && System.IO.Directory.Exists(_stagedRoot);
+
+                if (haveStaged)
+                {
+                    SetupContext.AssetRoot = _stagedRoot;
+                    Log($"Re-checking {build.Version} — already downloaded, nothing to fetch again.");
+                }
+                else
+                {
+                    bool certTrusted = await Task.Run(() => CertInstaller.IsKnownCertAlreadyTrusted());
+                    string staged = await BuildDownloader.DownloadAndStageAsync(build, certTrusted, Log, progress);
+                    SetupContext.AssetRoot = staged;
+                    _stagedRoot = staged;
+                    _stagedBuild = build;
+                }
 
                 // Straight into the actual install from here — no manual wizard walk-through. The
                 // Center menu exists for fast iteration on an already-onboarded dev device: pick a

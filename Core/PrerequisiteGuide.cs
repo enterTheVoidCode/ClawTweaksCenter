@@ -42,6 +42,17 @@ namespace ClawTweaksSetup.Core
             public string WhatToGet;
             /// <summary>True for the ones that need a restart before they actually work.</summary>
             public bool NeedsReboot;
+            /// <summary>
+            /// The winget package id, shown as a command the USER can paste into their own terminal.
+            /// Center does not run it — that would put us back to spawning elevated installers (see the
+            /// class note). It is offered because winget picks the right architecture by itself, which
+            /// is exactly where hand-picking a release asset goes wrong; see <see cref="Usbip"/>.
+            /// </summary>
+            public string WingetId;
+
+            /// <summary>The full command line to show. Null when there is no winget package.</summary>
+            public string WingetCommand =>
+                WingetId == null ? null : $"winget install --id {WingetId} -e";
         }
 
         public static readonly ToolInfo HidHide = new ToolInfo
@@ -50,7 +61,8 @@ namespace ClawTweaksSetup.Core
             Why = "Hides the Claw's physical gamepad so games see only the virtual controller. " +
                   "Without it every input is registered twice.",
             PageUrl = "https://github.com/nefarius/HidHide/releases/latest",
-            WhatToGet = "Download HidHide_x.x.x.x_x64.exe and run it.",
+            WhatToGet = "Download the x64 installer (HidHide_x.x.x.x_x64.exe) and run it.",
+            WingetId = "Nefarius.HidHide",
             NeedsReboot = true,
         };
 
@@ -59,8 +71,17 @@ namespace ClawTweaksSetup.Core
             Name = "usbip",
             Why = "Provides the virtual controller itself (the VIIPER backend).",
             PageUrl = "https://github.com/vadimgrn/usbip-win2/releases/latest",
-            WhatToGet = "Download the USBip-x.x.x.x.exe installer and run it. It installs a driver, " +
-                        "so Windows will ask you to confirm the driver publisher.",
+            // The release page carries several architectures under near-identical names, and picking
+            // the wrong one fails LATE and confusingly: the installer runs, copies its files, and only
+            // then dies with "Unable to execute file: C:\Program Files\USBip\devnode.exe -
+            // CreateProcess failed; code 216". 216 is ERROR_EXE_MACHINE_TYPE_MISMATCH — the binaries
+            // are for another architecture — but the message talks about the Windows version, so it
+            // reads like an OS problem. Hit on an MSI Claw (x64) 2026-07-30. winget gets this right on
+            // its own, which is why it is offered first here.
+            WhatToGet = "Take the x64 build — the page also offers ARM64, and the wrong one installs " +
+                        "most of the way before failing with \"CreateProcess failed; code 216\". " +
+                        "It installs a driver, so Windows asks you to confirm the publisher.",
+            WingetId = "USBIPD-WIN.usbipd",
             NeedsReboot = true,
         };
 
@@ -70,6 +91,7 @@ namespace ClawTweaksSetup.Core
             Why = "Applies the per-game FPS cap and draws the on-screen display.",
             PageUrl = "https://www.guru3d.com/download/rtss-rivatuner-statistics-server-download/",
             WhatToGet = "Download RivaTuner Statistics Server and run the installer.",
+            WingetId = "Guru3D.RTSS",
             NeedsReboot = false,
         };
 
@@ -79,6 +101,7 @@ namespace ClawTweaksSetup.Core
             Why = "Reads the CPU sensors ClawTweaks shows in the widget.",
             PageUrl = "https://pawnio.eu/",
             WhatToGet = "Download PawnIO Setup and run it.",
+            WingetId = "namazso.PawnIO",
             NeedsReboot = false,
         };
 
