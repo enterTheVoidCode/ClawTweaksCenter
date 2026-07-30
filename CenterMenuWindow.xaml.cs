@@ -65,6 +65,14 @@ namespace ClawTweaksSetup
         private Action _recheckAction;
         private string _recheckLabel;
 
+        // Missing-prerequisites hand-off screen: which tools it lists, which build it will resume, and
+        // where the controller cursor sits. Non-null only while that screen is up — that is also what
+        // tells MoveSelection to navigate the tool cards instead of the build list.
+        private List<ToolStatus> _prereqTools;
+        private BuildSource _prereqBuild;
+        private int _prereqSelectedIndex;
+        private FrameworkElement _prereqSelectedCard;
+
         // The staged build folder from the last download, so a re-check does NOT download the ZIP
         // again. Re-running the whole of InstallSelectedAsync was the simple thing to write and the
         // wrong thing to do: the user fixes one prerequisite, presses re-check, and sits through
@@ -508,6 +516,29 @@ namespace ClawTweaksSetup
             ContentHost.Children.Add(UiHelpers.Body(
                 "Helps set the most important ClawTweaks settings."));
 
+            // Shown unconditionally: HidHide and usbip install kernel drivers that Windows only loads on
+            // the next boot (the two tools flagged NeedsReboot in PrerequisiteGuide). Without the restart
+            // the steps below can fail for a reason that looks nothing like "reboot pending", so the note
+            // is cheaper than the support round-trip.
+            ContentHost.Children.Add(new Border
+            {
+                Background = Tint(UiHelpers.Warn, 0x22),
+                BorderBrush = Tint(UiHelpers.Warn, 0x99),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(12, 8, 12, 8),
+                Margin = new Thickness(0, 0, 0, 14),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Child = new TextBlock
+                {
+                    Text = "⚠  If HidHide or usbip was just installed, restart the device before running these steps.",
+                    FontSize = 14,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = UiHelpers.Warn,
+                    TextWrapping = TextWrapping.Wrap,
+                },
+            });
+
             if (_onboarding.IsConnecting)
             {
                 var connectingRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 10) };
@@ -618,12 +649,14 @@ namespace ClawTweaksSetup
                 Grid.SetColumn(rightPanel, 2);
                 row.Children.Add(rightPanel);
 
+                var onbPad = new Thickness(16, 12, 16, 12);
                 var card = new Border
                 {
                     Background = UiHelpers.Card, CornerRadius = new CornerRadius(10),
-                    Padding = new Thickness(16, 12, 16, 12), Margin = new Thickness(0, 0, 10, 10),
+                    Margin = new Thickness(0, 0, 10, 10),
                     BorderBrush = selectedCard ? UiHelpers.Accent : Brushes.Transparent,
                     BorderThickness = new Thickness(selectedCard ? 2 : 0),
+                    Padding = selectedCard ? Deflate(onbPad, 2) : onbPad, // see Deflate: keeps the card from resizing
                     Child = row,
                 };
                 if (selectedCard) _onbSelectedCard = card;
@@ -659,14 +692,20 @@ namespace ClawTweaksSetup
             Brush borderBrush = selected ? UiHelpers.Accent : (clickable ? UiHelpers.Subtle : Brushes.Transparent);
             double borderThickness = selected ? 3 : (clickable ? 1 : 0);
 
+            // Three different ring thicknesses here, so the padding is derived from the thickness rather
+            // than written out per state: border + padding stays constant, and the tile therefore
+            // measures the same in all three. Offset by 1 because the ordinary clickable tile (1px) is
+            // the state the padding below was authored against. See Deflate.
+            var tilePad = new Thickness(20, 18, 20, 18);
+
             var border = new Border
             {
                 Background = UiHelpers.Card,
                 CornerRadius = new CornerRadius(12),
-                Padding = new Thickness(20, 18, 20, 18),
                 Margin = new Thickness(0, 0, 10, 10),
                 BorderBrush = borderBrush,
                 BorderThickness = new Thickness(borderThickness),
+                Padding = Deflate(tilePad, borderThickness - 1),
                 Opacity = clickable ? 1.0 : 0.55,
                 Child = stack,
                 Cursor = clickable ? Cursors.Hand : Cursors.Arrow,
@@ -717,14 +756,15 @@ namespace ClawTweaksSetup
             button.Click += (_, __) => OpenCenterDownloadPage();
             stack.Children.Add(button);
 
+            var updatePad = new Thickness(20, 18, 20, 18);
             return new Border
             {
                 Background = UiHelpers.Card,
                 CornerRadius = new CornerRadius(12),
-                Padding = new Thickness(20, 18, 20, 18),
                 Margin = new Thickness(0, 0, 0, 14),
                 BorderBrush = selected ? UiHelpers.Accent : UiHelpers.Ok,
                 BorderThickness = new Thickness(selected ? 3 : 1),
+                Padding = selected ? Deflate(updatePad, 2) : updatePad, // see Deflate: keeps the card from resizing
                 Child = stack,
             };
         }
@@ -841,9 +881,18 @@ namespace ClawTweaksSetup
             AddSection("Nightly Releases (Experimental Builds)", "🥼", UiHelpers.Error, _nightlies, _nightliesError);
         }
 
+        /// <summary>
+        /// One channel (stable / test / nightly) as its own framed card, so the three read as separate
+        /// groups instead of one long column where only a heading tells them apart. The frame is a
+        /// washed-out version of the channel's own colour rather than CardBrush: the release tiles
+        /// inside already use CardBrush, and a container in the same tone would make them disappear
+        /// into it. Tinted frame outside, solid tiles inside.
+        /// </summary>
         private void AddSection(string header, string iconEmoji, Brush titleColor, List<BuildSource> items, string error)
         {
-            var headerRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 14, 0, 8) };
+            var sectionStack = new StackPanel();
+
+            var headerRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
             headerRow.Children.Add(new TextBlock
             {
                 // WPF's text renderer doesn't support color-emoji font layers (unlike UWP/WinUI or a
@@ -864,39 +913,102 @@ namespace ClawTweaksSetup
                 Foreground = titleColor,
                 VerticalAlignment = VerticalAlignment.Center,
             });
-            ContentHost.Children.Add(headerRow);
+            sectionStack.Children.Add(headerRow);
 
             if (error != null)
             {
-                ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Error, "Couldn't load", error));
-                return;
+                sectionStack.Children.Add(UiHelpers.StatusRow(StatusKind.Error, "Couldn't load", error));
             }
-            if (items == null)
+            else if (items == null)
             {
-                ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Working, "Loading…", ""));
-                return;
+                sectionStack.Children.Add(UiHelpers.StatusRow(StatusKind.Working, "Loading…", ""));
             }
-            if (items.Count == 0)
+            else if (items.Count == 0)
             {
-                ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Info, "Nothing found", ""));
-                return;
+                sectionStack.Children.Add(UiHelpers.StatusRow(StatusKind.Info, "Nothing found", ""));
+            }
+            else
+            {
+                bool haveSelection = _selectedIndex >= 0 && _selectedIndex < _flat.Count;
+                var selected = haveSelection ? _flat[_selectedIndex] : null;
+
+                var grid = new UniformGrid { Columns = 2 };
+                foreach (var b in items)
+                {
+                    // items are already sorted newest-first (GitHubReleaseSource/GoogleDriveSource), so
+                    // only the first card per section gets full contrast — the rest are dimmed.
+                    bool isNewest = ReferenceEquals(b, items[0]);
+                    var row = BuildRow(b, ReferenceEquals(b, selected), isNewest);
+                    _rowElements[b] = row;
+                    grid.Children.Add(row);
+                }
+                sectionStack.Children.Add(grid);
             }
 
-            bool haveSelection = _selectedIndex >= 0 && _selectedIndex < _flat.Count;
-            var selected = haveSelection ? _flat[_selectedIndex] : null;
-
-            var grid = new UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 0, 4) };
-            foreach (var b in items)
+            ContentHost.Children.Add(new Border
             {
-                // items are already sorted newest-first (GitHubReleaseSource/GoogleDriveSource), so
-                // only the first card per section gets full contrast — the rest are dimmed.
-                bool isNewest = ReferenceEquals(b, items[0]);
-                var row = BuildRow(b, ReferenceEquals(b, selected), isNewest);
-                _rowElements[b] = row;
-                grid.Children.Add(row);
-            }
-            ContentHost.Children.Add(grid);
+                Background = Tint(titleColor, 0x10),
+                BorderBrush = Tint(titleColor, 0x66),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(16, 14, 8, 6),
+                Margin = new Thickness(0, 0, 0, 14),
+                Child = sectionStack,
+            });
         }
+
+        /// <summary>
+        /// Semi-transparent variant of a theme brush, for section frames and badge fills. Alpha rather
+        /// than a second set of hard-coded colours, so these follow the theme brushes automatically and
+        /// there is nothing to keep in sync. Opacity on the Border itself is not an option — it would
+        /// fade the tiles and text inside with it.
+        /// </summary>
+        private static Brush Tint(Brush source, byte alpha)
+        {
+            if (source is SolidColorBrush scb)
+            {
+                var c = scb.Color;
+                return new SolidColorBrush(Color.FromArgb(alpha, c.R, c.G, c.B));
+            }
+            return Brushes.Transparent;
+        }
+
+        /// <summary>
+        /// Shrinks a card's padding by exactly the extra border a focus ring adds, so the card measures
+        /// the SAME whether it is selected or not.
+        ///
+        /// BorderThickness is part of an element's measured size, so a selection ring that is 2–3px
+        /// thicker than the unselected state made every card grow the moment the cursor landed on it —
+        /// which re-flowed the panel around it and read as the whole layout flickering on each D-pad
+        /// press. Compensating inwards keeps border + padding (and therefore the outer box) constant, so
+        /// nothing moves, while the ring itself stays exactly as thick as it was designed to be.
+        /// </summary>
+        private static Thickness Deflate(Thickness padding, double by) => new Thickness(
+            Math.Max(0, padding.Left - by), Math.Max(0, padding.Top - by),
+            Math.Max(0, padding.Right - by), Math.Max(0, padding.Bottom - by));
+
+        /// <summary>
+        /// Outlined pill for a short status fact on a release tile ("Currently installed", "Older than
+        /// installed", a device block). Carries the same colour the plain text used to, just with a
+        /// border and fill so it reads as a label at a glance instead of another line of prose.
+        /// </summary>
+        private static Border BuildTagBadge(string text, Brush brush) => new Border
+        {
+            Background = Tint(brush, 0x22),
+            BorderBrush = Tint(brush, 0x99),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(6),
+            Padding = new Thickness(8, 2, 8, 3),
+            Margin = new Thickness(0, 6, 6, 0),
+            Child = new TextBlock
+            {
+                Text = text,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = brush,
+                TextWrapping = TextWrapping.Wrap,
+            },
+        };
 
         private Border BuildRow(BuildSource b, bool selected, bool isNewest)
         {
@@ -919,34 +1031,32 @@ namespace ClawTweaksSetup
                     Margin = new Thickness(0, 3, 0, 0),
                 });
 
+            // Both facts are short labels, so they go in a WrapPanel of outlined badges — a build that
+            // is both older AND device-blocked shows two side by side and wraps if the tile is narrow.
+            var badges = new WrapPanel { Orientation = Orientation.Horizontal };
+
             string tag = VersionTag(b, out var tagBrush);
-            if (tag != null)
-                stack.Children.Add(new TextBlock
-                {
-                    Text = tag, FontSize = 13, FontWeight = FontWeights.SemiBold, Foreground = tagBrush,
-                    Margin = new Thickness(0, 4, 0, 0),
-                });
+            if (tag != null) badges.Children.Add(BuildTagBadge(tag, tagBrush));
 
             if (IsBlockedForDevice(b, out string blockReason))
-                stack.Children.Add(new TextBlock
-                {
-                    Text = "⛔ " + blockReason, FontSize = 13, FontWeight = FontWeights.SemiBold,
-                    Foreground = UiHelpers.Error, Margin = new Thickness(0, 4, 0, 0), TextWrapping = TextWrapping.Wrap,
-                });
+                badges.Children.Add(BuildTagBadge("⛔ " + blockReason, UiHelpers.Error));
+
+            if (badges.Children.Count > 0) stack.Children.Add(badges);
 
             // Only the newest card per section reads at full contrast; older ones are dimmed so the
             // latest is the obvious pick at a glance. A selected (controller-highlighted) card always
             // shows at full strength regardless, so the highlight itself is never hard to see.
             double baseOpacity = (isNewest || selected) ? 1.0 : 0.55;
 
+            var rowPad = new Thickness(16, 12, 16, 12);
             var border = new Border
             {
                 Background = UiHelpers.Card,
                 CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(16, 12, 16, 12),
                 Margin = new Thickness(0, 0, 10, 10),
                 BorderBrush = selected ? UiHelpers.Accent : Brushes.Transparent,
                 BorderThickness = new Thickness(selected ? 2 : 0), // full outline, matching the Home tile's focus style
+                Padding = selected ? Deflate(rowPad, 2) : rowPad,  // see Deflate: keeps the tile from resizing
                 Child = stack,
                 Cursor = Cursors.Hand,
                 Opacity = _busy ? baseOpacity * 0.5 : baseOpacity,
@@ -995,6 +1105,18 @@ namespace ClawTweaksSetup
             if (_view == View.Home) { MoveHomeSelection(dir); return; }
             if (_view == View.Onboarding) { MoveOnboardingSelection(dir); return; }
             if (_view == View.Maintenance) { MoveMaintenanceSelection(dir); return; }
+
+            // A hand-off screen (missing prerequisites / untrusted certificate) is up. _view is still
+            // Browse — these screens replace the CONTENT without being their own view — so without this
+            // the Browse branch below would run RenderBrowse() and wipe the screen the user is following,
+            // dropping them back into the build picker. On the tools screen the keys move the cursor
+            // instead; the certificate screen has nothing to move, so they simply do nothing.
+            if (_recheckAction != null)
+            {
+                if (_prereqTools != null) MovePrereqSelection(dir);
+                return;
+            }
+
             if (_view != View.Browse || _busy || _confirming || _flat.Count == 0) return;
 
             int delta = dir switch
@@ -1133,6 +1255,12 @@ namespace ClawTweaksSetup
             // _installFinished branch below, which would otherwise offer nothing but Exit.
             if (_recheckAction != null)
             {
+                // On the tools screen Ⓐ opens the download page of the card the cursor is on, so the
+                // whole screen is usable from the controller without reaching for the mouse.
+                string prereqUrl = SelectedPrereqUrl();
+                if (prereqUrl != null)
+                    AddAction(PadButton.A, "Open download page", true, () => PrerequisiteGuide.OpenPage(prereqUrl));
+
                 AddAction(PadButton.Y, _recheckLabel ?? "Re-check", true, _recheckAction);
                 AddAction(PadButton.B, "Exit", true, () => Application.Current.Shutdown());
                 AddScrollHint();
@@ -1309,30 +1437,11 @@ namespace ClawTweaksSetup
             return button;
         }
 
-        /// <summary>A read-only, selectable command line the user can copy into their own terminal.
-        /// Center never runs these — see PrerequisiteGuide — but winget resolves the right architecture
-        /// by itself, which is precisely where hand-picking a release asset went wrong for usbip.</summary>
-        private static UIElement BuildCommandBox(string command)
-        {
-            return new Border
-            {
-                Background = new SolidColorBrush(Color.FromRgb(0x1A, 0x1D, 0x24)),
-                CornerRadius = new CornerRadius(6),
-                Padding = new Thickness(12, 8, 12, 8),
-                Margin = new Thickness(0, 8, 0, 0),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Child = new TextBox
-                {
-                    Text = command,
-                    IsReadOnly = true,
-                    BorderThickness = new Thickness(0),
-                    Background = Brushes.Transparent,
-                    Foreground = UiHelpers.Text,
-                    FontFamily = new FontFamily("Consolas"),
-                    FontSize = 14,
-                },
-            };
-        }
+        // BuildCommandBox lived here: a read-only TextBox showing a "winget install …" line per tool.
+        // Removed with the winget hints themselves (see PrerequisiteGuide). Worth knowing that it was
+        // also the only TextBox in Center, and therefore the only thing that ever reached WPF's full
+        // text-layout path — which is where the InvariantGlobalization crash fired (see the csproj note).
+        // If a TextBox is ever needed again, that setting must stay false.
 
         /// <summary>
         /// Shown when a prerequisite tool is missing. Center detects and explains; the USER downloads
@@ -1345,10 +1454,28 @@ namespace ClawTweaksSetup
         /// </summary>
         private void ShowMissingPrerequisites(BuildSource build, List<ToolStatus> missing)
         {
+            // Remember what this screen is about. D-pad navigation re-renders it (same pattern as
+            // Browse/Onboarding), and without this state a re-render would have nothing to draw.
+            _prereqBuild = build;
+            _prereqTools = missing;
+            if (_prereqSelectedIndex >= missing.Count) _prereqSelectedIndex = 0;
+            RenderMissingPrerequisites();
+        }
+
+        /// <summary>
+        /// Draws the missing-prerequisites screen from <see cref="_prereqTools"/>, with the controller
+        /// cursor on <see cref="_prereqSelectedIndex"/>. Split out from
+        /// <see cref="ShowMissingPrerequisites"/> so moving the cursor can redraw it.
+        /// </summary>
+        private void RenderMissingPrerequisites()
+        {
+            var build = _prereqBuild;
+            var missing = _prereqTools;
+            if (missing == null) return;
+
             var root = BuildHandoffScreen(
                 "Install the missing prerequisites",
-                "ClawTweaks needs these before it can be installed. Center doesn't install them for you — " +
-                "download each one from the vendor and run their installer, then come back and re-check.");
+                "Download each one from the vendor and run their installer, then re-check.");
 
             // HidHide and usbip install KERNEL DRIVERS, and a kernel driver does not exist until the
             // machine restarts. Skipping this leaves the user in the worst possible state: everything
@@ -1371,10 +1498,8 @@ namespace ClawTweaksSetup
                 });
                 rebootStack.Children.Add(new TextBlock
                 {
-                    Text = string.Join(" and ", names) + " install kernel drivers, and Windows does not " +
-                           "load a new kernel driver until the next restart. Without the restart the " +
-                           "virtual controller cannot start — everything will look installed and simply " +
-                           "not work. Install what's below, reboot, then come back and press Ⓨ.",
+                    Text = "These install kernel drivers. Without the restart everything looks installed " +
+                           "and the virtual controller still won't start.",
                     FontSize = 15, Foreground = UiHelpers.Text,
                     TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 8, 0, 0),
                 });
@@ -1391,8 +1516,10 @@ namespace ClawTweaksSetup
                 });
             }
 
-            foreach (var tool in missing)
+            for (int i = 0; i < missing.Count; i++)
             {
+                var tool = missing[i];
+                bool selectedTool = i == _prereqSelectedIndex;
                 var info = PrerequisiteGuide.For(tool.Name);
                 var stack = new StackPanel();
                 stack.Children.Add(new TextBlock
@@ -1417,20 +1544,30 @@ namespace ClawTweaksSetup
                 {
                     stack.Children.Add(new TextBlock
                     {
-                        Text = info.Why, FontSize = 14, Foreground = UiHelpers.Subtle,
-                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
-                    });
-                    stack.Children.Add(new TextBlock
-                    {
-                        Text = info.WhatToGet + (info.NeedsReboot ? " A restart is required afterwards." : ""),
+                        Text = info.Why + "  " + info.WhatToGet,
                         FontSize = 14, Foreground = UiHelpers.Subtle,
-                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0),
-                    });
-                    stack.Children.Add(new TextBlock
-                    {
-                        Text = info.PageUrl, FontSize = 13, Foreground = UiHelpers.Subtle,
                         TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
                     });
+
+                    // The one trap that breaks this tool, in its own outlined strip. Inline in the
+                    // paragraph it was demonstrably missed — twice, for usbip's arm64 asset.
+                    if (info.Warning != null)
+                        stack.Children.Add(new Border
+                        {
+                            Background = Tint(UiHelpers.Error, 0x22),
+                            BorderBrush = Tint(UiHelpers.Error, 0x99),
+                            BorderThickness = new Thickness(1),
+                            CornerRadius = new CornerRadius(6),
+                            Padding = new Thickness(10, 6, 10, 6),
+                            Margin = new Thickness(0, 10, 0, 0),
+                            HorizontalAlignment = HorizontalAlignment.Left,
+                            Child = new TextBlock
+                            {
+                                Text = info.Warning,
+                                FontSize = 16, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Error,
+                                TextWrapping = TextWrapping.Wrap,
+                            },
+                        });
 
                     var open = new Button
                     {
@@ -1443,34 +1580,64 @@ namespace ClawTweaksSetup
                     string url = info.PageUrl;
                     open.Click += (_, __) => PrerequisiteGuide.OpenPage(url);
                     stack.Children.Add(open);
-
-                    if (info.WingetCommand != null)
-                    {
-                        stack.Children.Add(new TextBlock
-                        {
-                            Text = "Or run this yourself in a terminal — winget picks the right " +
-                                   "architecture automatically:",
-                            FontSize = 13, Foreground = UiHelpers.Subtle,
-                            TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 12, 0, 0),
-                        });
-                        stack.Children.Add(BuildCommandBox(info.WingetCommand));
-                    }
                 }
 
-                root.Children.Add(new Border
+                // Accent outline on the card the controller cursor is on, same convention as the build
+                // tiles and the onboarding steps — Ⓐ opens that one's download page.
+                var toolPad = new Thickness(20, 16, 20, 16);
+                var card = new Border
                 {
                     Background = UiHelpers.Card,
                     CornerRadius = new CornerRadius(12),
-                    Padding = new Thickness(20, 16, 20, 16),
                     Margin = new Thickness(0, 0, 0, 12),
-                    BorderBrush = broken ? UiHelpers.Warn : UiHelpers.Subtle,
-                    BorderThickness = new Thickness(1),
+                    BorderBrush = selectedTool ? UiHelpers.Accent : (broken ? UiHelpers.Warn : UiHelpers.Subtle),
+                    BorderThickness = new Thickness(selectedTool ? 3 : 1),
+                    Padding = selectedTool ? Deflate(toolPad, 2) : toolPad, // see Deflate: keeps the card from resizing
                     Child = stack,
-                });
+                };
+                if (selectedTool) _prereqSelectedCard = card;
+                root.Children.Add(card);
             }
 
             root.Children.Add(BuildRecheckButton(build, "Re-check and continue"));
             StopInstallAndShow(root, build, "Re-check tools");
+            _prereqSelectedCard?.BringIntoView();
+        }
+
+        /// <summary>
+        /// D-pad over the missing-tool cards. Any direction moves by one — it is a single column, and on
+        /// a handheld the user should not have to work out which axis this particular list uses.
+        ///
+        /// This exists because without it the keys fell through to <see cref="MoveSelection"/>'s Browse
+        /// branch, which called RenderBrowse() and replaced this screen with the build list — the user
+        /// was thrown back into the picker they had already started an install from.
+        /// </summary>
+        private void MovePrereqSelection(PadButton dir)
+        {
+            if (_prereqTools == null || _prereqTools.Count == 0) return;
+
+            int delta = dir switch
+            {
+                PadButton.Up or PadButton.Left => -1,
+                PadButton.Down or PadButton.Right => 1,
+                _ => 0,
+            };
+            if (delta == 0) return;
+
+            int next = _prereqSelectedIndex + delta;
+            if (next < 0 || next >= _prereqTools.Count) return;
+
+            _prereqSelectedIndex = next;
+            RenderMissingPrerequisites();
+            RefreshActionBar();
+        }
+
+        /// <summary>Download page of the tool the cursor is on, or null.</summary>
+        private string SelectedPrereqUrl()
+        {
+            if (_prereqTools == null || _prereqSelectedIndex < 0 || _prereqSelectedIndex >= _prereqTools.Count)
+                return null;
+            return PrerequisiteGuide.For(_prereqTools[_prereqSelectedIndex].Name)?.PageUrl;
         }
 
         /// <summary>
@@ -1571,9 +1738,14 @@ namespace ClawTweaksSetup
             if (_busy) return;
 
             // Leaving whatever hand-off screen we came from — the footer is rebuilt below and must not
-            // keep offering a stale Ⓨ.
+            // keep offering a stale Ⓨ. The prerequisites state goes with it, so D-pad input belongs to
+            // the build list again (and a later re-check rebuilds the list from a fresh detect anyway).
             _recheckAction = null;
             _recheckLabel = null;
+            _prereqTools = null;
+            _prereqBuild = null;
+            _prereqSelectedCard = null;
+            _prereqSelectedIndex = 0;
 
             // NO elevation anywhere in this method, up front or later. Center never asks for
             // administrator rights: the two steps that need them are handed to the user (missing driver

@@ -270,12 +270,14 @@ namespace ClawTweaksSetup
 
         private Border WrapSelectableCard(UIElement child, bool selected, Action onClick)
         {
+            var cardPad = new Thickness(16, 14, 16, 14);
             var border = new Border
             {
                 Background = UiHelpers.Card, CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(16, 14, 16, 14), Margin = new Thickness(0, 0, 0, 10),
+                Margin = new Thickness(0, 0, 0, 10),
                 BorderBrush = selected ? UiHelpers.Accent : Brushes.Transparent,
                 BorderThickness = new Thickness(selected ? 2 : 0),
+                Padding = selected ? Deflate(cardPad, 2) : cardPad, // see Deflate: keeps the card from resizing
                 Cursor = Cursors.Hand,
                 Child = child,
             };

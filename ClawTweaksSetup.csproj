@@ -22,7 +22,7 @@
     <Authors>ClawTweaks</Authors>
     <Copyright>Copyright (c) ClawTweaks</Copyright>
     <Description>ClawTweaks Center - installer and control panel for ClawTweaks on the MSI Claw.</Description>
-    <Version>0.1.9.4</Version>
+    <Version>0.1.9.5</Version>
     <!-- Distributed filename carries the version + "Setup" suffix (e.g. CTW_Center_0.1.0.2_Setup.exe)
          so a user can tell builds apart in their Downloads folder. This is ONLY the distributed
          filename — the INSTALLED copy in Program Files always keeps the fixed name
@@ -47,9 +47,23 @@
          the .exe elsewhere crashes at startup with DllNotFoundException in WindowsBase
          (SetWindowLongPtrWndProc). Bundling + self-extracting them makes the exe truly portable. -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
-    <!-- Size: no culture-aware sorting/formatting needed (English-only UI) — drops the ICU
-         globalization database and non-English WPF resource satellites from the publish output. -->
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- MUST stay false: WPF is not supported in globalization-invariant mode and CRASHES in it.
+         WPF's text layout initialises MS.Internal.FontCache.MajorLanguages, whose static constructor
+         does new CultureInfo("en") — in invariant mode that throws CultureNotFoundException ("en is an
+         invalid culture identifier"), which surfaces as a TypeInitializationException that kills the
+         process. It was set to true purely for publish size (it drops the ICU database), and it looked
+         harmless for a long time because the path is only reached when a TextBox needs full text
+         layout (ComputeTypographyAvailabilities), and Center's only TextBox was the copyable winget
+         command on the missing-prerequisites screen. So Center died the first time a user actually had a
+         tool missing (observed 2026-07-30 with HidHide and usbip uninstalled: crash right after staging,
+         in Window measure, no dialog). That TextBox is gone now along with the winget hints, so nothing
+         currently reaches the crashing path — which is exactly why this must not be flipped back: the
+         next TextBox anyone adds would resurrect it.
+         The size argument did not even hold: publish output measured 65,872,282 bytes with this false
+         versus 65,872,341 with it true — 59 bytes LARGER when invariant. Windows has shipped ICU in the
+         OS since 10/1903 and .NET uses that, so there was never an app-local ICU database here to drop.
+         An English-only UI is still expressed via SatelliteResourceLanguages below; that part is safe. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
   </PropertyGroup>
 

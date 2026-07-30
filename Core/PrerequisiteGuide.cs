@@ -29,6 +29,11 @@ namespace ClawTweaksSetup.Core
     /// If automated installs are ever wanted back, they belong in the HELPER, not here: it is signed,
     /// it is already elevated via its scheduled task, and it already carries the winget + vendor-MSI
     /// fallback logic (see the parity note on <see cref="ToolDetect"/>).
+    ///
+    /// The screen used to also print a "winget install …" line per tool for users who prefer a terminal.
+    /// That is gone: it added a second, competing route to every card on a screen a user only reaches
+    /// when something is already wrong, and one of the ids was flatly incorrect (see <see cref="Usbip"/>).
+    /// One vendor page per tool is the whole instruction now.
     /// </summary>
     public static class PrerequisiteGuide
     {
@@ -43,26 +48,19 @@ namespace ClawTweaksSetup.Core
             /// <summary>True for the ones that need a restart before they actually work.</summary>
             public bool NeedsReboot;
             /// <summary>
-            /// The winget package id, shown as a command the USER can paste into their own terminal.
-            /// Center does not run it — that would put us back to spawning elevated installers (see the
-            /// class note). It is offered because winget picks the right architecture by itself, which
-            /// is exactly where hand-picking a release asset goes wrong; see <see cref="Usbip"/>.
+            /// The one mistake that actually breaks this tool, set apart from the description so it is
+            /// read. Null when there is no such trap. Kept to a single short sentence on purpose: a
+            /// warning buried in a paragraph is a warning nobody sees.
             /// </summary>
-            public string WingetId;
-
-            /// <summary>The full command line to show. Null when there is no winget package.</summary>
-            public string WingetCommand =>
-                WingetId == null ? null : $"winget install --id {WingetId} -e";
+            public string Warning;
         }
 
         public static readonly ToolInfo HidHide = new ToolInfo
         {
             Name = "HidHide",
-            Why = "Hides the Claw's physical gamepad so games see only the virtual controller. " +
-                  "Without it every input is registered twice.",
+            Why = "Hides the physical gamepad so games see only the virtual controller.",
             PageUrl = "https://github.com/nefarius/HidHide/releases/latest",
-            WhatToGet = "Download the x64 installer (HidHide_x.x.x.x_x64.exe) and run it.",
-            WingetId = "Nefarius.HidHide",
+            WhatToGet = "Take HidHide_x.x.x.x_x64.exe.",
             NeedsReboot = true,
         };
 
@@ -78,19 +76,18 @@ namespace ClawTweaksSetup.Core
             // CreateProcess failed; code 216". 216 is ERROR_EXE_MACHINE_TYPE_MISMATCH — the binaries
             // are for another architecture — but the message talks about the Windows version, so it
             // reads like an OS problem. Hit on an MSI Claw (x64) 2026-07-30, twice, by a user who had
-            // already been told "take the x64 build": naming the architecture is not enough, the
-            // filename has to be spelled out, because both assets differ by four characters.
-            WhatToGet = "Take the file ending in -x64.exe (e.g. USBip-0.9.7.8-x64.exe). The page lists " +
-                        "the -arm64 build FIRST — that one is wrong for the Claw: it copies every file " +
-                        "and THEN fails at the driver step with \"CreateProcess failed; code 216\", " +
-                        "leaving usbip looking installed while the driver is missing. Watch that the " +
-                        "installer finishes without an error box, and reboot afterwards.",
-            // No winget id ON PURPOSE. The obvious candidate, USBIPD-WIN.usbipd, is dorssel/usbipd-win
-            // — a different project for sharing USB devices into WSL. It is not vadimgrn/usbip-win2 and
-            // does not provide the UDE driver VIIPER needs, so suggesting it would send users to
-            // install the wrong software entirely. Recommending it here was an error, made worse by
-            // ToolDetect then accepting its 'usbipd' service as proof; both are fixed.
-            WingetId = null,
+            // already been told "take the x64 build": naming the architecture is not enough, which is
+            // why the trap gets its own Warning line instead of a clause in the description.
+            //
+            // There is deliberately no winget suggestion for this one either. The obvious candidate,
+            // USBIPD-WIN.usbipd, is dorssel/usbipd-win — a different project for sharing USB devices
+            // into WSL. It is not vadimgrn/usbip-win2 and does not provide the UDE driver VIIPER needs,
+            // so suggesting it sent users to install the wrong software entirely. (Recommending it was
+            // an error, made worse by ToolDetect then accepting its 'usbipd' service as proof; both
+            // fixed.) Since the winget hints are gone from this screen altogether, nothing here can
+            // point at the wrong package any more.
+            WhatToGet = "Take the file ending in -x64.exe (e.g. USBip-0.9.7.8-x64.exe).",
+            Warning = "Do not download the ARM version.",
             NeedsReboot = true,
         };
 
@@ -99,8 +96,7 @@ namespace ClawTweaksSetup.Core
             Name = "RTSS",
             Why = "Applies the per-game FPS cap and draws the on-screen display.",
             PageUrl = "https://www.guru3d.com/download/rtss-rivatuner-statistics-server-download/",
-            WhatToGet = "Download RivaTuner Statistics Server and run the installer.",
-            WingetId = "Guru3D.RTSS",
+            WhatToGet = "Take RivaTuner Statistics Server.",
             NeedsReboot = false,
         };
 
@@ -109,8 +105,7 @@ namespace ClawTweaksSetup.Core
             Name = "PawnIO",
             Why = "Reads the CPU sensors ClawTweaks shows in the widget.",
             PageUrl = "https://pawnio.eu/",
-            WhatToGet = "Download PawnIO Setup and run it.",
-            WingetId = "namazso.PawnIO",
+            WhatToGet = "Take PawnIO Setup.",
             NeedsReboot = false,
         };
 
