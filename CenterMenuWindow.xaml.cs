@@ -2143,7 +2143,9 @@ namespace ClawTweaksSetup
                 .Any(pid => !priorHelperPids.Contains(pid) && HelperControl.IsProcessElevated(pid));
 
             statusPanel.Content = BuildBigStatusCard(StatusKind.Working, "Starting…",
-                "Waiting for the ClawTweaks helper to start.");
+                "Waiting for the ClawTweaks helper to start. If the Game Bar opened but nothing " +
+                "happens, select the ClawTweaks Widget in its widget menu and add it — a widget that " +
+                "isn't in the Game Bar yet doesn't start the helper on its own.");
 
             var sw = System.Diagnostics.Stopwatch.StartNew();
             bool? lastUacShowing = false;
@@ -2159,7 +2161,10 @@ namespace ClawTweaksSetup
                         ? BuildBigStatusCard(StatusKind.Warning, "Waiting for UAC…",
                             "A confirmation prompt appeared — please confirm it to continue.")
                         : BuildBigStatusCard(StatusKind.Working, "Starting…",
-                            "Waiting for the ClawTweaks helper to start.");
+                            "Waiting for the ClawTweaks helper to start. If the Game Bar opened but " +
+                            "nothing happens, select the ClawTweaks Widget in its widget menu and add " +
+                            "it — a widget that isn't in the Game Bar yet doesn't start the helper on " +
+                            "its own.");
                     lastUacShowing = uacShowing;
                 }
 

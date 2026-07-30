@@ -119,7 +119,7 @@ namespace ClawTweaksSetup.Core
                 {
                     result.MinimumAppVersion = minApp;
                     result.AppVersionMessage = GetString(root, "clawTweaksVersionMessage")
-                        ?? $"No longer supported — install {minApp} or newer";
+                        ?? $"Outdated version — install {minApp} or newer";
                 }
 
                 // Prefer an explicit page, fall back to the direct asset URL older manifests carry, and
