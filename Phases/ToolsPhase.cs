@@ -137,7 +137,15 @@ namespace ClawTweaksSetup.Phases
         private static Border ToolRow(ToolStatus s, string label, string desc)
         {
             var kind = s.Installed ? StatusKind.Ok : StatusKind.Warning;
-            var status = s.Installed ? "Installed — " + s.Detail : "Not installed";
+            // Show the Detail on the NOT-installed side too. It used to be dropped, which turned the
+            // two cases that need explaining most — "files there but the driver never registered" and
+            // "usbip is installed but too new" — into a bare "Not installed" on a machine where the
+            // tool is plainly present. Missing() says "not found", which reads fine on its own.
+            var status = s.Installed
+                ? "Installed — " + s.Detail
+                : string.IsNullOrWhiteSpace(s.Detail) || s.Detail == "not found"
+                    ? "Not installed"
+                    : s.Detail;
             return UiHelpers.ToolRow(kind, label, desc, status);
         }
     }

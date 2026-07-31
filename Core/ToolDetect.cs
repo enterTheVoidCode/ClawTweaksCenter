@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using Microsoft.Win32;
@@ -117,6 +118,21 @@ namespace ClawTweaksSetup.Core
             foreach (var svc in new[] { "usbip2_ude", "usbip_vhci" })
             {
                 if (!ServiceKeyExists(svc)) continue;
+
+                // Registered driver, but is it a version we can actually drive? See UsbipVersionStatus.
+                string tooNew = UnsupportedUsbipVersion();
+                if (tooNew != null)
+                    return new ToolStatus
+                    {
+                        Name = "usbip",
+                        Installed = false,
+                        Detail = $"UNSUPPORTED VERSION: usbip {tooNew} is installed, ClawTweaks needs " +
+                                 $"{MaxSupportedUsbipVersion}. From {MinBrokenUsbipVersion} on, the " +
+                                 "virtual controller shows up TWICE and games see every input doubled. " +
+                                 $"Uninstall usbip, install {MaxSupportedUsbipVersion} from the link on " +
+                                 "this page, and reboot.",
+                    };
+
                 return Ok("usbip", $"UDE driver service '{svc}' registered");
             }
 
@@ -257,6 +273,90 @@ namespace ClawTweaksSetup.Core
         private const int ERROR_ACCESS_DENIED = 5;
 
         #region helpers
+        /// <summary>Newest usbip-win2 our bundled libviiper can drive.</summary>
+        public const string MaxSupportedUsbipVersion = "0.9.7.7";
+
+        /// <summary>First usbip-win2 that breaks it — see <see cref="UnsupportedUsbipVersion"/>.</summary>
+        public const string MinBrokenUsbipVersion = "0.9.7.8";
+
+        /// <summary>
+        /// Returns the installed usbip version string when it is NEWER than we support, otherwise null.
+        ///
+        /// WHY A VERSION GATE AT ALL. Our bundled libviiper (VIIPER v0.6.x) attaches the virtual pad
+        /// through the vhci PLUGIN_HARDWARE IOCTL. usbip-win2 0.9.7.8 grew that struct by 16 bytes, so
+        /// libviiper's attach fails there and falls back to spawning `usbip attach` out of process,
+        /// fire-and-forget. ClawTweaks attaches too, and when the stray child finally lands — measured
+        /// 23 SECONDS later, mid-game, on 2026-07-30 — Windows has TWO virtual Xbox pads mirroring the
+        /// same input. On 0.9.7.7 libviiper's own attach succeeds, so only ONE attach path exists.
+        /// HandheldCompanion pins the identical version for the identical reason.
+        ///
+        /// FAILS OPEN, like every other version gate in this app: if the version cannot be read or
+        /// parsed we say nothing and let the install count. Locking someone out of onboarding over an
+        /// unreadable version string would be worse than the doubled pad.
+        /// </summary>
+        private static string UnsupportedUsbipVersion()
+        {
+            string raw = ReadUsbipVersion();
+            if (string.IsNullOrWhiteSpace(raw)) return null;
+            if (!Version.TryParse(raw.Trim(), out var found)) return null;
+            if (!Version.TryParse(MaxSupportedUsbipVersion, out var max)) return null;
+            return found > max ? raw.Trim() : null;
+        }
+
+        /// <summary>
+        /// usbip's version, from the CLI binary's file version first (it is the artefact that actually
+        /// has to match the driver), falling back to the Add/Remove Programs entry.
+        /// </summary>
+        private static string ReadUsbipVersion()
+        {
+            foreach (var exe in new[]
+            {
+                @"C:\Program Files\USBip\usbip.exe",
+                @"C:\Program Files\usbip-win2\usbip.exe",
+            })
+            {
+                try
+                {
+                    if (!File.Exists(exe)) continue;
+                    string v = FileVersionInfo.GetVersionInfo(exe).FileVersion;
+                    if (!string.IsNullOrWhiteSpace(v)) return v;
+                }
+                catch { /* unreadable — fall through to ARP, then fail open */ }
+            }
+
+            return ArpDisplayVersionFor("usbip");
+        }
+
+        /// <summary>DisplayVersion of the first ARP entry whose DisplayName contains <paramref name="needle"/>.</summary>
+        private static string ArpDisplayVersionFor(string needle)
+        {
+            foreach (var root in new[]
+            {
+                @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall",
+                @"SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall",
+            })
+            {
+                try
+                {
+                    using var baseKey = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+                    using var key = baseKey.OpenSubKey(root);
+                    if (key == null) continue;
+
+                    foreach (var subName in key.GetSubKeyNames())
+                    {
+                        using var sub = key.OpenSubKey(subName);
+                        var name = sub?.GetValue("DisplayName") as string;
+                        if (name == null || name.IndexOf(needle, StringComparison.OrdinalIgnoreCase) < 0) continue;
+
+                        var version = sub.GetValue("DisplayVersion") as string;
+                        if (!string.IsNullOrWhiteSpace(version)) return version;
+                    }
+                }
+                catch { /* fail open */ }
+            }
+            return null;
+        }
+
         private static ToolStatus Ok(string name, string detail) =>
             new ToolStatus { Name = name, Installed = true, Detail = detail };
 

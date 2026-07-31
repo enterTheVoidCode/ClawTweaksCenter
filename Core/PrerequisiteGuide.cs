@@ -68,7 +68,24 @@ namespace ClawTweaksSetup.Core
         {
             Name = "usbip",
             Why = "Provides the virtual controller itself (the VIIPER backend).",
-            PageUrl = "https://github.com/vadimgrn/usbip-win2/releases/latest",
+            // PINNED to 0.9.7.7 ON PURPOSE — do NOT change this back to /releases/latest.
+            //
+            // Our bundled libviiper (VIIPER v0.6.x, built 2026-05-19) talks to the vhci driver through
+            // the PLUGIN_HARDWARE IOCTL. usbip-win2 0.9.7.8 GREW that struct by 16 bytes, so on 0.9.7.8
+            // libviiper's own attach fails and falls back to spawning `usbip attach` out of process —
+            // fire-and-forget, unbounded. ClawTweaks then attaches too, and when the stray child finally
+            // lands (measured: 23 SECONDS later, mid-game) Windows has TWO virtual Xbox pads mirroring
+            // the same input. Confirmed on-device 2026-07-30 via `usbip port` + PnP arrival timestamps.
+            //
+            // 0.9.7.7 is the last version whose ABI matches our libviiper: there libviiper's own attach
+            // succeeds, so exactly ONE attach path exists and the duplicate cannot occur. This is also
+            // what HandheldCompanion ships — their installer pins the identical asset
+            // (NewUSBipVersion "0.9.7.7") and their Targets/Viiper/LibViiper.cs uses the same v0.6.x
+            // C ABI we do. Neither project has moved to VIIPER v0.7.0, which is a full ABI redesign.
+            //
+            // This link pointing at /releases/latest is precisely how a Claw ended up on 0.9.7.8 on
+            // 2026-07-30. Revisit only together with a libviiper upgrade, never on its own.
+            PageUrl = "https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7",
             // The release page offers exactly two assets and lists them ALPHABETICALLY, which puts
             // arm64 ABOVE x64 — so the first download link on the page is the wrong one for the Claw.
             // Picking it fails LATE and confusingly: the installer runs, copies every file, and only
@@ -86,8 +103,10 @@ namespace ClawTweaksSetup.Core
             // an error, made worse by ToolDetect then accepting its 'usbipd' service as proof; both
             // fixed.) Since the winget hints are gone from this screen altogether, nothing here can
             // point at the wrong package any more.
-            WhatToGet = "Take the file ending in -x64.exe (e.g. USBip-0.9.7.8-x64.exe).",
-            Warning = "Do not download the ARM version.",
+            WhatToGet = "Take USBip-0.9.7.7-x64.exe from this page. The link opens version 0.9.7.7 " +
+                        "deliberately — it is the version ClawTweaks supports.",
+            Warning = "Do not download the ARM version, and do not take a newer usbip release: " +
+                      "0.9.7.8 makes the virtual controller show up twice.",
             NeedsReboot = true,
         };
 
