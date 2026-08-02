@@ -6,12 +6,12 @@ namespace ClawTweaksSetup.Core
 {
     /// <summary>
     /// Lightweight, Setup-scoped device detection for the Center menu banner ("which handheld did we
-    /// find, do we support it"). Ported from the Helper's device detection rather than reinvented —
-    /// see XboxGamingBarHelper/Devices/DeviceDetector.cs::QueryDeviceInfoCombined (WMI query) and
-    /// XboxGamingBarHelper/Devices/MSIClaw/MSIClawModels.cs::MSIClawModelCatalog.Resolve (model
-    /// matching + display names). No disk cache / debug.json here — this runs once per Setup launch,
-    /// and only the two MSI Claw generations the team is actively developing on are recognized; other
-    /// device families (Legion, ASUS, ...) are out of scope for this installer.
+    /// find, do we support it"). The WMI reads mirror the Helper's
+    /// XboxGamingBarHelper/Devices/DeviceDetector.cs::QueryDeviceInfoCombined; the model matching is
+    /// not duplicated at all but shared — both call Shared/Data/ClawHardwareId.cs, so the two
+    /// processes cannot disagree about a device. No disk cache / debug.json here — this runs once per
+    /// Setup launch, and only the two MSI Claw generations the team is actively developing on are
+    /// recognized; other device families (Legion, ASUS, ...) are out of scope for this installer.
     /// </summary>
     public static class DeviceDetect
     {
@@ -48,18 +48,19 @@ namespace ClawTweaksSetup.Core
                 };
             }
 
-            var info = QueryComputerSystemProduct();
+            // One ladder for both processes: product name, then board/SKU code, then CPU corroborated
+            // by the Claw controller. Center must reach the same verdict as the helper, or a device
+            // whose product name is a factory placeholder would be offered no install here while the
+            // helper happily drives it. See Shared/Data/ClawHardwareId.cs.
+            var identity = ClawHardwareId.Resolve(QueryIdentity(),
+                                                  ClawHardwareId.IsClawControllerInDeviceTree());
 
-            // Lunar Lake — "A2VM" covers A2VM and A2VMX. Matches MSIClawModelCatalog.Resolve().
-            if (info.Model.IndexOf("A2VM", StringComparison.OrdinalIgnoreCase) >= 0)
-                return new Result(Model.A2VM, "MSI Claw (A2VM)", true);
-
-            // Panther Lake — board suffix "CG3EM" or the marketing substring "Claw 8 EX".
-            if (info.Model.IndexOf("CG3EM", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                info.Model.IndexOf("Claw 8 EX", StringComparison.OrdinalIgnoreCase) >= 0)
-                return new Result(Model.Ex, "MSI Claw 8 EX AI+ CG3EM", true);
-
-            return new Result(Model.Unknown, "Unknown device", false);
+            return identity.Model switch
+            {
+                ClawHardwareModel.A2VM => new Result(Model.A2VM, "MSI Claw (A2VM)", true),
+                ClawHardwareModel.Ex => new Result(Model.Ex, "MSI Claw 8 EX AI+ CG3EM", true),
+                _ => new Result(Model.Unknown, "Unknown device", false),
+            };
         }
 
         /// <summary>
@@ -73,27 +74,67 @@ namespace ClawTweaksSetup.Core
             _ => null,
         };
 
-        private static DeviceInfo QueryComputerSystemProduct()
+        /// <summary>
+        /// Reads every identity string the ladder can use, on one WMI connection. Mirrors the helper's
+        /// DeviceDetector.QueryDeviceInfoCombined; anything read here must be read there too, or the
+        /// two processes can disagree about the same machine.
+        /// </summary>
+        private static ClawIdentitySources QueryIdentity()
         {
-            var info = new DeviceInfo();
+            var sources = new ClawIdentitySources();
             try
             {
                 var scope = new ManagementScope(@"\\.\root\cimv2");
                 scope.Connect();
 
-                using var searcher = new ManagementObjectSearcher(scope,
-                    new ObjectQuery("SELECT Vendor, Name, Version FROM Win32_ComputerSystemProduct"));
-                searcher.Options.Timeout = TimeSpan.FromSeconds(3);
-                foreach (var obj in searcher.Get())
+                using (var csp = new ManagementObjectSearcher(scope,
+                    new ObjectQuery("SELECT Vendor, Name FROM Win32_ComputerSystemProduct")))
                 {
-                    info.Manufacturer = obj["Vendor"]?.ToString()?.Trim() ?? "Unknown";
-                    info.Model = obj["Name"]?.ToString()?.Trim() ?? "Unknown";
-                    info.Version = obj["Version"]?.ToString()?.Trim() ?? "Unknown";
-                    break;
+                    csp.Options.Timeout = TimeSpan.FromSeconds(3);
+                    foreach (var obj in csp.Get())
+                    {
+                        sources.Manufacturer = obj["Vendor"]?.ToString()?.Trim();
+                        sources.ProductName = obj["Name"]?.ToString()?.Trim();
+                        break;
+                    }
+                }
+
+                using (var cs = new ManagementObjectSearcher(scope,
+                    new ObjectQuery("SELECT SystemSKUNumber FROM Win32_ComputerSystem")))
+                {
+                    cs.Options.Timeout = TimeSpan.FromSeconds(3);
+                    foreach (var obj in cs.Get())
+                    {
+                        sources.SystemSku = obj["SystemSKUNumber"]?.ToString()?.Trim();
+                        break;
+                    }
+                }
+
+                using (var bb = new ManagementObjectSearcher(scope,
+                    new ObjectQuery("SELECT Product FROM Win32_BaseBoard")))
+                {
+                    bb.Options.Timeout = TimeSpan.FromSeconds(3);
+                    foreach (var obj in bb.Get())
+                    {
+                        sources.BaseBoardProduct = obj["Product"]?.ToString()?.Trim();
+                        break;
+                    }
+                }
+
+                using (var cpu = new ManagementObjectSearcher(scope,
+                    new ObjectQuery("SELECT Name, Caption FROM Win32_Processor")))
+                {
+                    cpu.Options.Timeout = TimeSpan.FromSeconds(3);
+                    foreach (var obj in cpu.Get())
+                    {
+                        sources.ProcessorName = obj["Name"]?.ToString()?.Trim();
+                        sources.ProcessorCaption = obj["Caption"]?.ToString()?.Trim();
+                        break;
+                    }
                 }
             }
-            catch { /* leave defaults — Detect() falls through to "Unknown device" */ }
-            return info;
+            catch { /* leave whatever was read — Detect() falls through to "Unknown device" */ }
+            return sources;
         }
     }
 }
