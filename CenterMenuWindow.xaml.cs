@@ -1039,8 +1039,11 @@ namespace ClawTweaksSetup
         /// </summary>
         private static Border BuildTagBadge(string text, Brush brush) => new Border
         {
-            Background = Tint(brush, 0x22),
-            BorderBrush = Tint(brush, 0x99),
+            // Fill and outline are deliberately strong. At 0x22/0x99 the pill was barely there, and
+            // combined with the card dimming (which no longer reaches it, see BuildRow) it read as a
+            // disabled control rather than a status label.
+            Background = Tint(brush, 0x33),
+            BorderBrush = Tint(brush, 0xCC),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(6),
             Padding = new Thickness(8, 2, 8, 3),
@@ -1058,23 +1061,28 @@ namespace ClawTweaksSetup
         private Border BuildRow(BuildSource b, bool selected, bool isNewest)
         {
             var stack = new StackPanel();
-            stack.Children.Add(new TextBlock
+            var titleText = new TextBlock
             {
                 Text = $"{b.Version}  —  {b.Title}",
                 FontSize = 17,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
                 TextWrapping = TextWrapping.Wrap,
-            });
+            };
+            stack.Children.Add(titleText);
 
             string detail = b.When != default ? b.When.ToLocalTime().ToString("yyyy-MM-dd HH:mm") : "";
             if (!string.IsNullOrEmpty(b.SizeLabel)) detail += (detail.Length > 0 ? "  ·  " : "") + b.SizeLabel;
+            TextBlock detailText = null;
             if (!string.IsNullOrEmpty(detail))
-                stack.Children.Add(new TextBlock
+            {
+                detailText = new TextBlock
                 {
                     Text = detail, FontSize = 14, Foreground = UiHelpers.Subtle,
                     Margin = new Thickness(0, 3, 0, 0),
-                });
+                };
+                stack.Children.Add(detailText);
+            }
 
             // Both facts are short labels, so they go in a WrapPanel of outlined badges — a build that
             // is both older AND device-blocked shows two side by side and wraps if the tile is narrow.
@@ -1088,17 +1096,26 @@ namespace ClawTweaksSetup
 
             if (badges.Children.Count > 0) stack.Children.Add(badges);
 
-            // Only the newest card per section reads at full contrast; older ones are dimmed so the
-            // latest is the obvious pick at a glance. A selected (controller-highlighted) card always
-            // shows at full strength regardless, so the highlight itself is never hard to see.
-            double baseOpacity = (isNewest || selected) ? 1.0 : 0.55;
+            // Only the newest card per section reads at full contrast; older ones recede so the latest
+            // is the obvious pick at a glance. A selected (controller-highlighted) card always shows at
+            // full strength regardless, so the highlight itself is never hard to see.
+            double contentOpacity = (isNewest || selected) ? 1.0 : 0.55;
 
             // A blocked build is greyed out rather than hidden. Hiding it looks tidier right up until
             // the blocked one IS the current stable — then the Stable Releases section reads "Nothing
             // found" and Center looks broken, with nothing on screen to say why. Dimmed-with-a-reason
-            // answers the question before it gets asked. The ⛔ badge above carries the reason at full
-            // contrast, so the dimming never costs legibility of the important part.
-            if (blocked && !selected) baseOpacity = Math.Min(baseOpacity, 0.4);
+            // answers the question before it gets asked.
+            if (blocked && !selected) contentOpacity = Math.Min(contentOpacity, 0.4);
+
+            // Applied to the TITLE AND DETAIL ONLY, never to the card. This used to sit on the outer
+            // Border, so it multiplied into the badges too: "▼ Older than installed" is drawn in the
+            // muted grey to begin with, and at 0.55 (0.4 when blocked) it landed near the card
+            // background and read as a disabled control — as did the ⛔ reason, which is the one thing
+            // on a blocked card that has to be readable. The comment above always claimed the badge
+            // stayed at full contrast; now it actually does. The card keeps its own background, so a
+            // receding entry still looks like a card rather than a stain on the section.
+            titleText.Opacity = contentOpacity;
+            if (detailText != null) detailText.Opacity = contentOpacity;
 
             var rowPad = new Thickness(16, 12, 16, 12);
             var border = new Border
@@ -1111,7 +1128,9 @@ namespace ClawTweaksSetup
                 Padding = selected ? Deflate(rowPad, 2) : rowPad,  // see Deflate: keeps the tile from resizing
                 Child = stack,
                 Cursor = Cursors.Hand,
-                Opacity = _busy ? baseOpacity * 0.5 : baseOpacity,
+                // Only the busy state dims the whole card — there nothing is clickable, so everything
+                // on it should say so, badges included.
+                Opacity = _busy ? 0.5 : 1.0,
             };
             border.MouseLeftButtonUp += (_, __) =>
             {
