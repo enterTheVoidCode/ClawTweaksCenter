@@ -3,9 +3,10 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="ClawTweaks Center"
         Width="1000" Height="860"
+        MinWidth="720" MinHeight="520"
         WindowStartupLocation="CenterScreen"
-        WindowStyle="None"
-        ResizeMode="NoResize"
+        WindowStyle="SingleBorderWindow"
+        ResizeMode="CanResize"
         Background="Black"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display">
@@ -44,7 +45,8 @@
             <TextBlock x:Name="StatusText" TextWrapping="Wrap" FontSize="15"
                        Foreground="{StaticResource AccentBrush}" Margin="0,0,0,14"
                        HorizontalAlignment="Center" TextAlignment="Center" Visibility="Collapsed" />
-            <StackPanel x:Name="ActionBar" Orientation="Horizontal" HorizontalAlignment="Left" />
+            <WrapPanel x:Name="ActionBar" Orientation="Horizontal" HorizontalAlignment="Left"
+                       Margin="-4,0,0,-4" />
         </StackPanel>
     </Grid>
 </Window>

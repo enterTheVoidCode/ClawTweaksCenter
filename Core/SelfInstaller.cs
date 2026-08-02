@@ -182,6 +182,49 @@ namespace ClawTweaksSetup.Core
         }
 
         /// <summary>
+        /// True when the running executable is the self-contained single-file build, i.e. when copying
+        /// that one file somewhere else still yields a runnable program.
+        ///
+        /// Two signals, both cheap and both decisive in the negative:
+        ///   • a managed assembly of the same base name sitting next to the exe — that is the plain
+        ///     build layout, where the exe is only a launcher for the .dll beside it;
+        ///   • an exe far too small to contain a bundled runtime. The single-file build is tens of
+        ///     megabytes; an apphost is a few hundred kilobytes.
+        /// Neither can misfire on a real single-file build: it has no sibling .dll (everything is
+        /// inside the bundle) and it is never small.
+        /// </summary>
+        private static bool IsSelfContainedSingleFile(string exePath, out string reason)
+        {
+            reason = null;
+            try
+            {
+                string dir = Path.GetDirectoryName(exePath);
+                string sibling = Path.Combine(dir, Path.GetFileNameWithoutExtension(exePath) + ".dll");
+                if (File.Exists(sibling))
+                {
+                    reason = "it is a launcher for the .dll next to it, not a standalone build.";
+                    return false;
+                }
+
+                const long MinimumBundleBytes = 8L * 1024 * 1024;
+                long size = new FileInfo(exePath).Length;
+                if (size < MinimumBundleBytes)
+                {
+                    reason = $"it is only {size / 1024} KB, too small to carry its own runtime.";
+                    return false;
+                }
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                // Unreadable path: say so and refuse, rather than write an install that may be broken.
+                reason = $"its own file could not be inspected ({ex.Message}).";
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Copies the running exe to <see cref="InstallDir"/>, creates a Start Menu shortcut, registers
         /// an Add/Remove Programs entry, then launches the installed copy and exits this process.
         /// Caller should not do anything after this returns true — the app is about to shut down.
@@ -194,6 +237,21 @@ namespace ClawTweaksSetup.Core
             {
                 string sourceExe = Process.GetCurrentProcess().MainModule.FileName;
                 string sourceDir = Path.GetDirectoryName(sourceExe);
+
+                // Installing copies ONE file. That only produces a working install if this exe is the
+                // self-contained single-file build — a plain `dotnet build` apphost is a ~300 KB stub
+                // that loads its runtime and its own .dll from the folder it sits in, and a lone copy
+                // of it dies before Main with "The application to execute does not exist". The install
+                // then looks finished, but Center never starts again and even the Add/Remove Programs
+                // entry does nothing, because that calls the same dead exe (hit on 0.1.9.7 — the two
+                // builds carry the SAME filename, so the wrong one is easy to run).
+                if (!IsSelfContainedSingleFile(sourceExe, out string why))
+                {
+                    log?.Invoke($"This copy of Center cannot install itself: {why} "
+                        + "Use the single-file build from the release page (or publish/), not the "
+                        + "executable from a plain build output.");
+                    return false;
+                }
 
                 log?.Invoke($"Installing to {InstallDir}...");
                 Directory.CreateDirectory(InstallDir);

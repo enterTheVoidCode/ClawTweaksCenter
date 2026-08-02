@@ -113,25 +113,18 @@ namespace ClawTweaksSetup
 
             InitializeComponent();
 
+            // Native Windows 11 chrome plus a work-area clamp. This replaces the older
+            // "size ourselves to the full work area" code that went with WindowStyle="None": the
+            // window is a normal, resizable window now, so WPF handles the taskbar itself and only
+            // the clamp is still needed — for displays where 1120x760 does not fit.
+            ModernWindow.Apply(this, edgeMargin: 12);
+
             _onboarding.StepsChanged += () => Dispatcher.Invoke(() =>
             {
                 if (_view == View.Onboarding && !_confirming && !_busy) RenderOnboarding();
             });
 
-            // Fill the screen without covering the taskbar. WindowStyle="None" + WindowState="Maximized"
-            // is the common trap here — without window chrome, WPF maximizes to the full monitor bounds
-            // instead of the work area, which hides the taskbar entirely. Sizing manually to the work
-            // area gets the borderless look while leaving the taskbar visible. Read the work area in
-            // SourceInitialized, not the constructor — SystemParameters.WorkArea can still report the
-            // full monitor bounds before the window has an actual display/HWND association, only
-            // settling to the real (taskbar-excluded) value once one exists.
-            SourceInitialized += (_, __) =>
-            {
-                Left = SystemParameters.WorkArea.Left;
-                Top = SystemParameters.WorkArea.Top;
-                Width = SystemParameters.WorkArea.Width;
-                Height = SystemParameters.WorkArea.Height;
-            };
+            SizeChanged += (_, __) => UpdateShellLayout();
 
             SetupVersionLabel.Text = "CTW Center v" + (Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "?");
             RenderDeviceBanner(null);
@@ -879,9 +872,12 @@ namespace ClawTweaksSetup
         {
             ContentHost.Children.Clear();
             _rowElements.Clear();
-            AddSection("Stable Releases", "✅", UiHelpers.Ok, _releases, _releasesError);
-            AddSection("Test releases", "⚠️", UiHelpers.Warn, _testBuilds, _testBuildsError);
-            AddSection("Nightly Releases (Experimental Builds)", "🥼", UiHelpers.Error, _nightlies, _nightliesError);
+            AddSection("Stable releases", "Recommended production builds",
+                       UiHelpers.Ok, _releases, _releasesError);
+            AddSection("Test releases", "Preview builds for validating upcoming changes",
+                       UiHelpers.Warn, _testBuilds, _testBuildsError);
+            AddSection("Nightly releases", "Experimental snapshots with the newest changes",
+                       UiHelpers.Error, _nightlies, _nightliesError);
         }
 
         /// <summary>
@@ -891,31 +887,71 @@ namespace ClawTweaksSetup
         /// inside already use CardBrush, and a container in the same tone would make them disappear
         /// into it. Tinted frame outside, solid tiles inside.
         /// </summary>
-        private void AddSection(string header, string iconEmoji, Brush titleColor, List<BuildSource> items, string error)
+        private void AddSection(string header, string description, Brush titleColor, List<BuildSource> items, string error)
         {
             var sectionStack = new StackPanel();
 
-            var headerRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 10) };
-            headerRow.Children.Add(new TextBlock
+            var headerRow = new Grid { Margin = new Thickness(0, 0, 0, 10) };
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            headerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            // The channel's colour as a bar, not an emoji. WPF's text renderer has no colour-emoji
+            // layers (unlike UWP or a browser), so ✅/⚠️/🥼 came out as monochrome outlines that had to
+            // be forced white — which threw away the very thing they were there for. A 4px rule carries
+            // the same green/amber/red coding, renders identically everywhere, and reads at a glance.
+            var accent = new Border
             {
-                // WPF's text renderer doesn't support color-emoji font layers (unlike UWP/WinUI or a
-                // browser) — these render as plain monochrome outlines. Foreground defaults to black
-                // when unset, which is invisible against the dark theme; white reads fine instead.
-                Text = iconEmoji,
-                FontFamily = new FontFamily("Segoe UI Emoji"),
-                FontSize = 20,
-                Foreground = UiHelpers.Text,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 10, 0),
-            });
-            headerRow.Children.Add(new TextBlock
+                Width = 4,
+                Height = 30,
+                CornerRadius = new CornerRadius(2),
+                Background = titleColor,
+                Margin = new Thickness(0, 1, 12, 0),
+                VerticalAlignment = VerticalAlignment.Top,
+            };
+            Grid.SetColumn(accent, 0);
+            headerRow.Children.Add(accent);
+
+            var labels = new StackPanel();
+            labels.Children.Add(new TextBlock
             {
                 Text = header,
-                FontSize = 20,
-                FontWeight = FontWeights.Bold,
-                Foreground = titleColor,
-                VerticalAlignment = VerticalAlignment.Center,
+                FontSize = 19,
+                FontWeight = FontWeights.SemiBold,
+                // Neutral, not the channel colour: the bar already says which channel this is, and a
+                // coloured heading on top of it made "Nightly" read as an error message.
+                Foreground = UiHelpers.Text,
             });
+            labels.Children.Add(new TextBlock
+            {
+                Text = description,
+                FontSize = 13,
+                Foreground = UiHelpers.Subtle,
+                Margin = new Thickness(0, 2, 0, 0),
+            });
+            Grid.SetColumn(labels, 1);
+            headerRow.Children.Add(labels);
+
+            // Count only once the list actually arrived — during loading there is no honest number, and
+            // "0 builds" next to a spinner reads as a result rather than as a pending request.
+            if (items != null)
+            {
+                var countPill = new Border
+                {
+                    Background = (Brush)Application.Current.Resources["BgBrush"],
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(10, 5, 10, 5),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Child = new TextBlock
+                    {
+                        Text = items.Count == 1 ? "1 build" : $"{items.Count} builds",
+                        FontSize = 12,
+                        Foreground = UiHelpers.Subtle,
+                    },
+                };
+                Grid.SetColumn(countPill, 2);
+                headerRow.Children.Add(countPill);
+            }
             sectionStack.Children.Add(headerRow);
 
             if (error != null)
@@ -948,14 +984,20 @@ namespace ClawTweaksSetup
                 sectionStack.Children.Add(grid);
             }
 
+            // Neutral frame, one tone below the tiles inside it (FooterBrush #252525 against CardBrush
+            // #2B2B2B). The frame used to be tinted with the channel colour, because against the old
+            // palette a neutral container and the tiles were the same tone and the tiles vanished into
+            // it. The Fluent palette separates those two by itself, so the colour is free to live only
+            // in the accent bar — three tinted boxes stacked down the page were the louder part of the
+            // screen, and none of it was the content.
             ContentHost.Children.Add(new Border
             {
-                Background = Tint(titleColor, 0x10),
-                BorderBrush = Tint(titleColor, 0x66),
+                Background = (Brush)Application.Current.Resources["FooterBrush"],
+                BorderBrush = (Brush)Application.Current.Resources["StrokeBrush"],
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(12),
-                Padding = new Thickness(16, 14, 8, 6),
-                Margin = new Thickness(0, 0, 0, 14),
+                Padding = new Thickness(16, 13, 8, 6),
+                Margin = new Thickness(0, 0, 0, 12),
                 Child = sectionStack,
             });
         }
@@ -1325,28 +1367,52 @@ namespace ClawTweaksSetup
 
         /// <summary>Non-interactive footer hint: right stick scrolls the content — added wherever the
         /// current screen can realistically overflow the viewport (the "What's new" section on Confirm
-        /// in particular, but Browse's list and the install history can run long too).</summary>
+        /// in particular, but Browse's list and the install history can run long too).
+        ///
+        /// Built by ActionBarBuilder so it lines up with the action tiles next to it: same glyph size,
+        /// same height, same padding. Hand-sizing it here is what made it sit a few pixels off.</summary>
         private void AddScrollHint()
         {
-            var glyph = new Image
-            {
-                Source = new BitmapImage(new Uri("pack://application:,,,/Assets/xbox/xbox_stick_r_vertical.png", UriKind.Absolute)),
-                Width = 44, Height = 44,
-                Stretch = Stretch.Uniform,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(0, 0, 12, 0),
-            };
-            RenderOptions.SetBitmapScalingMode(glyph, BitmapScalingMode.HighQuality);
+            ActionBar.Children.Add(ActionBarBuilder.BuildHint(
+                new BitmapImage(new Uri("pack://application:,,,/Assets/xbox/xbox_stick_r_vertical.png", UriKind.Absolute)),
+                "Scroll"));
+        }
 
-            var label = new TextBlock
+        /// <summary>
+        /// Stacks the header's brand block and device banner vertically below the narrow breakpoint.
+        /// Side by side, each gets half the width — at 720px that leaves the device banner too little
+        /// for its name and the logo starts colliding with it.
+        /// </summary>
+        private void UpdateShellLayout()
+        {
+            if (ShellHeaderGrid == null || BrandBlock == null || DeviceBanner == null) return;
+
+            bool narrow = ActualWidth > 0 && ActualWidth < 720;
+            ShellHeaderGrid.RowDefinitions.Clear();
+            ShellHeaderGrid.ColumnDefinitions.Clear();
+
+            if (narrow)
             {
-                Text = "Scroll", FontSize = 22, VerticalAlignment = VerticalAlignment.Center,
-                Foreground = UiHelpers.Subtle,
-            };
-            var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            content.Children.Add(glyph);
-            content.Children.Add(label);
-            ActionBar.Children.Add(new Border { Padding = new Thickness(10, 0, 10, 0), Child = content });
+                ShellHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                ShellHeaderGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                ShellHeaderGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(BrandBlock, 0);
+                Grid.SetColumn(BrandBlock, 0);
+                Grid.SetRow(DeviceBanner, 1);
+                Grid.SetColumn(DeviceBanner, 0);
+                DeviceBanner.Margin = new Thickness(0, 12, 0, 0);
+            }
+            else
+            {
+                ShellHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                ShellHeaderGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                ShellHeaderGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+                Grid.SetRow(BrandBlock, 0);
+                Grid.SetColumn(BrandBlock, 0);
+                Grid.SetRow(DeviceBanner, 0);
+                Grid.SetColumn(DeviceBanner, 1);
+                DeviceBanner.Margin = new Thickness(16, 0, 0, 0);
+            }
         }
 
         private void AddAction(PadButton b, string label, bool enabled, Action action)

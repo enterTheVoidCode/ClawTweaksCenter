@@ -38,6 +38,7 @@ namespace ClawTweaksSetup
         public MainWindow(string[] args)
         {
             InitializeComponent();
+            ModernWindow.Apply(this);
 
             _phases.Add(new DetectPhase());
             _phases.Add(new ControllerPhase());

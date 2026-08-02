@@ -22,7 +22,7 @@
     <Authors>ClawTweaks</Authors>
     <Copyright>Copyright (c) ClawTweaks</Copyright>
     <Description>ClawTweaks Center - installer and control panel for ClawTweaks on the MSI Claw.</Description>
-    <Version>0.1.9.6</Version>
+    <Version>0.1.9.9</Version>
     <!-- Distributed filename carries the version + "Setup" suffix (e.g. CTW_Center_0.1.0.2_Setup.exe)
          so a user can tell builds apart in their Downloads folder. This is ONLY the distributed
          filename — the INSTALLED copy in Program Files always keeps the fixed name
@@ -40,6 +40,20 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>true</PublishSingleFile>
+    <!-- ONLY the exe under publish\ (and its copy in PortableExe\) may ever be handed to anyone.
+
+         A plain `dotnet build` also leaves an exe in bin\Release\...\win-x64\ with the SAME NAME,
+         but it is a ~300 KB apphost that loads the runtime and its own .dll from the folder it sits
+         in. Started from that folder it runs perfectly, which is what makes it dangerous: Center
+         comes up, installs itself by copying that single file, and the installed copy then dies
+         before Main with "The application to execute does not exist" — Center never starts again,
+         and the Add/Remove Programs entry is dead too, because it invokes the same file. That is
+         what happened with 0.1.9.7.
+
+         Suppressing that build exe was tried and does not work: SelfContained requires UseAppHost
+         (NETSDK1067), and the IsPublishing property the condition would need is empty in both build
+         and publish here. The guard therefore lives in SelfInstaller.IsSelfContainedSingleFile,
+         which refuses to install a copy that could not run on its own. -->
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <!-- WPF ships native DLLs (wpfgfx_cor3, PresentationNative_cor3, PenImc_cor3, D3DCompiler_47_cor3,

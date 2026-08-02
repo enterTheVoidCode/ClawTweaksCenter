@@ -40,6 +40,7 @@ namespace ClawTweaksSetup
         {
             _mode = mode;
             InitializeComponent();
+            Ui.ModernWindow.Apply(this);
 
             // Title is context-sensitive (default "Install ClawTweaks Center" from XAML). The sub-heading
             // was removed by design; AlreadyInstalled still needs its guidance, shown via StatusText.
