@@ -39,6 +39,82 @@ namespace ClawTweaksSetup.Core
         private const string PackageFamily = "MSIClaw.ClawTweaks_7eszav2039cvc";
 
         /// <summary>
+        /// Copies the helper's files out of the freshly installed package into the stable folder the
+        /// scheduled task points at.
+        ///
+        /// Called after <see cref="StopHelpers"/> and the package install, so nothing is running and no
+        /// file is locked. That ordering is the entire point: doing this from the helper's own startup
+        /// means the deploying process and the process being replaced are the same one.
+        ///
+        /// Unelevated throughout — the source is the package folder (world-readable) and the target is
+        /// the user's own LocalCache.
+        /// </summary>
+        public static bool DeployHelperFiles(Action<string> log = null)
+        {
+            try
+            {
+                string packageRoot = GetInstalledPackagePath(out string version);
+                if (string.IsNullOrEmpty(packageRoot))
+                {
+                    log?.Invoke("Could not locate the installed package — helper files not deployed.");
+                    return false;
+                }
+
+                string sourceDir = System.IO.Path.Combine(packageRoot, "XboxGamingBarHelper");
+                if (!System.IO.Directory.Exists(sourceDir)) sourceDir = packageRoot;
+
+                string helperFolder = Shared.Deployment.HelperFileDeployment.ResolveHelperFolder(PackageFamily);
+                var result = Shared.Deployment.HelperFileDeployment.Deploy(sourceDir, helperFolder, version, log);
+                if (!result.Success)
+                    log?.Invoke("Helper files were not deployed — the widget will retry when it starts the helper.");
+                return result.Success;
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke("Deploying helper files failed: " + ex.Message);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Install location and version of the registered package, via PowerShell's Get-AppxPackage —
+        /// the same route Center already uses to install, and one that needs no package identity of our
+        /// own and no extra capability.
+        /// </summary>
+        private static string GetInstalledPackagePath(out string version)
+        {
+            version = null;
+            try
+            {
+                string winPs = System.IO.Path.Combine(Environment.SystemDirectory,
+                    "WindowsPowerShell", "v1.0", "powershell.exe");
+                var psi = new ProcessStartInfo
+                {
+                    FileName = System.IO.File.Exists(winPs) ? winPs : "powershell.exe",
+                    Arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "
+                        + "\"$p = Get-AppxPackage -Name MSIClaw.ClawTweaks | Select-Object -First 1; "
+                        + "if ($p) { $p.InstallLocation; $p.Version }\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+                using (var proc = Process.Start(psi))
+                {
+                    if (proc == null) return null;
+                    string output = proc.StandardOutput.ReadToEnd();
+                    if (!proc.WaitForExit(30000)) { try { proc.Kill(); } catch { } return null; }
+
+                    var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (lines.Length < 2) return null;
+                    version = lines[1].Trim();
+                    return lines[0].Trim();
+                }
+            }
+            catch { return null; }
+        }
+
+        /// <summary>
         /// Stops every running helper BEFORE a package install, the polite way: ask via the shared
         /// handover protocol, fall back to a kill only for what does not answer.
         ///

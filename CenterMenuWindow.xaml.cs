@@ -2006,25 +2006,38 @@ namespace ClawTweaksSetup
             // Dispatcher.Invoke matters here: PackageInstaller.Install runs inside Task.Run further
             // down and calls this synchronously from a thread-pool thread, not just via awaited
             // continuations — same guard InstallPhase.Log already uses for the same reason.
-            void Log(string s) => Dispatcher.Invoke(() =>
+            void Log(string s)
             {
-                FinishLogRow(currentLogBadge, true);
-                logPanel.Children.Add(BuildLogRow(s, out currentLogBadge, out currentLogDetail));
-                logScroller.ScrollToBottom();
-            });
+                // Mirrored to file before touching the UI: these rows scroll away and are finally replaced
+                // when onboarding takes over, so the panel alone cannot answer "what happened during that
+                // install?" half an hour later. The file lines up with the helper's log by wall clock.
+                Core.InstallLog.Write(s);
+                Dispatcher.Invoke(() =>
+                {
+                    FinishLogRow(currentLogBadge, true);
+                    logPanel.Children.Add(BuildLogRow(s, out currentLogBadge, out currentLogDetail));
+                    logScroller.ScrollToBottom();
+                });
+            }
 
             // Appends a sub-line under the CURRENT row instead of starting a new checkmarked row —
             // used to collapse a multi-step sub-flow (the non-silent usbip installer in particular)
             // into one group instead of one top-level tick per internal step.
-            void LogDetail(string s) => Dispatcher.Invoke(() =>
+            void LogDetail(string s)
             {
-                currentLogDetail?.Children.Add(new TextBlock
+                Core.InstallLog.Write(s, indent: true);
+                Dispatcher.Invoke(() =>
                 {
-                    Text = s, FontSize = 13, Foreground = UiHelpers.Subtle,
-                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 1),
+                    currentLogDetail?.Children.Add(new TextBlock
+                    {
+                        Text = s, FontSize = 13, Foreground = UiHelpers.Subtle,
+                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 1, 0, 1),
+                    });
+                    logScroller.ScrollToBottom();
                 });
-                logScroller.ScrollToBottom();
-            });
+            }
+            Core.InstallLog.StartSession("Install run");
+
             var progress = new Progress<int>(p =>
             {
                 progressBar.IsIndeterminate = false;
@@ -2124,6 +2137,32 @@ namespace ClawTweaksSetup
 
                     var deps = PackageInstaller.FindDependencies(pkg);
                     ok &= await Task.Run(() => PackageInstaller.Install(pkg, deps, Log));
+
+                    // Deploy the helper files, then stop whatever is running — in that order.
+                    //
+                    // This used to be the helper's own job, done during its startup, which meant the only
+                    // actor that could deploy was a helper launcher: the one thing that races with itself
+                    // and may come out of a package that is already superseded. Measured 2026-08-03, such a
+                    // launcher compared its own version against the deployed one, found them equal, skipped
+                    // the copy and started a stale helper; the real deployment then landed underneath the
+                    // running process, which kept executing old code under the new version number.
+                    //
+                    // The order matters, and not for the reason it first appears. Stopping helpers before
+                    // the install does NOT leave the machine helper-free: the widget notices the broken pipe
+                    // and relaunches within about a second — measured the same day, 20:06:03 handover,
+                    // 20:06:05 a new helper already starting from the old package. Fighting that would mean
+                    // closing the Game Bar and holding it shut. There is no need: the copy tolerates a
+                    // running helper (it renames the locked file aside), so deploy first and then ask
+                    // whoever is up to exit. The next start — the one the Game Bar triggers below — is then
+                    // guaranteed to load the files that are already on disk.
+                    //
+                    // Works for older builds too: the only thing they need to support is the shutdown
+                    // request, which every version since the handover landed already does.
+                    if (ok)
+                    {
+                        await Task.Run(() => HelperControl.DeployHelperFiles(Log));
+                        await Task.Run(() => HelperControl.StopHelpers("center-post-deploy", Log));
+                    }
                 }
 
                 if (ok)
