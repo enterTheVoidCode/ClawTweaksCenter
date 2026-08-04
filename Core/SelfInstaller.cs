@@ -265,7 +265,6 @@ namespace ClawTweaksSetup.Core
                 CopySiblingIfPresent(sourceDir, "*.msix");
                 CopySiblingIfPresent(sourceDir, "*.msixbundle");
                 CopySiblingIfPresent(sourceDir, "*.cer");
-                CopySiblingIfPresent(sourceDir, "Setup-Tools.ps1");
                 CopySiblingDirIfPresent(sourceDir, "Dependencies");
 
                 CreateStartMenuShortcut();

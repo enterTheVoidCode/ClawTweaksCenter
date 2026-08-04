@@ -59,7 +59,7 @@ if (-not $cer)  { throw "No .cer found in $InstallerDir." }
 $ver = 'dev'
 if ($msix.BaseName -match '(\d+\.\d+\.\d+\.\d+)') { $ver = $Matches[1] }
 
-# 3. Assemble the setup folder: setup.exe + package + cer + Dependencies + Setup-Tools.ps1.
+# 3. Assemble the setup folder: setup.exe + package + cer + Dependencies.
 $outDir = Join-Path $root ("Build\ClawTweaksSetup_" + $ver)
 if (Test-Path $outDir) { Remove-Item $outDir -Recurse -Force }
 New-Item -ItemType Directory -Path $outDir | Out-Null
@@ -70,9 +70,6 @@ Copy-Item $cer.FullName  -Destination $outDir
 
 $depSrc = Join-Path $InstallerDir 'Dependencies'
 if (Test-Path $depSrc) { Copy-Item $depSrc -Destination (Join-Path $outDir 'Dependencies') -Recurse }
-
-$setupTools = Join-Path $root 'XboxGamingBarHelper\Setup\Setup-Tools.ps1'
-if (Test-Path $setupTools) { Copy-Item $setupTools -Destination $outDir }
 
 Write-Host ">> Assembled setup folder: $outDir" -ForegroundColor Gray
 Write-Host "   [OK] setup.exe + $($msix.Name) + $($cer.Name)" -ForegroundColor Green
