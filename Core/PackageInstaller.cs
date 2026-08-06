@@ -358,14 +358,71 @@ namespace ClawTweaksSetup.Core
             }
             else if (error != null && error.IndexOf(HresultOpenFailed, StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                // Not repairable from here: the deployment service could not read the file at all.
-                // Name the two things that actually cause it, so the report is answerable.
+                // The deployment service could not reach the file. Measured once on a machine where the
+                // very same bytes deployed fine from outside the user profile (see
+                // BuildDownloader.StagingRoot), so retry from there before giving up — the download path
+                // already lands there, but an install driven from an extracted ZIP or a repointed
+                // AssetRoot does not.
+                string retryPath = CopyToStagingArea(packagePath, dependencies, log, out var stagedDeps);
+                if (retryPath != null)
+                {
+                    log?.Invoke("Windows could not open the package from this folder. Retrying from a " +
+                                "machine-wide location…");
+                    if (TryAddPackage(retryPath, stagedDeps, log, out error))
+                    {
+                        if (removedRegistrations) RestoreAppData(log);
+                        return true;
+                    }
+                }
+
+                // Still refused. Name the two things that actually cause it, so the report is answerable.
                 log?.Invoke("Windows could not open the package file. This is not a problem with the package " +
                             "itself — the deployment service (running as SYSTEM) could not read it. Try installing " +
                             "from a folder outside your user profile, and check whether Gaming Services is healthy.");
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// Copies the package and its dependencies to <see cref="BuildDownloader.StagingRoot"/> so the
+        /// deployment can be retried from a path outside the user profile. Returns the copied package,
+        /// or null when it already lives there (nothing to gain) or the copy failed.
+        /// </summary>
+        private static string CopyToStagingArea(string packagePath, IEnumerable<string> dependencies,
+                                                Action<string> log, out List<string> stagedDependencies)
+        {
+            stagedDependencies = new List<string>();
+            try
+            {
+                string root = BuildDownloader.StagingRoot;
+                // Already there — a second copy would fail exactly the same way, and saying "retrying"
+                // while changing nothing is worse than the plain error.
+                if (packagePath.StartsWith(root, StringComparison.OrdinalIgnoreCase)) return null;
+
+                string dir = Path.Combine(root, "retry");
+                if (Directory.Exists(dir)) Directory.Delete(dir, true);
+                Directory.CreateDirectory(dir);
+
+                string staged = Path.Combine(dir, Path.GetFileName(packagePath));
+                File.Copy(packagePath, staged, true);
+
+                // The dependencies travel too: they are passed by path and are read by the same service
+                // that could not read the package.
+                foreach (var dep in dependencies ?? Enumerable.Empty<string>())
+                {
+                    string target = Path.Combine(dir, Path.GetFileName(dep));
+                    File.Copy(dep, target, true);
+                    stagedDependencies.Add(target);
+                }
+                return staged;
+            }
+            catch (Exception ex)
+            {
+                log?.Invoke($"Could not stage the package for a retry: {ex.Message}");
+                stagedDependencies = new List<string>();
+                return null;
+            }
         }
 
         private static bool TryAddPackage(string packagePath, IEnumerable<string> dependencies,

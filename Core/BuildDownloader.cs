@@ -24,11 +24,50 @@ namespace ClawTweaksSetup.Core
         private const string IncompleteDownloadHint =
             "The download did not complete. Check your internet connection and try again.";
 
+        /// <summary>
+        /// Where a downloaded package is staged for deployment. NOT the user's Temp folder, and that is
+        /// the whole point.
+        ///
+        /// MEASURED (2026-08-04, one machine, Korean Windows). Deploying the very same bytes failed from
+        /// <c>%LOCALAPPDATA%\Temp\ClawTweaksCenter\…</c> with 0x80073CF0 "the package could not be
+        /// opened" — a .NET FileNotFoundException, i.e. a failure to REACH the file, not to read its
+        /// contents — while the identical .msix copied to a folder outside the profile installed
+        /// without complaint. The file hash matched a known-good install byte for byte, so the package
+        /// was never the variable; the path was.
+        ///
+        /// ProgramData rather than another folder in the profile, because the two candidate causes
+        /// (something specific to Temp, or the deployment service not getting through the profile at
+        /// all) are not distinguishable from one report, and this location is outside both. An
+        /// unelevated process may create its own subtree here — the inherited CREATOR OWNER right —
+        /// so this costs no UAC.
+        ///
+        /// Falls back to Temp when ProgramData cannot be created: a locked-down machine must still be
+        /// able to install, and Temp is where it worked for everyone else.
+        /// </summary>
+        public static string StagingRoot
+        {
+            get
+            {
+                try
+                {
+                    string root = Path.Combine(
+                        Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData),
+                        "ClawTweaks", "pkg");
+                    Directory.CreateDirectory(root);
+                    return root;
+                }
+                catch
+                {
+                    return Path.Combine(Path.GetTempPath(), "ClawTweaksCenter");
+                }
+            }
+        }
+
         public static async Task<string> DownloadAndStageAsync(
             BuildSource source, bool certAlreadyTrusted, Action<string> log = null, IProgress<int> progress = null)
         {
             string safeVersion = string.Join("_", source.Version.Split(Path.GetInvalidFileNameChars()));
-            string dir = Path.Combine(Path.GetTempPath(), "ClawTweaksCenter", safeVersion);
+            string dir = Path.Combine(StagingRoot, safeVersion);
             if (Directory.Exists(dir)) Directory.Delete(dir, true);
             Directory.CreateDirectory(dir);
 
