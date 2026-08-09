@@ -8,6 +8,17 @@ tasks once everything is in place.
 Center is a WPF desktop app, shipped as **one self-contained exe**: no .NET installation required,
 nothing to unpack, runs from wherever you put it.
 
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) first — AI coding agents should read [CLAUDE.md](CLAUDE.md),
+which carries the same rules in more detail.
+
+One of those rules is a hard boundary rather than a preference: **the ClawTweaks widget and
+background helper live in a separate, private repository, and their code must never be brought into
+this one** — not copied, ported, paraphrased, or referenced. Center talks to the helper over a named
+pipe, and everything needed for that is already in
+[`ClawTweaksCenter/Shared/`](ClawTweaksCenter/Shared/README.md).
+
 ## Building
 
 ```
