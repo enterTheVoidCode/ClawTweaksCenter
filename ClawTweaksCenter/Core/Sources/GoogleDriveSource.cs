@@ -18,11 +18,26 @@ namespace ClawTweaksCenter.Core.Sources
     {
         private const string FolderId = "1yLUyaYy20eZHFWy0ygyP6LbJsApAHBXF";
 
-        // Read-only, restricted-to-Drive-API key so end users get a working nightly list out of the
-        // box — no per-user setup step. Shipping in the exe means it's extractable via decompilation
-        // like any client-embedded key; mitigate by keeping it restricted to the Drive API only and
-        // capped with a quota in Google Cloud Console, and rotate it there (+ rebuild) if it's ever
-        // abused.
+        // Read-only key so end users get a working nightly list out of the box, with no per-user
+        // setup step.
+        //
+        // THIS IS PUBLIC ON PURPOSE. Please do not "fix" it by moving it out of the repository —
+        // that was considered and rejected, for reasons that do not change:
+        //
+        //   • It ships INSIDE the exe either way. Any client-embedded key is extractable from the
+        //     binary, so removing it from source would have made it harder to find, never secret.
+        //   • A desktop app cannot be restricted. Google's application restrictions are HTTP
+        //     referrer, IP range, Android app and iOS app — a WPF exe is none of those. The API
+        //     restriction below is the strongest control available here, not a first step.
+        //   • Nothing confidential is behind it. The Drive folder is shared "anyone with the link";
+        //     the key grants no access a browser would not already have.
+        //
+        // What it therefore protects is availability, not secrecy: someone abusing the key burns the
+        // project's Drive quota, and the nightly list stops working for real users. The controls that
+        // actually matter live in Google Cloud Console — API restriction limited to the Drive API,
+        // plus a daily quota cap. If it is ever abused: issue a new key, disable the old one, rebuild.
+        //
+        // Expect GitHub secret scanning to flag this line. That alert is anticipated.
         private const string ApiKey = "AIzaSyCnOwAdpy8Z3CFkCp0nNz2SovHyuBPFD2o";
 
         private static readonly Regex VersionRegex = new Regex(@"ClawTweaks_([\d.]+)_Installer\.zip", RegexOptions.IgnoreCase);
