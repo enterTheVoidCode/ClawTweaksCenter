@@ -17,14 +17,16 @@ ClawTweaks is split across repositories on purpose:
 | Component | Where it lives |
 |---|---|
 | **ClawTweaks Center** — installer and control panel (this repo) | public, here |
-| **ClawTweaks widget** (Game Bar UI) | separate, **private** |
+| **ClawTweaks widget** (Game Bar UI) | public, in the main [`ClawTweaks`](https://github.com/enterTheVoidCode/ClawTweaks) repo |
 | **ClawTweaks background helper** (the service that drives TDP, fan, LED, controller) | separate, **private** |
 | App package releases, install manifest | the main `ClawTweaks` repo |
 
-**The widget and the background helper are private and stay private.** Do not add their code here,
-do not port pieces of it here, do not paraphrase it here, and do not add a project reference or
-submodule pointing at them. A pull request that brings helper or widget internals into this
-repository will not be merged.
+**The background helper is private and stays private.** Do not add its code here, do not port pieces
+of it here, do not paraphrase it here, and do not add a project reference or submodule pointing at
+it. A pull request that brings helper internals into this repository will not be merged.
+
+The widget is not restricted — it is public and open to contributions, it just lives in the main
+repository rather than this one. If your change belongs there, send it there.
 
 Center talks to the helper over a named pipe. Everything Center needs for that is already in
 `ClawTweaksCenter/Shared/` — that is the **contract**, not the implementation, and it is the only
@@ -82,11 +84,29 @@ Both rules exist because of real antivirus findings, not as a matter of taste.
 ## Commits
 
 - **Commit messages and code comments in English.** UI strings are exempt.
-- **No AI attribution.** No `Co-Authored-By` for an assistant, no tool signature line.
 - **Stage explicit paths.** `git add <path>`, never `git add -A` or `git add .`.
-- **Never `--force`.**
+- **Never `--force`** on a shared branch.
 - Explain *why* in the message, not just *what* — the diff already says what changed. If a change is
   driven by a measurement (a log, a crash, a build size), put the number in the message.
+
+## Trying something big
+
+The rules above describe a change that is ready to merge. They are not a hurdle you have to clear
+before you are allowed to experiment.
+
+Exploratory work — a framework migration, a rewrite of a screen, a spike to find out whether an
+approach is even viable — is welcome and does not have to arrive finished. Open a draft PR or an
+issue early and say what you are trying to establish. A branch that does not build yet, has warnings,
+or replaces something wholesale is a perfectly good conversation starter; nobody will hold it to the
+merge bar while it is still a question.
+
+Two things stay true even in a spike, because they are not style preferences: **no helper code in
+this repository**, and **no secrets in a commit**. Everything else is negotiable if you can say why.
+
+If you are weighing a larger change, the parts most likely to constrain you are the single-file
+self-contained publish (see the Build section) and the D-pad requirement below — Center runs on a
+handheld and is used with a controller far more often than with a mouse. Neither rules an approach
+out, but a proposal that has not accounted for them will get asked about both.
 
 ## Layout
 

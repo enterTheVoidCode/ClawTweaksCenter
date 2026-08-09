@@ -12,10 +12,13 @@ agents alike. Read that too before you start changing things.
 ClawTweaks is split across repositories:
 
 - **ClawTweaks Center** (this repo, public) — the installer and control panel.
-- **The ClawTweaks widget and background helper** — separate and **private**. That is the part that
-  actually drives TDP, fan curves, LED, and the controller.
+- **The ClawTweaks widget** (the Game Bar UI) — public as well, but it lives in the main
+  [`ClawTweaks`](https://github.com/enterTheVoidCode/ClawTweaks) repository. Contributions are
+  welcome there; they just do not belong here.
+- **The ClawTweaks background helper** — separate and **private**. That is the part that actually
+  drives TDP, fan curves, LED, and the controller.
 
-**Do not bring helper or widget code into this repository**, in any form: not copied, not ported, not
+**Do not bring helper code into this repository**, in any form: not copied, not ported, not
 paraphrased, not as a submodule or project reference. Pull requests that do will be closed. This is
 not about credit — that code is not published, and publishing it through a side door is not something
 a maintainer can undo.
@@ -29,6 +32,8 @@ lands in the history has to be rotated; removing the commit is not enough.
 
 ## Before you open a pull request
 
+These apply to a change you want merged. For exploratory work, see the next section instead.
+
 1. **It has to build clean.** `dotnet publish -c Release` (needs the .NET 10 SDK, Windows x64). No new
    warnings.
 2. **It has to be usable with a controller.** Center runs on a handheld. Every control you add must
@@ -36,6 +41,25 @@ lands in the history has to be rotated; removing the commit is not enough.
    finished.
 3. **Try it against a real device if you can.** Center's whole job is touching a real installation.
    If you cannot test on an MSI Claw, say so in the PR — that is useful information, not a problem.
+
+## Experiments and larger reworks
+
+Not every branch has to be merge-ready. If you want to find out whether something is viable — a
+different UI framework, a rebuilt screen, a change to how the install flow is structured — open a
+draft PR or an issue and say what you are trying to establish. A branch that does not build yet, has
+warnings, or replaces a whole area is a good conversation starter, and it will not be held to the
+checklist above while it is still a question.
+
+Say early what you are attempting. Center is small enough that two people rewriting the same screen
+in different directions is a real and avoidable waste.
+
+Two things hold even in a spike, because they are not preferences: **no helper code here**, and **no
+secrets in a commit**.
+
+If you are sizing up something large, the two constraints most likely to shape your approach are the
+single-file self-contained publish (Center ships as one exe, no runtime installed) and the D-pad
+requirement above. Neither rules an approach out, but a proposal that has not considered them will
+get asked about both.
 
 ## Things that will be asked about in review
 

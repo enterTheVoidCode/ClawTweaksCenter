@@ -13,11 +13,14 @@ nothing to unpack, runs from wherever you put it.
 Read [DEV_GUIDELINES.md](DEV_GUIDELINES.md) before changing anything — it is written for human
 developers and AI coding agents alike. [CONTRIBUTING.md](CONTRIBUTING.md) covers submitting a change.
 
-One of those rules is a hard boundary rather than a preference: **the ClawTweaks widget and
-background helper live in a separate, private repository, and their code must never be brought into
-this one** — not copied, ported, paraphrased, or referenced. Center talks to the helper over a named
-pipe, and everything needed for that is already in
-[`ClawTweaksCenter/Shared/`](ClawTweaksCenter/Shared/README.md).
+One of those rules is a hard boundary rather than a preference: **the ClawTweaks background helper
+lives in a separate, private repository, and its code must never be brought into this one** — not
+copied, ported, paraphrased, or referenced. Center talks to it over a named pipe, and everything
+needed for that is already in [`ClawTweaksCenter/Shared/`](ClawTweaksCenter/Shared/README.md).
+
+The Game Bar **widget** is public too, but it lives in the main
+[`ClawTweaks`](https://github.com/enterTheVoidCode/ClawTweaks) repository — contributions to the
+widget belong there, not here.
 
 ## Building
 
