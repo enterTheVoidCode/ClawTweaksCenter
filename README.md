@@ -10,8 +10,8 @@ nothing to unpack, runs from wherever you put it.
 
 ## Contributing
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) first — AI coding agents should read [CLAUDE.md](CLAUDE.md),
-which carries the same rules in more detail.
+Read [DEV_GUIDELINES.md](DEV_GUIDELINES.md) before changing anything — it is written for human
+developers and AI coding agents alike. [CONTRIBUTING.md](CONTRIBUTING.md) covers submitting a change.
 
 One of those rules is a hard boundary rather than a preference: **the ClawTweaks widget and
 background helper live in a separate, private repository, and their code must never be brought into

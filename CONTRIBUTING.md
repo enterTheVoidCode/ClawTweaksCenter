@@ -3,6 +3,10 @@
 Contributions are welcome. Please read this first — one section of it is a hard boundary rather than
 a preference.
 
+The technical rules the code expects of you live in
+**[DEV_GUIDELINES.md](DEV_GUIDELINES.md)**, which is written for human developers and AI coding
+agents alike. Read that too before you start changing things.
+
 ## The boundary: this repo is Center, and only Center
 
 ClawTweaks is split across repositories:

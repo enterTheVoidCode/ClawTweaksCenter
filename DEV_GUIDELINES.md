@@ -1,6 +1,11 @@
-# ClawTweaks Center — working rules
+# ClawTweaks Center — development guidelines
 
-Read this before changing anything. It applies to human contributors and to AI coding agents alike.
+**Read this before changing anything.** It is written for whoever does the work — a human developer
+or an AI coding agent — and it applies to both equally. If you are an agent operating on this
+repository, treat this file as your instructions for it.
+
+[CONTRIBUTING.md](CONTRIBUTING.md) covers the practical side of submitting a change. This file covers
+what the code expects of you.
 
 ## ⛔ What belongs in this repository — and what never does
 
