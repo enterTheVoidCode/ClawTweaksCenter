@@ -1,0 +1,10 @@
+bin/
+obj/
+
+# Published Center builds land here (~63 MB self-contained single-file exes).
+ClawTweaksCenter/PortableExe/
+Build/
+
+.vs/
+*.user
+*.suo

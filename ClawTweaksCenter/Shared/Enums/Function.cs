@@ -1,0 +1,733 @@
+﻿namespace Shared.Enums
+{
+    public enum Function
+    {
+        None = 0,
+        OSD,
+        TDP,
+        CurrentTDP,
+        RunningGame,
+        PerGameProfile,
+        CPUBoost,
+        CPUEPP,
+        MaxCPUState,
+        MinCPUState,
+        LimitGPUClock,
+        GPUClockMin,
+        GPUClockMax,
+        RefreshRates,
+        RefreshRate,
+        Resolutions,        // string[] - list of available resolutions
+        Resolution,         // string - current resolution (e.g., "1920x1080")
+        DisplayOrientation, // int - display rotation (0=Landscape, 1=Portrait, 2=Landscape flipped, 3=Portrait flipped)
+        HDRSupported,       // bool - whether HDR is supported
+        HDREnabled,         // bool - HDR on/off
+        TrackedGame,
+        RTSSInstalled,
+        AMDRadeonSuperResolutionSupported,
+        AMDRadeonSuperResolutionEnabled,
+        AMDRadeonSuperResolutionSharpness,
+        AMDFluidMotionFrameSupported,
+        AMDFluidMotionFrameEnabled,
+        // AFMF 2.x extended controls (ADLX 1.5+, gated on V1Supported)
+        AMDFluidMotionFrameV1Supported,         // bool — IADLX3DAMDFluidMotionFrames1 available on this driver
+        AMDFluidMotionFrameAlgorithm,           // int — 0=Auto, 1=Enhanced, 2=Standard
+        AMDFluidMotionFrameSearchMode,          // int — 0=Auto, 1=Standard, 2=High
+        AMDFluidMotionFramePerformanceMode,     // int — 0=Auto, 1=Quality, 2=Performance
+        AMDFluidMotionFrameFastMotionResponse,  // int — 0=RepeatFrames, 1=BlendedFrames
+        AMDRadeonAntiLagSupported,
+        AMDRadeonAntiLagEnabled,
+        AMDRadeonBoostSupported,
+        AMDRadeonBoostEnabled,
+        AMDRadeonBoostResolution,
+        AMDRadeonChillSupported,
+        AMDRadeonChillEnabled,
+        AMDRadeonChillMinFPS,
+        AMDRadeonChillMaxFPS,
+        AMDImageSharpeningSupported,
+        AMDImageSharpeningEnabled,
+        AMDImageSharpeningSharpness,
+        AMDDisplayBrightnessSupported,
+        AMDDisplayBrightness,
+        AMDDisplayContrastSupported,
+        AMDDisplayContrast,
+        AMDDisplaySaturationSupported,
+        AMDDisplaySaturation,
+        AMDDisplayTemperatureSupported,
+        AMDDisplayTemperature,
+        Foreground,
+
+        LosslessScalingInstalled,
+        LosslessScalingRunning,
+        LosslessScalingEnabled,
+        LosslessScalingCurrentProfile,   // Name of active profile for current game
+        LosslessScalingScalingType,      // Off, LS1, FSR, NIS, SGSR, BCAS, Anime4K, xBR, SharpBilinear, Integer, NearestNeighbor
+        LosslessScalingSharpness,        // 0-100 (for FSR, NIS, SGSR, BCAS)
+        LosslessScalingFSROptimize,      // bool - FSR optimize toggle
+        LosslessScalingAnime4KSize,      // Small, Medium, Large, VeryLarge, UltraLarge
+        LosslessScalingAnime4KVRS,       // bool - VRS toggle for Anime4K
+        LosslessScalingScaleMode,        // Auto, Custom
+        LosslessScalingScaleFactor,      // 1-5 (for Custom mode)
+        LosslessScalingAspectRatio,      // AspectRatio, Fullscreen (for Auto mode)
+        LosslessScalingFrameGenType,     // Off, LSFG1, LSFG2, LSFG3
+        LosslessScalingLSFG3Mode,        // FIXED, ADAPTIVE
+        LosslessScalingLSFG3Multiplier,  // 2, 3, 4
+        LosslessScalingLSFG3Target,      // Target FPS (int)
+        LosslessScalingLSFG2Mode,        // X2, X3, X4
+        LosslessScalingFlowScale,        // 25-100
+        LosslessScalingSize,             // PERFORMANCE, BALANCED
+        LosslessScalingAutoScale,        // bool - auto-detect and scale
+        LosslessScalingAutoScaleDelay,   // int - delay in ms before auto-scaling
+        LosslessScalingSaveAndRestart,   // Action: save XML and restart LS
+        LosslessScalingCreateProfile,    // Action: create profile for current game
+        LosslessScalingBringToForeground, // Action: bring LS window to foreground
+        LosslessScalingLaunch,           // Action: launch LS minimized (via helper)
+        LosslessScalingResetProfile,     // Action: reset current profile to LS default values
+
+        // Additional Settings.xml fields exposed in the widget Scaling tab.
+        // String enums map to LS's verbatim values (so Settings.xml round-trips cleanly).
+        LosslessScalingSyncMode,         // OFF, DEFAULT, VSYNC1..VSYNC4
+        LosslessScalingCaptureApi,       // DXGI, WGC, GDI
+        LosslessScalingDrawFps,          // bool — overlay shown by LS
+        LosslessScalingHdrSupport,       // bool
+        LosslessScalingGsyncSupport,     // bool
+        LosslessScalingResizeBeforeScaling, // bool
+        LosslessScalingLS1Type,          // BALANCED, PERFORMANCE (only meaningful when ScalingType=LS1)
+        LosslessScalingMaxFrameLatency,  // int 0..4
+
+        Settings_AutoStartRTSS,
+        Settings_OnScreenDisplayProvider,
+        Settings_UseManufacturerWMI,    // DEPRECATED: bool - use manufacturer WMI for TDP instead of RyzenAdj
+        Settings_TdpMethod,             // int (TdpMethod enum) - TDP control method (ManufacturerWMI=0, PawnIO=1, WinRing0=2)
+        TdpMethod_WinRing0Available,    // bool - whether WinRing0 files exist in C:\GoTweaks
+        TdpMethod_PawnIOAvailable,      // bool - whether PawnIO/RyzenSMU is available for TDP control
+        TdpMethod_PawnIOInstalled,      // bool - whether PawnIO driver is installed (driver present, may not work for TDP yet)
+        TdpMethod_InstallPawnIO,        // string - trigger to install PawnIO (write "install" to trigger)
+
+        // Device detection (agnostic, works for any device)
+        DeviceType,                 // int (DeviceType enum) - detected device type (Generic=0, LegionGo=1, LegionGoS=2)
+        DeviceManufacturer,         // string - device manufacturer (e.g., "LENOVO", "ASUS", "Valve")
+        DeviceModel,                // string - device model identifier (e.g., "83E1", "83N0")
+        DeviceSupportsWmiTdp,       // bool - whether device supports WMI-based TDP control
+
+        // Device capability flags (helper -> widget sync for UI visibility)
+        DeviceDisplayName,              // string - "Legion Go", "Legion Go 2", "Legion Go S"
+        DeviceSupportsControllerRemap,  // bool - whether device supports HID controller remapping
+        DeviceSupportsRgbLighting,      // bool - whether device supports HID RGB lighting control
+        DeviceSupportsGyro,             // bool - whether device supports HID gyro configuration
+        DeviceSupportsFirmwareKeyboardRemap, // bool - MSI Claw A2VM: firmware button→keyboard remap available (verified layout)
+        DeviceHasScrollWheel,           // bool - whether device has a scroll wheel (Legion Go/Go2 yes, Go S no)
+        DeviceHasDetachableControllers, // bool - whether device has detachable L/R controllers (Legion Go/Go2 yes, Go S no)
+        DeviceHasTouchpad,              // bool - whether device has touchpad/vibration settings (uses HID)
+
+        // Legion Go specific functions
+        LegionGoDetected,           // bool - whether a Legion Go device is detected (kept for backwards compatibility)
+        LegionTouchpadEnabled,      // bool - touchpad on/off
+        LegionLightMode,            // int - RGB mode (Off=0, Solid=1, Pulse=2, Dynamic=3, Spiral=4)
+        LegionLightColor,           // string - hex color "#RRGGBB"
+        LegionLightBrightness,      // int - brightness (0-100)
+        LegionLightSpeed,           // int - animation speed (0-100)
+        LegionPerformanceMode,      // int - TDP mode (Quiet=1, Balanced=2, Performance=3, Custom=255)
+        LegionCustomTDPSlow,        // int - Slow TDP (SPL) in watts
+        LegionCustomTDPFast,        // int - Fast TDP (SPPL) in watts
+        LegionCustomTDPPeak,        // int - Peak TDP (FPPT) in watts
+        LegionFanFullSpeed,         // bool - fan full speed mode
+        LegionFanCurveData,         // string - fan curve data "v0,v1,v2,...,v9" (10 values 0-100) — represents the *active* power mode's curve (drives EC/WMI)
+        LegionUnlockFanCurve,       // bool - active power mode's EC-override unlock state (drives EC override loop)
+        LegionFanCurvePerMode,      // string - "<mode>:v0,v1,...,v9" — read/write a specific mode's saved curve without changing power mode. Helper pushes 4 messages (one per mode) on connect; widget sends one per edit.
+        LegionUnlockFanCurvePerMode,// string - "<mode>:0|1" — read/write a specific mode's unlock state. Same fan-out pattern as LegionFanCurvePerMode.
+        LegionCPUCurrentTemp,       // int - current CPU temperature in Celsius (read-only from helper)
+        LegionFanSensorTemp,        // int - fan control sensor temp (0x01 sensor, what EC uses for curve) (read-only from helper)
+        LegionCPUFanRPM,            // int - current CPU fan speed in RPM (read-only from helper)
+        LegionFanCurveVisible,      // bool - widget sets this when fan curve is expanded and visible
+        LegionGyroEnabled,          // bool - gyroscope on/off (WIP)
+        LegionVibration,            // int - vibration level (0=Off, 1=Weak, 2=Medium, 3=Strong)
+        LegionPowerLight,           // bool - power button LED on/off
+        LegionChargeLimit,          // bool - battery charge limit (80%) on/off
+
+        // Legion Go Controller Remapping (supports Gamepad, Keyboard, Mouse mapping)
+        LegionButtonY1,             // string - JSON ButtonMapping (type, gamepadAction, keyboardKeys[], mouseButton)
+        LegionButtonY2,             // string - JSON ButtonMapping
+        LegionButtonY3,             // string - JSON ButtonMapping
+        LegionButtonM1,             // string - JSON ButtonMapping (new button)
+        LegionButtonM2,             // string - JSON ButtonMapping
+        LegionButtonM3,             // string - JSON ButtonMapping
+        LegionButtonDesktop,        // string - JSON ButtonMapping (Desktop button - Win+G default)
+        LegionButtonPage,           // string - JSON ButtonMapping (Page button - Win+Tab default)
+        LegionNintendoLayout,       // bool - Nintendo-style face button swap (A↔B, X↔Y)
+        LegionVibrationMode,        // int - vibration mode preset (FPS=1, Racing=2, AVG=3, SPG=4, RPG=5)
+        LegionControllerProfileEnabled, // bool - per-game controller profile toggle
+
+        // Legion Go Gyro Settings (per-game profile)
+        LegionGyroTarget,               // int - 0=Disabled, 1=LeftStick, 2=RightStick, 3=Mouse
+        LegionGyroSensitivityX,         // int - 1-100
+        LegionGyroSensitivityY,         // int - 1-100
+        LegionGyroInvertX,              // bool
+        LegionGyroInvertY,              // bool
+        LegionGyroMappingType,          // int - 0=Instant, 1=Continuous
+        LegionGyroActivationMode,       // int - 0=Hold, 1=Toggle
+        LegionGyroActivationButton,     // int - 0-6 (None, LB, LT, RB, RT, M1, M2) on the Claw
+
+        // Legion Go Advanced Gyro Settings (per-game profile)
+        LegionGyroDeadzone,             // int - 1-100 (suppresses small motions near center)
+        LegionGyroSmoothing,            // int - 0-100 (One-Euro min-cutoff amount; per engine mode; Adaptive+MA only)
+
+        // Legion Go Stick Deadzones (per-game profile)
+        LegionLeftStickDeadzone,        // int - 0-50 (percent)
+        LegionRightStickDeadzone,       // int - 0-50 (percent)
+
+        // Legion Go Trigger Travel (per-game profile)
+        LegionLeftTriggerStart,         // int - 0-100 (start %)
+        LegionLeftTriggerEnd,           // int - 0-100 (end % from full)
+        LegionRightTriggerStart,        // int - 0-100 (start %)
+        LegionRightTriggerEnd,          // int - 0-100 (end % from full)
+        LegionHairTriggers,             // bool - hair triggers preset (0%/1%)
+
+        // Legion Go Joystick as Mouse (per-game profile)
+        LegionJoystickAsMouseMode,      // int - 0=Disabled, 1=Left Stick, 2=Right Stick
+        LegionJoystickMouseSens,        // int - Mouse sensitivity (10-100)
+
+        // Legion Go Gamepad Button Remapping (per-game profile)
+        LegionGamepadButtonMapping,     // string - JSON mapping of gamepad buttons to actions
+
+        // Legion Go Desktop Controls (preset: RS→Mouse, RT→LClick, LT→RClick, A→Enter, B→Esc)
+        LegionDesktopControls,          // bool - desktop controls preset enabled
+
+        // Legion Go Touchpad Vibration (GLOBAL setting)
+        LegionTouchpadVibration,        // bool - on/off toggle for touchpad haptics
+
+        // GPD specific functions
+        GPDDetected,                    // bool - whether a GPD device is detected (Win Mini, Win 4, etc.)
+        GPDWin5Connected,               // bool - whether GPD Win 5 HID controller is connected
+        GPDRestoreDefaults,             // bool - trigger to restore default button mappings on Win 5
+        GPDDeviceName,                  // string - device display name (e.g., "GPD Win 5")
+        GPDSupportsFanControl,          // bool - whether device supports fan control (separate from HID)
+        GPDFanSpeed,                    // int - fan speed percentage (0 = auto, 30-100 = manual)
+        GPDFanRPM,                      // int - current fan RPM (read-only, helper to widget)
+        GPDFanMode,                     // int - fan mode (0 = auto, 1 = manual)
+        GPDFanCurveEnabled,             // bool - software fan curve on/off
+        GPDFanCurveData,                // string - "v0,v1,...,v9" (10 fan speed % values)
+        GPDFanCurveVisible,             // bool - graph is visible (triggers temp pushes)
+        GPDCPUTemp,                     // int - CPU temp pushed to widget for graph
+
+        // GPD Win 5 Button Remapping (ushort keycodes using GPDWin5Keycodes values)
+        GPDButtonA,                     // ushort - A button keycode
+        GPDButtonB,                     // ushort - B button keycode
+        GPDButtonX,                     // ushort - X button keycode
+        GPDButtonY,                     // ushort - Y button keycode
+        GPDButtonDPadUp,                // ushort - D-Pad Up keycode
+        GPDButtonDPadDown,              // ushort - D-Pad Down keycode
+        GPDButtonDPadLeft,              // ushort - D-Pad Left keycode
+        GPDButtonDPadRight,             // ushort - D-Pad Right keycode
+        GPDButtonL3,                    // ushort - L3 (left stick click) keycode
+        GPDButtonR3,                    // ushort - R3 (right stick click) keycode
+        GPDButtonL4,                    // ushort - L4 back paddle keycode
+        GPDButtonR4,                    // ushort - R4 back paddle keycode
+        GPDButtonLSUp,                  // ushort - Left stick Up keycode
+        GPDButtonLSDown,                // ushort - Left stick Down keycode
+        GPDButtonLSLeft,                // ushort - Left stick Left keycode
+        GPDButtonLSRight,               // ushort - Left stick Right keycode
+
+        // Controller Battery (read-only, from HID input reports)
+        ControllerBatteryLeft,          // int - left controller battery (1-100, or -1 if unavailable)
+        ControllerBatteryRight,         // int - right controller battery (1-100, or -1 if unavailable)
+        ControllerChargingLeft,         // bool - whether left controller is charging
+        ControllerChargingRight,        // bool - whether right controller is charging
+        ControllerConnectedLeft,        // bool - whether left controller is connected (attached/detached)
+        ControllerConnectedRight,       // bool - whether right controller is connected
+        ControllerVidPid,               // string - detected controller VID:PID (e.g., "17EF:6182")
+        ControllerDeviceStatus,         // string - JSON snapshot of LegionGoStatus (FW, RGB, brightness, mode, speed, vibration, touchpad)
+
+        // ── RESERVED: the removed AutoTDP block ────────────────────────────────────────────────
+        // AutoTDP was deleted in full (GoTweaks legacy, user decision 2026-07-31 — see
+        // Doku/PLAN_Performance_SingleStore.md §5.0). These eleven members MUST STAY.
+        //
+        // This enum is serialised BY ORDINAL over the pipe. Deleting a member shifts every value
+        // after it by one, so a widget and a helper of different versions would silently interpret
+        // each other's messages as entirely different functions — the worst possible failure mode,
+        // because nothing throws. Renaming them to Reserved_* keeps the numbering intact and makes
+        // it obvious that nothing may be inserted here. Never reuse a slot for a new function
+        // either: an old peer would map its old meaning onto it. New members go at the END.
+        Reserved_AutoTDP01,
+        Reserved_AutoTDP02,
+        Reserved_AutoTDP03,
+        Reserved_AutoTDP04,
+        Reserved_AutoTDP05,
+        Reserved_AutoTDP06,
+        Reserved_AutoTDP07,
+        Reserved_AutoTDP08,
+        Reserved_AutoTDP09,
+        Reserved_AutoTDP10,
+        Reserved_AutoTDP11,
+
+        // OSD Customization
+        OSDConfig,                  // string - OSD configuration per level (L1:items;L2:items;L3:items)
+
+        // OLED Protection
+        OLEDConfig,                 // string - OLED protection settings config
+
+        // FPS Limiter (RTSS)
+        FPSLimit,                   // int - FPS limit (0 = unlimited)
+
+        // Intel FPS cap (IGCL FRAME_LIMIT). ARBITRARY fps, 0 = off. The name is historical: this was
+        // a 0..3 Endurance Gaming tier. Legacy stored 1/2/3 are migrated to 60/40/30 on read
+        // (IntelGpuManager.MigrateTierToFps / the widget's MigrateIntelFps). Never renamed — the
+        // enum is ordinal-serialized and APPEND-ONLY.
+        IntelFpsTier,               // int - fps target (0 = off)
+        FpsCapMode,                 // int - active FPS-cap source: 0=RTSS, 1=Intel (mutual exclusion enforced by helper)
+
+        // Device TDP Limits
+        TDPLimits,                  // string - "min,max" format (e.g., "4,35")
+
+        // TDP Boost (apply additional power to SPPT/FPPT above base TDP)
+        TDPBoostEnabled,            // bool - enable/disable TDP boost (profile-synced)
+        TDPBoostSPPT,               // int - additional watts for SPPT (0-10, default 1)
+        TDPBoostFPPT,               // int - additional watts for FPPT (0-15, default 3)
+
+        // CPU Core Configuration
+        CPUCoreConfig,              // string - "pCores,eCores,isHybrid" format (e.g., "3,5,true") - helper to widget (detection)
+        CPUCoreActiveConfig,        // string - "activePCores,activeECores" format (e.g., "2,4") - widget to helper (user selection)
+        CoreParkingPercent,         // int - CPMAXCORES percentage (0-100), 100 = all cores active, 50 = half parked
+        ForceParkMode,              // bool - Force affinity on ALL processes (aggressive mode)
+
+        // OS Power Mode (Windows 11 power slider)
+        OSPowerMode,                // int - 0=Best Power Efficiency, 1=Balanced, 2=Best Performance
+
+        // System Actions
+        RefreshDisplaySettings,     // Action: re-query display resolution, refresh rate, HDR status
+
+        // RETIRED 2026-08-02 — Default Game Profiles removed entirely. The four names stay because
+        // this enum is ordinal-serialized and APPEND-ONLY: deleting them would renumber everything
+        // below and make an older widget talk nonsense to a newer helper. Nothing sends or handles
+        // them any more; an old widget that still does gets the unknown-function path, which is
+        // harmless. Do not reuse these slots for something else.
+        //
+        // Why the feature went: the profiles came from Windows' Gaming Services, and every one of the
+        // 78 tuned entries was contributed by ASUS (provider=ArmouryCrate) for the two Legion Go
+        // variants (hardwareModels OMNI/HORSEM4N). The Claw is not among them — CpuDetector only knew
+        // LegionGoVariant and resolved to Unknown, after which the lookup fell through to OMNI and
+        // would have driven an AMD handheld's wattage on Intel silicon. A recommendation computed for
+        // a different device is worse than none, and per-game profiles now cover the same ground
+        // properly (power-state split, one store, visible in the cards, carried in backups).
+        DefaultGameProfileAvailable_Retired,
+        DefaultGameProfileData_Retired,
+        DefaultGameProfileEnabled_Retired,
+        ForceDefaultGameProfile_Retired,
+
+        // Profile Detection Settings
+        ProfileMatchByExe,              // bool - match profiles by exe path instead of window title
+        ProfileCustomGamePath,          // string - pipe-separated paths always treated as games
+        ProfileGamesOnly,               // bool - only detect apps rendering frames (FPS > 0)
+        ProfileBlacklistPaths,          // string - pipe-separated paths never treated as games
+        ForegroundApp,                  // string - current foreground app path (for UI display)
+        DeleteGameProfile,              // string - write game name to delete its profile (widget -> helper)
+
+        // Labs Section (Experimental Features)
+        Labs_DAServiceControl,          // int - 0=Stop, 1=Start DAService
+        Labs_DAServiceStatus,           // int - 0=Stopped, 1=Running, 2=NotFound
+        Labs_LegionLToXbox,             // DEPRECATED - replaced by Labs_LegionButtonRemap
+        Labs_LegionButtonRemap,         // Button (0=Disabled, 1=Legion L, 2=Legion R), Action (0=Xbox Guide, 1=Shortcut), Shortcut (string)
+        Labs_LegionScrollRemap,         // Direction (Up/Down/Click), Enabled, Action, Shortcut - back scroll wheel remap
+        Labs_FocusWidget,               // Trigger: helper sends to widget to focus itself
+        Debug_ExportDGPs,               // Trigger: widget requests helper to export DGPs to Desktop
+        Debug_ExportProfiles,           // Trigger: widget requests helper to export per-game profiles to Desktop
+
+        // ViGEmBus Driver
+        ViGEmBusInstalled,              // bool - whether ViGEmBus driver is installed
+        InstallViGEmBus,                // string - trigger to install ViGEmBus (write "install" to trigger)
+        HidHideInstalled,               // bool - whether HidHide is installed (CLI available)
+        InstallHidHide,                 // string - trigger to install HidHide (write "install" to trigger)
+
+        // Controller Hotkey Settings (synced from widget to helper for XInput monitoring)
+        ControllerHotkeyConfig,         // string - JSON config for controller button combos (Menu+DPad, View+ABXY)
+
+        // Profile Save Flags (widget's Profiles-tab checkboxes). Helper routes per-setting
+        // writes to GlobalProfile when the matching flag is false, CurrentProfile when true.
+        ProfileSaveFlags,               // string - JSON map of flag name -> bool; sent on startup + on checkbox change
+
+        // Power Source Profile Config. Widget is a UWP that's suspended when Game Bar is
+        // dismissed, so AC/DC transitions happening while the user is in a game are dropped.
+        // Helper owns a mirror of the widget's power-plan auto-switch settings and acts on
+        // SystemEvents.PowerModeChanged StatusChange transitions independently.
+        PowerSourceProfileConfig,       // string - JSON: AutoSwitchEnabled, AcGuid, DcGuid
+
+        // Per-state TDP/boost values for the active profile, sent by the widget so the
+        // helper can apply them on AC/DC transitions without depending on the widget being
+        // awake. Sent whenever the active profile or its AC/DC sub-profile changes. Helper
+        // caches both AC and DC values and picks the right set when SystemManager fires
+        // PowerSourceChanged. JSON keys: AcTdp, DcTdp, AcTdpBoost, DcTdpBoost (all optional;
+        // null/missing = no override for that field).
+        PowerSourceProfileValues,       // string - JSON: AC/DC TDP and TDPBoost values
+
+        // Debug/Development
+        CheckLocalUpdate,               // Trigger: check for local AppPackages update (Debug)
+        InstallUpdate,                  // RESERVED — the helper's download-and-install handler is gone (CTW Center installs)
+
+        // Onboarding tab: what's-new information about STABLE releases. The widget shows it and links
+        // to CTW Center; it does not download or install anything.
+        ListAppReleases,                // Query (Get): returns Content = JSON array of recent STABLE releases
+        // RESERVED — do not reuse these two slots and do not renumber around them. They were
+        // InstallAppRelease (Set: asset URL to download + install) and AppInstallStatus (Get: install
+        // progress). Both are unhandled now: the widget's download-and-install path was removed because
+        // fetching a package and getting it launched is the shape antivirus heuristics score, and
+        // installing belongs to Center. Function is a wire protocol serialised by ORDINAL, so deleting
+        // the members would shift every later value and break against any mismatched build.
+        InstallAppRelease_Removed,
+        AppInstallStatus_Removed,
+
+        // System Restore (for clean uninstall)
+        PrepareForUninstall,            // Trigger: restore original system values and remove scheduled task
+        SystemRestoreStatus,            // string - status of saved original values (read-only)
+
+        // Import/Export (comprehensive backup/restore)
+        ExportAllData,                  // Trigger: export profiles, settings, Q-learning model to Desktop folder
+        ImportAllData,                  // string - path to import folder; imports all data from it
+
+        // Quick Metrics (compact stats row at top of Quick Tab)
+        QuickMetrics,                   // string - JSON bundle pushed from helper (batteryDrain, cpuUsage, gpuUsage, timeRemaining, etc.)
+        QuickMetricsEnabled,            // bool - toggle for metrics row visibility (widget setting synced to helper)
+
+        // PawnIO Debug Tools (for testing RyzenSMU functions)
+        PawnIOGetCpuInfo,               // Query: returns CPU codename and capabilities
+        PawnIOApplySettings,            // Set: apply CO, GfxClk, Tctl settings (params: CoAll, CoGfx, GfxClk, TctlTemp)
+
+        // Screen Saver (idle display off for gaming)
+        ScreenSaverEnabled,             // bool - when true, helper monitors idle time and triggers Windows screen saver
+
+        // Auto Hibernate (idle-based hibernation)
+        AutoHibernateEnabled,           // bool - when true, helper hibernates system after inactivity timeout
+        AutoHibernateIdleMinutes,       // int - idle minutes before hibernate
+        AutoHibernateMode,              // int - 0=Always, 1=AC Only, 2=DC Only
+
+        // GPD Controller Emulation
+        GPDGyroSource,                  // int - gyro source (0=Internal Handheld, 1=Controller Internal)
+        GPDGyroSimulateMode,            // int - gyro simulation mode (0=Mouse, 1=XboxStick, 2=PS4Motion, 3=PS4Stick)
+        GPDApplyMappings,               // bool - trigger to apply staged GPD Win 5 button mappings
+
+        // Handheld-agnostic Controller Emulation
+        ControllerEmulationAvailable,   // bool - helper supports controller emulation flow on current device
+        ControllerEmulationEnabled,     // bool - global on/off switch for controller emulation runtime
+        ControllerEmulationGyroSource,  // int - gyro source (0=Internal Handheld, 1=Controller Internal)
+        ControllerEmulationMode,        // int - mode (0=Mouse, 1=XboxStick, 2=PS4Motion, 3=PS4Stick)
+        ControllerEmulationDs4Orientation, // int - DS4 motion orientation (0=Parallel, 1=Orthogonal)
+        ControllerEmulationMouseSensitivity,  // int - 1-400 (percent scaling)
+        ControllerEmulationMouseThreshold,    // int - 0-20 (deg/s deadzone)
+        ControllerEmulationMouseAcceleration, // int - 0-100 (0=off/linear, 100=max boost; HC ApplyAcceleration port)
+        ControllerEmulationMouseActionSlots,  // string - "button:type,button:type,button:type,button:type" (4 extra assignable action slots)
+        ControllerEmulationMouseDPadActions,  // string - "up,down,left,right" action-type ints; 0=None passes D-Pad through unchanged
+        ControllerEmulationMouseNudgeStep,     // int - 1-50 (px per press for cursor-nudge action types)
+        ControllerEmulationMouseAxis,         // int - axis mapping (0=Yaw/Pitch, 1=Yaw/Roll, 2=Roll/Pitch)
+        ControllerEmulationMouseInvertX,      // bool - invert horizontal
+        ControllerEmulationMouseInvertY,      // bool - invert vertical
+        ControllerEmulationMouseGainX,        // int - 25-400 (percent)
+        ControllerEmulationMouseGainY,        // int - 25-400 (percent)
+        ControllerEmulationMouseLeftClickButton,  // int - 0=None,1=A,2=B,3=X,4=Y,5=LB,6=RB,7=LS,8=RS
+        ControllerEmulationMouseRightClickButton, // int - same index set
+        ControllerEmulationMouseCursorStick,      // int - 0=Right,1=Left
+        ControllerEmulationMouseScrollStick,      // int - 0=Left,1=Right
+        ControllerEmulationStickSensitivity,  // int - 1-400 (percent scaling)
+        ControllerEmulationStickThreshold,    // int - 0-20 (deg/s deadzone)
+        ControllerEmulationStickAxis,         // int - axis mapping (0=XY(Yaw), 1=XZ(Roll), 2=Yaw+Pitch)
+        ControllerEmulationStickInvertX,      // bool - invert horizontal
+        ControllerEmulationStickInvertY,      // bool - invert vertical
+        ControllerEmulationStickGainX,        // int - 25-400 (percent)
+        ControllerEmulationStickGainY,        // int - 25-400 (percent)
+        ControllerEmulationStickSelect,       // int - 0=Left, 1=Right
+        ControllerEmulationStickExcessMove,   // bool - allow excess/overflow behavior
+        ControllerEmulationStickRange,        // int - 0-200 (0.00-2.00x)
+        ControllerEmulationStickOnlyJoystickData, // bool - only forward joystick data
+        ControllerEmulationVirtualABXYLayout, // int - 0=Xbox, 1=Nintendo
+        ControllerEmulationHideStockController, // bool - hide physical handheld controller while virtual controller is active
+        ControllerEmulationHideTarget, // int - suppression target selector (0=Auto, 1=Native, 2=Xbox360Bridge, 3=NativeAndXbox360)
+        ControllerEmulationPs4TouchpadEnabled, // bool - enable touchpad forwarding for PS4 (Motion/Stick) modes
+        ControllerEmulationGyroActivationMode, // int - gyro activation behavior (0=AlwaysOn, 1=Hold, 2=Toggle)
+        ControllerEmulationGyroActivationButton, // int - activation button mapping (0=None, 1=RT, 2=LT, ...)
+        ControllerEmulationImprovedInput, // bool - Legion Go/Go2 HID gamepad-read path to avoid XInput blocking in Game Bar/FSE
+
+        // GPD Win 5 HID diagnostics/configuration (appended to preserve prior enum values)
+        GPDWin5HidDebug,              // bool - enable verbose Win 5 HID TX/RX debug logging
+        GPDWin5HidDevices,            // string - JSON array of deterministic Win 5 HID candidate interfaces
+        ControllerEmulationRumbleProfile, // int - rumble response profile (0=Balanced, 1=Sharp, 2=Soft, 3=Impact, 4=Boosted)
+        ControllerEmulationLedForwardingEnabled, // bool - forward DS4 LED color requests from games to physical controller
+        ControllerEmulationCalibrateGyro, // bool - trigger firmware gyro calibration (fire-and-forget action)
+        ControllerEmulationStickMinGyroSpeed,      // int - min gyro input speed in deg/s (0-100, default 0)
+        ControllerEmulationStickMaxGyroSpeed,      // int - max gyro speed for full deflection in deg/s (50-720, default 220)
+        ControllerEmulationStickMinOutput,         // int - min joystick output percent (0-100, default 0) — anti-deadzone
+        ControllerEmulationStickMaxOutput,         // int - max joystick output percent (1-100, default 100)
+        ControllerEmulationStickPowerCurve,        // int - 10-400 = 0.1x-4.0x (default 100 = 1.0 linear)
+        ControllerEmulationStickSensitivityV2,     // int - 1-400 = 0.01x-4.00x (default 100 = 1.00x)
+        ControllerEmulationStickDeadzone,          // int - 0-50 deg/s deadzone with smooth recovery (default 2)
+        ControllerEmulationStickPrecisionSpeed,    // int - 0-100 deg/s precision threshold (default 0 = off)
+        ControllerEmulationStickOutputMix,         // int - -100 to +100 (default 0) positive reduces vertical, negative reduces horizontal
+        ControllerEmulationStickOrientationV2,     // int - 0=Parallel, 1=Orthogonal (default 0) — for stick output
+        ControllerEmulationStickConversion,        // int - 0=Yaw, 1=Roll, 2=Yaw+Roll (default 0) — 3DOF to 2D mapping
+        SidebarMenuEnabled,                        // bool - widget sends to helper to enable/disable sidebar overlay
+
+        // VIIPER (experimental new emulation backend)
+        Settings_EmulationBackend,                 // int (EmulationBackend enum) - Legacy=0, Viiper=1 (global, persisted)
+        Viiper_UsbipInstalled,                     // bool - whether usbip-win2 driver is installed
+        Viiper_DeviceType,                         // string - virtual device type (xbox360, dualshock4, dualsenseedge, xboxelite2, steam-generic, switchpro, joycon-pair)
+        Viiper_InputSource,                        // string - input source ("XInput" or "LegionHid")
+        Viiper_GyroSource,                         // string - gyro source ("Left", "Right", "Mixed", "Handheld", "None")
+        Viiper_SteamSubDevice,                     // string - Steam sub-device PID selector (generic, steam-deck, legion-go, etc.)
+        Viiper_GuideButtonMode,                    // string - "Native" (send device Guide/PS) or "GameBar" (send Win+G on Mode/Guide press)
+        Viiper_SwapRumbleMotors,                   // bool  - swap large/small motor values before forwarding rumble feedback
+        Viiper_RumbleIntensity,                    // int (0-200) - percentage multiplier applied to rumble motor values (100 = unity)
+        Viiper_MirrorLightbarToStick,              // bool  - mirror emulated DS4/DSEdge lightbar color onto Legion Go stick lights (default true)
+        Viiper_GyroAxisMapX,                       // string - which source axis feeds the emulated device's IMU X channel ("X","Y","Z","-X","-Y","-Z")
+        Viiper_GyroAxisMapY,                       // string - IMU Y channel mapping (same options)
+        Viiper_GyroAxisMapZ,                       // string - IMU Z channel mapping (same options)
+        Viiper_StickGyroEnabled,                   // bool  - master enable for the Gyro → Right Stick processor on no-native-motion targets (default true)
+        Viiper_GameBarAutoXboxSwap,                // bool  - experimental opt-in: hot-swap a non-xbox VIIPER device to xbox360 while the Game Bar is open (back on close)
+        InstallUsbip,                              // string - trigger to install the bundled usbip-win2 MSI (write "install" to trigger)
+
+        // MSI Claw — OEM software toggle
+        MsiCenterActive,                           // bool - MSI Center M running (true) / stopped (false); write to toggle
+
+        // MSI Claw — Controller / Mouse mode tile (Quick Settings)
+        MsiClawControllerMode,                     // bool - true = Controller mode (ClawButtonMonitor + ViGEm Xbox 360), false = Mouse mode (MSIClawDesktopModeForwarder)
+
+        // SDR White Level Sync (Display tab, under HDR toggle)
+        // Windows exposes a static "SDR content brightness" slider in HDR mode but never ties it
+        // to the hardware backlight. When backlight changes, SDR content blows out or looks gray.
+        // Helper listens to WmiMonitorBrightnessEvent and re-writes SDR white level via
+        // DISPLAYCONFIG_SET_SDR_WHITE_LEVEL on each change.
+        SdrWhiteLevelSyncMode,                     // int (SdrWhiteLevelSyncMode enum) - 0=Off, 1=Auto (EDID + gamma), 2=Legion Go 2 preset
+
+        // CPU advanced (ToothNClaw port) — collapsible CPU section in Performance tab.
+        // All persisted per-game AND globally (GameProfile fields).
+        CpuBoostMode,                // int - boost mode 0=Disabled,1=Enabled,2=Aggressive,3=EfficientEnabled,4=EfficientAggressive,5=AggressiveAtGuaranteed,6=EfficientAggressiveAtGuaranteed
+        ProcessorSchedulingPolicy,   // int - 0=Auto, 1=PreferPCore, 2=PreferECore, 3=OnlyPCore, 4=OnlyECore
+        MaxPCoreFreqMHz,             // int - P-core (Efficiency Class 1) max frequency in MHz (0 = unlimited)
+        MaxECoreFreqMHz,             // int - E-core/all-core max frequency in MHz (0 = unlimited)
+
+        // Intel Display (IGCL) — stored in the existing performance profile (global + per-game).
+        IntelAdaptiveSharpness,      // int - 0 = off, 1..100 = adaptive sharpness intensity
+        IntelColorSaturation,        // int - saturation 0..100, 50 = neutral
+        IntelColorHue,               // int - hue -180..180, 0 = neutral
+        IntelDisplayContrast,        // int - contrast 0..100, 50 = neutral
+        IntelDisplayBrightness,      // int - brightness 0..100, 50 = neutral
+        IntelDisplayGamma,           // int - gamma ×100 (30..280), 100 = 1.0 neutral
+
+        // RTSS in-app installation (Setup tab) — mirrors InstallViGEmBus / InstallHidHide
+        InstallRTSS,                 // string - trigger to install RTSS via winget (write "install" to trigger)
+
+        // In-app tool uninstall (Setup tab). Write "uninstall" to trigger; helper runs the
+        // uninstaller elevated (it already runs elevated) and pushes the updated *Installed status.
+        UninstallViGEm,              // string - trigger to uninstall ViGEmBus (ARP)
+        UninstallHidHide,            // string - trigger to uninstall HidHide (ARP, else kernel service)
+        UninstallRTSS,               // string - trigger to uninstall RTSS (ARP)
+        UninstallPawnIO,             // string - trigger to uninstall PawnIO (ARP)
+        UninstallUsbip,              // string - trigger to uninstall usbip-win2 (ARP)
+
+        // MSI Claw — stepless controller vibration intensity (Controller tab; global + per-game).
+        // Scales the rumble report sent to the physical Claw by ClawButtonMonitor (0 = off, 100 = full).
+        // Appended at the end to preserve all existing enum ordinal values.
+        LegionVibrationIntensity,    // int - 0-100 (percent), default 100
+
+        // Onboarding: RE-DETECT the required tools (PawnIO, ViGEmBus, HidHide, RTSS, usbip) and push
+        // each *Installed status. It used to INSTALL them as well, through an embedded PowerShell
+        // script the elevated helper extracted and ran; that is gone, and Center owns installing now.
+        // The verb keeps its name and ordinal (this enum is append-only) and still takes "install".
+        RunToolSetup,                // string - trigger a tool re-detection (write "install")
+
+        // Controller: fire a short test rumble pulse on the physical MSI Claw at the current
+        // vibration intensity (lets the user feel the setting without launching a game).
+        TestControllerVibration,     // string - trigger (write "test")
+
+        // Controller State diagnostic (Controller tab, bottom card). Widget sends Command.Get;
+        // the elevated helper inspects ViGEm + HidHide + MSI Claw PnP live and returns a compact
+        // status string. Mirrors Diagnostics\Get-ControllerState.ps1 but runs in-process.
+        // Content format: "state|vigem|pid1901|pid1902|blocked|xinput"
+        //   state   : 0=Undetermined, 1=VirtualControllerMode, 2=HwControllerMode
+        //   vigem   : count of virtual Xbox360 controllers (VID_045E&PID_028E)
+        //   pid1901 : count of MSI Claw XInput/keyboard devices (VID_0DB0&PID_1901)
+        //   pid1902 : count of MSI Claw DInput gamepad devices (VID_0DB0&PID_1902)
+        //   blocked : count of devices currently hidden by HidHide
+        //   xinput  : count of connected XInput slots (0-4)
+        RequestControllerState,      // Get -> Content "state|vigem|pid1901|pid1902|blocked|xinput"
+
+        // External Gamepad Mode (Quick Settings tile, MSI Claw). When ON, hides ALL the handheld's
+        // own controllers via HidHide — the native MSI controllers (PID_1901 + PID_1902) AND our
+        // virtual ViGEm controller — so only an externally connected gamepad remains visible.
+        // NOT persisted: the tile always starts OFF after a helper start (the handheld needs a HW
+        // or virtual controller after every reboot).
+        ExternalGamepadMode,         // bool - true = hide all handheld controllers (external gamepad only)
+
+        // HW-mouse killswitch (MSI Claw): force the CLAW FIRMWARE into its native Desktop mouse mode
+        // (stick→cursor, A→click) — a real hardware HID mouse that works on the UAC secure desktop,
+        // where software SendInput cannot. Orthogonal to MsiClawControllerMode: the virtual controller
+        // state is preserved (Viiper stays mounted, monitor suspended), so OFF restores it exactly.
+        // NOT persisted: always starts OFF after a helper start (helper always boots in controller mode).
+        MsiClawHwMouse,              // bool - true = firmware Desktop mouse forced on; false = controller
+
+        // Keyboard-remap backend (MSI Claw A2VM only): when ON, button-bound keyboard shortcuts from
+        // the controller profile are written to the controller FIRMWARE so they emit a real HID key
+        // (seen inside DirectInput/RawInput games); when OFF, the existing software injector is used.
+        // Runs alongside the virtual controller; only button-bound shortcuts qualify (tiles/actions stay software).
+        MsiClawFwKeyboardMode,      // bool - true = firmware keyboard remap; false = software injector (default)
+
+        // Special Controller Buttons — fire a momentary Xbox Guide tap on the virtual ViGEm Xbox 360
+        // controller (Xbox360Button.Guide press+release). This is the button that opens Steam Big
+        // Picture / the in-game Steam overlay. Used by the "Xbox Button" app action assigned to a
+        // tile or front button. Write any value to trigger (fire-and-forget).
+        EmulateXboxGuide,            // string - trigger (write "tap")
+
+        // Game Bar auto-navigation: the widget bar slot ClawTweaks occupies (Microsoft takes the
+        // first two, so usually 3). On Game Bar open the helper taps RB (position-1) times on the
+        // virtual controller to hop onto ClawTweaks, then D-pad down into the tabs. Widget→helper.
+        GameBarWidgetPosition,       // int - 1-based widget-bar position of ClawTweaks (default 3)
+
+        // Standalone "app mode" window toggle (Open ClawTweaks Window action / front MSI button).
+        AppModeWindowState,          // bool - widget→helper: app-mode window opened (true) / closed (false)
+        CloseAppModeWindow,          // string - helper→widget trigger: close the standalone app-mode window
+
+        // Steam Xbox extended controller driver conflict detection. The Steam "Xbox Configuration
+        // Support" feature installs the "steamxbox" upper-filter driver on the XnaComposite device
+        // class. This filter intercepts HID reports and breaks HidHide's ability to hide/unhide the
+        // physical MSI Claw, making virtual controller emulation non-functional.
+        // Helper pushes true on connect if detected; widget blocks the emulation toggle.
+        SteamXboxDriverDetected,     // bool - true = steamxbox upper-filter driver is active
+
+        // Per-game HW Controller Exception (MSI Claw). When ON for the running game and controller
+        // emulation is active, that game uses the physical hardware controller instead of the
+        // virtual Viiper/ViGEm pad (fixes titles that choke on the Viiper usbip controller, e.g.
+        // NBA 2K26). Helper is authoritative (keyed on GameId.Name) and pushes the current game's
+        // state to the widget; widget sends user toggles. The swap happens only at game start.
+        HwControllerException,       // bool - true = use HW controller for the running game
+
+        // LED color based on battery State of Charge (MSI Claw). When ON, the helper tints the
+        // controller LED by battery % via a fixed color schema (blue → green → yellow → orange →
+        // red → purple). Only active while the LED is on (brightness > 0); the LED is only written
+        // when the SoC crosses a 10% band (no HID spam). Persisted helper-side; widget toggle.
+        LedColorBySoc,              // bool - true = drive the LED color from battery SoC
+
+        // Standard controller mode (MSI Claw). Chooses the default controller backend for all games:
+        // 0 = Hardware Controller (native XInput, firmware remaps), 1 = Virtual Controller (Viiper/ViGEm
+        // emulated pad + gyro + virtual mouse). Fresh installs default to Hardware. This is the SOURCE
+        // of the derived ControllerEmulationEnabled bool. Orthogonal to MsiClawControllerMode (which is
+        // the firmware mouse-vs-controller mode inside the HW, not HW-vs-Virtual). Helper is
+        // authoritative and persists it; migrated once from legacy ControllerEmulationEnabled.
+        DefaultControllerMode,      // int - 0 = Hardware Controller (default), 1 = Virtual Controller
+
+        // Device capability: whether this device supports the custom fan curve (helper → widget, gates
+        // the MSI fan card). Per-model on the MSI Claw — e.g. off on the Claw 8 EX for now. Read-only.
+        DeviceSupportsFanControl,   // bool - true = show/enable the custom fan curve UI
+
+        // Device capability: whether this device exposes the Drivers tab (GPU driver updates etc.).
+        // Default true; per-model on the MSI Claw — e.g. off on the Claw 8 EX / AMD A8. Read-only.
+        DeviceSupportsDriverManagement, // bool - true = show the Drivers tab
+
+        // Device capability: advanced CPU controls (scheduling policy + P/E max frequency).
+        // Default true; off on the Claw 8 EX (Panther Lake) where they are not dependable. Read-only.
+        DeviceSupportsCpuAdvanced,  // bool - true = allow expanding the CPU card's advanced section
+
+        // Device capability: PL1 (sustained) TDP power-limit ceiling in watts. Per-model on the
+        // MSI Claw (A2VM = 30W, Claw 8 EX = 35W). Drives the TDP slider maximum. Read-only.
+        DeviceMaxPL1,               // int - PL1 slider maximum in watts
+
+        // Device capability: PL2 (boost) TDP power-limit ceiling in watts. Per-model on the
+        // MSI Claw (A2VM = 37W, Claw 8 EX = 45W). Drives the TDP Boost slider maximum. Read-only.
+        DeviceMaxPL2,               // int - PL2/Boost slider maximum in watts
+
+        // Intel gaming 3D features (IGCL, per-game). Appended to preserve prior enum ordinals.
+        IntelLowLatency,            // int - 0=Off, 1=On, 2=On+Boost (CTL_3D_FEATURE_LOW_LATENCY)
+        IntelFrameSync,             // int - 0=App default, 1=VSync off, 2=VSync on, 3=Smooth Sync, 4=Speed Sync (gaming flip mode)
+
+        // ClawTweaks Center onboarding: structured HW-controller health result, helper → Center only
+        // (in response to the CenterRequestHealth pipe request). Content is a compact key=value;… payload
+        // (present, openable, mode, verdict, detail) so Center's onboarding can gate the chain on a
+        // genuinely mountable physical controller — including the rare "HID held by another process" case.
+        ControllerHwHealth,         // string - "present=..;openable=..;mode=..;verdict=..;detail=.."
+
+        // Whether the ClawTweaks widget is currently favorited into the Game Bar home bar. Read live
+        // from the Game Bar SDK (XboxGameBarWidget.Favorited + FavoritedChanged) — the ONLY reliable
+        // signal for "is CTW in the bar" (the profile files don't persist it; see
+        // reverse_engineered/RE_GameBar_WidgetBar_Order.md). Widget → helper; helper mirrors it into the
+        // Center status snapshot so onboarding's "add CTW to the Game Bar" step auto-completes when the
+        // user favorites it. The exact slot POSITION is not obtainable — deliberately not modeled here.
+        GameBarWidgetFavorited,     // bool - true = CTW is in the Game Bar home bar
+
+        // ClawTweaks Center Reset/Backup/Restore results, helper → Center only (in response to the
+        // FactoryReset / BackupCreate / BackupRestore pipe requests). Content is a compact key=value;…
+        // payload the Center parses without a JSON dependency (same style as ControllerHwHealth):
+        //   CenterResetResult:   "ok=1"                       | "ok=0;error=…"
+        //   CenterBackupResult:  "ok=1;path=…;stores=N"       | "ok=0;error=…"
+        //   CenterRestoreResult: "ok=1;restored=N;pre=…"      | "ok=0;error=…"
+        // See Doku/PLAN_Backup_Restore.md + Doku/RESET_StoreMap_and_FactoryReset_Gaps.md.
+        CenterResetResult,          // string - "ok=1" | "ok=0;error=.."
+        CenterBackupResult,         // string - "ok=1;path=..;stores=N" | "ok=0;error=.."
+        CenterRestoreResult,        // string - "ok=1;restored=N;pre=.." | "ok=0;error=.."
+
+        // Is CTW Center installed, and where would the user get it? Answered by the helper, because
+        // resolving it means reading HKCU/HKLM uninstall entries — the widget is a sandboxed UWP
+        // process and cannot read those at all. The download location comes from the curated
+        // setup-manifest, so it can be repointed without shipping a new widget.
+        // Content = "installed=0|1;url=…". APPEND-ONLY: Function is serialised by ordinal, so new
+        // members go at the END and nothing above may be reordered.
+        ClawTweaksCenterStatus,     // string - "installed=0;url=https://…"
+
+        // Device capability: the STARTING value of the gyro's gravity-relative ("Accelerometer")
+        // toggle on a fresh install (helper → widget, read-only). Not a support flag — the toggle is
+        // always offered and a value the user has already stored always wins. True everywhere except
+        // the Claw 8 EX. See DeviceInfo.GyroWorldSpaceDefault.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        DeviceGyroWorldSpaceDefault, // bool - true = "Accelerometer" toggle starts on
+
+        // The helper's performance-profile truth, pushed read-only to the widget (plan §5.3). Content
+        // is the compact XML of a List<GameProfile> — the global profile plus every per-game profile.
+        // It carries GameProfile ITSELF, deliberately not a parallel DTO: a new performance setting is
+        // added to GameProfile and is then automatically persisted, in this snapshot, available in the
+        // widget and part of backup/export. A mirror type would have to be extended in six places per
+        // field, which is exactly how the "two truths" bug (task #43) came about. `Path` and `Cache`
+        // are [XmlIgnore] and therefore already excluded.
+        // The widget must never write these values — it sends user-initiated sets and displays what
+        // comes back (plan §4.1, invariant 1).
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        ProfileSnapshot,            // string - compact XML of List<GameProfile>
+
+        // Whether the ACTIVE profile keeps separate values for mains and battery ("Plugged in" /
+        // "On battery" in the UI; the trigger is the power source, not a dock). Scope needs no
+        // parameter: the helper applies it to CurrentProfile, which is the per-game profile while a
+        // game runs and the global profile otherwise — exactly the scope the toggle shows.
+        // The widget only SENDS this; the state it displays comes back through ProfileSnapshot.
+        PowerSourceSplit,           // bool - GameProfile.PowerSourceSplit of the active profile
+
+        // Per-game gyro tuning beyond sensitivity and smoothing, because stick movement differs far
+        // more between games than a single sensitivity can express. All three live in the CONTROLLER
+        // profile (widget LocalSettings, container ControllerProfile_<name>) like every other gyro
+        // setting — not in the helper's performance store.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        LegionGyroAntiDeadzone,     // int - 0-50 % of full deflection; MA's Settings.DeadZone (0.2 → 20)
+        LegionGyroBoostButton,      // int - 0=None, 1=LB, 2=LT, 3=RB, 4=RT; MA's GainButton
+        LegionGyroBoostFactor,      // int - 10-300 % of normal sensitivity while held; MA's GainRate ×100
+
+        // Two Intel features the shipped IGCL_Wrapper.dll cannot reach — they go through a direct
+        // binding to Intel's own ControlLib.dll (see Intel/IgclDirect.cs). Stored per game in the
+        // performance profile like the Color Remaster settings, global value in the global profile.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        IntelFrameGeneration,       // int - 0=App choice, 1=2X, 2=3X, 3=4X (IGCL FRAME_GENERATION)
+        IntelVrr,                   // int - 0=off, 1=on (Intel Arc Sync; int, not bool, to match the others)
+
+        // Intel Graphics Software keeps VRR as TWO controls, and so do we: the on/off above is the
+        // Arc Sync profile of the display, this is the mode that decides which presentations it
+        // applies to. Values ARE the IGCL enum (ctl_3d_vrr_windowed_blt_reserved_t) so the stored
+        // number and the number on the wire are the same thing — no mapping table to get wrong.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        IntelVrrMode,               // int - 0=Auto, 1=Windowed and fullscreen, 2=Fullscreen only
+
+        // Scaling, mirroring Intel's two dropdowns. Mode picks the GROUP, Method the entry inside it —
+        // and the groups reach different APIs (display/GPU scaling is per output, retro scaling is per
+        // adapter with its own Enable), so the two values only mean something together.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        IntelScalingMode,           // int - 0=Display, 1=GPU, 2=Retro
+        IntelScalingMethod,         // int - within Display: 0=Maintain; GPU: 0=Centered,1=Stretch,2=Preserve Aspect; Retro: 0=Integer,1=Nearest Neighbour
+
+        // Where the built-in overlay anchors itself. The six values ARE MSI's
+        // RealtimeMonitorPosition (MCMOSDInfo), numbering included, so the number we store means what
+        // Center M's number means. Applies to the built-in renderer only - RTSS has its own position
+        // setting and does not take instructions from us about it.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        Settings_OnScreenDisplayPosition, // int - 1=UpperLeft, 2=UpperMiddle, 3=UpperRight, 4=BottomLeft, 5=BottomMiddle, 6=BottomRight
+    }
+}

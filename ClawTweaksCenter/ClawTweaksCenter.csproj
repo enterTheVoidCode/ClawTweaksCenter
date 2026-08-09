@@ -1,0 +1,128 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>disable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Platforms>x64</Platforms>
+    <PlatformTarget>x64</PlatformTarget>
+    <RootNamespace>ClawTweaksCenter</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <AssemblyTitle>ClawTweaks Center</AssemblyTitle>
+    <Product>ClawTweaks</Product>
+    <!-- Publisher metadata in the Win32 version resource. Without <Company> the SDK defaults
+         CompanyName to $(AssemblyName), so the exe used to claim its publisher was
+         "CTW_Center_0.1.9.1_Setup" and carried no copyright at all. Nonsense-or-absent publisher
+         fields are a weak input to the ML heuristics that flag this binary as trojan.genericml, and
+         they are free to get right. Not a fix on their own - see the note on the exe being unsigned. -->
+    <Company>ClawTweaks</Company>
+    <Authors>ClawTweaks</Authors>
+    <Copyright>Copyright (c) ClawTweaks</Copyright>
+    <Description>ClawTweaks Center - installer and control panel for ClawTweaks on the MSI Claw.</Description>
+    <Version>0.1.9.15</Version>
+    <!-- Distributed filename carries the version + "Setup" suffix (e.g. CTW_Center_0.1.0.2_Setup.exe)
+         so a user can tell builds apart in their Downloads folder. This is ONLY the distributed
+         filename — the INSTALLED copy in Program Files always keeps the fixed name
+         Core/SelfInstaller.cs's ExeName defines ("CTW_Center.exe"), independent of this, so Start
+         Menu shortcuts / the Add-Remove-Programs entry never need to change across updates. Must
+         come after <Version> above — $(Version) has to already be defined to be substituted here. -->
+    <AssemblyName>CTW_Center_$(Version)_Setup</AssemblyName>
+    <ApplicationIcon>Assets\branding\app-icon.ico</ApplicationIcon>
+    <!-- Distribution build:  dotnet publish -c Release
+         Everything that makes the result portable is set HERE, not passed on the command line, so a
+         plain publish can never accidentally produce a loose-DLL folder that only works on this
+         machine. Center is always shipped as ONE self-contained, compressed exe: the user downloads
+         a single file, needs no .NET installed, and can run it from anywhere.
+         Output: bin\Release\net10.0-windows\win-x64\publish\CTW_Center_<version>_Setup.exe -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <!-- ONLY the exe under publish\ (and its copy in PortableExe\) may ever be handed to anyone.
+
+         A plain `dotnet build` also leaves an exe in bin\Release\...\win-x64\ with the SAME NAME,
+         but it is a ~300 KB apphost that loads the runtime and its own .dll from the folder it sits
+         in. Started from that folder it runs perfectly, which is what makes it dangerous: Center
+         comes up, installs itself by copying that single file, and the installed copy then dies
+         before Main with "The application to execute does not exist" — Center never starts again,
+         and the Add/Remove Programs entry is dead too, because it invokes the same file. That is
+         what happened with 0.1.9.7.
+
+         Suppressing that build exe was tried and does not work: SelfContained requires UseAppHost
+         (NETSDK1067), and the IsPublishing property the condition would need is empty in both build
+         and publish here. The guard therefore lives in SelfInstaller.IsSelfContainedSingleFile,
+         which refuses to install a copy that could not run on its own. -->
+    <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <!-- WPF ships native DLLs (wpfgfx_cor3, PresentationNative_cor3, PenImc_cor3, D3DCompiler_47_cor3,
+         vcruntime140_cor3). Without this they stay LOOSE next to the single-file exe, so copying just
+         the .exe elsewhere crashes at startup with DllNotFoundException in WindowsBase
+         (SetWindowLongPtrWndProc). Bundling + self-extracting them makes the exe truly portable. -->
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- MUST stay false: WPF is not supported in globalization-invariant mode and CRASHES in it.
+         WPF's text layout initialises MS.Internal.FontCache.MajorLanguages, whose static constructor
+         does new CultureInfo("en") — in invariant mode that throws CultureNotFoundException ("en is an
+         invalid culture identifier"), which surfaces as a TypeInitializationException that kills the
+         process. It was set to true purely for publish size (it drops the ICU database), and it looked
+         harmless for a long time because the path is only reached when a TextBox needs full text
+         layout (ComputeTypographyAvailabilities), and Center's only TextBox was the copyable winget
+         command on the missing-prerequisites screen. So Center died the first time a user actually had a
+         tool missing (observed 2026-07-30 with HidHide and usbip uninstalled: crash right after staging,
+         in Window measure, no dialog). That TextBox is gone now along with the winget hints, so nothing
+         currently reaches the crashing path — which is exactly why this must not be flipped back: the
+         next TextBox anyone adds would resurrect it.
+         The size argument did not even hold: publish output measured 65,872,282 bytes with this false
+         versus 65,872,341 with it true — 59 bytes LARGER when invariant. Windows has shipped ICU in the
+         OS since 10/1903 and .NET uses that, so there was never an app-local ICU database here to drop.
+         An English-only UI is still expressed via SatelliteResourceLanguages below; that part is safe. -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Xbox controller glyphs shown in the footer action bar (embedded as WPF resources). -->
+    <Resource Include="Assets\xbox\*.png" />
+    <!-- Device photos (background removed) for the Center menu's device-detection banner. -->
+    <Resource Include="Assets\devices\*.png" />
+    <!-- Branding: header wordmark logo. -->
+    <Resource Include="Assets\branding\ctw-center-logo.png" />
+    <!-- Branding: 16:10 handheld artwork — background/centerpiece for the Install/Update gate. -->
+    <Resource Include="Assets\branding\ctw-handheld-16-10.png" />
+    <!-- Loading spinner GIF — replaces the pulsing "…" Working badge everywhere it's used. -->
+    <Resource Include="Assets\branding\loading-spinner.gif" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WMI access for the Center menu's device-detection banner (see Core/DeviceDetect.cs). -->
+    <PackageReference Include="System.Management" Version="9.0.0" />
+    <!-- No package needed for Shared\Data\ClawHardwareId.cs's registry access: the private repo's
+         Shared.csproj targets netstandard2.0 and has to reference Microsoft.Win32.Registry, but
+         net10.0-windows ships it in the framework (adding it back produces NU1510). -->
+    <!-- NOTE: there is deliberately NO ProjectReference here.
+         Center used to reference ..\Shared\Shared.csproj from the private ClawTweaks repo. That
+         made this project unbuildable on its own, and Shared.csproj additionally pins an absolute
+         HintPath to C:\Program Files (x86)\Windows Kits\10\UnionMetadata\10.0.26100.0\Windows.winmd,
+         which anyone with a different Windows SDK installed cannot resolve. The five files Center
+         actually needs are mirrored under Shared\ instead — see Shared\README.md. -->
+  </ItemGroup>
+
+  <!--
+    Every published Center exe is copied to ClawTweaksCenter\PortableExe\ so there is ONE obvious place
+    holding the shippable builds. The publish output is buried under
+    bin\Release\net10.0-windows\win-x64\publish\ next to same-named intermediates that are NOT portable
+    (the loose-DLL apphost one level up is 0.3 MB and looks identical by name), and bin\ is wiped by any
+    clean — so the artifacts either got lost or the wrong file got shipped.
+
+    Only the exe is copied: the pdbs stay in bin. PortableExe is gitignored; these are ~63 MB binaries.
+  -->
+  <Target Name="CopyPortableExe" AfterTargets="Publish">
+    <MakeDir Directories="$(MSBuildProjectDirectory)\PortableExe" />
+    <Copy SourceFiles="$(PublishDir)$(AssemblyName).exe"
+          DestinationFolder="$(MSBuildProjectDirectory)\PortableExe"
+          SkipUnchangedFiles="false" />
+    <Message Importance="high" Text="Portable exe -> PortableExe\$(AssemblyName).exe" />
+  </Target>
+
+</Project>
