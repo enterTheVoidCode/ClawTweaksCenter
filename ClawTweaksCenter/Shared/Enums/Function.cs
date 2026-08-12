@@ -24,6 +24,10 @@
         HDREnabled,         // bool - HDR on/off
         TrackedGame,
         RTSSInstalled,
+        // RESERVED — the AMD/ADLX stack was removed on 2026-08-11 (helper half was never compiled,
+        // widget half could never receive a value). These members stay because this enum is
+        // serialized ORDINALLY: deleting one shifts everything after it and breaks any
+        // helper/widget pair that spans an update. Do not reuse or reorder them.
         AMDRadeonSuperResolutionSupported,
         AMDRadeonSuperResolutionEnabled,
         AMDRadeonSuperResolutionSharpness,
@@ -105,98 +109,99 @@
         TdpMethod_InstallPawnIO,        // string - trigger to install PawnIO (write "install" to trigger)
 
         // Device detection (agnostic, works for any device)
-        DeviceType,                 // int (DeviceType enum) - detected device type (Generic=0, LegionGo=1, LegionGoS=2)
+        DeviceType,                 // int (DeviceType enum) - detected device type (Generic=0, MSIClaw=40)
         DeviceManufacturer,         // string - device manufacturer (e.g., "LENOVO", "ASUS", "Valve")
         DeviceModel,                // string - device model identifier (e.g., "83E1", "83N0")
         DeviceSupportsWmiTdp,       // bool - whether device supports WMI-based TDP control
 
         // Device capability flags (helper -> widget sync for UI visibility)
-        DeviceDisplayName,              // string - "Legion Go", "Legion Go 2", "Legion Go S"
+        DeviceDisplayName,              // string - e.g. "MSI Claw 8 AI+", "MSI Claw 8 EX"
         DeviceSupportsControllerRemap,  // bool - whether device supports HID controller remapping
         DeviceSupportsRgbLighting,      // bool - whether device supports HID RGB lighting control
         DeviceSupportsGyro,             // bool - whether device supports HID gyro configuration
         DeviceSupportsFirmwareKeyboardRemap, // bool - MSI Claw A2VM: firmware button→keyboard remap available (verified layout)
-        DeviceHasScrollWheel,           // bool - whether device has a scroll wheel (Legion Go/Go2 yes, Go S no)
-        DeviceHasDetachableControllers, // bool - whether device has detachable L/R controllers (Legion Go/Go2 yes, Go S no)
+        DeviceHasScrollWheel,           // bool - whether device has a scroll wheel (false on every Claw model)
+        DeviceHasDetachableControllers, // bool - whether device has detachable L/R controllers (false on every Claw model)
         DeviceHasTouchpad,              // bool - whether device has touchpad/vibration settings (uses HID)
 
-        // Legion Go specific functions
-        LegionGoDetected,           // bool - whether a Legion Go device is detected (kept for backwards compatibility)
-        LegionTouchpadEnabled,      // bool - touchpad on/off
-        LegionLightMode,            // int - RGB mode (Off=0, Solid=1, Pulse=2, Dynamic=3, Spiral=4)
-        LegionLightColor,           // string - hex color "#RRGGBB"
-        LegionLightBrightness,      // int - brightness (0-100)
-        LegionLightSpeed,           // int - animation speed (0-100)
-        LegionPerformanceMode,      // int - TDP mode (Quiet=1, Balanced=2, Performance=3, Custom=255)
-        LegionCustomTDPSlow,        // int - Slow TDP (SPL) in watts
-        LegionCustomTDPFast,        // int - Fast TDP (SPPL) in watts
-        LegionCustomTDPPeak,        // int - Peak TDP (FPPT) in watts
-        LegionFanFullSpeed,         // bool - fan full speed mode
-        LegionFanCurveData,         // string - fan curve data "v0,v1,v2,...,v9" (10 values 0-100) — represents the *active* power mode's curve (drives EC/WMI)
-        LegionUnlockFanCurve,       // bool - active power mode's EC-override unlock state (drives EC override loop)
-        LegionFanCurvePerMode,      // string - "<mode>:v0,v1,...,v9" — read/write a specific mode's saved curve without changing power mode. Helper pushes 4 messages (one per mode) on connect; widget sends one per edit.
-        LegionUnlockFanCurvePerMode,// string - "<mode>:0|1" — read/write a specific mode's unlock state. Same fan-out pattern as LegionFanCurvePerMode.
-        LegionCPUCurrentTemp,       // int - current CPU temperature in Celsius (read-only from helper)
-        LegionFanSensorTemp,        // int - fan control sensor temp (0x01 sensor, what EC uses for curve) (read-only from helper)
-        LegionCPUFanRPM,            // int - current CPU fan speed in RPM (read-only from helper)
-        LegionFanCurveVisible,      // bool - widget sets this when fan curve is expanded and visible
-        LegionGyroEnabled,          // bool - gyroscope on/off (WIP)
-        LegionVibration,            // int - vibration level (0=Off, 1=Weak, 2=Medium, 3=Strong)
-        LegionPowerLight,           // bool - power button LED on/off
-        LegionChargeLimit,          // bool - battery charge limit (80%) on/off
+        // Controller subsystem (device state, lighting, thermals, TDP mode)
+        ControllerSubsystemActive,      // bool - whether the controller subsystem is up. This is a CAPABILITY, not a device identity: it gates the controller UI, nothing else.
+        ControllerTouchpadEnabled,      // bool - touchpad on/off
+        ControllerLightMode,            // int - RGB mode (Off=0, Solid=1, Pulse=2, Dynamic=3, Spiral=4)
+        ControllerLightColor,           // string - hex color "#RRGGBB"
+        ControllerLightBrightness,      // int - brightness (0-100)
+        ControllerLightSpeed,           // int - animation speed (0-100)
+        PerformanceMode,      // int - TDP mode (Quiet=1, Balanced=2, Performance=3, Custom=255)
+        ControllerCustomTDPSlow,        // int - Slow TDP (SPL) in watts
+        ControllerCustomTDPFast,        // int - Fast TDP (SPPL) in watts
+        ControllerCustomTDPPeak,        // int - Peak TDP (FPPT) in watts
+        ControllerFanFullSpeed,         // bool - fan full speed mode
+        ControllerFanCurveData,         // string - fan curve data "v0,v1,v2,...,v9" (10 values 0-100) — represents the *active* power mode's curve (drives EC/WMI)
+        ControllerUnlockFanCurve,       // bool - active power mode's EC-override unlock state (drives EC override loop)
+        ControllerFanCurvePerMode,      // string - "<mode>:v0,v1,...,v9" — read/write a specific mode's saved curve without changing power mode. Helper pushes 4 messages (one per mode) on connect; widget sends one per edit.
+        ControllerUnlockFanCurvePerMode,// string - "<mode>:0|1" — read/write a specific mode's unlock state. Same fan-out pattern as ControllerFanCurvePerMode.
+        ControllerCPUCurrentTemp,       // int - current CPU temperature in Celsius (read-only from helper)
+        ControllerFanSensorTemp,        // int - fan control sensor temp (0x01 sensor, what EC uses for curve) (read-only from helper)
+        ControllerCPUFanRPM,            // int - current CPU fan speed in RPM (read-only from helper)
+        ControllerFanCurveVisible,      // bool - widget sets this when fan curve is expanded and visible
+        ControllerGyroEnabled,          // bool - gyroscope on/off (WIP)
+        ControllerVibration,            // int - vibration level (0=Off, 1=Weak, 2=Medium, 3=Strong)
+        ControllerPowerLight,           // bool - power button LED on/off
+        ControllerChargeLimit,          // bool - battery charge limit (80%) on/off
 
-        // Legion Go Controller Remapping (supports Gamepad, Keyboard, Mouse mapping)
-        LegionButtonY1,             // string - JSON ButtonMapping (type, gamepadAction, keyboardKeys[], mouseButton)
-        LegionButtonY2,             // string - JSON ButtonMapping
-        LegionButtonY3,             // string - JSON ButtonMapping
-        LegionButtonM1,             // string - JSON ButtonMapping (new button)
-        LegionButtonM2,             // string - JSON ButtonMapping
-        LegionButtonM3,             // string - JSON ButtonMapping
-        LegionButtonDesktop,        // string - JSON ButtonMapping (Desktop button - Win+G default)
-        LegionButtonPage,           // string - JSON ButtonMapping (Page button - Win+Tab default)
-        LegionNintendoLayout,       // bool - Nintendo-style face button swap (A↔B, X↔Y)
-        LegionVibrationMode,        // int - vibration mode preset (FPS=1, Racing=2, AVG=3, SPG=4, RPG=5)
-        LegionControllerProfileEnabled, // bool - per-game controller profile toggle
+        // Controller Button Remapping (supports Gamepad, Keyboard, Mouse mapping)
+        ControllerButtonY1,             // string - JSON ButtonMapping (type, gamepadAction, keyboardKeys[], mouseButton)
+        ControllerButtonY2,             // string - JSON ButtonMapping
+        ControllerButtonY3,             // string - JSON ButtonMapping
+        ControllerButtonM1,             // string - JSON ButtonMapping (new button)
+        ControllerButtonM2,             // string - JSON ButtonMapping
+        ControllerButtonM3,             // string - JSON ButtonMapping
+        ControllerButtonDesktop,        // string - JSON ButtonMapping (Desktop button - Win+G default)
+        ControllerButtonPage,           // string - JSON ButtonMapping (Page button - Win+Tab default)
+        ControllerNintendoLayout,       // bool - Nintendo-style face button swap (A↔B, X↔Y)
+        ControllerVibrationMode,        // int - vibration mode preset (FPS=1, Racing=2, AVG=3, SPG=4, RPG=5)
+        ControllerProfileEnabled, // bool - per-game controller profile toggle
 
-        // Legion Go Gyro Settings (per-game profile)
-        LegionGyroTarget,               // int - 0=Disabled, 1=LeftStick, 2=RightStick, 3=Mouse
-        LegionGyroSensitivityX,         // int - 1-100
-        LegionGyroSensitivityY,         // int - 1-100
-        LegionGyroInvertX,              // bool
-        LegionGyroInvertY,              // bool
-        LegionGyroMappingType,          // int - 0=Instant, 1=Continuous
-        LegionGyroActivationMode,       // int - 0=Hold, 1=Toggle
-        LegionGyroActivationButton,     // int - 0-6 (None, LB, LT, RB, RT, M1, M2) on the Claw
+        // Gyro Settings (per-game profile)
+        ControllerGyroTarget,               // int - 0=Disabled, 1=LeftStick, 2=RightStick, 3=Mouse
+        ControllerGyroSensitivityX,         // int - 1-100
+        ControllerGyroSensitivityY,         // int - 1-100
+        ControllerGyroInvertX,              // bool
+        ControllerGyroInvertY,              // bool
+        ControllerGyroMappingType,          // int - 0=Instant, 1=Continuous
+        ControllerGyroActivationMode,       // int - 0=Hold, 1=Toggle
+        ControllerGyroActivationButton,     // int - 0-6 (None, LB, LT, RB, RT, M1, M2) on the Claw
 
-        // Legion Go Advanced Gyro Settings (per-game profile)
-        LegionGyroDeadzone,             // int - 1-100 (suppresses small motions near center)
-        LegionGyroSmoothing,            // int - 0-100 (One-Euro min-cutoff amount; per engine mode; Adaptive+MA only)
+        // Advanced Gyro Settings (per-game profile)
+        ControllerGyroDeadzone,             // int - 1-100 (suppresses small motions near center)
+        ControllerGyroSmoothing,            // int - 0-100 (One-Euro min-cutoff amount; per engine mode; Adaptive+MA only)
 
-        // Legion Go Stick Deadzones (per-game profile)
-        LegionLeftStickDeadzone,        // int - 0-50 (percent)
-        LegionRightStickDeadzone,       // int - 0-50 (percent)
+        // Stick Deadzones (per-game profile)
+        ControllerLeftStickDeadzone,        // int - 0-50 (percent)
+        ControllerRightStickDeadzone,       // int - 0-50 (percent)
 
-        // Legion Go Trigger Travel (per-game profile)
-        LegionLeftTriggerStart,         // int - 0-100 (start %)
-        LegionLeftTriggerEnd,           // int - 0-100 (end % from full)
-        LegionRightTriggerStart,        // int - 0-100 (start %)
-        LegionRightTriggerEnd,          // int - 0-100 (end % from full)
-        LegionHairTriggers,             // bool - hair triggers preset (0%/1%)
+        // Trigger Travel (per-game profile)
+        ControllerLeftTriggerStart,         // int - 0-100 (start %)
+        ControllerLeftTriggerEnd,           // int - 0-100 (end % from full)
+        ControllerRightTriggerStart,        // int - 0-100 (start %)
+        ControllerRightTriggerEnd,          // int - 0-100 (end % from full)
+        ControllerHairTriggers,             // bool - hair triggers preset (0%/1%)
 
-        // Legion Go Joystick as Mouse (per-game profile)
-        LegionJoystickAsMouseMode,      // int - 0=Disabled, 1=Left Stick, 2=Right Stick
-        LegionJoystickMouseSens,        // int - Mouse sensitivity (10-100)
+        // Joystick as Mouse (per-game profile)
+        ControllerJoystickAsMouseMode,      // int - 0=Disabled, 1=Left Stick, 2=Right Stick
+        ControllerJoystickMouseSens,        // int - Mouse sensitivity (10-100)
 
-        // Legion Go Gamepad Button Remapping (per-game profile)
-        LegionGamepadButtonMapping,     // string - JSON mapping of gamepad buttons to actions
+        // Gamepad Button Remapping (per-game profile)
+        ControllerGamepadButtonMapping,     // string - JSON mapping of gamepad buttons to actions
 
-        // Legion Go Desktop Controls (preset: RS→Mouse, RT→LClick, LT→RClick, A→Enter, B→Esc)
-        LegionDesktopControls,          // bool - desktop controls preset enabled
+        // Desktop Controls (preset: RS→Mouse, RT→LClick, LT→RClick, A→Enter, B→Esc)
+        ControllerDesktopControls,          // bool - desktop controls preset enabled
 
-        // Legion Go Touchpad Vibration (GLOBAL setting)
-        LegionTouchpadVibration,        // bool - on/off toggle for touchpad haptics
+        // Touchpad Vibration (GLOBAL setting)
+        ControllerTouchpadVibration,        // bool - on/off toggle for touchpad haptics
 
-        // GPD specific functions
+        // RESERVED — GPD support was removed on 2026-08-11 (this is a Claw-only project). Same rule
+        // as the AMD block above: ordinal serialization, so the members stay. Do not reuse or reorder.
         GPDDetected,                    // bool - whether a GPD device is detected (Win Mini, Win 4, etc.)
         GPDWin5Connected,               // bool - whether GPD Win 5 HID controller is connected
         GPDRestoreDefaults,             // bool - trigger to restore default button mappings on Win 5
@@ -325,9 +330,9 @@
         // Labs Section (Experimental Features)
         Labs_DAServiceControl,          // int - 0=Stop, 1=Start DAService
         Labs_DAServiceStatus,           // int - 0=Stopped, 1=Running, 2=NotFound
-        Labs_LegionLToXbox,             // DEPRECATED - replaced by Labs_LegionButtonRemap
-        Labs_LegionButtonRemap,         // Button (0=Disabled, 1=Legion L, 2=Legion R), Action (0=Xbox Guide, 1=Shortcut), Shortcut (string)
-        Labs_LegionScrollRemap,         // Direction (Up/Down/Click), Enabled, Action, Shortcut - back scroll wheel remap
+        Labs_ControllerLToXbox,             // DEPRECATED - replaced by Labs_ControllerButtonRemap
+        Labs_ControllerButtonRemap,         // Button (0=Disabled, 1=Legion L, 2=Legion R), Action (0=Xbox Guide, 1=Shortcut), Shortcut (string)
+        Labs_ControllerScrollRemap,         // Direction (Up/Down/Click), Enabled, Action, Shortcut - back scroll wheel remap
         Labs_FocusWidget,               // Trigger: helper sends to widget to focus itself
         Debug_ExportDGPs,               // Trigger: widget requests helper to export DGPs to Desktop
         Debug_ExportProfiles,           // Trigger: widget requests helper to export per-game profiles to Desktop
@@ -523,7 +528,7 @@
         // MSI Claw — stepless controller vibration intensity (Controller tab; global + per-game).
         // Scales the rumble report sent to the physical Claw by ClawButtonMonitor (0 = off, 100 = full).
         // Appended at the end to preserve all existing enum ordinal values.
-        LegionVibrationIntensity,    // int - 0-100 (percent), default 100
+        ControllerVibrationIntensity,    // int - 0-100 (percent), default 100
 
         // Onboarding: RE-DETECT the required tools (PawnIO, ViGEmBus, HidHide, RTSS, usbip) and push
         // each *Installed status. It used to INSTALL them as well, through an embedded PowerShell
@@ -698,9 +703,9 @@
         // profile (widget LocalSettings, container ControllerProfile_<name>) like every other gyro
         // setting — not in the helper's performance store.
         // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
-        LegionGyroAntiDeadzone,     // int - 0-50 % of full deflection; MA's Settings.DeadZone (0.2 → 20)
-        LegionGyroBoostButton,      // int - 0=None, 1=LB, 2=LT, 3=RB, 4=RT; MA's GainButton
-        LegionGyroBoostFactor,      // int - 10-300 % of normal sensitivity while held; MA's GainRate ×100
+        ControllerGyroAntiDeadzone,     // int - 0-50 % of full deflection; MA's Settings.DeadZone (0.2 → 20)
+        ControllerGyroBoostButton,      // int - 0=None, 1=LB, 2=LT, 3=RB, 4=RT; MA's GainButton
+        ControllerGyroBoostFactor,      // int - 10-300 % of normal sensitivity while held; MA's GainRate ×100
 
         // Two Intel features the shipped IGCL_Wrapper.dll cannot reach — they go through a direct
         // binding to Intel's own ControlLib.dll (see Intel/IgclDirect.cs). Stored per game in the
@@ -729,5 +734,27 @@
         // setting and does not take instructions from us about it.
         // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
         Settings_OnScreenDisplayPosition, // int - 1=UpperLeft, 2=UpperMiddle, 3=UpperRight, 4=BottomLeft, 5=BottomMiddle, 6=BottomRight
+
+        // Which notification cards the built-in overlay is allowed to show. One switch per card, not
+        // one master switch: the two answer different questions ("did my controller come up?" is a
+        // boot diagnostic, "what did this game change?" is a settings readout), and a user who wants
+        // one is not thereby asking for the other. Both default to ON - a notification nobody asked
+        // for is still how these features get discovered.
+        //
+        // Helper-owned like every other Settings_* value, so the boot card (helper-side, fires before
+        // any widget exists) and the game-start card (widget-side) read the same switch.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        Settings_NotifyControllerMount, // bool - the "Connecting controller" / "Controller connected" card
+        Settings_NotifyGameStart,       // bool - the per-game settings card shown when a game starts
+        Settings_NotifyHotkey,          // bool - the confirmation after a hotkey or an action tile
+        Settings_NotifyPowerSource,     // bool - charger in/out, with the profile change and charge rate
+
+        // The fan latch guard: hands the fan back to firmware Auto above 79 °C and takes it again below
+        // 60 °C, because the IPF/TFN1 platform latch only ever occurred while one of our software
+        // curves was engaged. Helper-owned — the watcher lives there and runs whether or not a widget
+        // is open. DEFAULT ON; this exists so the latch can be reproduced deliberately, not as a
+        // comfort setting.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        Settings_FanLatchGuard,         // bool - false = never force firmware Auto on temperature
     }
 }
