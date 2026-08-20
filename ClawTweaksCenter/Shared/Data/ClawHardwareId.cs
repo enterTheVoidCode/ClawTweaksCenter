@@ -88,9 +88,9 @@ namespace Shared.Data
     /// MS-1T41 (Claw A1M, Meteor Lake) IS matched since 2026-08-20. It used to be excluded here with
     /// the note "different EC and hardware controller", and that claim did not survive being checked:
     /// MSI Center M drives every Claw through one path and branches on 1T41 only for the PL limits and
-    /// the scenario list. Naming the device is not the same as supporting it — whether ClawTweaks acts
-    /// on an A1M is decided by MSIClawModelSpec.Supported, which is still false. This ladder answers
-    /// "what is this", not "do we drive it".
+    /// the scenario list. This ladder answers "what is this", not "do we drive it" — the second
+    /// question belongs to MSIClawModelSpec.Supported, which says yes for the A1M since the same date,
+    /// experimentally.
     /// </summary>
     public static class ClawHardwareId
     {
