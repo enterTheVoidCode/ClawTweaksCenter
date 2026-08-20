@@ -156,7 +156,7 @@ namespace ClawTweaksCenter
         }
 
         /// <summary>
-        /// Debug-only: --device=8ai or --device=8ex lets the Center's device-specific UI (icon,
+        /// Debug-only: --device=8ai, --device=8ex or --device=a1m lets the Center's device-specific UI (icon,
         /// per-device version gating) be exercised without the actual hardware.
         /// </summary>
         private static void ApplyDebugDeviceOverride(string[] args)
@@ -174,6 +174,9 @@ namespace ClawTweaksCenter
                         return;
                     case "8ex": case "ex": case "cg3em":
                         DeviceDetect.DebugOverrideModel = DeviceDetect.Model.Ex;
+                        return;
+                    case "a1m": case "1t41":
+                        DeviceDetect.DebugOverrideModel = DeviceDetect.Model.A1M;
                         return;
                     case "unknown": case "none":
                         DeviceDetect.DebugOverrideModel = DeviceDetect.Model.Unknown;

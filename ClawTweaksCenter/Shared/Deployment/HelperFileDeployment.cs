@@ -35,6 +35,11 @@ namespace Shared.Deployment
         {
             "XboxGamingBarHelper.exe",
             "XboxGamingBarHelper.exe.config",
+            // Intel PresentMon (MIT). The only source for the native frame rate while frame generation
+            // is running. It has to be named here: the sweep below picks up stray *.dll only, so an .exe
+            // that is not on this list is silently never deployed - the feature would then work in a dev
+            // build and be dead on every real device.
+            "PresentMon.exe",
             "ADLXCSharpBind.dll",
             "libryzenadj.dll",
             "inpoutx64.dll",

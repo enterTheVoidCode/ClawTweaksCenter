@@ -756,5 +756,130 @@
         // comfort setting.
         // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
         Settings_FanLatchGuard,         // bool - false = never force firmware Auto on temperature
+
+        // RETIRED THE SAME DAY THEY WERE ADDED (2026-08-14). The stick outer threshold was built,
+        // measured working, and then dropped: below 100 it can only take range away from the stick,
+        // so there is nothing for a user to choose. The firmware value is pinned back to the factory
+        // 100 by the helper instead (ClawButtonMonitor.EnsureFirmwareAllows).
+        //
+        // The two members STAY. Function is serialised by ordinal, and the rule that keeps that safe
+        // is append-only in both directions: removing a member is only harmless while nothing has
+        // been appended after it, which is not a property anyone should have to re-verify later.
+        // Nothing sends or receives these.
+        ControllerLeftStickOuter,       // retired, unused
+        ControllerRightStickOuter,      // retired, unused
+
+        // Debug-menu kill switch for every VRR write we make. OFF by default, i.e. VRR behaves as
+        // before; switching it on makes IntelGpuManager.ApplyVrr and ApplyVrrMode return without
+        // touching the driver, so neither a profile apply nor the dropdowns can reach Arc Sync or the
+        // windowed-VRR registry value.
+        //
+        // Helper-owned, and it has to be: the profile applies that write VRR run in the helper and
+        // happen long before a widget connects. It only stops us from WRITING - whatever the driver
+        // holds at that point stays, which is why the switch asks for a reboot.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        Settings_VrrKillSwitch,         // bool - true = ClawTweaks never writes a VRR setting
+
+        // The minimum PL2-over-PL1 headroom, in watts (A2VM 1, Claw 8 EX 2). A device capability like
+        // DeviceMaxPL1/DeviceMaxPL2 next to it, and on the wire for the same reason: ApplyTDPInternal
+        // clamps PL2 into [PL1 + Pl2MinOffset, MaxPL2], so a widget control that offers anything below
+        // that floor is offering values the helper will silently move. Copying the per-model number
+        // into the widget instead would be right on one device and wrong on the next.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        DevicePl2MinOffset,             // int - minimum watts PL2 must sit above PL1
+
+        // ── Auto-jump timing (Game Bar RB hop) ───────────────────────────────────────────────────
+        // Both are helper-owned and both only ever RAISE the shipped timing: the auto-jump injects
+        // into an overlay whose readiness we cannot observe, so the values are a bet on how quickly
+        // the widget bar starts accepting input — and that depends on what the machine is busy with.
+        // Reported 2026-08-16: reliable in light games, intermittent in Resident Evil 2, mostly
+        // failing in Hell is Us, i.e. it tracks GPU/CPU load rather than anything about the game.
+        //
+        // Why two knobs and not one: they fail differently. Too short a WAIT means the taps land
+        // before the bar listens and nothing at all happens; too short a TAP means the bar sees the
+        // presses but merges or drops some of them, so the jump lands short. One combined slider
+        // could not separate those.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        GameBarAutoNavOpenDelayMs,      // int - ms between "Game Bar opened" and the first RB (>= 40)
+        GameBarAutoNavTapScalePercent,  // int - scales all four tap press/gap times (100..300, >= 100)
+
+        // ── CPU: the Windows processor-power settings the CPU card exposes ───────────────────────
+        // Measured on an A2VM (Core Ultra 7 258V, scheme "Balanced") rather than taken from docs —
+        // the values in the comments are what Windows actually ships on this device.
+        //
+        // CPUBoostMode is the SINGLE writer to Windows' PERFBOOSTMODE. CPUBoost (the bool, far above)
+        // survives only as its mirror: it is what the sidebar, the hotkeys and every profile written
+        // before this change speak, and it answers exactly one question — is the mode 0 or not. The
+        // seven gradations were in the product once and were removed because a dropdown and a toggle
+        // both wrote this setting and raced; that is why the bool no longer writes anything itself.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        CPUBoostMode,                   // int 0..6 - Disabled/Enabled/Aggressive/Efficient Enabled/
+                                        //            Efficient Aggressive/…At Guaranteed (powrprof names)
+
+        // Efficiency class 1 = the P cores (Lion Cove) on Lunar Lake, NOT the efficiency cores — measured
+        // with GetSystemCpuSetInformation: class 1 = cores 0-3, class 0 = the LP-E cores 4-7, and a
+        // higher class means more performant. Two comments in this repo used to claim the opposite.
+        // Windows carries its own value for each
+        // of these next to the class-0 one we already write, and ships them DIFFERENT here (EPP 33 AC
+        // / 30 DC against 30 / 30 for class 0), so writing only class 0 has always been half a
+        // setting. -1 = unset: never write, leave whatever the firmware and Windows agreed on.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        CPUEPPClass1,                   // int 0..100, -1 = unset
+        MaxCPUStateClass1,              // int 1..100 %, -1 = unset
+        MinCPUStateClass1,              // int 0..100 %, -1 = unset
+
+        // Core parking floor. It is NOT a new GUID for us — ApplySchedulingCoreParking already writes
+        // it, unconditionally as 0, which quietly overwrites the 25 AC / 50 DC Windows ships. Making
+        // it a profile value is what stops the scheduling policy from being its only author.
+        // APPEND-ONLY: Function is serialised by ordinal — new members go at the END.
+        CoreParkingMinCores,            // int 0..100 %, -1 = unset
+
+        // The parking CEILING, the counterpart to the floor above: at most this share of cores may be
+        // unparked. It is the riskier of the two and carries a warning on its card - pinning the base
+        // MAX_CORES on this device has already been observed to stall the system ("Only-P parked
+        // everything and stuttered", see ApplySchedulingCoreParking).
+        // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
+        CoreParkingMaxCores,            // int 0..100 %, -1 = unset
+
+        // ONE max CPU frequency in MHz for the whole processor, written to every core-class register
+        // the active scheme carries. Deliberately NOT a revival of MaxPCoreFreqMHz/MaxECoreFreqMHz:
+        // those are per-class and stay withdrawn. 0.3.0.27 dropped the caps as ineffective on Lunar
+        // Lake, but that rested on all-core measurements, where the silicon lowers the turbo ceiling
+        // anyway. Single-threaded with boost forced Aggressive (2026-08-19, A2VM) the cap took the
+        // peak from 3828 MHz to 1800 - it works, and it works in the range that matters.
+        // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
+        CPUMaxFrequencyMHz,             // int MHz, -1 = unset (leave it to the OS)
+
+        // Windows Game Mode (HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled). NOT a ClawTweaks
+        // setting - a mirror of a Windows one, shown next to the frequency cap because Game Mode is
+        // the documented reason a max-frequency limit can be ignored while a game runs. We only read
+        // it and write it when the USER asks; nothing here turns it off by itself, because whether it
+        // actually overrides the cap in a real game has not been measured yet.
+        // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
+        WindowsGameModeEnabled,         // bool
+
+        // The P-core half of the max frequency. CPUMaxFrequencyMHz above is the BASE register
+        // (75b0ae3f-...e100), this one is efficiency class 1 (...e101) - the same base/class-1 split
+        // the EPP and processor-state pairs already use, so the two cards stay symmetrical.
+        // A third register (...e102) exists on parts with three core classes; it is written together
+        // with THIS value, because Microsoft defines a higher class as the more performant one.
+        // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
+        CPUMaxFrequencyClass1MHz,       // int MHz, -1 = unset (leave it to the OS)
+
+        // The two Max Frequency sliders' CEILINGS, one per core class, pushed by the helper from the
+        // per-model spec (MSIClawModels.cs) exactly like DeviceMaxPL1/DeviceMaxPL2 next to it. The
+        // widget cannot read WMI, so the device's turbo limits have to arrive over the wire.
+        // 0 = the helper has not answered, or does not know for this model - the slider then keeps the
+        // range compiled into the XAML.
+        // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
+        DeviceMaxPCoreMHz,              // int MHz - performance cores (efficiency class 1)
+        DeviceMaxECoreMHz,              // int MHz - efficiency cores (the base register)
+
+        // The TDP slider's FLOOR for this device, in watts - MSI's LimitValue_PowerLow. The ceilings
+        // (DeviceMaxPL1/PL2) have travelled since day one; the floor was a 7 compiled into the widget
+        // and an 8 compiled into the helper, and both are wrong on the A1M, which will not go below 15.
+        // 0 = the helper has not answered, or does not know - the consumer keeps its own value.
+        // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
+        DeviceMinPL1,                   // int watts
     }
 }

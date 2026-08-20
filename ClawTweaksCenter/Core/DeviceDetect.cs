@@ -16,7 +16,7 @@ namespace ClawTweaksCenter.Core
     public static class DeviceDetect
     {
         /// <summary>Which device photo to show — see Ui/DeviceIcons.cs.</summary>
-        public enum Model { Unknown, A2VM, Ex }
+        public enum Model { Unknown, A2VM, Ex, A1M }
 
         public readonly struct Result
         {
@@ -44,6 +44,7 @@ namespace ClawTweaksCenter.Core
                 {
                     Model.A2VM => new Result(Model.A2VM, "MSI Claw (A2VM) — DEBUG", true),
                     Model.Ex => new Result(Model.Ex, "MSI Claw 8 EX AI+ CG3EM — DEBUG", true),
+                    Model.A1M => new Result(Model.A1M, "MSI Claw A1M — DEBUG", false),
                     _ => new Result(Model.Unknown, "Unknown device — DEBUG", false),
                 };
             }
@@ -59,6 +60,10 @@ namespace ClawTweaksCenter.Core
             {
                 ClawHardwareModel.A2VM => new Result(Model.A2VM, "MSI Claw (A2VM)", true),
                 ClawHardwareModel.Ex => new Result(Model.Ex, "MSI Claw 8 EX AI+ CG3EM", true),
+                // Named, but supported = false on purpose: the ladder can identify an A1M, ClawTweaks
+                // does not drive one yet (MSIClawModelSpec.Supported). Saying "MSI Claw A1M" and
+                // "not supported" is two true statements; calling it an unknown device is one false one.
+                ClawHardwareModel.A1M => new Result(Model.A1M, "MSI Claw A1M", false),
                 _ => new Result(Model.Unknown, "Unknown device", false),
             };
         }
@@ -71,6 +76,8 @@ namespace ClawTweaksCenter.Core
         public static Version MinimumSupportedVersion(Model model) => model switch
         {
             Model.Ex => new Version(0, 1, 7, 63),
+            // A1M: no floor yet. Fill this in with the version that first ships Supported = true for
+            // the A1M, otherwise Center offers an A1M owner builds that cannot see their device.
             _ => null,
         };
 

@@ -201,7 +201,14 @@ namespace ClawTweaksCenter
             RenderCurrentView(); // the build list's per-device gating tags depend on this
 
             var kind = d.Supported ? StatusKind.Ok : StatusKind.Warning;
-            string detail = d.Supported ? "Supported." : "Not a recognized MSI Claw — installing here is untested.";
+            // Three states, not two: recognized-and-supported, recognized-but-not-driven-yet (the
+            // A1M today), and not a Claw at all. The old text collapsed the middle one into "not
+            // recognized", which is false once the ladder can name the device.
+            string detail = d.Supported
+                ? "Supported."
+                : d.Model != DeviceDetect.Model.Unknown
+                    ? "Recognized, but not supported yet."
+                    : "Not a recognized MSI Claw — installing here is untested.";
 
             var icon = DeviceIcons.For(d.Model);
             if (icon == null)

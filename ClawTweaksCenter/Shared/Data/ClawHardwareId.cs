@@ -10,6 +10,7 @@ namespace Shared.Data
         Unknown = 0,
         A2VM,   // Claw 7 AI+ / Claw 8 AI+ (Lunar Lake)
         Ex,     // Claw 8 EX AI+ CG3EM (Panther Lake)
+        A1M,    // Claw A1M (Meteor Lake) - first generation
     }
 
     /// <summary>The raw identity strings, exactly as WMI reports them. Each field names its source.</summary>
@@ -70,7 +71,7 @@ namespace Shared.Data
     ///
     /// THE LADDER (first hit wins; every rung is checked in this order):
     ///   1. Product name        — "A2VM" / "CG3EM" / "Claw 8 EX". The normal path, unchanged.
-    ///   2. Board or SKU code   — MS-1T52 / MS-1T42 / MS-1T91. Lives in SMBIOS type 2 (board) and the
+    ///   2. Board or SKU code   — MS-1T52 / MS-1T42 / MS-1T91 / MS-1T41. Lives in SMBIOS type 2 (board) and the
     ///                            type-1 SKU field, which the RMA reflash left correct. These codes are
     ///                            unique to the Claw boards, so this rung needs no extra corroboration.
     ///   3. CPU platform        — Lunar Lake => A2VM, Panther Lake => EX, but ONLY when the MSI Claw
@@ -84,8 +85,12 @@ namespace Shared.Data
     /// so nothing downstream depends on the difference. Rung 2 does distinguish them (MS-1T42 vs
     /// MS-1T52) and is what a real RMA device hits, since the board code survives the reflash.
     ///
-    /// NOT matched, deliberately: MS-1T41 (Claw A1M, Meteor Lake) — different EC and hardware
-    /// controller, intentionally unsupported. Its board code must never be added here.
+    /// MS-1T41 (Claw A1M, Meteor Lake) IS matched since 2026-08-20. It used to be excluded here with
+    /// the note "different EC and hardware controller", and that claim did not survive being checked:
+    /// MSI Center M drives every Claw through one path and branches on 1T41 only for the PL limits and
+    /// the scenario list. Naming the device is not the same as supporting it — whether ClawTweaks acts
+    /// on an A1M is decided by MSIClawModelSpec.Supported, which is still false. This ladder answers
+    /// "what is this", not "do we drive it".
     /// </summary>
     public static class ClawHardwareId
     {
@@ -98,11 +103,18 @@ namespace Shared.Data
         private const string Board8AiPlus = "1T52";  // Claw 8 AI+ A2VM      — confirmed on-device
         private const string Board7AiPlus = "1T42";  // Claw 7 AI+ A2VM(X)   — per MSI's board list
         private const string Board8Ex = "1T91";      // Claw 8 EX AI+ CG3EM  — confirmed (EX report)
+        private const string Board1stGen = "1T41";   // Claw A1M             — per MSI Center M's own model switch
 
         // ── CPUID models (Win32_Processor.Caption: "Intel64 Family 6 Model 189 Stepping 1") ──
         // Both verified on-device: the A2VM reports model 189 (0xBD), the Claw 8 EX model 204 (0xCC).
         private const int CpuModelLunarLake = 189;
         private const int CpuModelPantherLake = 204;
+        // Meteor Lake-H (Core Ultra 100H), family 6 model 170 (0xAA). NOT verified on a device — the
+        // other two were read off real hardware, this one comes from Intel's model list. It is the
+        // weakest rung anyway: an A1M is identified by its product name or its board code long before
+        // the CPU is consulted, and the board code survives an RMA reflash. Verify against
+        // Win32_Processor.Caption before anyone relies on it.
+        private const int CpuModelMeteorLake = 170;
 
         /// <summary>
         /// Known placeholder identity strings. AMI/MSI ship these when a board's SMBIOS strings were
@@ -133,13 +145,23 @@ namespace Shared.Data
             "https://www.msi.com/Handheld/Claw-8-AI-Plus-A2VMX/support?sub_product=Claw-8-AI-Plus-A2VM#bios";
         private const string SupportPage8Ex =
             "https://www.msi.com/Handheld/Claw-8-EX-AI-Plus-CG3EMX/support?sub_product=Claw-8-EX-AIplussign-CG3EM#bios";
+        private const string SupportPageA1M =
+            "https://www.msi.com/Handheld/Claw-A1MX/support?sub_product=Claw-A1M#bios";
 
         /// <summary>
         /// MSI's support/download page for a model. Unknown falls back to the Claw 8 AI+ page, which is
         /// the larger install base — a wrong-but-reachable page beats a dead button.
+        ///
         /// </summary>
-        public static string SupportPageUrl(ClawHardwareModel model) =>
-            model == ClawHardwareModel.Ex ? SupportPage8Ex : SupportPage8AiPlus;
+        public static string SupportPageUrl(ClawHardwareModel model)
+        {
+            switch (model)
+            {
+                case ClawHardwareModel.Ex:  return SupportPage8Ex;
+                case ClawHardwareModel.A1M: return SupportPageA1M;
+                default:                    return SupportPage8AiPlus;
+            }
+        }
 
         /// <summary>
         /// Same, resolved from any identity string that happens to be at hand (board code, SKU, product
@@ -149,10 +171,18 @@ namespace Shared.Data
         public static string SupportPageUrlFor(string modelText)
         {
             if (string.IsNullOrEmpty(modelText)) return SupportPage8AiPlus;
-            bool isEx = modelText.IndexOf(Board8Ex, StringComparison.OrdinalIgnoreCase) >= 0
-                     || modelText.IndexOf("CG3EM", StringComparison.OrdinalIgnoreCase) >= 0
-                     || modelText.IndexOf("Claw 8 EX", StringComparison.OrdinalIgnoreCase) >= 0;
-            return isEx ? SupportPage8Ex : SupportPage8AiPlus;
+
+            if (modelText.IndexOf(Board8Ex, StringComparison.OrdinalIgnoreCase) >= 0
+             || modelText.IndexOf("CG3EM", StringComparison.OrdinalIgnoreCase) >= 0
+             || modelText.IndexOf("Claw 8 EX", StringComparison.OrdinalIgnoreCase) >= 0)
+                return SupportPage8Ex;
+
+            // Checked after the EX: "A1M" is three characters and must not get first refusal.
+            if (modelText.IndexOf(Board1stGen, StringComparison.OrdinalIgnoreCase) >= 0
+             || modelText.IndexOf("A1M", StringComparison.OrdinalIgnoreCase) >= 0)
+                return SupportPageA1M;
+
+            return SupportPage8AiPlus;
         }
 
         /// <summary>True when the vendor string identifies MSI.</summary>
@@ -244,6 +274,12 @@ namespace Shared.Data
                 productName.IndexOf("Claw 8 EX", StringComparison.OrdinalIgnoreCase) >= 0)
                 return ClawHardwareModel.Ex;
 
+            // Meteor Lake — MSI's own marketing name is "Claw A1M" (Center M matches exactly that).
+            // Checked LAST on purpose: "A1M" is three characters and would otherwise be free to hit
+            // inside a longer name that means something else.
+            if (productName.IndexOf("A1M", StringComparison.OrdinalIgnoreCase) >= 0)
+                return ClawHardwareModel.A1M;
+
             return ClawHardwareModel.Unknown;
         }
 
@@ -258,6 +294,9 @@ namespace Shared.Data
 
             if (value.IndexOf(Board8Ex, StringComparison.OrdinalIgnoreCase) >= 0)
                 return ClawHardwareModel.Ex;
+
+            if (value.IndexOf(Board1stGen, StringComparison.OrdinalIgnoreCase) >= 0)
+                return ClawHardwareModel.A1M;
 
             return ClawHardwareModel.Unknown;
         }
@@ -275,6 +314,7 @@ namespace Shared.Data
             {
                 if (model == CpuModelLunarLake) return ClawHardwareModel.A2VM;
                 if (model == CpuModelPantherLake) return ClawHardwareModel.Ex;
+                if (model == CpuModelMeteorLake) return ClawHardwareModel.A1M;
             }
 
             // Name check for Lunar Lake only: the Core Ultra 200V series ("Ultra 7 258V",
