@@ -231,7 +231,10 @@ namespace ClawTweaksCenter.Core
         ///
         /// Needs no administrator rights: every target is inside the current user's profile.
         /// </summary>
-        public static bool InstallAndRelaunch(Action<string> log = null)
+        /// <param name="desktopShortcut">Also drop an icon on this user's Desktop. Offered as a
+        /// pre-ticked box on the install screen; the Start Menu entry is not optional, because it is
+        /// what Settings → Apps and the Start search both rely on.</param>
+        public static bool InstallAndRelaunch(Action<string> log = null, bool desktopShortcut = true)
         {
             try
             {
@@ -268,6 +271,24 @@ namespace ClawTweaksCenter.Core
                 CopySiblingDirIfPresent(sourceDir, "Dependencies");
 
                 CreateStartMenuShortcut();
+
+                // Best-effort, and separately caught: a Desktop that cannot be written to (redirected
+                // to a OneDrive folder that is offline, say) is an odd machine, not a failed install.
+                // Letting that throw would abort an install that has already copied the exe and would
+                // otherwise have worked.
+                if (desktopShortcut)
+                {
+                    try { CreateDesktopShortcut(); }
+                    catch (Exception ex) { log?.Invoke($"Could not create the desktop icon: {ex.Message}"); }
+                }
+                else
+                {
+                    // Unticked on a re-install/update: remove the icon a previous install left behind,
+                    // so the box reflects what is actually on the desktop rather than only ever adding.
+                    try { if (File.Exists(DesktopShortcutPath())) File.Delete(DesktopShortcutPath()); }
+                    catch { }
+                }
+
                 RegisterUninstallEntry();
 
                 // Started through the shell rather than directly. Normally this process is unelevated
@@ -296,18 +317,20 @@ namespace ClawTweaksCenter.Core
         /// </summary>
         public static void Uninstall()
         {
-            try
+            foreach (var shortcut in new[] { StartMenuShortcutPath(), DesktopShortcutPath() })
             {
-                string shortcut = StartMenuShortcutPath();
-                if (File.Exists(shortcut)) File.Delete(shortcut);
+                try { if (File.Exists(shortcut)) File.Delete(shortcut); }
+                catch { }
             }
-            catch { }
 
             try
             {
                 Registry.CurrentUser.DeleteSubKeyTree(UninstallRegistryKey, throwOnMissingSubKey: false);
             }
             catch { }
+
+            // Center's remembered preferences (window mode). Same hive, same lack of admin rights.
+            CenterSettings.Clear();
 
             // Uninstalling from Settings → Apps starts a SECOND Center just to run --uninstall, so the
             // one the user already had open is still holding CTW_Center.exe. Measured 2026-07-30: the
@@ -413,12 +436,35 @@ namespace ClawTweaksCenter.Core
         }
 
         /// <summary>
+        /// This user's own Desktop. Same admin-free story as the Start Menu above —
+        /// CommonDesktopDirectory (the "all users" desktop) would need rights Center never asks for.
+        /// </summary>
+        private static string DesktopShortcutPath()
+        {
+            string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+            return Path.Combine(desktop, $"{AppDisplayName}.lnk");
+        }
+
+        /// <summary>
+        /// Optional desktop icon, offered as a pre-ticked box on the install screen.
+        ///
+        /// Note what is deliberately NOT here: pinning to the taskbar. There is no supported way to do
+        /// it — the shell's "Pin to taskbar" verb has been blocked to programs since Windows 10, and
+        /// the WinRT TaskbarManager needs a packaged app, which this unpackaged WPF exe is not. What is
+        /// left is writing the undocumented Taskband blob, which Windows 11 validates and discards, and
+        /// which is exactly the shape of self-pinning behaviour that has already had this project's
+        /// binaries flagged once. The user pins it themselves from this shortcut.
+        /// </summary>
+        private static void CreateDesktopShortcut() => CreateShortcut(DesktopShortcutPath());
+
+        private static void CreateStartMenuShortcut() => CreateShortcut(StartMenuShortcutPath());
+
+        /// <summary>
         /// Creates a .lnk via the WScript.Shell COM object (no extra NuGet package — ships with
         /// Windows).
         /// </summary>
-        private static void CreateStartMenuShortcut()
+        private static void CreateShortcut(string path)
         {
-            string path = StartMenuShortcutPath();
             Directory.CreateDirectory(Path.GetDirectoryName(path));
 
             Type shellType = Type.GetTypeFromProgID("WScript.Shell");

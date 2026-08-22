@@ -41,6 +41,13 @@ namespace ClawTweaksCenter
             _mode = mode;
             InitializeComponent();
             Ui.ModernWindow.Apply(this);
+            Ui.WindowMode.Attach(this); // after ModernWindow — see WindowMode.Attach on the ordering
+
+            // Nothing is going to be installed on these two screens, so an install option would be a
+            // control that does nothing. Hidden rather than disabled: a greyed-out tick still reads as
+            // a promise about what the next click will do.
+            if (mode == InstallCenterMode.AlreadyInstalled)
+                DesktopShortcutOption.Visibility = Visibility.Collapsed;
 
             // Title is context-sensitive (default "Install ClawTweaks Center" from XAML). The sub-heading
             // was removed by design; AlreadyInstalled still needs its guidance, shown via StatusText.
@@ -77,6 +84,7 @@ namespace ClawTweaksCenter
                 _nav.ButtonPressed += b => Dispatcher.Invoke(() =>
                 {
                     if (b == PadButton.A && _mode != InstallCenterMode.AlreadyInstalled && !_legacyBlocking) StartInstall();
+                    else if (b == PadButton.X && DesktopShortcutOption.Visibility == Visibility.Visible && !_installing) ToggleDesktopOption();
                     else if (b == PadButton.Y && _legacyBlocking) RecheckLegacy();
                     else if (b == PadButton.B) Application.Current.Shutdown();
                 });
@@ -97,7 +105,15 @@ namespace ClawTweaksCenter
             {
                 if (e.Key == System.Windows.Input.Key.Escape) { Application.Current.Shutdown(); e.Handled = true; }
                 else if (e.Key == System.Windows.Input.Key.F5 && _legacyBlocking) { RecheckLegacy(); e.Handled = true; }
+                else if (e.Key == System.Windows.Input.Key.F11) { Ui.WindowMode.Toggle(this); e.Handled = true; }
             };
+        }
+
+        /// <summary>Flips the desktop-icon option and re-renders its chip so the label matches.</summary>
+        private void ToggleDesktopOption()
+        {
+            DesktopShortcutOption.IsChecked = !(DesktopShortcutOption.IsChecked == true);
+            RenderActionBar();
         }
 
         /// <summary>
@@ -109,6 +125,11 @@ namespace ClawTweaksCenter
         private void ApplyLegacyGate()
         {
             _legacyBlocking = SelfInstaller.LegacyInstallPresent();
+
+            // While the old install blocks the way there is no Install chip at all, so the option
+            // belongs off screen with it.
+            DesktopShortcutOption.Visibility = _legacyBlocking ? Visibility.Collapsed : Visibility.Visible;
+
             if (!_legacyBlocking)
             {
                 // Either there never was an old install, or the re-check just confirmed it's gone —
@@ -155,6 +176,13 @@ namespace ClawTweaksCenter
             {
                 string label = _mode == InstallCenterMode.Update ? "Update" : "Install";
                 ActionBar.Children.Add(ActionBarBuilder.BuildChip(PadButton.A, label, !_installing, StartInstall));
+
+                // The chip carries the ACTION, not the state — the tick box next to it already shows
+                // whether the icon is coming. Naming the chip after the current value ("Desktop icon
+                // on") would leave the user working out whether pressing X confirms or reverses it.
+                if (DesktopShortcutOption.Visibility == Visibility.Visible)
+                    ActionBar.Children.Add(ActionBarBuilder.BuildChip(
+                        PadButton.X, "Desktop icon", !_installing, ToggleDesktopOption));
             }
 
             // Always available, even mid-install-attempt — the user must never be stuck on this
@@ -179,7 +207,9 @@ namespace ClawTweaksCenter
             // file and registry writes inside this user's profile. This used to relaunch elevated here
             // (and carry a ResumeArg across the prompt so the user didn't have to click Install twice);
             // moving off Program Files removed the reason for all of it. See SelfInstaller.
-            bool ok = SelfInstaller.InstallAndRelaunch(msg => Dispatcher.Invoke(() => StatusText.Text = msg));
+            bool desktopIcon = DesktopShortcutOption.IsChecked == true;
+            bool ok = SelfInstaller.InstallAndRelaunch(
+                msg => Dispatcher.Invoke(() => StatusText.Text = msg), desktopIcon);
             if (ok)
             {
                 // A new process is already starting from the installed location; this one is done.

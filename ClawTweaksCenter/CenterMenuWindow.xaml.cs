@@ -118,6 +118,9 @@ namespace ClawTweaksCenter
             // window is a normal, resizable window now, so WPF handles the taskbar itself and only
             // the clamp is still needed — for displays where 1120x760 does not fit.
             ModernWindow.Apply(this, edgeMargin: 12);
+            // Borderless fullscreen when the user chose it (default on). Must come AFTER
+            // ModernWindow.Apply — see WindowMode.Attach for why the ordering is not cosmetic.
+            WindowMode.Attach(this);
 
             _onboarding.StepsChanged += () => Dispatcher.Invoke(() =>
             {
@@ -173,6 +176,7 @@ namespace ClawTweaksCenter
                 else if (e.Key == Key.Enter) { Invoke(PadButton.A); e.Handled = true; }
                 else if (e.Key == Key.Tab) { Invoke(PadButton.X); e.Handled = true; }
                 else if (e.Key == Key.F5) { Invoke(PadButton.Y); e.Handled = true; }
+                else if (e.Key == Key.F11) { WindowMode.Toggle(this); RefreshActionBar(); e.Handled = true; }
                 else if (e.Key == Key.Up) { Invoke(PadButton.Up); e.Handled = true; }
                 else if (e.Key == Key.Down) { Invoke(PadButton.Down); e.Handled = true; }
                 else if (e.Key == Key.Left) { Invoke(PadButton.Left); e.Handled = true; }
@@ -1330,6 +1334,12 @@ namespace ClawTweaksCenter
             if (_view == View.Home)
             {
                 AddAction(PadButton.A, "Open", true, ActivateHomeTile);
+                // Home only, not on every screen: this changes the window, not the current step, and a
+                // chip repeated in six footers is noise. The choice is remembered, so it is a
+                // once-per-machine action. F11 works everywhere for desk testing.
+                AddAction(PadButton.Menu,
+                    Ui.WindowMode.IsFullscreen(this) ? "Windowed" : "Fullscreen",
+                    true, () => { Ui.WindowMode.Toggle(this); RefreshActionBar(); });
                 AddAction(PadButton.B, "Exit", true, () => Application.Current.Shutdown());
                 return;
             }

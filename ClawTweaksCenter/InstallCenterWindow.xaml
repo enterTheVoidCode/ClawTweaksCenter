@@ -45,6 +45,17 @@
             <TextBlock x:Name="StatusText" TextWrapping="Wrap" FontSize="15"
                        Foreground="{StaticResource AccentBrush}" Margin="0,0,0,14"
                        HorizontalAlignment="Center" TextAlignment="Center" Visibility="Collapsed" />
+            <!-- Install options. Ticked by default; the X chip in the action bar toggles it, because
+                 this screen is driven with a gamepad and has no roaming focus model (see PadButton).
+                 Mouse and touch still work on the box itself. -->
+            <CheckBox x:Name="DesktopShortcutOption"
+                      Style="{StaticResource ModernOptionCheckBox}"
+                      Content="Add a desktop icon"
+                      IsChecked="True"
+                      HorizontalAlignment="Left"
+                      MinWidth="320"
+                      Margin="0,0,0,14" />
+
             <WrapPanel x:Name="ActionBar" Orientation="Horizontal" HorizontalAlignment="Left"
                        Margin="-4,0,0,-4" />
         </StackPanel>

@@ -92,6 +92,19 @@
     <Resource Include="Assets\branding\ctw-handheld-16-10.png" />
     <!-- Loading spinner GIF — replaces the pulsing "…" Working badge everywhere it's used. -->
     <Resource Include="Assets\branding\loading-spinner.gif" />
+    <!-- Startup splash. The SplashScreen build action is what makes this EARLY: the generated entry
+         point shows the image before the App instance exists, so it appears while App.xaml's resource
+         dictionary is still being parsed and every window is still unbuilt. Showing a window of our
+         own instead would arrive far too late to be worth having.
+
+         Measured on the dev machine (time from process start to the main window being visible):
+         ~1.2 s warm, ~2.6 s on the first run after an update. Without this the user sees nothing at
+         all for that whole stretch after double-clicking, which reads as "nothing happened" and
+         invites a second launch.
+
+         It closes itself once the first window appears — nothing to dispose, and nothing to do on the
+         uninstall-callback path either, where no window ever opens and the process exits immediately. -->
+    <SplashScreen Include="Assets\branding\splash.png" />
   </ItemGroup>
 
   <ItemGroup>

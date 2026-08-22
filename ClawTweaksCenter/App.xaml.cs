@@ -101,6 +101,10 @@ namespace ClawTweaksCenter
         /// The brief Topmost flip is the fallback for the case where the grant did not arrive (started
         /// from the Start menu while a fullscreen game is up, say). It raises the window without
         /// leaving it permanently on top, which would be worse than the original problem.
+        ///
+        /// The Topmost flip alone was not enough against a fullscreen Steam Big Picture, which is what
+        /// WindowMode.ForceForeground adds: it attaches to the foreground thread's input queue instead
+        /// of merely asking, so the grab does not depend on having been handed the right first.
         /// </summary>
         private static void ShowForeground(Window window)
         {
@@ -115,8 +119,7 @@ namespace ClawTweaksCenter
                 window.Topmost = false;
                 window.Focus();
 
-                var hWnd = new System.Windows.Interop.WindowInteropHelper(window).Handle;
-                if (hWnd != IntPtr.Zero) SetForegroundWindow(hWnd);
+                Ui.WindowMode.ForceForeground(window);
             }
             catch (Exception ex)
             {
@@ -124,9 +127,6 @@ namespace ClawTweaksCenter
                 LogCrash(ex);
             }
         }
-
-        [System.Runtime.InteropServices.DllImport("user32.dll")]
-        private static extern bool SetForegroundWindow(IntPtr hWnd);
 
         private static void LogCrash(Exception ex, string source = null)
         {
