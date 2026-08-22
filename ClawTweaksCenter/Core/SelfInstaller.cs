@@ -258,7 +258,14 @@ namespace ClawTweaksCenter.Core
 
                 log?.Invoke($"Installing to {InstallDir}...");
                 Directory.CreateDirectory(InstallDir);
-                File.Copy(sourceExe, InstalledExePath, overwrite: true);
+
+                // Close the INSTALLED Center first. Updating means overwriting CTW_Center.exe, and a
+                // running copy of it holds its own file — the copy below then fails with a sharing
+                // violation and the whole update reports an error, which is what users hit. The exe
+                // being replaced is a different file from the one running this code (the downloaded
+                // Setup exe), so nothing here is closing itself.
+                CloseOtherInstances();
+                CopyWithRetry(sourceExe, InstalledExePath, log);
 
                 // Release-folder run (msix + cer + Dependencies sit next to the exe, as Build-Setup.ps1
                 // assembles it) — bring those along too, so PackageInstaller/CertInstaller still find
@@ -373,6 +380,45 @@ namespace ClawTweaksCenter.Core
         /// Closes every OTHER Center process, skipping our own. Asks the window to close first and only
         /// kills what doesn't go — a Center sitting mid-install would otherwise be torn down between two
         /// file copies.
+        /// </summary>
+        /// <summary>
+        /// Copies over a file that was in use a moment ago.
+        ///
+        /// <see cref="CloseOtherInstances"/> waits for the processes to exit, but Windows releases a
+        /// terminated process's file handles asynchronously — there is no instant at which the target
+        /// is guaranteed writable, so a single attempt straight afterwards can still hit a sharing
+        /// violation. Same reasoning as the retried folder delete on the uninstall path.
+        ///
+        /// The last attempt is deliberately allowed to throw: a genuinely blocked install must fail
+        /// loudly rather than leave a half-updated folder behind a success message.
+        /// </summary>
+        private static void CopyWithRetry(string source, string destination, Action<string> log)
+        {
+            const int attempts = 4;
+            for (int i = 1; ; i++)
+            {
+                try
+                {
+                    File.Copy(source, destination, overwrite: true);
+                    return;
+                }
+                catch (IOException) when (i < attempts)
+                {
+                    log?.Invoke($"Waiting for the running Center to close ({i}/{attempts - 1})...");
+                    System.Threading.Thread.Sleep(i * 500);
+                }
+                catch (UnauthorizedAccessException) when (i < attempts)
+                {
+                    log?.Invoke($"Waiting for the running Center to close ({i}/{attempts - 1})...");
+                    System.Threading.Thread.Sleep(i * 500);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Closes every Center running from <see cref="InstallDir"/>, leaving this process alone.
+        /// Used by both the install path (the exe it is about to overwrite must not be in use) and the
+        /// uninstall path (a running copy keeps its own folder alive).
         /// </summary>
         private static void CloseOtherInstances()
         {
