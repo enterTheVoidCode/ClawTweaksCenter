@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Windows;
 using System.Windows.Threading;
@@ -86,7 +86,11 @@ namespace ClawTweaksCenter
             // CenterMenuWindow (which does the full tools → cert → MSIX install for a chosen build). The
             // local-msix entry also had an unresolved startup issue on the packaged bundle. User decision
             // 2026-07-23: always go to the Center menu regardless of any sibling package.
-            ShowForeground(new CenterMenuWindow());
+            // --library opens straight on the games library instead of the start screen, for a jump
+            // out of the ClawTweaks widget. See the note at the receiving end: it only carries when
+            // this launch really starts a process.
+            bool startLibrary = Array.Exists(e.Args, a => a.Equals("--library", StringComparison.OrdinalIgnoreCase));
+            ShowForeground(new CenterMenuWindow(startLibrary: startLibrary));
         }
 
         /// <summary>

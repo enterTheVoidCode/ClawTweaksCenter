@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -110,6 +110,28 @@
   <ItemGroup>
     <!-- WMI access for the Center menu's device-detection banner (see Core/DeviceDetect.cs). -->
     <PackageReference Include="System.Management" Version="9.0.0" />
+    <!-- Steam's libraryfolders.vdf and appmanifest_*.acf are Valve KeyValues (Library\SteamSource.cs).
+         MIT. A hand-rolled ~80-line reader was considered and rejected: the format has escapes,
+         comments, conditional blocks and a binary variant, and every one of those is a silent
+         wrong-answer in a home-made parser — a game quietly missing from the library reads as a
+         detection bug, not as a parse bug. -->
+    <PackageReference Include="ValveKeyValue" Version="0.70.0.499" />
+    <!-- Playnite's library is a LiteDB database (Library\PlayniteSource.cs). MIT.
+         PINNED TO 4.x ON PURPOSE: Playnite writes the v4 on-disk format - measured from the file
+         header and from database.json, which says {"Version":4}. The 5.x package refuses those files
+         with "not a valid LiteDB database format", which reads like a corrupt library rather than a
+         wrong package version, so an "update the dependency" tidy-up here breaks the ROM tab in a way
+         that points at the user's data.
+
+         SECURITY: NuGet flags 4.1.4 as GHSA-3x49-g6rc-c284, a deserialisation hole in LiteDB s
+         object mapper - a crafted database can name a .NET type in a _type field and have it
+         instantiated. It is NOT reachable here: PlayniteSource reads BsonDocument only
+         (GetCollection(...).FindAll()) and never maps to a POCO, so the mapper that resolves _type
+         never runs. The input is also the user s own Playnite library, not something downloaded.
+         Upgrading is not an option - 5.x cannot read the v4 file at all - so if this ever needs to
+         go away, the fix is reading the format ourselves, not bumping the version. -->
+    <PackageReference Include="LiteDB" Version="4.1.4" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
     <!-- No package needed for Shared\Data\ClawHardwareId.cs's registry access: the private repo's
          Shared.csproj targets netstandard2.0 and has to reference Microsoft.Win32.Registry, but
          net10.0-windows ships it in the framework (adding it back produces NU1510). -->
@@ -137,10 +159,8 @@
 
   <Target Name="CopyPortableExe" AfterTargets="Publish">
     <MakeDir Directories="$(MSBuildProjectDirectory)\PortableExe" />
-    <Copy SourceFiles="$(PublishDir)$(AssemblyName).exe"
-          DestinationFolder="$(MSBuildProjectDirectory)\PortableExe"
-          SkipUnchangedFiles="false" />
-    <Message Importance="high" Text="Portable exe -> PortableExe\$(AssemblyName).exe" />
+    <Copy SourceFiles="$(PublishDir)$(AssemblyName).exe" DestinationFolder="$(MSBuildProjectDirectory)\PortableExe" SkipUnchangedFiles="false" />
+    <Message Importance="high" Text="Portable exe -&gt; PortableExe\$(AssemblyName).exe" />
 
     <!--
       Second copy, for a checkout that sits next to the private ClawTweaks dev repo: that repo's
@@ -153,13 +173,8 @@
       gitignored over there (the whole ClawTweaksSetup\ tree is), so nothing can be committed by
       accident; these are ~63 MB binaries.
     -->
-    <Copy SourceFiles="$(PublishDir)$(AssemblyName).exe"
-          DestinationFolder="$(DevRepoPortableExeDir)"
-          SkipUnchangedFiles="false"
-          Condition="'$(DevRepoPortableExeDir)' != '' And Exists('$(DevRepoSetupDir)')" />
-    <Message Importance="high"
-             Text="Portable exe -> $(DevRepoPortableExeDir)\$(AssemblyName).exe"
-             Condition="'$(DevRepoPortableExeDir)' != '' And Exists('$(DevRepoSetupDir)')" />
+    <Copy SourceFiles="$(PublishDir)$(AssemblyName).exe" DestinationFolder="$(DevRepoPortableExeDir)" SkipUnchangedFiles="false" Condition="'$(DevRepoPortableExeDir)' != '' And Exists('$(DevRepoSetupDir)')" />
+    <Message Importance="high" Text="Portable exe -&gt; $(DevRepoPortableExeDir)\$(AssemblyName).exe" Condition="'$(DevRepoPortableExeDir)' != '' And Exists('$(DevRepoSetupDir)')" />
   </Target>
 
 </Project>

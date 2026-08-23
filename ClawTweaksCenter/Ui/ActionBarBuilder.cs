@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -22,17 +22,7 @@ namespace ClawTweaksCenter.Ui
 
         public static UIElement BuildChip(PadButton button, string label, bool enabled, System.Action onClick)
         {
-            var glyph = new Image
-            {
-                Source = Glyphs.For(button),
-                Width = GlyphSize, Height = GlyphSize,
-                Stretch = Stretch.Uniform,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Margin = new Thickness(2, 0, 0, 0),
-                SnapsToDevicePixels = true,
-            };
-            RenderOptions.SetBitmapScalingMode(glyph, BitmapScalingMode.HighQuality);
+            UIElement glyph = BuildGlyph(button);
 
             var text = new TextBlock
             {
@@ -63,6 +53,51 @@ namespace ClawTweaksCenter.Ui
             };
             btn.Click += (_, __) => onClick();
             return btn;
+        }
+
+        /// <summary>
+        /// The button's own artwork, or — for the shoulders and triggers, which have no bundled image
+        /// — a small rounded badge with "LB"/"RB"/"LT"/"RT" in it. Both forms occupy the same
+        /// GlyphSize box so a footer mixing them still lines up.
+        /// </summary>
+        private static UIElement BuildGlyph(PadButton button)
+        {
+            string text = Glyphs.TextFor(button);
+            if (text == null)
+            {
+                var image = new Image
+                {
+                    Source = Glyphs.For(button),
+                    Width = GlyphSize, Height = GlyphSize,
+                    Stretch = Stretch.Uniform,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(2, 0, 0, 0),
+                    SnapsToDevicePixels = true,
+                };
+                RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+                return image;
+            }
+
+            return new Border
+            {
+                Background = (Brush)Application.Current.Resources["CardBrush"],
+                BorderBrush = (Brush)Application.Current.Resources["SubtleTextBrush"],
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(5, 1, 5, 1),
+                MinWidth = GlyphSize + 6,
+                Margin = new Thickness(2, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = text,
+                    FontSize = 12,
+                    FontWeight = FontWeights.Bold,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Foreground = (Brush)Application.Current.Resources["TextBrush"],
+                },
+            };
         }
 
         /// <summary>Builds a noninteractive hint aligned with action tiles.</summary>

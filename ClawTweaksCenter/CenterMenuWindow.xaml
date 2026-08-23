@@ -1,4 +1,4 @@
-<Window x:Class="ClawTweaksCenter.CenterMenuWindow"
+﻿<Window x:Class="ClawTweaksCenter.CenterMenuWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="ClawTweaks Center"
@@ -14,14 +14,15 @@
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />   <!-- header -->
-            <RowDefinition Height="*" />      <!-- build list -->
+            <RowDefinition Height="Auto" />   <!-- main tab strip (Start / Library) -->
+            <RowDefinition Height="*" />      <!-- build list / library grid -->
             <RowDefinition Height="Auto" />   <!-- footer action bar -->
         </Grid.RowDefinitions>
 
         <!-- Header: brand left, device banner right. The two columns are re-laid-out in code
              (UpdateShellLayout) below the narrow breakpoint, where side by side leaves neither
              enough room — hence the names on both children. -->
-        <StackPanel Grid.Row="0" Margin="24,16,24,4">
+        <StackPanel x:Name="ShellHeader" Grid.Row="0" Margin="24,16,24,4">
             <Grid x:Name="ShellHeaderGrid">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -46,8 +47,19 @@
             <Border Height="1" Background="{StaticResource StrokeBrush}" Margin="0,12,0,0" />
         </StackPanel>
 
+        <!-- Main tabs. Collapsed until we KNOW ClawTweaks is installed (see RefreshTabStrip):
+             before that Center is an installer, and a games library next to a half-finished
+             installation is a distraction from the one step that is due. It may appear late; it must
+             never appear and then go away again, which reads as a crash. -->
+        <Border x:Name="TabStrip" Grid.Row="1" Visibility="Collapsed" Margin="24,0,24,0">
+            <!-- DockPanel, not StackPanel: the shoulder hints sit at the far LEFT and far RIGHT of
+                 the row with the tabs scrolling between them, which is where the buttons are on the
+                 pad. LastChildFill gives the scrolling middle whatever is left. -->
+            <DockPanel x:Name="TabStripPanel" LastChildFill="True" VerticalAlignment="Center" />
+        </Border>
+
         <!-- Build list / progress host -->
-        <ScrollViewer x:Name="ContentScroller" Grid.Row="1" VerticalScrollBarVisibility="Auto"
+        <ScrollViewer x:Name="ContentScroller" Grid.Row="2" VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Padding="24,12,24,16" Focusable="False">
             <StackPanel x:Name="ContentHost" Focusable="False"
@@ -57,7 +69,12 @@
         <!-- Footer: controller action tiles. WrapPanel, not StackPanel — on a narrow window the four
              actions plus the scroll hint no longer fit on one line, and a StackPanel would clip the
              last of them off-screen instead of wrapping. -->
-        <Border Grid.Row="2" Background="{StaticResource FooterBrush}"
+        <!-- The library owns its whole row: the build list is capped at 1040 DIP for readability,
+             and a cover grid wants every pixel the 1200p panel has. Sibling of the scroller rather
+             than content inside it, so the two never fight over scrolling. -->
+        <Grid x:Name="LibraryRoot" Grid.Row="2" Visibility="Collapsed" />
+
+        <Border Grid.Row="3" Background="{StaticResource FooterBrush}"
                 BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,1,0,0">
             <WrapPanel x:Name="ActionBar" Orientation="Horizontal"
                        HorizontalAlignment="Center" VerticalAlignment="Center"

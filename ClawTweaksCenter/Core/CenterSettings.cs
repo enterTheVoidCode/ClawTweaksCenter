@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.Win32;
 
 namespace ClawTweaksCenter.Core
@@ -32,6 +32,63 @@ namespace ClawTweaksCenter.Core
             set => WriteBool("BorderlessFullscreen", value);
         }
 
+        /// <summary>
+        /// Draw ROM tiles square instead of the 2:3 capsule the store tabs use.
+        ///
+        /// Off by default, because most cover art really is 2:3. It exists because Playnite's ROM art
+        /// is not: a lot of it is square box scans and icons, and forcing those into a tall tile
+        /// either crops the picture or leaves bars down the sides. This is a property of one user's
+        /// collection, not something we can detect per game, so it is a setting.
+        /// </summary>
+        public static bool SquareRomArt
+        {
+            get => ReadBool("SquareRomArt", false);
+            set => WriteBool("SquareRomArt", value);
+        }
+
+        /// <summary>
+        /// The user's own SteamGridDB API key, or empty.
+        ///
+        /// NEVER SHIPPED WITH ONE. A key in the repository is a credential in the repository, and it
+        /// would be extracted from the exe and burned through by strangers within a week - the quota
+        /// is per key, so the first person to abuse it takes the feature away from everybody else.
+        /// The user pastes their own, it lives in their own hive, and nothing here works without it.
+        /// </summary>
+        public static string SteamGridDbApiKey
+        {
+            get => ReadString("SteamGridDbApiKey", string.Empty);
+            set => WriteString("SteamGridDbApiKey", value ?? string.Empty);
+        }
+
+        /// <summary>
+        /// Open straight into the game library instead of the start screen.
+        ///
+        /// Off by default: Center is an installer and control panel first, and someone who has just
+        /// double-clicked it usually wants the thing they installed it for. Once the machine is set
+        /// up that reverses, which is exactly why this is a setting and not a guess.
+        /// </summary>
+        public static bool OpenLibraryAtStartup
+        {
+            get => ReadBool("OpenLibraryAtStartup", false);
+            set => WriteBool("OpenLibraryAtStartup", value);
+        }
+
+        /// <summary>
+        /// Let the ClawTweaks helper start Center when it starts.
+        ///
+        /// READ BY THE HELPER, written here. The two live in different processes and different repos,
+        /// and this registry value is the whole contract between them - so the name must not change
+        /// without changing it on the helper side as well.
+        ///
+        /// The helper must launch Center ASYNCHRONOUSLY. Its own job is to have the controller alive
+        /// within a second of boot, and a games library is never worth delaying that.
+        /// </summary>
+        public static bool StartCenterWithClawTweaks
+        {
+            get => ReadBool("StartCenterWithClawTweaks", false);
+            set => WriteBool("StartCenterWithClawTweaks", value);
+        }
+
         /// <summary>Removes everything this class stored. Called from the uninstall path.</summary>
         public static void Clear()
         {
@@ -57,6 +114,26 @@ namespace ClawTweaksCenter.Core
             {
                 using var key = Registry.CurrentUser.CreateSubKey(KeyPath);
                 key?.SetValue(name, value ? 1 : 0, RegistryValueKind.DWord);
+            }
+            catch { }
+        }
+
+        private static string ReadString(string name, string fallback)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
+                return key?.GetValue(name) as string ?? fallback;
+            }
+            catch { return fallback; }
+        }
+
+        private static void WriteString(string name, string value)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(KeyPath);
+                key?.SetValue(name, value ?? string.Empty, RegistryValueKind.String);
             }
             catch { }
         }

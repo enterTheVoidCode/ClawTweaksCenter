@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Threading;
@@ -30,7 +30,16 @@ namespace ClawTweaksCenter.Navigation
         private readonly DispatcherTimer _timer;
         private ushort _prevButtons;
         private ushort _prevStickDirBits;
+        private ushort _prevTriggerBits;
         private const short StickDeadzone = 12000;
+
+        // Analogue triggers turned into presses. XINPUT_GAMEPAD_TRIGGER_THRESHOLD is Microsoft's own
+        // value for "this counts as pulled". Edge-triggered against _prevTriggerBits for the same
+        // reason the left stick is: a held trigger would otherwise fire a group change on every one
+        // of the 25 ticks per second, and the user would never see the group they aimed for.
+        private const byte TriggerThreshold = 30;
+        private const ushort TriggerLeft = 0x0001;
+        private const ushort TriggerRight = 0x0002;
 
         // Virtual D-Pad bits for the left stick — deliberately the same values as the real
         // XINPUT_GAMEPAD_DPAD_* constants below so a screen bound to PadButton.Up/Down/Left/Right
@@ -59,9 +68,9 @@ namespace ClawTweaksCenter.Navigation
 
         private void OnTick(object sender, EventArgs e)
         {
-            if (!_window.IsActive) { _prevButtons = 0; _prevStickDirBits = 0; return; }
-            if (!TryPollCombined(out ushort buttons, out short lx, out short ly, out short ry))
-            { _prevButtons = 0; _prevStickDirBits = 0; return; }
+            if (!_window.IsActive) { _prevButtons = 0; _prevStickDirBits = 0; _prevTriggerBits = 0; return; }
+            if (!TryPollCombined(out ushort buttons, out short lx, out short ly, out short ry, out byte lt, out byte rt))
+            { _prevButtons = 0; _prevStickDirBits = 0; _prevTriggerBits = 0; return; }
 
             // Continuous scroll from D-Pad up/down or left-stick Y (fires every tick while held).
             double scroll = 0;
@@ -94,6 +103,17 @@ namespace ClawTweaksCenter.Navigation
             if ((stickPressed & StickDirLeft) != 0) Raise(PadButton.Left);
             if ((stickPressed & StickDirRight) != 0) Raise(PadButton.Right);
 
+            // Triggers as edge-triggered presses. Same shape as the virtual D-Pad above and, like it,
+            // run unconditionally — a trigger sets no wButtons bit, so the "pressed == 0" early-out
+            // below would swallow it entirely.
+            ushort triggerBits = 0;
+            if (lt >= TriggerThreshold) triggerBits |= TriggerLeft;
+            if (rt >= TriggerThreshold) triggerBits |= TriggerRight;
+            ushort triggerPressed = (ushort)(triggerBits & ~_prevTriggerBits);
+            _prevTriggerBits = triggerBits;
+            if ((triggerPressed & TriggerLeft) != 0) Raise(PadButton.LT);
+            if ((triggerPressed & TriggerRight) != 0) Raise(PadButton.RT);
+
             ushort pressed = (ushort)(buttons & ~_prevButtons);
             _prevButtons = buttons;
             if (pressed == 0) return;
@@ -103,6 +123,9 @@ namespace ClawTweaksCenter.Navigation
             if ((pressed & XINPUT_GAMEPAD_X) != 0) Raise(PadButton.X);
             if ((pressed & XINPUT_GAMEPAD_Y) != 0) Raise(PadButton.Y);
             if ((pressed & XINPUT_GAMEPAD_START) != 0) Raise(PadButton.Menu); // Menu/☰ button
+            if ((pressed & XINPUT_GAMEPAD_BACK) != 0) Raise(PadButton.View);   // Select/View button
+            if ((pressed & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0) Raise(PadButton.LB);
+            if ((pressed & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0) Raise(PadButton.RB);
 
             // Discrete D-Pad edges, in addition to the continuous ScrollRequested above — screens
             // with a real grid/list selection (CenterMenuWindow) bind these; phases that don't bind
@@ -120,7 +143,10 @@ namespace ClawTweaksCenter.Navigation
         private const ushort XINPUT_GAMEPAD_DPAD_DOWN = 0x0002;
         private const ushort XINPUT_GAMEPAD_DPAD_LEFT = 0x0004;
         private const ushort XINPUT_GAMEPAD_DPAD_RIGHT = 0x0008;
+        private const ushort XINPUT_GAMEPAD_BACK = 0x0020;  // Select / View
         private const ushort XINPUT_GAMEPAD_START = 0x0010; // Menu (☰)
+        private const ushort XINPUT_GAMEPAD_LEFT_SHOULDER = 0x0100;
+        private const ushort XINPUT_GAMEPAD_RIGHT_SHOULDER = 0x0200;
         private const ushort XINPUT_GAMEPAD_A = 0x1000;
         private const ushort XINPUT_GAMEPAD_B = 0x2000;
         private const ushort XINPUT_GAMEPAD_X = 0x4000;
@@ -150,9 +176,10 @@ namespace ClawTweaksCenter.Navigation
 
         private const uint ERROR_SUCCESS = 0;
 
-        private static bool TryPollCombined(out ushort buttons, out short leftStickX, out short leftStickY, out short rightStickY)
+        private static bool TryPollCombined(out ushort buttons, out short leftStickX, out short leftStickY, out short rightStickY,
+                                            out byte leftTrigger, out byte rightTrigger)
         {
-            buttons = 0; leftStickX = 0; leftStickY = 0; rightStickY = 0;
+            buttons = 0; leftStickX = 0; leftStickY = 0; rightStickY = 0; leftTrigger = 0; rightTrigger = 0;
             bool any = false;
             for (uint i = 0; i < 4; i++)
             {
@@ -167,6 +194,10 @@ namespace ClawTweaksCenter.Navigation
                 if (Math.Abs((int)state.Gamepad.sThumbLX) > Math.Abs((int)leftStickX)) leftStickX = state.Gamepad.sThumbLX;
                 if (Math.Abs((int)state.Gamepad.sThumbLY) > Math.Abs((int)leftStickY)) leftStickY = state.Gamepad.sThumbLY;
                 if (Math.Abs((int)state.Gamepad.sThumbRY) > Math.Abs((int)rightStickY)) rightStickY = state.Gamepad.sThumbRY;
+                // Triggers combine as a maximum across slots, matching how the buttons are OR-ed:
+                // whichever pad the user actually holds is the one that decides.
+                if (state.Gamepad.bLeftTrigger > leftTrigger) leftTrigger = state.Gamepad.bLeftTrigger;
+                if (state.Gamepad.bRightTrigger > rightTrigger) rightTrigger = state.Gamepad.bRightTrigger;
             }
             return any;
         }

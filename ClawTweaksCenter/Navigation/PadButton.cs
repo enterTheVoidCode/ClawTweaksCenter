@@ -1,4 +1,4 @@
-namespace ClawTweaksCenter.Navigation
+﻿namespace ClawTweaksCenter.Navigation
 {
     /// <summary>
     /// The controller buttons the wizard reacts to. Navigation is deliberately NOT a roaming focus
@@ -12,6 +12,13 @@ namespace ClawTweaksCenter.Navigation
         X,     // (reserved for a secondary action if a phase needs it)
         Y,     // re-check / refresh
         Menu,  // continue to next phase (blocked until the phase allows it)
+        View,  // Select / Back button (XINPUT_GAMEPAD_BACK) - opens the library settings
+
+        // Shoulders and triggers. LB/RB switch the MAIN tabs (Start / Library), LT/RT switch the
+        // grouping INSIDE the library. Like the face buttons these are edge-triggered — the triggers
+        // are analogue, so XInputNavigator turns them into presses against a threshold rather than
+        // reporting a value. A held trigger must produce exactly one group change, not 25 per second.
+        LB, RB, LT, RT,
 
         // Discrete D-Pad presses (edge-triggered, like the face buttons above) — NOT rendered as
         // footer chips (no fixed-button glyph makes sense for "move"). Used by screens with a real
