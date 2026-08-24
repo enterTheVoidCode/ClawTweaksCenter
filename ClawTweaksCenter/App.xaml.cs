@@ -90,8 +90,28 @@ namespace ClawTweaksCenter
             // out of the ClawTweaks widget. See the note at the receiving end: it only carries when
             // this launch really starts a process.
             bool startLibrary = Array.Exists(e.Args, a => a.Equals("--library", StringComparison.OrdinalIgnoreCase));
+
+            // Single-instance: only from HERE on, deliberately AFTER Gate #0 above. A portable/naked
+            // exe under test (this repo's own PortableExe\ workflow, see the CopyPortableExe target
+            // in the csproj) must never be redirected into waking an older, already-installed
+            // resident instance - it has to show the install/update prompt exactly as if none of this
+            // existed. Only the ONE real, installed Center that made it past Gate #0 ever claims the
+            // mutex, so testing a fresh build alongside a resident tray instance still works.
+            _instanceMutex = Core.CenterInstanceSignal.TryClaim();
+            if (_instanceMutex == null)
+            {
+                Core.CenterInstanceSignal.SignalRunningInstance(
+                    startLibrary ? Core.CenterInstanceSignal.CommandShowLibrary : Core.CenterInstanceSignal.CommandShow);
+                Shutdown();
+                return;
+            }
+
             ShowForeground(new CenterMenuWindow(startLibrary: startLibrary));
         }
+
+        // Held for the whole process lifetime - a Mutex with no live reference can be finalized and
+        // silently drop its claim, which would let a second launch slip through undetected.
+        private static System.Threading.Mutex _instanceMutex;
 
         /// <summary>
         /// Shows a window and actually brings it to the front.

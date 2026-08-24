@@ -15,6 +15,21 @@ namespace ClawTweaksCenter.Core
     /// Every accessor is best-effort: a failed read returns the default and a failed write is dropped.
     /// A preference that cannot be stored must never stop the app from running.
     /// </summary>
+    /// <summary>
+    /// What happens to the Center window after a game starts. Stored as its ordinal, so entries may
+    /// only ever be APPENDED - an existing installation carries the number, not the name.
+    /// </summary>
+    public enum LaunchBehavior
+    {
+        /// <summary>Exit. The default, and the only one that frees the memory Center is holding.</summary>
+        Close,
+        /// <summary>Minimise and stay running, so coming back is instant and the library is already
+        /// scanned.</summary>
+        Minimize,
+        /// <summary>Leave the window as it is, behind the game.</summary>
+        StayOpen,
+    }
+
     public static class CenterSettings
     {
         private const string KeyPath = @"Software\ClawTweaks\Center";
@@ -89,6 +104,41 @@ namespace ClawTweaksCenter.Core
             set => WriteBool("StartCenterWithClawTweaks", value);
         }
 
+        /// <summary>
+        /// What Center does once a game has been started.
+        ///
+        /// Both of the non-closing options are safe, which is worth writing down because the launch
+        /// path used to say otherwise. The XInput poller returns immediately unless the window is
+        /// active (XInputNavigator.OnTick), so a background Center does NOT fight the game for the
+        /// sticks - and the window is not topmost, so it cannot sit over one either.
+        /// </summary>
+        public static LaunchBehavior LaunchBehavior
+        {
+            get
+            {
+                int raw = ReadInt("LaunchBehavior", (int)LaunchBehavior.Close);
+                return raw >= 0 && raw <= (int)LaunchBehavior.StayOpen ? (LaunchBehavior)raw : LaunchBehavior.Close;
+            }
+            set => WriteInt("LaunchBehavior", (int)value);
+        }
+
+        /// <summary>
+        /// Keep running in the tray instead of exiting - see Library/GameRunTracker and
+        /// CenterMenuWindow.Tray.cs.
+        ///
+        /// Off by default: a resident background process is exactly the kind of thing a user should
+        /// opt into, not discover. Once on, it governs EVERY way Center would otherwise fully exit
+        /// (the titlebar X, the Home/hand-off screens' "Exit" action, and - deliberately - even
+        /// LaunchBehavior.Close after starting a game): the point of the setting is "always resident
+        /// for an instant reopen from ClawTweaks", and an explicit game-launch close silently
+        /// bypassing that would undo the very thing the user turned on.
+        /// </summary>
+        public static bool RunInBackground
+        {
+            get => ReadBool("RunInBackground", false);
+            set => WriteBool("RunInBackground", value);
+        }
+
         /// <summary>Removes everything this class stored. Called from the uninstall path.</summary>
         public static void Clear()
         {
@@ -114,6 +164,27 @@ namespace ClawTweaksCenter.Core
             {
                 using var key = Registry.CurrentUser.CreateSubKey(KeyPath);
                 key?.SetValue(name, value ? 1 : 0, RegistryValueKind.DWord);
+            }
+            catch { }
+        }
+
+        private static int ReadInt(string name, int fallback)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
+                object raw = key?.GetValue(name);
+                return raw == null ? fallback : Convert.ToInt32(raw);
+            }
+            catch { return fallback; }
+        }
+
+        private static void WriteInt(string name, int value)
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.CreateSubKey(KeyPath);
+                key?.SetValue(name, value, RegistryValueKind.DWord);
             }
             catch { }
         }

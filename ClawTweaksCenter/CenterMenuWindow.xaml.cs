@@ -96,6 +96,10 @@ namespace ClawTweaksCenter
         private readonly OnboardingRunner _onboarding;
         private readonly bool _startOnboardingOnLoad;
         private readonly bool _startLibraryOnLoad;
+        // Guards TryEnterLibraryOnceKnown so it fires exactly once. RefreshSourcesAsync also runs
+        // from the Browse tab's manual Refresh button, and without this a user calmly browsing
+        // builds would get yanked into the library the moment that refresh re-resolves the version.
+        private bool _autoLibraryJumpDone;
 
         // Gone with the elevation gate: a "--resume-install=<temp json>" argument used to carry the
         // build the user had picked across the elevated relaunch, so the install could pick up where
@@ -133,7 +137,28 @@ namespace ClawTweaksCenter
 
             SetupVersionLabel.Text = "CTW Center v" + (Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "?");
             RenderDeviceBanner(null);
-            RenderHome();
+
+            if (startLibrary || CenterSettings.OpenLibraryAtStartup)
+            {
+                // Skips Home entirely rather than shortening its appearance. Home carries the
+                // installed-version check (is the ClawTweaks widget present, which build) and, once
+                // source fetching lands, an update banner - neither is instant, and glimpsing either
+                // for even a second before the jump to the library reads as the wrong screen loading
+                // first. The very first frame on screen is made to already look like the library
+                // opening: same chrome (no header, no tab strip yet) and the library's own loading
+                // message, which OpenLibrary below replaces the moment it can actually run.
+                _view = View.Library;
+                ContentScroller.Visibility = Visibility.Collapsed;
+                if (ShellHeader != null) ShellHeader.Visibility = Visibility.Collapsed;
+                LibraryRoot.Visibility = Visibility.Visible;
+                LibraryRoot.Children.Clear();
+                LibraryRoot.RowDefinitions.Clear();
+                LibraryRoot.Children.Add(BuildLibraryMessage("Preparing your library…", true));
+            }
+            else
+            {
+                RenderHome();
+            }
             RefreshActionBar();
 
             Loaded += async (_, __) =>
@@ -174,16 +199,21 @@ namespace ClawTweaksCenter
                 // second one, so no arguments ever arrive and the jump silently does nothing. Closing
                 // that needs a channel into the running instance (plan section 8) plus a change on
                 // the helper side, which is a separate decision.
-                // --library, or the remembered preference. Both land here rather than in the
-                // constructor because the tab does not exist until the installed-version check
-                // answers, and jumping to a tab that is not there yet lands nowhere.
-                else if ((_startLibraryOnLoad || CenterSettings.OpenLibraryAtStartup) && LibraryAvailable) OpenLibrary();
+                // --library, or the remembered preference. This is a safety net, not the usual
+                // path any more: TryEnterLibraryOnceKnown already fires from inside
+                // RefreshSourcesAsync as soon as the version check lands, well before this point (it
+                // does not wait on the GitHub/Drive fetches sourcesTask is awaiting below). The guard
+                // inside it makes a second call here harmless either way.
+                else TryEnterLibraryOnceKnown();
             };
             Closed += (_, __) =>
             {
                 _nav?.Dispose();
+                _gameTrackCts?.Cancel();
                 try { _helperPipe?.Dispose(); } catch { } // single shared client for both runners
             };
+
+            InitializeTray();
 
             // Keyboard fallbacks for desk testing.
             KeyDown += (_, e) =>
@@ -308,11 +338,20 @@ namespace ClawTweaksCenter
             var versionTask = Task.Run(() => PackageInstaller.GetInstalledVersion());
             var ghTask = FetchGitHubAsync();
             var driveTask = FetchDriveAsync();
-            await Task.WhenAll(versionTask, ghTask, driveTask);
 
-            _installedVersion = versionTask.Result;
+            // The version check answers ONE question - is ClawTweaks installed, and which build -
+            // and it alone gates LibraryAvailable and the tab strip. It used to sit behind
+            // Task.WhenAll with the two network fetches below, so a direct-to-library launch waited
+            // on however long GitHub or Google Drive took to answer, even though neither has
+            // anything to do with whether the library can open. Resolved and acted on the moment it
+            // lands; the network fetches keep running underneath for Browse's build lists.
+            _installedVersion = await versionTask.ConfigureAwait(true);
             _installedVersionChecked = true;
-            RenderCurrentView(); // installed version is now known — Home's update banner + Browse's tags show up
+            TryEnterLibraryOnceKnown();
+            RenderCurrentView(); // installed version is now known — Home's update banner + Browse's tags show up (no-op if the line above already jumped to the library)
+
+            await Task.WhenAll(ghTask, driveTask);
+            RenderCurrentView(); // Browse's build list / per-device tags are now current
 
             _busy = false;
             RefreshActionBar();
@@ -422,6 +461,27 @@ namespace ClawTweaksCenter
         /// <summary>True when the manifest advertises a newer Center than the one running. See
         /// SetupVersionCheck.IsUpdateOffered.</summary>
         private bool CenterUpdateOffered => _setupVersionCheck?.IsUpdateOffered == true;
+
+        /// <summary>
+        /// Jumps to the library the moment it is known whether that is even possible - fires exactly
+        /// once per window (see _autoLibraryJumpDone), the instant _installedVersionChecked turns
+        /// true, regardless of which of the two things asked for it (--library or the remembered
+        /// "start in library" preference).
+        ///
+        /// Falls back to Home rather than parking on the constructor's loading placeholder forever
+        /// when the check comes back negative - a machine where ClawTweaks is not installed has
+        /// nothing to jump to, and Home is where the user can actually do something about that.
+        /// </summary>
+        private void TryEnterLibraryOnceKnown()
+        {
+            if (_autoLibraryJumpDone) return;
+            if (!(_startLibraryOnLoad || CenterSettings.OpenLibraryAtStartup)) return;
+            if (!_installedVersionChecked) return;
+
+            _autoLibraryJumpDone = true;
+            if (LibraryAvailable) OpenLibrary();
+            else GoHome();
+        }
 
         private void RenderHome()
         {
