@@ -118,8 +118,8 @@ namespace ClawTweaksCenter.Library
 
                 string file = null;
                 try { file = await DownloadCoverAsync(key, game.Title, titleKey, ct).ConfigureAwait(false); }
-                catch (OperationCanceledException) { throw; }
-                catch { }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                catch { continue; }
 
                 lock (IndexLock) Index[titleKey] = file ?? string.Empty;
                 changed = true;
@@ -147,10 +147,10 @@ namespace ClawTweaksCenter.Library
             byte[] bytes;
             using (var response = await Http.GetAsync(url, ct).ConfigureAwait(false))
             {
-                if (!response.IsSuccessStatusCode) return null;
+                response.EnsureSuccessStatusCode();
                 bytes = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
             }
-            if (bytes.Length == 0) return null;
+            if (bytes.Length == 0) throw new InvalidDataException("SteamGridDB returned an empty cover image.");
 
             // Named after the title key, not after the remote file: two games can be served the same
             // image name, and the key is what we look it up by anyway.
@@ -168,10 +168,11 @@ namespace ClawTweaksCenter.Library
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
 
             using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) return null;
+            response.EnsureSuccessStatusCode();
 
             using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
-            if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array) return null;
+            if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+                throw new JsonException("SteamGridDB search response did not contain an array data field.");
 
             // FIRST RESULT ONLY, and only when the name matches once punctuation is out of the way.
             // The endpoint is an autocomplete: searching "Doom" returns every Doom ever made, and
@@ -180,8 +181,10 @@ namespace ClawTweaksCenter.Library
             string want = PlayniteSource.NormalizeTitle(title);
             foreach (var entry in data.EnumerateArray())
             {
-                if (!entry.TryGetProperty("id", out var idProp) || !idProp.TryGetInt32(out int id)) continue;
-                if (!entry.TryGetProperty("name", out var nameProp)) continue;
+                if (entry.ValueKind != JsonValueKind.Object ||
+                    !entry.TryGetProperty("id", out var idProp) || !idProp.TryGetInt32(out int id) ||
+                    !entry.TryGetProperty("name", out var nameProp) || nameProp.ValueKind != JsonValueKind.String)
+                    throw new JsonException("SteamGridDB search response contained an unexpected entry.");
                 if (PlayniteSource.NormalizeTitle(nameProp.GetString()) == want) return id;
             }
             return null;
@@ -196,14 +199,23 @@ namespace ClawTweaksCenter.Library
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
 
             using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) return null;
+            response.EnsureSuccessStatusCode();
 
             using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
-            if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array) return null;
+            if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+                throw new JsonException("SteamGridDB grid response did not contain an array data field.");
 
             foreach (var grid in data.EnumerateArray())
-                if (grid.TryGetProperty("url", out var url) && url.ValueKind == JsonValueKind.String)
-                    return url.GetString();
+            {
+                if (grid.ValueKind != JsonValueKind.Object ||
+                    !grid.TryGetProperty("url", out var url) || url.ValueKind != JsonValueKind.String)
+                    throw new JsonException("SteamGridDB grid response contained an unexpected entry.");
+
+                string value = url.GetString();
+                if (string.IsNullOrWhiteSpace(value))
+                    throw new JsonException("SteamGridDB grid response contained an empty URL.");
+                return value;
+            }
             return null;
         }
 
