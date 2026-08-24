@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
@@ -39,6 +39,12 @@ namespace ClawTweaksCenter
                     // machinery (already wired for --library / OpenLibraryAtStartup) is not reachable
                     // from here without duplicating it - a wake this early in the resident instance's
                     // life is not the case this is for anyway, so no fallback is worth building.
+                }),
+                onToggleLibrary: () => Dispatcher.Invoke(ToggleLibraryFromSignal),
+                onShowHome: () => Dispatcher.Invoke(() =>
+                {
+                    BringToFront();
+                    if (_view != View.Home) GoHome();
                 }));
 
             SyncTrayIcon();
@@ -120,7 +126,47 @@ namespace ClawTweaksCenter
 
             icon.ContextMenu = menu;
             icon.TrayLeftMouseUp += (_, __) => BringToFront();
+
+            // WITHOUT THIS THERE IS NO ICON. TaskbarIcon creates the actual Shell_NotifyIcon entry
+            // from its Loaded event, and this one is built in code and never enters the visual tree,
+            // so Loaded never fires. Everything else here - menu, tooltip, click handlers - is wired
+            // to a notification icon that was never registered with the shell, which is exactly as
+            // silent as it sounds: no exception, no icon.
+            //
+            // Efficiency mode explicitly OFF. It would put the process into EcoQoS while the window
+            // is hidden, and hidden-but-resident is the entire point of this feature - the promise is
+            // that the library is there instantly, not that the process is throttled while waiting.
+            try { if (!icon.IsCreated) icon.ForceCreate(enablesEfficiencyMode: false); }
+            catch (Exception ex) { Core.InstallLog.Write("Tray icon creation failed: " + ex.Message); }
+
             return icon;
+        }
+
+        /// <summary>
+        /// The ClawTweaks button, both directions. Away only when the library is BOTH on screen and
+        /// the window the user is actually looking at; anything else means "bring me the library".
+        ///
+        /// IsActive rather than IsVisible alone, and that distinction is the whole feature: a Center
+        /// window sitting behind a fullscreen game is visible by every WPF measure. Hiding it there
+        /// would make the button do nothing the user can see, and the second press - the one that
+        /// should have brought the library back - would look like the first one that worked.
+        ///
+        /// Putting it away goes through Close(), not Hide(): the Closing handler above already knows
+        /// what closing means on this machine (hide and stay resident, or actually exit). Calling
+        /// Hide() here would quietly leave an invisible, unreachable process behind for anyone who
+        /// has Run in background off.
+        /// </summary>
+        private void ToggleLibraryFromSignal()
+        {
+            bool showingLibrary = IsVisible
+                                  && WindowState != WindowState.Minimized
+                                  && IsActive
+                                  && _view == View.Library;
+
+            if (showingLibrary) { Close(); return; }
+
+            BringToFront();
+            if (_view != View.Library && LibraryAvailable) OpenLibrary();
         }
 
         private void BringToFront()

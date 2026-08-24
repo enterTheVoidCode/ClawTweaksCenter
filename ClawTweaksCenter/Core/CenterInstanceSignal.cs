@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.IO.Pipes;
 using System.Threading;
@@ -31,6 +31,16 @@ namespace ClawTweaksCenter.Core
         public const string CommandShow = "show";
         // Show the window AND land on the library, same as launching with --library.
         public const string CommandShowLibrary = "library";
+        // ONE button on the handheld, both directions: library up if it is not, away if it is.
+        //
+        // The DECISION belongs here, not in the caller. Only this process knows whether its window is
+        // visible, whether it is actually in front, and which view it is on - a caller that tried to
+        // work that out from the outside (window handle, process state) would be guessing at three
+        // things it cannot see, and would get it wrong exactly when the window is up but behind a game.
+        public const string CommandToggleLibrary = "toggle-library";
+        // Show the window ON THE START SCREEN, and mean it: this OVERRIDES the user's "start in the
+        // library" preference. Two buttons that both land on the library would be one button.
+        public const string CommandShowHome = "home";
 
         /// <summary>
         /// Claims the single-instance mutex. Returns the Mutex the caller must keep referenced for as
@@ -72,7 +82,8 @@ namespace ClawTweaksCenter.Core
         /// invoked on a background thread - the caller marshals to the UI thread itself, the same way
         /// every other background-to-UI hop in this app already does.
         /// </summary>
-        public static void StartListening(CancellationToken ct, Action onShow, Action onShowLibrary)
+        public static void StartListening(CancellationToken ct, Action onShow, Action onShowLibrary,
+                                          Action onToggleLibrary, Action onShowHome)
         {
             _ = Task.Run(async () =>
             {
@@ -87,7 +98,11 @@ namespace ClawTweaksCenter.Core
                         using var reader = new StreamReader(server);
                         string command = await reader.ReadLineAsync().ConfigureAwait(false);
 
-                        if (string.Equals(command, CommandShowLibrary, StringComparison.OrdinalIgnoreCase))
+                        if (string.Equals(command, CommandToggleLibrary, StringComparison.OrdinalIgnoreCase))
+                            onToggleLibrary?.Invoke();
+                        else if (string.Equals(command, CommandShowHome, StringComparison.OrdinalIgnoreCase))
+                            onShowHome?.Invoke();
+                        else if (string.Equals(command, CommandShowLibrary, StringComparison.OrdinalIgnoreCase))
                             onShowLibrary?.Invoke();
                         else
                             onShow?.Invoke();

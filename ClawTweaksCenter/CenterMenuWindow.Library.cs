@@ -318,6 +318,71 @@ namespace ClawTweaksCenter
             VerticalAlignment = VerticalAlignment.Center,
         };
 
+        /// <summary>
+        /// A tab chip's insides: the label, and the number of games behind it in a small grey disc.
+        ///
+        /// The count used to be two spaces and a number in the same run of text, which read as part
+        /// of the name - "Steam 84" looks like a title until you notice it changes. Set apart, it is
+        /// a quantity, and the same treatment on the tab row and the ROM system row keeps it one idea
+        /// rather than two similar-looking ones.
+        ///
+        /// The disc stays SUBTLE even on the active chip. It is there to be glanced at, not read: the
+        /// chip already carries the selection through its own border and weight, and a second thing
+        /// lighting up inside it competes with that.
+        /// </summary>
+        private static UIElement BuildChipContent(string label, int? count, bool active, double fontSize)
+        {
+            var text = new TextBlock
+            {
+                Text = label,
+                FontSize = fontSize,
+                FontWeight = active ? FontWeights.Bold : FontWeights.Normal,
+                Foreground = active ? UiHelpers.Text : UiHelpers.Subtle,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            if (count == null) return text;
+
+            var number = new TextBlock
+            {
+                Text = count.Value.ToString(),
+                FontSize = fontSize - 3,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = UiHelpers.Subtle,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            // MinWidth = MinHeight and a radius of half that: a single digit sits in a circle, and
+            // three digits stretch it into a pill instead of overflowing a fixed-size circle. A round
+            // badge that clips its own contents at 100+ items is the version of this that only breaks
+            // on the tabs that matter.
+            double size = fontSize + 6;
+            var badge = new Border
+            {
+                Child = number,
+                MinWidth = size,
+                MinHeight = size,
+                CornerRadius = new CornerRadius(size / 2),
+                // A translucent white wash rather than the Card brush: the ACTIVE chip is already
+                // filled with Card, and a badge painted in the same colour would vanish on exactly
+                // the tab the user is looking at. This one sits on both backgrounds.
+                Background = BadgeFill,
+                Padding = new Thickness(5, 0, 5, 0),
+                Margin = new Thickness(7, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            row.Children.Add(text);
+            row.Children.Add(badge);
+            return row;
+        }
+
+        private static readonly Brush BadgeFill = Freeze(new SolidColorBrush(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)));
+
+        private static Brush Freeze(Brush b) { b.Freeze(); return b; }
+
         private UIElement BuildGroupChip(LibraryGroup g)
         {
             bool active = g == _libraryGroup;
@@ -325,13 +390,7 @@ namespace ClawTweaksCenter
 
             var chip = new Border
             {
-                Child = new TextBlock
-                {
-                    Text = GameLibrary.GroupLabel(g) + (_libraryScanned ? "  " + count : string.Empty),
-                    FontSize = 14,
-                    FontWeight = active ? FontWeights.Bold : FontWeights.Normal,
-                    Foreground = active ? UiHelpers.Text : UiHelpers.Subtle,
-                },
+                Child = BuildChipContent(GameLibrary.GroupLabel(g), _libraryScanned ? count : (int?)null, active, 14),
                 Padding = new Thickness(10, 4, 10, 4),
                 Margin = new Thickness(0, 0, 6, 0),
                 CornerRadius = new CornerRadius(13),
@@ -486,13 +545,7 @@ namespace ClawTweaksCenter
 
                 var chip = new Border
                 {
-                    Child = new TextBlock
-                    {
-                        Text = SystemLabel(system) + "  " + count,
-                        FontSize = 13,
-                        FontWeight = active ? FontWeights.Bold : FontWeights.Normal,
-                        Foreground = active ? UiHelpers.Text : UiHelpers.Subtle,
-                    },
+                    Child = BuildChipContent(SystemLabel(system), count, active, 13),
                     Padding = new Thickness(9, 3, 9, 3),
                     Margin = new Thickness(0, 0, 6, 0),
                     CornerRadius = new CornerRadius(11),
@@ -1396,7 +1449,6 @@ namespace ClawTweaksCenter
             if (_libraryGroup == LibraryGroup.Misc)
             {
                 AddAction(PadButton.X, "Add app", true, OpenMiscAdd);
-                AddAction(PadButton.Y, "Edit", SelectedGame != null, OpenMiscEdit);
             }
             else
             {
@@ -1557,8 +1609,8 @@ namespace ClawTweaksCenter
         ///
         /// Same construction as the one in the ClawTweaks widget and the user's Handheld Companion
         /// fork (TemplatesDictionary.xaml, "Focus shimmer"): a transparent-to-white-to-transparent
-        /// horizontal gradient, skewed -18 degrees, translated across and then held off-screen for a
-        /// beat before repeating. Starts hidden and motionless - ApplySelected is what animates it,
+        /// horizontal gradient, skewed -18 degrees, translated once across the tile. Starts hidden
+        /// and motionless - ApplySelected is what animates it,
         /// so only ever ONE tile in the view is running an animation.
         /// </summary>
         private static Rectangle BuildSweep()
@@ -1588,6 +1640,10 @@ namespace ClawTweaksCenter
         }
 
         private const double SweepWidth = 64;
+
+        /// <summary>How long one pass takes. Fast enough to be over before the cursor moves on -
+        /// this is a highlight, not something to watch.</summary>
+        private const double SweepSeconds = 0.55;
 
         /// <summary>
         /// Paints the selection frame and starts or stops the sweep.
@@ -1621,13 +1677,16 @@ namespace ClawTweaksCenter
             sweep.BeginAnimation(UIElement.OpacityProperty,
                 new DoubleAnimation(1, TimeSpan.FromSeconds(0.2)));
 
+            // ONCE per selection, not on a loop. A stripe that keeps coming back reads as something
+            // still loading; a single pass reads as the tile lighting up when the cursor lands on it.
+            // Landing on a tile again re-runs it, because ApplySelected is called on every move.
             double travel = tile.Width + SweepWidth;
-            var slide = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
-            slide.KeyFrames.Add(new LinearDoubleKeyFrame(-SweepWidth, KeyTime.FromTimeSpan(TimeSpan.Zero)));
-            slide.KeyFrames.Add(new LinearDoubleKeyFrame(travel, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.4))));
-            // Parked off the far edge for a beat before going again, so it reads as an occasional
-            // glint rather than a continuously scrolling stripe.
-            slide.KeyFrames.Add(new LinearDoubleKeyFrame(travel, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(2.4))));
+            var slide = new DoubleAnimation(-SweepWidth, travel, TimeSpan.FromSeconds(SweepSeconds))
+            {
+                // Holds at the far edge instead of snapping back to the left, which would show the
+                // stripe crossing the tile a second time in one frame.
+                FillBehavior = FillBehavior.HoldEnd,
+            };
             translate.BeginAnimation(TranslateTransform.XProperty, slide);
         }
 

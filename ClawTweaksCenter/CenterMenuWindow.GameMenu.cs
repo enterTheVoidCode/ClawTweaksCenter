@@ -29,6 +29,8 @@ namespace ClawTweaksCenter
             Menu,
             /// <summary>Search box (pre-filled with the title) + a grid of portrait covers to pick from.</summary>
             ArtPicker,
+            /// <summary>Name box for a Misc entry. Not offered for anything else - see RenameRow.</summary>
+            Rename,
         }
 
         // Fixed column count for the art picker grid - unlike the library's own grid it does not need
@@ -44,6 +46,17 @@ namespace ClawTweaksCenter
         private GameEntry _gameMenuTarget;
         private int _gameMenuIndex;
         private readonly List<Border> _gameMenuRows = new List<Border>();
+
+        /// <summary>
+        /// What A does per row, built fresh on every render.
+        ///
+        /// A LIST, not a switch on the index. Two of the rows only exist for entries the user added
+        /// themselves, so the row NUMBER of "Choose cover art" is not a constant - a switch would put
+        /// Remove where Rename is the moment the menu is opened on a Steam game instead.
+        /// </summary>
+        private readonly List<(string Label, Action Run)> _gameMenuActions = new List<(string, Action)>();
+
+        private TextBox _renameBox;
 
         // Art picker state. -1 selects the search box itself; 0.. selects a result tile.
         private TextBox _artPickerQueryBox;
@@ -110,6 +123,14 @@ namespace ClawTweaksCenter
         /// menu.</summary>
         private void GameMenuBack()
         {
+            if (_gameMenuOverlay == GameMenuOverlay.Rename)
+            {
+                // B commits rather than discards, matching the box this replaced: the name is the
+                // only thing on the screen, and a text field that throws away what was typed when
+                // you leave it is the shape people lose work to.
+                SaveRename();
+                return;
+            }
             if (_gameMenuOverlay == GameMenuOverlay.ArtPicker)
             {
                 _artPickerCts?.Cancel();
@@ -146,6 +167,7 @@ namespace ClawTweaksCenter
             LibraryRoot.RowDefinitions.Clear();
             _gameMenuRows.Clear();
             _artPickerTiles.Clear();
+            _renameBox = null;
             // Dropped with the tiles, not just alongside them: RenderArtPicker only assigns a new one
             // on the has-results path, so a "searching"/"nothing found" render would otherwise leave
             // the previous, now-detached ScrollViewer here for the next scroll call to talk to.
@@ -155,6 +177,7 @@ namespace ClawTweaksCenter
             {
                 case GameMenuOverlay.Menu: RenderGameMenuMenu(); break;
                 case GameMenuOverlay.ArtPicker: RenderArtPicker(); break;
+                case GameMenuOverlay.Rename: RenderRename(); break;
             }
         }
 
@@ -177,16 +200,38 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 0, 0, 16),
             });
 
+            _gameMenuActions.Clear();
+
             bool isFav = game?.IsFavorite == true;
-            stack.Children.Add(GameMenuRow(0,
+            // Filled star when it already is one, outline when it is not - the glyph carries the
+            // current state, which is why the label can stay an instruction rather than a status.
+            stack.Children.Add(GameMenuRow(isFav ? "" : "",
                 isFav ? "Remove from Favorites" : "Add to Favorites",
                 null,
-                isFav ? UiHelpers.Ok : UiHelpers.Text));
+                isFav ? UiHelpers.Ok : UiHelpers.Text,
+                isFav ? "Unfavorite" : "Favorite",
+                () => { FavoritesStore.Toggle(_gameMenuTarget); RenderGameMenuOverlay(); RefreshActionBar(); }));
 
             bool hasKey = Library.SteamGridDb.HasKey;
-            stack.Children.Add(GameMenuRow(1, "Choose cover art…",
+            stack.Children.Add(GameMenuRow("", "Choose cover art…",
                 hasKey ? "Search SteamGridDB for a different cover" : "Set a SteamGridDB key in Settings first",
-                UiHelpers.Text));
+                UiHelpers.Text, "Choose cover",
+                () => { if (Library.SteamGridDb.HasKey) OpenArtPicker(); }));
+
+            // Renaming and removing exist only for entries the USER added by hand. A Steam or Xbox
+            // game comes from a scan: a new name would be overwritten by the next one and a deleted
+            // entry would simply come back, so both would be buttons that undo themselves.
+            if (GameMenuTargetIsMisc)
+            {
+                stack.Children.Add(GameMenuRow("", "Rename…",
+                    "Also looks for new cover art", UiHelpers.Text, "Rename", OpenRename));
+
+                stack.Children.Add(GameMenuRow("", "Remove from library",
+                    "Deletes the entry, not the app", UiHelpers.Text, "Remove", RemoveMiscGameFromMenu));
+            }
+
+            if (_gameMenuIndex >= _gameMenuActions.Count) _gameMenuIndex = _gameMenuActions.Count - 1;
+            if (_gameMenuIndex < 0) _gameMenuIndex = 0;
 
             LibraryRoot.Children.Add(stack);
             ApplyGameMenuSelection();
@@ -196,9 +241,13 @@ namespace ClawTweaksCenter
         /// shared: each of the three menus wires its row clicks to its own index/activate pair, and a
         /// shared builder parameterized for all three would carry more plumbing than the four lines of
         /// XAML it saves.</summary>
-        private Border GameMenuRow(int index, string title, string subtitle, Brush titleBrush)
+        private Border GameMenuRow(string glyph, string title, string subtitle, Brush titleBrush,
+                                   string actionLabel, Action run)
         {
-            var left = new StackPanel();
+            int index = _gameMenuActions.Count;
+            _gameMenuActions.Add((actionLabel, run));
+
+            var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             left.Children.Add(new TextBlock { Text = title, FontSize = 18, Foreground = titleBrush });
             if (subtitle != null)
                 left.Children.Add(new TextBlock
@@ -210,8 +259,22 @@ namespace ClawTweaksCenter
                     TextWrapping = TextWrapping.Wrap,
                 });
 
+            Grid.SetColumn(left, 1);
+
+            var icon = new TextBlock
+            {
+                Text = glyph,
+                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                FontSize = 20,
+                Foreground = titleBrush,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
             var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.Children.Add(icon);
             grid.Children.Add(left);
 
             var row = new Border
@@ -255,17 +318,121 @@ namespace ClawTweaksCenter
 
         private void ActivateGameMenuRow()
         {
-            switch (_gameMenuIndex)
+            if (_gameMenuIndex < 0 || _gameMenuIndex >= _gameMenuActions.Count) return;
+            _gameMenuActions[_gameMenuIndex].Run?.Invoke();
+        }
+
+        /// <summary>What A does on the row the cursor is on.</summary>
+        private string GameMenuActionLabel()
+            => _gameMenuIndex >= 0 && _gameMenuIndex < _gameMenuActions.Count
+                ? _gameMenuActions[_gameMenuIndex].Label
+                : "Select";
+
+        /// <summary>True when the focused entry is one the user added through the Misc tab, which is
+        /// the only kind this menu may delete.</summary>
+        private bool GameMenuTargetIsMisc => _gameMenuTarget?.Store == GameStore.Misc;
+
+        /// <summary>
+        /// Deletes a Misc entry from here, so it can be removed where it is looked at rather than only
+        /// through Misc → Edit. Same call as that path, deliberately: MiscStore is the file
+        /// MiscSource reads, so a second way to remove one has to go through the same write or the two
+        /// lists start disagreeing.
+        ///
+        /// No confirmation. It deletes a shortcut, not the app, and adding it back is the two button
+        /// presses it took to add it in the first place.
+        /// </summary>
+        private void RemoveMiscGameFromMenu()
+        {
+            var target = _gameMenuTarget;
+            if (target == null || target.Store != GameStore.Misc) return;
+
+            var entries = MiscStore.Load();
+            entries.RemoveAll(e => string.Equals(e.Id, target.Id, StringComparison.OrdinalIgnoreCase));
+            PublishMisc(entries);
+
+            CloseGameMenuOverlay();
+        }
+        #endregion
+
+        #region Rename
+        private void OpenRename()
+        {
+            if (!GameMenuTargetIsMisc) return;
+            _gameMenuOverlay = GameMenuOverlay.Rename;
+            RenderGameMenuOverlay();
+            RefreshActionBar();
+        }
+
+        private void RenderRename()
+        {
+            var stack = new StackPanel
             {
-                case 0:
-                    FavoritesStore.Toggle(_gameMenuTarget);
-                    RenderGameMenuOverlay();
-                    RefreshActionBar();
-                    return;
-                case 1:
-                    if (Library.SteamGridDb.HasKey) OpenArtPicker();
-                    return;
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 720,
+                MinWidth = 560,
+            };
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Rename",
+                FontSize = 26,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = UiHelpers.Text,
+                Margin = new Thickness(0, 0, 0, 16),
+            });
+
+            _renameBox = new TextBox
+            {
+                Text = _gameMenuTarget?.Title ?? string.Empty,
+                FontSize = 16,
+                Padding = new Thickness(8, 6, 8, 6),
+            };
+            stack.Children.Add(_renameBox);
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Renaming looks for new cover art.",
+                FontSize = 13,
+                Foreground = UiHelpers.Subtle,
+                Margin = new Thickness(0, 8, 0, 0),
+            });
+
+            LibraryRoot.Children.Add(stack);
+            _renameBox.Focus();
+            _renameBox.SelectAll();
+        }
+
+        /// <summary>
+        /// Stores the new name and drops the cover.
+        ///
+        /// CLEARING THE ART IS THE POINT, not tidiness: the cover lookup is keyed on the title, and
+        /// FetchMissingAsync skips any entry that already holds a picture. Renaming "citra-qt" to
+        /// "Citra" would otherwise change the label and never go looking for the cover that name can
+        /// finally find.
+        /// </summary>
+        private void SaveRename()
+        {
+            var target = _gameMenuTarget;
+            string name = (_renameBox?.Text ?? string.Empty).Trim();
+
+            if (target == null || name.Length == 0 || name == target.Title)
+            {
+                _gameMenuOverlay = GameMenuOverlay.Menu;
+                RenderGameMenuOverlay();
+                RefreshActionBar();
+                return;
             }
+
+            var entries = MiscStore.Load();
+            foreach (var entry in entries)
+                if (string.Equals(entry.Id, target.Id, StringComparison.OrdinalIgnoreCase))
+                    entry.Title = name;
+
+            target.ArtPath = null;
+            PublishMisc(entries);
+
+            // Out of the overlay entirely: the entry the menu was opened on has just been replaced by
+            // a rebuilt one, so there is nothing left for a "back to the menu" to be about.
+            CloseGameMenuOverlay();
         }
         #endregion
 
@@ -570,7 +737,9 @@ namespace ClawTweaksCenter
             switch (_gameMenuOverlay)
             {
                 case GameMenuOverlay.Menu:
-                    AddAction(PadButton.A, "Select", true, ActivateGameMenuRow);
+                    // Labelled per row rather than a flat "Select": with a delete in the list the
+                    // footer has to say which of the three the button is about to do.
+                    AddAction(PadButton.A, GameMenuActionLabel(), true, ActivateGameMenuRow);
                     AddAction(PadButton.B, "Back", true, GameMenuBack);
                     return true;
 
@@ -581,6 +750,11 @@ namespace ClawTweaksCenter
                         AddAction(PadButton.A, "Edit search", true, () => { _artPickerQueryBox?.Focus(); _artPickerQueryBox?.SelectAll(); });
                     AddAction(PadButton.X, "Search", !_artPickerSearching && !_artPickerApplying, RunArtPickerSearch);
                     AddAction(PadButton.B, "Back", true, GameMenuBack);
+                    return true;
+
+                case GameMenuOverlay.Rename:
+                    AddAction(PadButton.A, "Edit name", true, () => { _renameBox?.Focus(); _renameBox?.SelectAll(); });
+                    AddAction(PadButton.B, "Save", true, GameMenuBack);
                     return true;
 
                 default:

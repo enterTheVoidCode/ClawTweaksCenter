@@ -91,6 +91,24 @@ namespace ClawTweaksCenter
             // this launch really starts a process.
             bool startLibrary = Array.Exists(e.Args, a => a.Equals("--library", StringComparison.OrdinalIgnoreCase));
 
+            // --toggle-library is the ClawTweaks-button contract: one press opens the library, the
+            // next puts it away. With nothing running there is nothing to put away, so this launch
+            // simply IS the "open" half - which is also why it implies --library below.
+            bool toggleLibrary = Array.Exists(e.Args, a => a.Equals("--toggle-library", StringComparison.OrdinalIgnoreCase));
+
+            // --home is the other ClawTweaks button, and it has to WIN over the remembered "start in
+            // the library" preference. Someone who bound both buttons wants two destinations; a
+            // --home that quietly lands on the library because of a setting makes one of them a
+            // duplicate of the other.
+            bool startHome = Array.Exists(e.Args, a => a.Equals("--home", StringComparison.OrdinalIgnoreCase));
+
+            // --background starts resident and INVISIBLE: no window, just the tray icon and the wake
+            // pipe, so the first press of that button hits a process that is already warm. Honoured
+            // only with "Run in background" on - starting an invisible process that nothing can bring
+            // back and nothing will ever close is a zombie, not a feature.
+            bool startBackground = Array.Exists(e.Args, a => a.Equals("--background", StringComparison.OrdinalIgnoreCase))
+                                   && Core.CenterSettings.RunInBackground;
+
             // Single-instance: only from HERE on, deliberately AFTER Gate #0 above. A portable/naked
             // exe under test (this repo's own PortableExe\ workflow, see the CopyPortableExe target
             // in the csproj) must never be redirected into waking an older, already-installed
@@ -101,12 +119,29 @@ namespace ClawTweaksCenter
             if (_instanceMutex == null)
             {
                 Core.CenterInstanceSignal.SignalRunningInstance(
-                    startLibrary ? Core.CenterInstanceSignal.CommandShowLibrary : Core.CenterInstanceSignal.CommandShow);
+                    startHome ? Core.CenterInstanceSignal.CommandShowHome :
+                    toggleLibrary ? Core.CenterInstanceSignal.CommandToggleLibrary :
+                    startLibrary ? Core.CenterInstanceSignal.CommandShowLibrary :
+                    Core.CenterInstanceSignal.CommandShow);
                 Shutdown();
                 return;
             }
 
-            ShowForeground(new CenterMenuWindow(startLibrary: startLibrary));
+            var window = new CenterMenuWindow(
+                startLibrary: !startHome && (startLibrary || toggleLibrary),
+                forceHome: startHome);
+
+            if (startBackground)
+            {
+                // Never shown. WPF would otherwise end the app the moment the first window it showed
+                // closes, and here there is no first window at all - the process lives on the tray
+                // icon until "Exit Center" asks for it to stop.
+                ShutdownMode = ShutdownMode.OnExplicitShutdown;
+                window.PrepareResident();
+                return;
+            }
+
+            ShowForeground(window);
         }
 
         // Held for the whole process lifetime - a Mutex with no live reference can be finalized and

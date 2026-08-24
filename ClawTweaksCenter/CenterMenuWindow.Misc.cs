@@ -32,8 +32,11 @@ namespace ClawTweaksCenter
             Sources,
             /// <summary>The multi-select list of everything found.</summary>
             Apps,
-            /// <summary>Rename or remove one entry.</summary>
-            Edit,
+            // Editing an entry used to be a third screen here, reached with Y from the Misc tab. It
+            // is gone: renaming and removing now live in the Start-button menu on the game itself,
+            // next to favoriting and cover art, which is where a user looks for "do something with
+            // THIS entry". Having both meant Remove existed twice, in two different places, on two
+            // different buttons.
         }
 
         private MiscOverlay _miscOverlay = MiscOverlay.None;
@@ -46,8 +49,6 @@ namespace ClawTweaksCenter
         private ScrollViewer _miscLetterScroller;
         private StackPanel _miscLetterPanel;
         private FrameworkElement _activeMiscLetterChip;
-        private TextBox _miscNameBox;
-        private GameEntry _miscEditTarget;
         private CancellationTokenSource _miscScanCts;
 
         private bool MiscOverlayOpen => _miscOverlay != MiscOverlay.None;
@@ -62,29 +63,14 @@ namespace ClawTweaksCenter
             RefreshActionBar();
         }
 
-        private void OpenMiscEdit()
-        {
-            if (_closeTimer != null || _settingsOpen) return;
-            var target = SelectedGame;
-            if (target == null || target.Store != GameStore.Misc) return;
-
-            _miscEditTarget = target;
-            _miscOverlay = MiscOverlay.Edit;
-            _miscMenuIndex = 0;
-            RenderMiscOverlay();
-            RefreshActionBar();
-        }
-
         private void CloseMiscOverlay()
         {
             _miscScanCts?.Cancel();
             _miscScanCts = null;
             _miscOverlay = MiscOverlay.None;
-            _miscNameBox = null;
             _miscScroller = null;
             _miscLetterPanel = null;
             _miscLetterScroller = null;
-            _miscEditTarget = null;
             _miscRows.Clear();
             _miscChecked.Clear();
             RenderLibrary();
@@ -104,9 +90,6 @@ namespace ClawTweaksCenter
                     _miscMenuIndex = 0;
                     RenderMiscOverlay();
                     RefreshActionBar();
-                    return;
-                case MiscOverlay.Edit:
-                    SaveMiscRename();
                     return;
                 default:
                     CloseMiscOverlay();
@@ -128,7 +111,6 @@ namespace ClawTweaksCenter
             {
                 case MiscOverlay.Sources: RenderMiscSources(); break;
                 case MiscOverlay.Apps: RenderMiscApps(); break;
-                case MiscOverlay.Edit: RenderMiscEdit(); break;
             }
         }
 
@@ -393,51 +375,6 @@ namespace ClawTweaksCenter
             return row;
         }
 
-        private void RenderMiscEdit()
-        {
-            var stack = new StackPanel
-            {
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 720,
-            };
-            stack.Children.Add(MiscHeadline("Edit tool"));
-
-            var nameRow = MiscRow(0, "Name", null);
-            var nameStack = (StackPanel)((Grid)((Border)nameRow).Child).Children[0];
-            _miscNameBox = new TextBox
-            {
-                Text = _miscEditTarget?.Title ?? string.Empty,
-                FontSize = 16,
-                Padding = new Thickness(8, 6, 8, 6),
-                Margin = new Thickness(0, 8, 0, 0),
-            };
-            nameStack.Children.Add(_miscNameBox);
-            nameStack.Children.Add(new TextBlock
-            {
-                Text = "Renaming looks for new cover art.",
-                FontSize = 13,
-                Foreground = UiHelpers.Subtle,
-                Margin = new Thickness(0, 6, 0, 0),
-            });
-            stack.Children.Add(nameRow);
-
-            stack.Children.Add(MiscRow(1, "Remove from Misc", null));
-
-            string target = _miscEditTarget?.LaunchExe;
-            if (!string.IsNullOrEmpty(target))
-                stack.Children.Add(new TextBlock
-                {
-                    Text = target,
-                    FontSize = 12,
-                    Foreground = UiHelpers.Subtle,
-                    TextTrimming = TextTrimming.CharacterEllipsis,
-                    Margin = new Thickness(4, 6, 4, 0),
-                });
-
-            LibraryRoot.Children.Add(stack);
-            ApplyMiscSelection();
-        }
 
         private static TextBlock MiscHeadline(string text) => new TextBlock
         {
@@ -534,10 +471,6 @@ namespace ClawTweaksCenter
                     ToggleCandidate();
                     return;
 
-                case MiscOverlay.Edit:
-                    if (_miscMenuIndex == 0) { _miscNameBox?.Focus(); _miscNameBox?.SelectAll(); }
-                    else RemoveMiscEntry();
-                    return;
             }
         }
 
@@ -691,43 +624,6 @@ namespace ClawTweaksCenter
         #endregion
 
         #region Editing
-        /// <summary>
-        /// Stores a new name on the way out.
-        ///
-        /// CLEARS THE ART, and that is the point of doing it here rather than in the store: the cover
-        /// lookup is keyed on the title, and an entry that still holds a picture is skipped by
-        /// FetchMissingAsync. Renaming "citra-qt" to "Citra" would otherwise change the label and
-        /// never go looking for the cover that name can actually find.
-        /// </summary>
-        private void SaveMiscRename()
-        {
-            var target = _miscEditTarget;
-            if (target == null) { CloseMiscOverlay(); return; }
-
-            string name = (_miscNameBox?.Text ?? string.Empty).Trim();
-            if (name.Length == 0 || name == target.Title) { CloseMiscOverlay(); return; }
-
-            var entries = MiscStore.Load();
-            foreach (var entry in entries)
-                if (string.Equals(entry.Id, target.Id, StringComparison.OrdinalIgnoreCase))
-                    entry.Title = name;
-
-            target.ArtPath = null;
-            PublishMisc(entries);
-            CloseMiscOverlay();
-        }
-
-        private void RemoveMiscEntry()
-        {
-            var target = _miscEditTarget;
-            if (target == null) { CloseMiscOverlay(); return; }
-
-            var entries = MiscStore.Load();
-            entries.RemoveAll(e => string.Equals(e.Id, target.Id, StringComparison.OrdinalIgnoreCase));
-
-            PublishMisc(entries);
-            CloseMiscOverlay();
-        }
 
         /// <summary>Writes the list, republishes the library from it, and goes looking for covers.
         /// The order matters: the file is the source MiscSource reads, so it has to be current before
@@ -766,11 +662,6 @@ namespace ClawTweaksCenter
                         _liveActions[PadButton.LT] = () => CycleMiscLetter(-1);
                         _liveActions[PadButton.RT] = () => CycleMiscLetter(1);
                     }
-                    return true;
-
-                case MiscOverlay.Edit:
-                    AddAction(PadButton.A, _miscMenuIndex == 0 ? "Edit name" : "Remove", true, ActivateMiscRow);
-                    AddAction(PadButton.B, "Back", true, MiscOverlayBack);
                     return true;
 
                 default:

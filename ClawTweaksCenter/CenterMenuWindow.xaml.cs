@@ -31,6 +31,28 @@ namespace ClawTweaksCenter
         private readonly Dictionary<BuildSource, Border> _rowElements = new Dictionary<BuildSource, Border>();
         private readonly Dictionary<PadButton, Action> _liveActions = new Dictionary<PadButton, Action>();
 
+        /// <summary>Footer chips as the screens hand them in, BEFORE ordering. Every screen adds its
+        /// actions in whatever order reads best in its own code; the row on screen is always sorted by
+        /// <see cref="ChipOrder"/>. See RefreshActionBar.</summary>
+        private readonly List<(PadButton Button, UIElement Chip)> _pendingChips = new List<(PadButton, UIElement)>();
+        private UIElement _pendingHint;
+
+        /// <summary>
+        /// The one order footer chips appear in, everywhere in Center: A, B, X, Y, RB, LB, LT, RT,
+        /// Start, Select. It follows the pad rather than the code - the same action sits in the same
+        /// place on every screen, so the row can be read without looking at the labels.
+        ///
+        /// Which chips appear stays entirely up to the screen; only their ORDER is fixed here. A button
+        /// missing from this list still renders, at the end - a new binding must never vanish from the
+        /// footer just because nobody added it here.
+        /// </summary>
+        private static readonly PadButton[] ChipOrder =
+        {
+            PadButton.A, PadButton.B, PadButton.X, PadButton.Y,
+            PadButton.RB, PadButton.LB, PadButton.LT, PadButton.RT,
+            PadButton.Menu, PadButton.View,
+        };
+
         private List<BuildSource> _releases;
         private List<BuildSource> _testBuilds;
         private List<BuildSource> _nightlies;
@@ -100,16 +122,19 @@ namespace ClawTweaksCenter
         // from the Browse tab's manual Refresh button, and without this a user calmly browsing
         // builds would get yanked into the library the moment that refresh re-resolves the version.
         private bool _autoLibraryJumpDone;
+        /// <summary>--home was passed: the start screen, whatever the remembered preference says.</summary>
+        private readonly bool _forceHome;
 
         // Gone with the elevation gate: a "--resume-install=<temp json>" argument used to carry the
         // build the user had picked across the elevated relaunch, so the install could pick up where
         // the UAC prompt interrupted it. Nothing in the install relaunches any more, so there is
         // nothing to resume — the user simply stays in the same process the whole way through.
 
-        public CenterMenuWindow(bool startOnboarding = false, bool startLibrary = false)
+        public CenterMenuWindow(bool startOnboarding = false, bool startLibrary = false, bool forceHome = false)
         {
             _startOnboardingOnLoad = startOnboarding;
             _startLibraryOnLoad = startLibrary;
+            _forceHome = forceHome;
 
             // Build the shared pipe client and both runners BEFORE anything uses them (field initializers
             // across partial files have no guaranteed cross-file order, so wire them here explicitly).
@@ -161,7 +186,40 @@ namespace ClawTweaksCenter
             }
             RefreshActionBar();
 
-            Loaded += async (_, __) =>
+            Loaded += (_, __) => _ = StartupWorkAsync();
+            Closed += (_, __) =>
+            {
+                _nav?.Dispose();
+                _gameTrackCts?.Cancel();
+                try { _helperPipe?.Dispose(); } catch { } // single shared client for both runners
+            };
+
+            InitializeTray();
+            WireKeyboardFallbacks();
+        }
+
+        /// <summary>
+        /// Starts resident and invisible: no window on screen, but everything behind it warmed up, so
+        /// the first press of the ClawTweaks library button opens an already-scanned library instead
+        /// of paying for a cold start. See App.OnStartup's --background.
+        ///
+        /// The warm-up has to be kicked off HERE rather than left to Loaded: Loaded fires when a
+        /// window is first SHOWN, and this one never is. Without this call the resident process would
+        /// sit there having done nothing at all - which is the expensive half of the startup it was
+        /// supposed to have already paid.
+        /// </summary>
+        internal void PrepareResident() => _ = StartupWorkAsync();
+
+        /// <summary>Everything the window does once, on the way up. Runs from Loaded normally and
+        /// from PrepareResident when there will be no Loaded; the guard is what lets both call it -
+        /// a resident instance that is later shown raises Loaded for the first time right then.</summary>
+        private bool _startupWorkStarted;
+
+        private async Task StartupWorkAsync()
+        {
+            if (_startupWorkStarted) return;
+            _startupWorkStarted = true;
+
             {
                 _nav = new XInputNavigator(this);
                 _nav.ButtonPressed += b => Dispatcher.Invoke(() => Invoke(b));
@@ -194,27 +252,21 @@ namespace ClawTweaksCenter
                 // exist until that answers, so jumping straight there on startup would land on a tab
                 // that is not there yet.
                 //
-                // KNOWN GAP: this only works when the launch actually starts a new process. If Center
-                // is already running, the helper raises the existing window instead of starting a
-                // second one, so no arguments ever arrive and the jump silently does nothing. Closing
-                // that needs a channel into the running instance (plan section 8) plus a change on
-                // the helper side, which is a separate decision.
+                // The gap that used to be here - "arguments only arrive when the launch really starts
+                // a process, so a second launch against a running Center jumps nowhere" - is closed:
+                // CenterInstanceSignal carries the intent into the resident instance over a named
+                // pipe, and App.OnStartup sends it before shutting the second launch down.
                 // --library, or the remembered preference. This is a safety net, not the usual
                 // path any more: TryEnterLibraryOnceKnown already fires from inside
                 // RefreshSourcesAsync as soon as the version check lands, well before this point (it
                 // does not wait on the GitHub/Drive fetches sourcesTask is awaiting below). The guard
                 // inside it makes a second call here harmless either way.
                 else TryEnterLibraryOnceKnown();
-            };
-            Closed += (_, __) =>
-            {
-                _nav?.Dispose();
-                _gameTrackCts?.Cancel();
-                try { _helperPipe?.Dispose(); } catch { } // single shared client for both runners
-            };
+            }
+        }
 
-            InitializeTray();
-
+        private void WireKeyboardFallbacks()
+        {
             // Keyboard fallbacks for desk testing.
             KeyDown += (_, e) =>
             {
@@ -387,6 +439,10 @@ namespace ClawTweaksCenter
         /// own separate ContentHost takeover and never runs concurrently with a source refresh).</summary>
         private void RenderCurrentView()
         {
+            // Header-level and view-independent, so it is refreshed before the per-view switch below
+            // rather than from Home - the chip is on screen in the library and in Browse too.
+            RenderInstalledVersionChip();
+
             if (_confirming) return;
             // The tab strip depends on the installed-version check, which lands via this same call.
             RefreshTabStrip();
@@ -443,20 +499,13 @@ namespace ClawTweaksCenter
                 case 1: OpenOnboarding(); break;
                 case 2: OpenMaintenance(); break;
                 case 3: OpenLibrary(); break;
-                case 4: ToggleOpenLibraryAtStartup(); break;
+                case 4: OpenLibrarySettingsFromHome(); break;
             }
         }
 
         /// <summary>Highest selectable Home tile: 2 normally, 4 once the library tile and the
         /// startup switch beside it are there.</summary>
         private int HomeMaxIndex => LibraryAvailable ? 4 : 2;
-
-        private void ToggleOpenLibraryAtStartup()
-        {
-            CenterSettings.OpenLibraryAtStartup = !CenterSettings.OpenLibraryAtStartup;
-            RenderHome();
-            RefreshActionBar();
-        }
 
         /// <summary>True when the manifest advertises a newer Center than the one running. See
         /// SetupVersionCheck.IsUpdateOffered.</summary>
@@ -475,12 +524,51 @@ namespace ClawTweaksCenter
         private void TryEnterLibraryOnceKnown()
         {
             if (_autoLibraryJumpDone) return;
+            // An explicit --home outranks the remembered preference. Latched rather than checked
+            // once, because this runs from two places and the preference is still true underneath.
+            if (_forceHome) { _autoLibraryJumpDone = true; return; }
             if (!(_startLibraryOnLoad || CenterSettings.OpenLibraryAtStartup)) return;
             if (!_installedVersionChecked) return;
 
             _autoLibraryJumpDone = true;
             if (LibraryAvailable) OpenLibrary();
             else GoHome();
+        }
+
+        /// <summary>
+        /// The installed ClawTweaks version, next to the logo. Deliberately small: it answers a
+        /// question the user asks once per session, and on Home it used to be the biggest element on
+        /// the page.
+        ///
+        /// Three states, and the middle one matters: while the check is still running it says so
+        /// instead of showing "not installed", which was actively wrong on every machine that DOES
+        /// have it (PackageInstaller.GetInstalledVersion runs Get-AppxPackage and takes a moment).
+        /// </summary>
+        private void RenderInstalledVersionChip()
+        {
+            if (InstalledVersionChip == null) return;
+
+            string text;
+            Brush colour;
+            if (!_installedVersionChecked) { text = "Checking…"; colour = UiHelpers.Subtle; }
+            else if (_installedVersion != null) { text = "ClawTweaks " + _installedVersion; colour = UiHelpers.Ok; }
+            else { text = "ClawTweaks not installed"; colour = UiHelpers.Subtle; }
+
+            InstalledVersionChip.Content = new Border
+            {
+                BorderBrush = colour,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(9, 4, 9, 4),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = text,
+                    FontSize = 13,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = colour,
+                },
+            };
         }
 
         private void RenderHome()
@@ -504,61 +592,15 @@ namespace ClawTweaksCenter
             if (SelfInstaller.LegacyInstallPresent() && !_legacyNoticeDismissed)
                 ContentHost.Children.Add(BuildLegacyInstallCard());
 
-            var versionStack = new StackPanel { Margin = new Thickness(0, 0, 0, 20) };
-            if (!_installedVersionChecked)
-            {
-                // Checking PackageInstaller.GetInstalledVersion() takes a moment (PowerShell
-                // Get-AppxPackage) — showing the "not installed" text as a placeholder during that
-                // window was actively misleading on machines that DO have ClawTweaks installed. Show
-                // a spinner instead of any default text until the real state is known.
-                var checkingRow = new StackPanel { Orientation = Orientation.Horizontal };
-                checkingRow.Children.Add(new ContentControl
-                {
-                    Width = 22, Height = 22, Focusable = false,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Content = UiHelpers.Badge(StatusKind.Working, 22),
-                });
-                checkingRow.Children.Add(new TextBlock
-                {
-                    Text = "Checking installed ClawTweaks version…", FontSize = 18,
-                    FontWeight = FontWeights.SemiBold, Foreground = UiHelpers.Subtle,
-                    VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10, 0, 0, 0),
-                });
-                versionStack.Children.Add(checkingRow);
-            }
-            else
-            {
-                versionStack.Children.Add(new Border
-                {
-                    BorderBrush = UiHelpers.Ok,
-                    BorderThickness = new Thickness(2),
-                    CornerRadius = new CornerRadius(8),
-                    Padding = new Thickness(14, 10, 14, 10),
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Child = new TextBlock
-                    {
-                        // Called out as "ClawTweaks" specifically — this is the main app's version, not
-                        // the Setup/Center tool's own (shown separately under the header logo).
-                        Text = _installedVersion != null
-                            ? $"Currently installed: ClawTweaks {_installedVersion}"
-                            : "ClawTweaks is not installed yet.",
-                        FontSize = 18, FontWeight = FontWeights.SemiBold, Foreground = UiHelpers.Ok,
-                    },
-                });
-            }
+            // Only the ACTIONABLE half of the old version block stays on Home: "an update is waiting
+            // on GitHub" is a reason to press A. The version itself moved into the header chip.
             var update = FindNewestGithubUpdate();
             if (update != null)
-                versionStack.Children.Add(new TextBlock
+                ContentHost.Children.Add(new TextBlock
                 {
                     Text = $"▲ Update available on GitHub: {update.Version} ({update.Origin})",
-                    FontSize = 15, Foreground = UiHelpers.Ok, Margin = new Thickness(0, 4, 0, 0),
+                    FontSize = 15, Foreground = UiHelpers.Ok, Margin = new Thickness(0, 0, 0, 16),
                 });
-            ContentHost.Children.Add(versionStack);
-
-            var mainRow = new Grid();
-            mainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            mainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            mainRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             // -1 is only a valid cursor position while the update card is actually on screen; if the
             // offer disappears (manifest re-fetch, update installed) the cursor falls back to the row.
@@ -566,58 +608,51 @@ namespace ClawTweaksCenter
             if (_homeSelectedIndex < minIndex) _homeSelectedIndex = minIndex;
             if (_homeSelectedIndex > HomeMaxIndex) _homeSelectedIndex = HomeMaxIndex;
 
-            var releaseTile = BuildHomeTile(
-                "Update & Release", "Browse GitHub releases, test builds, and Drive nightlies to install.",
-                clickable: true, onClick: () => { _homeSelectedIndex = 0; OpenBrowse(); }, selected: _homeSelectedIndex == 0);
-            Grid.SetColumn(releaseTile, 0);
-            releaseTile.Margin = new Thickness(0, 0, 7, 10);
-            mainRow.Children.Add(releaseTile);
+            // ONE UniformGrid for every tile, not a Grid row plus a second grid below it: a UniformGrid
+            // gives all its cells the same size, so the two rows cannot end up different heights. That
+            // was the other half of why they differed - the "coming soon" tiles carried a third line.
+            var tiles = new UniformGrid { Columns = 3 };
 
-            var onboardingTile = BuildHomeTile(
-                "Onboarding", "Center M, virtual controller, Game Bar auto-jump.",
-                clickable: true, onClick: () => { _homeSelectedIndex = 1; OpenOnboarding(); }, selected: _homeSelectedIndex == 1);
-            Grid.SetColumn(onboardingTile, 1);
-            onboardingTile.Margin = new Thickness(7, 0, 7, 10);
-            mainRow.Children.Add(onboardingTile);
+            tiles.Children.Add(BuildHomeTile(
+                "", "Update & Release", "Install releases, test builds and nightlies.",
+                clickable: true, onClick: () => { _homeSelectedIndex = 0; OpenBrowse(); },
+                selected: _homeSelectedIndex == 0));
 
-            // Third column (right of Onboarding): the Reset / Backup / Restore maintenance tools.
-            var maintenanceTile = BuildHomeTile(
-                "Reset · Backup · Restore", "Full factory reset, or back up and restore all your profiles.",
-                clickable: true, onClick: () => { _homeSelectedIndex = 2; OpenMaintenance(); }, selected: _homeSelectedIndex == 2);
-            Grid.SetColumn(maintenanceTile, 2);
-            maintenanceTile.Margin = new Thickness(7, 0, 0, 10);
-            mainRow.Children.Add(maintenanceTile);
+            tiles.Children.Add(BuildHomeTile(
+                "", "Onboarding", "Set up Center M, controller and Game Bar.",
+                clickable: true, onClick: () => { _homeSelectedIndex = 1; OpenOnboarding(); },
+                selected: _homeSelectedIndex == 1));
 
-            ContentHost.Children.Add(mainRow);
+            tiles.Children.Add(BuildHomeTile(
+                "", "Reset · Backup · Restore", "Reset the app, or back up your profiles.",
+                clickable: true, onClick: () => { _homeSelectedIndex = 2; OpenMaintenance(); },
+                selected: _homeSelectedIndex == 2));
 
-            var placeholders = new UniformGrid { Columns = 3, Margin = new Thickness(0, 14, 0, 0) };
-            // The library tile takes the first placeholder slot rather than adding a row: it only
-            // exists once ClawTweaks is installed, and until then the FAQ placeholder holds the spot
-            // so the grid does not change shape as the install completes.
+            // Both library tiles need ClawTweaks installed; without it there is nothing to open and
+            // nothing to configure, so they are absent rather than greyed out.
             if (LibraryAvailable)
-                placeholders.Children.Add(BuildHomeTile(
-                    "Game Library", "Your installed Steam, Epic and Xbox games.",
+            {
+                tiles.Children.Add(BuildHomeTile(
+                    "", "Game Library", "Play your Steam, Epic and Xbox games.",
                     clickable: true, onClick: () => { _homeSelectedIndex = 3; OpenLibrary(); },
                     selected: _homeSelectedIndex == 3));
-            else
-                placeholders.Children.Add(BuildHomeTile("FAQ", "Common questions and troubleshooting.", clickable: false));
-            placeholders.Children.Add(BuildHomeTile("Controller Diagnostics", "Run the controller/helper health checks on demand.", clickable: false));
 
-            // A tile rather than a settings screen: it is one switch, and a screen holding one switch
-            // is a screen nobody finds. A opens it, which here means flipping it - the subtitle is
-            // the current state, so the tile says what it will do next time Center starts.
-            if (LibraryAvailable)
-                placeholders.Children.Add(BuildHomeTile(
-                    "Start in Library",
-                    CenterSettings.OpenLibraryAtStartup
-                        ? "On. Center opens the library."
-                        : "Off. Center opens this screen.",
-                    clickable: true,
-                    onClick: () => { _homeSelectedIndex = 4; ToggleOpenLibraryAtStartup(); },
+                tiles.Children.Add(BuildHomeTile(
+                    "", "Library Settings", "Choose how the library starts and looks.",
+                    clickable: true, onClick: () => { _homeSelectedIndex = 4; OpenLibrarySettingsFromHome(); },
                     selected: _homeSelectedIndex == 4));
-            else
-                placeholders.Children.Add(BuildHomeTile("ClawTweaks News", "Announcements from the project.", clickable: false));
-            ContentHost.Children.Add(placeholders);
+            }
+
+            ContentHost.Children.Add(tiles);
+        }
+
+        /// <summary>Home's Library Settings tile. The settings screen draws into the library host and
+        /// its Back goes to the grid, so the library is opened first - the user lands in the library
+        /// afterwards, which is where those settings apply.</summary>
+        private void OpenLibrarySettingsFromHome()
+        {
+            OpenLibrary();
+            OpenLibrarySettings();
         }
 
         /// <summary>Highest GitHub release/test-build version above what's currently installed, or
@@ -811,36 +846,53 @@ namespace ClawTweaksCenter
             RefreshActionBar(); // keep the A="Run" footer action in sync with the selected step
         }
 
-        private Border BuildHomeTile(string title, string detail, bool clickable, Action onClick = null, bool selected = false)
+        /// <summary>
+        /// One Home tile: Fluent glyph on the left, bold title and one short line on the right.
+        ///
+        /// The glyph column is a fixed width and the icon is centred in it both ways, so every tile
+        /// puts its text at the same x - with the icon merely left-aligned, a narrow glyph and a wide
+        /// one shifted their titles against each other across the row.
+        /// </summary>
+        private Border BuildHomeTile(string glyph, string title, string detail, bool clickable, Action onClick = null, bool selected = false)
         {
-            var stack = new StackPanel();
-            stack.Children.Add(new TextBlock
+            var icon = new TextBlock
+            {
+                Text = glyph,
+                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                FontSize = 30,
+                Foreground = selected ? UiHelpers.Accent : UiHelpers.Text,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            text.Children.Add(new TextBlock
             {
                 Text = title, FontSize = 19, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Text,
+                TextWrapping = TextWrapping.Wrap,
             });
-            stack.Children.Add(new TextBlock
+            text.Children.Add(new TextBlock
             {
                 Text = detail, FontSize = 14, Foreground = UiHelpers.Subtle,
-                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0),
             });
-            if (!clickable)
-                stack.Children.Add(new TextBlock
-                {
-                    Text = "Coming soon", FontSize = 12, FontWeight = FontWeights.Bold,
-                    Foreground = UiHelpers.Accent, Margin = new Thickness(0, 10, 0, 0),
-                });
+            Grid.SetColumn(text, 1);
 
-            // Focus model: the controller cursor highlights ONE clickable tile with a thick accent
-            // outline; the other clickable tiles show only a thin subtle border so the selected one is
-            // unmistakable. Non-clickable ("coming soon") tiles never get the accent.
-            Brush borderBrush = selected ? UiHelpers.Accent : (clickable ? UiHelpers.Subtle : Brushes.Transparent);
-            double borderThickness = selected ? 3 : (clickable ? 1 : 0);
+            var layout = new Grid();
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            layout.Children.Add(icon);
+            layout.Children.Add(text);
 
-            // Three different ring thicknesses here, so the padding is derived from the thickness rather
-            // than written out per state: border + padding stays constant, and the tile therefore
-            // measures the same in all three. Offset by 1 because the ordinary clickable tile (1px) is
-            // the state the padding below was authored against. See Deflate.
-            var tilePad = new Thickness(20, 18, 20, 18);
+            // Focus model: the controller cursor highlights ONE tile with a thick accent outline; the
+            // others show only a thin subtle border so the selected one is unmistakable.
+            Brush borderBrush = selected ? UiHelpers.Accent : UiHelpers.Subtle;
+            double borderThickness = selected ? 3 : 1;
+
+            // The padding is derived from the ring thickness rather than written out per state, so
+            // border + padding stays constant and a tile measures the same selected or not. Offset by
+            // 1 because the unselected tile (1px) is the state the padding was authored against.
+            var tilePad = new Thickness(18, 16, 18, 16);
 
             var border = new Border
             {
@@ -851,7 +903,7 @@ namespace ClawTweaksCenter
                 BorderThickness = new Thickness(borderThickness),
                 Padding = Deflate(tilePad, borderThickness - 1),
                 Opacity = clickable ? 1.0 : 0.55,
-                Child = stack,
+                Child = layout,
                 Cursor = clickable ? Cursors.Hand : Cursors.Arrow,
             };
             if (clickable) border.MouseLeftButtonUp += (_, __) => onClick?.Invoke();
@@ -1453,11 +1505,36 @@ namespace ClawTweaksCenter
         #endregion
 
         #region Footer action bar
+        /// <summary>Rebuilds the footer: let the current screen declare its actions, then lay them out
+        /// in <see cref="ChipOrder"/>. The sort lives HERE and not in the screens because
+        /// BuildActionBar has a dozen early returns - a rule each of them had to remember would be
+        /// broken by the next screen somebody adds.</summary>
         private void RefreshActionBar()
         {
             _liveActions.Clear();
             ActionBar.Children.Clear();
+            _pendingChips.Clear();
+            _pendingHint = null;
 
+            BuildActionBar();
+
+            // OrderBy, not List.Sort: it is stable, so two chips on the same button (which no screen
+            // does today) keep the order the screen declared them in instead of swapping at random.
+            foreach (var chip in _pendingChips.OrderBy(c => ChipRank(c.Button)))
+                ActionBar.Children.Add(chip.Chip);
+
+            // The stick hint is not a button and has no place in the button order - it closes the row.
+            if (_pendingHint != null) ActionBar.Children.Add(_pendingHint);
+        }
+
+        private static int ChipRank(PadButton b)
+        {
+            int i = Array.IndexOf(ChipOrder, b);
+            return i < 0 ? int.MaxValue : i;
+        }
+
+        private void BuildActionBar()
+        {
             if (_confirming)
             {
                 if (_buildBlocked) { AddAction(PadButton.B, "Back", true, CancelConfirm); AddScrollHint(); return; }
@@ -1487,7 +1564,11 @@ namespace ClawTweaksCenter
                 AddAction(PadButton.Menu,
                     Ui.WindowMode.IsFullscreen(this) ? "Windowed" : "Fullscreen",
                     true, () => { Ui.WindowMode.Toggle(this); RefreshActionBar(); });
-                AddAction(PadButton.B, "Exit", true, () => Application.Current.Shutdown());
+                // "Exit" only when it exits. With Run in background on, this hides the window and
+                // Center stays in the tray - a chip promising one and doing the other is how the
+                // feature reads as broken to someone who never opened the settings.
+                AddAction(PadButton.B, Core.CenterSettings.RunInBackground ? "To tray" : "Exit",
+                    true, () => Application.Current.Shutdown());
                 return;
             }
 
@@ -1556,9 +1637,9 @@ namespace ClawTweaksCenter
         /// same height, same padding. Hand-sizing it here is what made it sit a few pixels off.</summary>
         private void AddScrollHint()
         {
-            ActionBar.Children.Add(ActionBarBuilder.BuildHint(
+            _pendingHint = ActionBarBuilder.BuildHint(
                 new BitmapImage(new Uri("pack://application:,,,/Assets/xbox/xbox_stick_r_vertical.png", UriKind.Absolute)),
-                "Scroll"));
+                "Scroll");
         }
 
         /// <summary>
@@ -1601,7 +1682,7 @@ namespace ClawTweaksCenter
         private void AddAction(PadButton b, string label, bool enabled, Action action)
         {
             if (enabled) _liveActions[b] = action;
-            ActionBar.Children.Add(ActionBarBuilder.BuildChip(b, label, enabled, action));
+            _pendingChips.Add((b, ActionBarBuilder.BuildChip(b, label, enabled, action)));
         }
 
         #endregion

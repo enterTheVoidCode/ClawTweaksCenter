@@ -29,16 +29,24 @@
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
 
-                <StackPanel x:Name="BrandBlock" Grid.Column="0"
+                <StackPanel x:Name="BrandBlock" Grid.Column="0" Orientation="Horizontal"
                             HorizontalAlignment="Left" VerticalAlignment="Center">
-                    <Image Source="pack://application:,,,/Assets/branding/ctw-center-logo.png"
-                           Height="40" Stretch="Uniform" HorizontalAlignment="Left"
-                           RenderOptions.BitmapScalingMode="HighQuality" />
-                    <!-- The Setup/Center tool's own version (ClawTweaksCenter.csproj <Version>) — distinct
-                         from the installed ClawTweaks app version shown further down. -->
-                    <TextBlock x:Name="SetupVersionLabel" FontSize="12"
-                               Foreground="{StaticResource SubtleTextBrush}"
-                               HorizontalAlignment="Left" Margin="2,3,0,0" />
+                    <StackPanel VerticalAlignment="Center">
+                        <Image Source="pack://application:,,,/Assets/branding/ctw-center-logo.png"
+                               Height="40" Stretch="Uniform" HorizontalAlignment="Left"
+                               RenderOptions.BitmapScalingMode="HighQuality" />
+                        <!-- The Setup/Center tool's own version (ClawTweaksCenter.csproj <Version>) — distinct
+                             from the installed ClawTweaks app version in the chip beside it. -->
+                        <TextBlock x:Name="SetupVersionLabel" FontSize="12"
+                                   Foreground="{StaticResource SubtleTextBrush}"
+                                   HorizontalAlignment="Left" Margin="2,3,0,0" />
+                    </StackPanel>
+
+                    <!-- Installed ClawTweaks version. It lives in the header rather than on Home
+                         because it is true on every screen, and Home had it as the largest element on
+                         the page for a fact the user reads once. Filled by RenderInstalledVersionChip. -->
+                    <ContentControl x:Name="InstalledVersionChip" Margin="16,0,0,0"
+                                    VerticalAlignment="Center" Focusable="False" />
                 </StackPanel>
 
                 <ContentControl x:Name="DeviceBanner" Grid.Column="1"
