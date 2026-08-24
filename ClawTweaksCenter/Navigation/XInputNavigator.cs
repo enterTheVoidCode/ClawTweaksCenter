@@ -26,10 +26,23 @@ namespace ClawTweaksCenter.Navigation
         /// without the two fighting over the same input.</summary>
         public event Action<double> RightStickScrollRequested;
 
+        /// <summary>
+        /// A FLICK of the right stick: one raise per push past the deadzone, in one of the four
+        /// directions, reported as the matching PadButton.
+        ///
+        /// Separate from <see cref="RightStickScrollRequested"/> because the two answer different
+        /// questions. That one is a rate - it fires every tick while the stick is held, which is what
+        /// scrolling wants and what a discrete choice must never be given: held for half a second it
+        /// would flip a setting a dozen times. This one fires once per push, and covers the X axis
+        /// the scroll signal never had.
+        /// </summary>
+        public event Action<PadButton> RightStickFlicked;
+
         private readonly Window _window;
         private readonly DispatcherTimer _timer;
         private ushort _prevButtons;
         private ushort _prevStickDirBits;
+        private ushort _prevRightStickDirBits;
         private ushort _prevTriggerBits;
         private const short StickDeadzone = 12000;
 
@@ -69,7 +82,7 @@ namespace ClawTweaksCenter.Navigation
         private void OnTick(object sender, EventArgs e)
         {
             if (!_window.IsActive) { _prevButtons = 0; _prevStickDirBits = 0; _prevTriggerBits = 0; return; }
-            if (!TryPollCombined(out ushort buttons, out short lx, out short ly, out short ry, out byte lt, out byte rt))
+            if (!TryPollCombined(out ushort buttons, out short lx, out short ly, out short rx, out short ry, out byte lt, out byte rt))
             { _prevButtons = 0; _prevStickDirBits = 0; _prevTriggerBits = 0; return; }
 
             // Continuous scroll from D-Pad up/down or left-stick Y (fires every tick while held).
@@ -103,6 +116,21 @@ namespace ClawTweaksCenter.Navigation
             if ((stickPressed & StickDirLeft) != 0) Raise(PadButton.Left);
             if ((stickPressed & StickDirRight) != 0) Raise(PadButton.Right);
 
+            // Right stick as its own edge-triggered four-way flick, alongside the continuous scroll
+            // signal above. Both are raised for the same push, and that is deliberate: a screen binds
+            // whichever of the two it needs and never sees the other.
+            ushort rightDirBits = 0;
+            if (ry > StickDeadzone) rightDirBits |= StickDirUp;
+            if (ry < -StickDeadzone) rightDirBits |= StickDirDown;
+            if (rx > StickDeadzone) rightDirBits |= StickDirRight;
+            if (rx < -StickDeadzone) rightDirBits |= StickDirLeft;
+            ushort rightPressed = (ushort)(rightDirBits & ~_prevRightStickDirBits);
+            _prevRightStickDirBits = rightDirBits;
+            if ((rightPressed & StickDirUp) != 0) RightStickFlicked?.Invoke(PadButton.Up);
+            if ((rightPressed & StickDirDown) != 0) RightStickFlicked?.Invoke(PadButton.Down);
+            if ((rightPressed & StickDirLeft) != 0) RightStickFlicked?.Invoke(PadButton.Left);
+            if ((rightPressed & StickDirRight) != 0) RightStickFlicked?.Invoke(PadButton.Right);
+
             // Triggers as edge-triggered presses. Same shape as the virtual D-Pad above and, like it,
             // run unconditionally — a trigger sets no wButtons bit, so the "pressed == 0" early-out
             // below would swallow it entirely.
@@ -126,6 +154,7 @@ namespace ClawTweaksCenter.Navigation
             if ((pressed & XINPUT_GAMEPAD_BACK) != 0) Raise(PadButton.View);   // Select/View button
             if ((pressed & XINPUT_GAMEPAD_LEFT_SHOULDER) != 0) Raise(PadButton.LB);
             if ((pressed & XINPUT_GAMEPAD_RIGHT_SHOULDER) != 0) Raise(PadButton.RB);
+            if ((pressed & XINPUT_GAMEPAD_RIGHT_THUMB) != 0) Raise(PadButton.R3);
 
             // Discrete D-Pad edges, in addition to the continuous ScrollRequested above — screens
             // with a real grid/list selection (CenterMenuWindow) bind these; phases that don't bind
@@ -145,6 +174,7 @@ namespace ClawTweaksCenter.Navigation
         private const ushort XINPUT_GAMEPAD_DPAD_RIGHT = 0x0008;
         private const ushort XINPUT_GAMEPAD_BACK = 0x0020;  // Select / View
         private const ushort XINPUT_GAMEPAD_START = 0x0010; // Menu (☰)
+        private const ushort XINPUT_GAMEPAD_RIGHT_THUMB = 0x0080;
         private const ushort XINPUT_GAMEPAD_LEFT_SHOULDER = 0x0100;
         private const ushort XINPUT_GAMEPAD_RIGHT_SHOULDER = 0x0200;
         private const ushort XINPUT_GAMEPAD_A = 0x1000;
@@ -176,10 +206,11 @@ namespace ClawTweaksCenter.Navigation
 
         private const uint ERROR_SUCCESS = 0;
 
-        private static bool TryPollCombined(out ushort buttons, out short leftStickX, out short leftStickY, out short rightStickY,
+        private static bool TryPollCombined(out ushort buttons, out short leftStickX, out short leftStickY,
+                                            out short rightStickX, out short rightStickY,
                                             out byte leftTrigger, out byte rightTrigger)
         {
-            buttons = 0; leftStickX = 0; leftStickY = 0; rightStickY = 0; leftTrigger = 0; rightTrigger = 0;
+            buttons = 0; leftStickX = 0; leftStickY = 0; rightStickX = 0; rightStickY = 0; leftTrigger = 0; rightTrigger = 0;
             bool any = false;
             for (uint i = 0; i < 4; i++)
             {
@@ -193,6 +224,7 @@ namespace ClawTweaksCenter.Navigation
                 // Math.Abs(int) has no such problem. This was the real crash-on-scroll bug.
                 if (Math.Abs((int)state.Gamepad.sThumbLX) > Math.Abs((int)leftStickX)) leftStickX = state.Gamepad.sThumbLX;
                 if (Math.Abs((int)state.Gamepad.sThumbLY) > Math.Abs((int)leftStickY)) leftStickY = state.Gamepad.sThumbLY;
+                if (Math.Abs((int)state.Gamepad.sThumbRX) > Math.Abs((int)rightStickX)) rightStickX = state.Gamepad.sThumbRX;
                 if (Math.Abs((int)state.Gamepad.sThumbRY) > Math.Abs((int)rightStickY)) rightStickY = state.Gamepad.sThumbRY;
                 // Triggers combine as a maximum across slots, matching how the buttons are OR-ed:
                 // whichever pad the user actually holds is the one that decides.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
@@ -262,9 +262,26 @@ namespace ClawTweaksCenter.Library
         /// cover on a tile; here a person is looking at the result and can retype the query if the
         /// first hit is wrong, which is exactly the escape hatch a strict match would take away.
         /// </summary>
-        public static async Task<IReadOnlyList<ArtCandidate>> SearchArtAsync(string query, CancellationToken ct)
+        /// <summary>
+        /// One page of covers, plus what is needed to ask for the next one.
+        ///
+        /// The GAME ID is carried out deliberately: paging must not repeat the autocomplete step. It
+        /// costs a round trip, and worse, it is not guaranteed to pick the same game twice - a second
+        /// call could quietly start paging through a different title's covers.
+        /// </summary>
+        public sealed class ArtPage
         {
-            var empty = Array.Empty<ArtCandidate>();
+            public int GameId { get; set; }
+            public IReadOnlyList<ArtCandidate> Items { get; set; } = Array.Empty<ArtCandidate>();
+            public bool HasMore { get; set; }
+        }
+
+        /// <summary>How many covers one request asks for. Six full rows of five.</summary>
+        public const int ArtPageSize = 30;
+
+        public static async Task<ArtPage> SearchArtAsync(string query, CancellationToken ct)
+        {
+            var empty = new ArtPage();
             if (!HasKey)
             {
                 LogArtSearch("search skipped - no API key set");
@@ -283,9 +300,19 @@ namespace ClawTweaksCenter.Library
             catch (Exception ex) { LogArtSearch("autocomplete threw: " + ex); return empty; }
             if (id == null) return empty;
 
-            try { return await AllVerticalGridsAsync(key, id.Value, ct).ConfigureAwait(false); }
+            try { return await VerticalGridsAsync(key, id.Value, 0, ct).ConfigureAwait(false); }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex) { LogArtSearch("grids threw: " + ex); return empty; }
+        }
+
+        /// <summary>The next page for a game already found by <see cref="SearchArtAsync"/>.</summary>
+        public static async Task<ArtPage> MoreArtAsync(int gameId, int page, CancellationToken ct)
+        {
+            if (!HasKey || page <= 0) return new ArtPage { GameId = gameId };
+            string key = Core.CenterSettings.SteamGridDbApiKey.Trim();
+            try { return await VerticalGridsAsync(key, gameId, page, ct).ConfigureAwait(false); }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex) { LogArtSearch("grids page " + page + " threw: " + ex); return new ArtPage { GameId = gameId }; }
         }
 
         /// <summary>
@@ -316,29 +343,32 @@ namespace ClawTweaksCenter.Library
             return path;
         }
 
-        /// <summary>Every portrait grid on file for one game, in whatever order the API returns them
+        /// <summary>One page of portrait grids for a game, in whatever order the API returns them
         /// (not re-sorted here).</summary>
-        private static async Task<List<ArtCandidate>> AllVerticalGridsAsync(string key, int gameId, CancellationToken ct)
+        private static async Task<ArtPage> VerticalGridsAsync(string key, int gameId, int page, CancellationToken ct)
         {
             var results = new List<ArtCandidate>();
+            var outcome = new ArtPage { GameId = gameId, Items = results };
+
             using var request = new HttpRequestMessage(HttpMethod.Get,
-                ApiBase + "grids/game/" + gameId + "?dimensions=600x900&types=static&limit=24");
+                ApiBase + "grids/game/" + gameId + "?dimensions=600x900&types=static"
+                        + "&limit=" + ArtPageSize + "&page=" + page);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
 
             using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
             string body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            LogArtSearch("grids/game/" + gameId + " -> " + (int)response.StatusCode + " " + Truncate(body, 500));
-            if (!response.IsSuccessStatusCode) return results;
+            LogArtSearch("grids/game/" + gameId + " page " + page + " -> " + (int)response.StatusCode + " " + Truncate(body, 500));
+            if (!response.IsSuccessStatusCode) return outcome;
 
             JsonDocument doc;
             try { doc = JsonDocument.Parse(body); }
-            catch (Exception ex) { LogArtSearch("grids JSON parse failed: " + ex.Message); return results; }
+            catch (Exception ex) { LogArtSearch("grids JSON parse failed: " + ex.Message); return outcome; }
             using (doc)
             {
                 if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
                 {
                     LogArtSearch("grids response has no 'data' array");
-                    return results;
+                    return outcome;
                 }
 
                 foreach (var grid in data.EnumerateArray())
@@ -348,8 +378,16 @@ namespace ClawTweaksCenter.Library
                         ? thumbProp.GetString() : null;
                     results.Add(new ArtCandidate { Url = urlProp.GetString(), Thumb = thumb });
                 }
-                LogArtSearch("grids/game/" + gameId + " -> " + results.Count + " portrait candidate(s)");
-                return results;
+                // 'total' is the count across ALL pages, so it - not the size of this page - is what
+                // says whether another one exists. Deriving it from "did this page come back full"
+                // would ask for an empty page every time the total is an exact multiple of the size.
+                int total = doc.RootElement.TryGetProperty("total", out var t) && t.ValueKind == JsonValueKind.Number
+                    ? t.GetInt32() : (page * ArtPageSize) + results.Count;
+                outcome.HasMore = results.Count > 0 && (page + 1) * ArtPageSize < total;
+
+                LogArtSearch("grids/game/" + gameId + " page " + page + " -> " + results.Count
+                             + " portrait candidate(s), total " + total + ", more=" + outcome.HasMore);
+                return outcome;
             }
         }
 

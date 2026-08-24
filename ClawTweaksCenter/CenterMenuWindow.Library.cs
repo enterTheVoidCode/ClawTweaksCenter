@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Data;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -32,6 +33,10 @@ namespace ClawTweaksCenter
         // cover only has to be recognisable, not readable, and a bigger tile just means more
         // scrolling for the same number of games.
         private const double LibGridTileWidth = 190;
+
+        /// <summary>Tiles are drawn at this fraction of the column width. See MeasureGridMetrics -
+        /// it is the scrollbar's width, given back.</summary>
+        private const double LibGridTileScale = 0.9;
         private const double LibTileGap = 16;
         private const double LibOuterMargin = 32;
         private const double LibCoverAspect = 1.5;      // 600x900 - the capsule Steam already caches
@@ -72,7 +77,48 @@ namespace ClawTweaksCenter
 
         // Pending close after a launch (see LaunchSelectedGame). Non-null only while the countdown
         // is up, which is also what tells the footer to offer "Keep Center open".
-        private DispatcherTimer _closeTimer;
+        /// <summary>
+        /// Which of the launch screens owns the library, if any.
+        ///
+        /// This replaced a 2.5-second timer that fired once and then acted on its own. The timer was
+        /// the wrong shape twice over: pressing A started a game with no way back, and the window
+        /// then decided by itself when the launch was "over" - two and a half seconds, whatever the
+        /// game was actually doing.
+        /// </summary>
+        private enum LaunchPrompt
+        {
+            None,
+            /// <summary>"Start X?" - nothing has happened yet.</summary>
+            Confirm,
+            /// <summary>Launched and still running. Stays until the game ends or the user hides it.</summary>
+            Running,
+            /// <summary>The launch itself failed.</summary>
+            Failed,
+        }
+
+        private LaunchPrompt _launchPrompt;
+        private GameEntry _launchTarget;
+
+        /// <summary>
+        /// B in the library asks instead of acting.
+        ///
+        /// It used to drop straight back to the start screen, and B is the button a thumb finds by
+        /// accident - one stray press threw away the tab, the scroll position and the covers already
+        /// decoded. The three answers here are the three things B could reasonably have meant.
+        /// </summary>
+        /// <summary>The library's own info screen. Opens by itself the first time (see
+        /// CenterSettings.LibraryInfoSeen) and from the info button in the tab strip after that.</summary>
+        private bool _infoOpen;
+
+        private const string SteamGridDbUrl = "https://www.steamgriddb.com/";
+
+        private bool _exitPromptOpen;
+        private int _exitPromptIndex;
+        private readonly List<Border> _exitPromptRows = new List<Border>();
+
+        /// <summary>True while one of the launch screens is up. Everything that navigates the grid
+        /// checks this - the launch screens own the whole library area while they are on it.</summary>
+        private bool LaunchOverlayOpen => _launchPrompt != LaunchPrompt.None || _exitPromptOpen || _infoOpen;
 
         // The background watcher for "restore Center once this game ends" (see GameRunTracker /
         // StartTrackingForRestore). Held so a second launch can cancel a stale watch instead of
@@ -138,8 +184,25 @@ namespace ClawTweaksCenter
                     chips.Children.Add(chip);
                 }
 
+                // RB sits AFTER THE LAST TAB, inside the scrolling strip, not pinned to the far
+                // right of the window. Docked to the edge it floated in whatever empty space was
+                // left over - on a wide window that put it a hand's width away from the thing it
+                // scrolls, reading as a control for something else entirely.
+                //
+                // The cost is real and accepted: on a row long enough to scroll, RB scrolls with it.
+                // LB stays pinned, so the pair is no longer symmetrical - but LB marks the START of
+                // the row, which is a fixed place, while RB marks its end, which is not.
+                chips.Children.Add(BuildKeyCap("RB"));
+
+                // Sort/grouping and the info button share the docked right end, in that order: the
+                // readout changes with the tab, the info button never does, so the fixed thing sits
+                // at the edge and the changing one next to the tabs it belongs to.
+                var rightEnd = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+                rightEnd.Children.Add(BuildSortStrip());
+                rightEnd.Children.Add(BuildInfoButton());
+
                 _tabScroller = BuildEdgeFadedStrip(chips);
-                FillDock(TabStripPanel, BuildKeyCap("LB"), BuildKeyCap("RB"), _tabScroller);
+                FillDock(TabStripPanel, BuildKeyCap("LB"), rightEnd, _tabScroller);
                 BringChipIntoView(_tabScroller, _activeGroupChip);
             }
             else
@@ -291,6 +354,66 @@ namespace ClawTweaksCenter
             return border;
         }
 
+        /// <summary>
+        /// The info button: the X key cap and the info glyph inside ONE frame.
+        ///
+        /// Two separate outlines side by side read as two controls, and only one of them was
+        /// clickable - so the pair had to become a single object with a single border. It is also
+        /// what makes the promise legible: the button and the key that presses it are one thing.
+        ///
+        /// The divider between them is a hairline rather than a gap, because a gap inside a frame is
+        /// how two things end up looking like two things again.
+        /// </summary>
+        private UIElement BuildInfoButton()
+        {
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+            row.Children.Add(new TextBlock
+            {
+                Text = "X",
+                FontSize = 11,
+                FontWeight = FontWeights.Bold,
+                Foreground = UiHelpers.Subtle,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            row.Children.Add(new Border
+            {
+                Width = 1,
+                Height = 12,
+                Background = UiHelpers.Subtle,
+                Opacity = 0.4,
+                Margin = new Thickness(7, 0, 7, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = "\uE946",
+                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                FontSize = 14,
+                Foreground = UiHelpers.Subtle,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+
+            var button = new Border
+            {
+                Child = row,
+                Background = UiHelpers.Card,
+                BorderBrush = UiHelpers.Subtle,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(11),
+                Padding = new Thickness(8, 2, 8, 2),
+                Margin = new Thickness(14, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                ToolTip = "About this library",
+            };
+            button.MouseLeftButtonUp += (_, __) => OpenLibraryInfo();
+            return button;
+        }
+
         private UIElement BuildKeyCap(string text) => new Border
         {
             Background = UiHelpers.Card,
@@ -390,7 +513,8 @@ namespace ClawTweaksCenter
 
             var chip = new Border
             {
-                Child = BuildChipContent(GameLibrary.GroupLabel(g), _libraryScanned ? count : (int?)null, active, 14),
+                Child = BuildChipContent(GameLibrary.GroupLabel(g),
+                                         _libraryScanned && !ImmersiveCountsHidden ? count : (int?)null, active, 14),
                 Padding = new Thickness(10, 4, 10, 4),
                 Margin = new Thickness(0, 0, 6, 0),
                 CornerRadius = new CornerRadius(13),
@@ -417,12 +541,28 @@ namespace ClawTweaksCenter
             RenderLibrary();
             RefreshActionBar();
             if (!_libraryScanned && !_libraryScanning) _ = ScanLibraryAsync();
+
+            // Straight into the immersive look, no two-second grace: the footer is meant to be gone
+            // in this mode, and showing it for two seconds on every entry is the flicker the mode is
+            // for. The tabs get their countdown, because their first job is to say where you are.
+            if (ImmersiveActive)
+            {
+                _footerRevealed = false;
+                ApplyImmersiveChrome();
+                RestartIdleTimer();
+            }
+
+            // After the render above, not before: it draws over the grid, and a grid that paints
+            // itself on top afterwards would leave the info screen invisible but still in charge of
+            // every button.
+            ShowLibraryInfoOnFirstVisit();
         }
 
         /// <summary>Puts the build-list host back in front and restores the header. Called from
         /// GoHome - the library is a tab, not a window, so leaving it is a visibility change.</summary>
         private void LeaveLibrary()
         {
+            StopImmersive();
             CancelPendingClose();
             if (LibraryRoot != null) LibraryRoot.Visibility = Visibility.Collapsed;
             if (ContentScroller != null) ContentScroller.Visibility = Visibility.Visible;
@@ -432,7 +572,12 @@ namespace ClawTweaksCenter
         private async System.Threading.Tasks.Task ScanLibraryAsync()
         {
             _libraryScanning = true;
-            RenderLibrary();
+            // ⚠️ EVERY RenderLibrary IN THIS METHOD IS GUARDED. The scan starts the moment the
+            // library opens and paints again on each store landing - straight over anything an
+            // overlay had put on the screen a millisecond earlier. That is what made the info screen
+            // flash and vanish for anyone starting directly into the library: it was drawn, and then
+            // the scan's first repaint replaced it, while the overlay still owned every button.
+            RenderLibraryIfNoOverlay();
             try
             {
                 _libraryCts?.Cancel();
@@ -446,11 +591,13 @@ namespace ClawTweaksCenter
                 await _library.ScanAsync(ct, () => Dispatcher.Invoke(() =>
                 {
                     _libraryScanned = true;
-                    if (_view == View.Library) { RenderLibrary(); RefreshTabStrip(); }
+                    RenderLibraryIfNoOverlay();
+                    RefreshTabStrip();
                 }));
                 _libraryScanned = true;
                 _libraryScanning = false;
-                if (_view == View.Library) { RenderLibrary(); RefreshTabStrip(); }
+                RenderLibraryIfNoOverlay();
+                RefreshTabStrip();
 
                 StartArtFetch();
 
@@ -459,7 +606,7 @@ namespace ClawTweaksCenter
                 // Recent reel for anything Steam does not track, hence the re-render.
                 _library.HarvestHistoryInBackground(ct, () => Dispatcher.Invoke(() =>
                 {
-                    if (_view == View.Library && _libraryGroup == LibraryGroup.Recent) RenderLibrary();
+                    if (_libraryGroup == LibraryGroup.Recent) RenderLibraryIfNoOverlay();
                 }));
             }
             catch (OperationCanceledException) { _libraryScanning = false; }
@@ -467,7 +614,7 @@ namespace ClawTweaksCenter
             {
                 _libraryScanning = false;
                 Core.InstallLog.Write("Library scan failed: " + ex);
-                if (_view == View.Library) RenderLibrary();
+                RenderLibraryIfNoOverlay();
             }
             RefreshActionBar();
         }
@@ -496,7 +643,10 @@ namespace ClawTweaksCenter
             // Square only in the ROM tab. Recent mixes ROMs and store games on one shelf, and two
             // different tile shapes side by side looks like a rendering fault rather than a setting.
             _libSquareTiles = _squareRomArt && _libraryGroup == LibraryGroup.Roms;
-            _libraryGames = _libraryScanned ? _library.ForGroup(_libraryGroup, _romSystem) : Array.Empty<GameEntry>();
+            _libGroupBreaks.Clear();
+            _libraryGames = _libraryScanned
+                ? ArrangeForDisplay(_library.ForGroup(_libraryGroup, _romSystem))
+                : (IReadOnlyList<GameEntry>)Array.Empty<GameEntry>();
 
             if (_libraryGroup == LibraryGroup.Roms && _libraryScanned)
             {
@@ -543,18 +693,7 @@ namespace ClawTweaksCenter
                 bool active = string.Equals(system, _romSystem, StringComparison.OrdinalIgnoreCase);
                 int count = _library.ForGroup(LibraryGroup.Roms, system).Count;
 
-                var chip = new Border
-                {
-                    Child = BuildChipContent(SystemLabel(system), count, active, 13),
-                    Padding = new Thickness(9, 3, 9, 3),
-                    Margin = new Thickness(0, 0, 6, 0),
-                    CornerRadius = new CornerRadius(11),
-                    Background = active ? UiHelpers.Card : Brushes.Transparent,
-                    BorderBrush = active ? UiHelpers.Accent : Brushes.Transparent,
-                    BorderThickness = new Thickness(active ? 1 : 0),
-                    Cursor = System.Windows.Input.Cursors.Hand,
-                    VerticalAlignment = VerticalAlignment.Center,
-                };
+                var chip = BuildSystemChip(SystemLabel(system), ImmersiveCountsHidden ? (int?)null : count, active);
                 var captured = system;
                 chip.MouseLeftButtonUp += (_, __) => SetRomSystem(captured);
                 if (active) _activeSystemChip = chip;
@@ -574,6 +713,70 @@ namespace ClawTweaksCenter
             FillDock(dock, BuildKeyCap("LT"), BuildKeyCap("RT"), _systemScroller);
             BringChipIntoView(_systemScroller, _activeSystemChip);
             return dock;
+        }
+
+        /// <summary>
+        /// A ROM system chip, and DELIBERATELY not the same object as a tab chip.
+        ///
+        /// The two rows sit one above the other and are two different levels: the tabs are where you
+        /// are in the library, the systems are a filter inside one of them. Drawn as pills both, the
+        /// second row read as a continuation of the first - two rows of the same thing, with no clue
+        /// which one the shoulders move and which one the triggers do.
+        ///
+        /// So this one drops the pill entirely: text, and an accent RULE under the active system.
+        /// The rule is the same shape a tab underline has everywhere else, at a level below a filled
+        /// pill - subordinate by construction rather than by being a bit smaller.
+        /// </summary>
+        private Border BuildSystemChip(string label, int? count, bool active)
+        {
+            var text = new TextBlock
+            {
+                Text = label,
+                FontSize = 13,
+                FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal,
+                Foreground = active ? UiHelpers.Accent : UiHelpers.Subtle,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            row.Children.Add(text);
+
+            if (count != null)
+            {
+                // Quieter than the tab badge above it, and no disc: the pill treatment is what the
+                // level above uses, and repeating it here is exactly the sameness being removed.
+                row.Children.Add(new TextBlock
+                {
+                    Text = count.Value.ToString(),
+                    FontSize = 11,
+                    Foreground = UiHelpers.Subtle,
+                    Opacity = 0.75,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(5, 1, 0, 0),
+                });
+            }
+
+            var content = new StackPanel();
+            content.Children.Add(row);
+            content.Children.Add(new Border
+            {
+                Height = 2,
+                // Always present, painted only when active: a rule that appears and disappears would
+                // move every label by two pixels as the cursor passes along the row.
+                Background = active ? UiHelpers.Accent : Brushes.Transparent,
+                CornerRadius = new CornerRadius(1),
+                Margin = new Thickness(0, 3, 0, 0),
+            });
+
+            return new Border
+            {
+                Child = content,
+                Padding = new Thickness(7, 2, 7, 0),
+                Margin = new Thickness(0, 0, 8, 0),
+                Background = Brushes.Transparent,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
         }
 
         private static string SystemLabel(string system)
@@ -746,16 +949,42 @@ namespace ClawTweaksCenter
         /// ItemsControl for one specific reason - ScrollIntoView works with virtualisation, and
         /// BringIntoView on a container that was never realised does not.
         /// </summary>
+        // Where each TILE row starts and how wide it is. Built by BuildGrid, read by the D-pad.
+        //
+        // Needed because a group boundary breaks a row early: with headings on, "index plus one
+        // column" is no longer the tile below, and moving down from a short last row would land in
+        // a different column of a different group.
+        private readonly List<int> _libRowStarts = new List<int>();
+        private readonly List<int> _libRowCounts = new List<int>();
+
         private UIElement BuildGrid()
         {
             MeasureGridMetrics();
 
             var rows = new List<LibraryRow>();
-            for (int i = 0; i < _libraryGames.Count; i += _libColumns)
+            _libRowStarts.Clear();
+            _libRowCounts.Clear();
+
+            int index = 0;
+            while (index < _libraryGames.Count)
             {
+                if (_libGroupBreaks.TryGetValue(index, out string heading))
+                    rows.Add(new LibraryRow { Owner = this, Heading = heading });
+
+                // A row never spans two groups: it stops at the next break even when it is half
+                // empty. Without that, the last row of one group would carry the first covers of the
+                // next, under the wrong heading - which is the one thing a heading must not do.
                 var slice = new List<GameEntry>();
-                for (int c = 0; c < _libColumns && i + c < _libraryGames.Count; c++) slice.Add(_libraryGames[i + c]);
-                rows.Add(new LibraryRow { Owner = this, FirstIndex = i, Items = slice });
+                for (int c = 0; c < _libColumns && index + c < _libraryGames.Count; c++)
+                {
+                    if (c > 0 && _libGroupBreaks.ContainsKey(index + c)) break;
+                    slice.Add(_libraryGames[index + c]);
+                }
+
+                _libRowStarts.Add(index);
+                _libRowCounts.Add(slice.Count);
+                rows.Add(new LibraryRow { Owner = this, FirstIndex = index, Items = slice });
+                index += slice.Count;
             }
 
             var factory = new FrameworkElementFactory(typeof(LibraryRowHost));
@@ -805,6 +1034,20 @@ namespace ClawTweaksCenter
         /// cost grows with the square of the edge, which is the whole reason DecodePixelWidth is set
         /// at all.
         /// </summary>
+        /// <summary>
+        /// Repaints the grid, unless something is on top of it.
+        ///
+        /// The single place every BACKGROUND repaint goes through. Foreground code paths call
+        /// RenderLibrary directly - they know what is on screen because they just put it there;
+        /// a scan landing three seconds later does not.
+        /// </summary>
+        private void RenderLibraryIfNoOverlay()
+        {
+            if (_view != View.Library) return;
+            if (_settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen || LaunchOverlayOpen) return;
+            RenderLibrary();
+        }
+
         private void MeasureGridMetrics()
         {
             double avail = LibraryRoot.ActualWidth > 0 ? LibraryRoot.ActualWidth : ActualWidth;
@@ -815,7 +1058,11 @@ namespace ClawTweaksCenter
             if (_libColumns < 2) _libColumns = 2;
             if (_libColumns > 12) _libColumns = 12;
 
-            _libTileWidth = (usable - (_libColumns - 1) * LibTileGap) / _libColumns;
+            // The column count fills the width exactly, and that turned out to be a hair too exact:
+            // the vertical scrollbar appears AFTER this measurement and takes its width out of the
+            // content, which clipped the right-hand edge of the last column. Ten per cent off the
+            // tile leaves the gaps and the margins untouched and gives that width back.
+            _libTileWidth = (usable - (_libColumns - 1) * LibTileGap) / _libColumns * LibGridTileScale;
             _libDecodeWidth = DecodeWidthFor(_libTileWidth);
         }
 
@@ -880,8 +1127,11 @@ namespace ClawTweaksCenter
             if (_settingsOpen) { MoveSettingsSelection(dir); return; }
             if (MiscOverlayOpen) { MoveMiscSelection(dir); return; }
             if (GameMenuOverlayOpen) { MoveGameMenuSelection(dir); return; }
+            // Before the empty-grid check below, not after: the exit prompt is reachable from an
+            // empty tab too, and a menu whose cursor cannot move is a menu with one usable answer.
+            if (_exitPromptOpen) { MoveExitPromptSelection(dir); return; }
             if (_libraryGames.Count == 0) return;
-            if (_closeTimer != null) return;  // a launch countdown owns the screen
+            if (LaunchOverlayOpen) return;  // a launch screen owns the library
 
             int next = _libSelectedIndex;
             switch (dir)
@@ -889,8 +1139,8 @@ namespace ClawTweaksCenter
                 case PadButton.Left: next -= 1; break;
                 case PadButton.Right: next += 1; break;
                 // In the reel there is nothing above or below - the whole grouping is one line.
-                case PadButton.Up: if (_libReelMode) return; next -= _libColumns; break;
-                case PadButton.Down: if (_libReelMode) return; next += _libColumns; break;
+                case PadButton.Up: if (_libReelMode) return; next = NeighbourRowIndex(-1); break;
+                case PadButton.Down: if (_libReelMode) return; next = NeighbourRowIndex(+1); break;
                 default: return;
             }
             if (next < 0 || next >= _libraryGames.Count) return;
@@ -904,6 +1154,33 @@ namespace ClawTweaksCenter
 
         /// <summary>Repaints the cursor on the tiles that are actually alive. Rebuilding the whole
         /// view for a cursor move would throw away every cover already decoded on screen.</summary>
+        /// <summary>
+        /// The index one tile row up or down, keeping the column where it can.
+        ///
+        /// Falls back to plain column arithmetic when the row map is empty - that is the state before
+        /// the first BuildGrid, and a navigation call that arrives then should still do something
+        /// sensible rather than refuse.
+        /// </summary>
+        private int NeighbourRowIndex(int delta)
+        {
+            if (_libRowStarts.Count == 0) return _libSelectedIndex + delta * _libColumns;
+
+            int row = -1;
+            for (int i = 0; i < _libRowStarts.Count; i++)
+            {
+                if (_libSelectedIndex < _libRowStarts[i]) break;
+                row = i;
+            }
+            if (row < 0) return _libSelectedIndex;
+
+            int target = row + delta;
+            if (target < 0 || target >= _libRowStarts.Count) return -1;
+
+            int column = _libSelectedIndex - _libRowStarts[row];
+            if (column >= _libRowCounts[target]) column = _libRowCounts[target] - 1;
+            return _libRowStarts[target] + column;
+        }
+
         private void ApplySelectionVisuals()
         {
             foreach (var row in _liveRows) row.ApplySelection(_libSelectedIndex);
@@ -922,7 +1199,7 @@ namespace ClawTweaksCenter
             // A launch countdown owns the screen: switching tabs under it would leave Center closing
             // itself from a view the user has already moved on from. The key box owns it for the same
             // reason - a shoulder press mid-typing would throw the entry away.
-            if (_closeTimer != null || _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen) return;
+            if (LaunchOverlayOpen || _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen) return;
             if (_libraryGroup == group) return;
             _libraryGroup = group;
             // Leaving ROMs drops the system filter: coming back to a tab still narrowed to "Atari
@@ -956,7 +1233,7 @@ namespace ClawTweaksCenter
         /// </summary>
         private void OnLibrarySizeChanged()
         {
-            if (_view != View.Library || _closeTimer != null) return;
+            if (_view != View.Library || LaunchOverlayOpen) return;
             if (LibraryRoot == null || _libList == null) return;
 
             if (_libReelMode)
@@ -975,6 +1252,374 @@ namespace ClawTweaksCenter
         }
         #endregion
 
+        #region Sorting and grouping
+        /// <summary>What a tab can be grouped BY, or nothing.</summary>
+        private enum GroupingKind
+        {
+            None,
+            /// <summary>The All tab: Steam, Epic, Xbox, ...</summary>
+            Platform,
+            /// <summary>The ROM tab with every system shown at once.</summary>
+            System,
+        }
+
+        /// <summary>
+        /// Recent has no sort of its own: it IS a sort, by when you last played. Offering A-Z there
+        /// would be offering to destroy the only thing the tab is for. The same goes for the ROM
+        /// tab's own Recent system.
+        /// </summary>
+        private bool SortingAvailable =>
+            _libraryGroup != LibraryGroup.Recent
+            && !(_libraryGroup == LibraryGroup.Roms && _romSystem == GameLibrary.RomRecentSystem);
+
+        private GroupingKind Grouping
+        {
+            get
+            {
+                if (_libraryGroup == LibraryGroup.All) return GroupingKind.Platform;
+                // Only with every system on screen. Inside one system, grouping by system would
+                // produce exactly one group with a heading nobody needs.
+                if (_libraryGroup == LibraryGroup.Roms && _romSystem == null) return GroupingKind.System;
+                return GroupingKind.None;
+            }
+        }
+
+        private bool GroupingOn => Grouping != GroupingKind.None && Core.CenterSettings.LibraryGrouped;
+
+        /// <summary>
+        /// Puts the tab's entries in the order they will be drawn in.
+        ///
+        /// Grouping happens FIRST and sorting inside it, which is what makes the two independent: the
+        /// user's A-Z choice keeps meaning the same thing whether or not there are headings. The
+        /// group order itself is alphabetical too and does NOT follow the sort direction - Z-A is a
+        /// statement about game titles, and flipping the platform headings with them would be an
+        /// answer to a question nobody asked.
+        /// </summary>
+        private List<GameEntry> ArrangeForDisplay(IReadOnlyList<GameEntry> games)
+        {
+            var list = new List<GameEntry>(games);
+            if (!SortingAvailable) return list;
+
+            bool desc = Core.CenterSettings.LibrarySortDescending;
+            Comparison<GameEntry> byTitle = (a, b) =>
+            {
+                int c = string.Compare(a.Title, b.Title, StringComparison.CurrentCultureIgnoreCase);
+                return desc ? -c : c;
+            };
+
+            if (!GroupingOn) { list.Sort(byTitle); return list; }
+
+            var kind = Grouping;
+            var buckets = new SortedDictionary<string, List<GameEntry>>(StringComparer.CurrentCultureIgnoreCase);
+            foreach (var g in list)
+            {
+                string key = kind == GroupingKind.Platform ? PlatformLabel(g) : (g.SystemName ?? "Other");
+                if (!buckets.TryGetValue(key, out var bucket)) buckets[key] = bucket = new List<GameEntry>();
+                bucket.Add(g);
+            }
+
+            _libGroupBreaks.Clear();
+            var arranged = new List<GameEntry>(list.Count);
+            foreach (var pair in buckets)
+            {
+                pair.Value.Sort(byTitle);
+                _libGroupBreaks[arranged.Count] = pair.Key;
+                arranged.AddRange(pair.Value);
+            }
+            return arranged;
+        }
+
+        /// <summary>Flat index of the first entry of a group -> its heading. Rebuilt by
+        /// ArrangeForDisplay and read by BuildGrid, so the two cannot disagree about where a group
+        /// starts.</summary>
+        private readonly Dictionary<int, string> _libGroupBreaks = new Dictionary<int, string>();
+
+        private static string PlatformLabel(GameEntry g)
+        {
+            switch (g.Store)
+            {
+                case GameStore.Steam: return "Steam";
+                case GameStore.Epic: return "Epic";
+                case GameStore.Xbox: return "Xbox";
+                case GameStore.Playnite: return "ROMs";
+                case GameStore.Misc: return "Apps";
+                default: return "Other";
+            }
+        }
+
+        private void ToggleSortDirection()
+        {
+            if (!SortingAvailable) return;
+            Core.CenterSettings.LibrarySortDescending = !Core.CenterSettings.LibrarySortDescending;
+            _libSelectedIndex = 0;
+            RenderLibrary();
+            RefreshTabStrip();
+        }
+
+        private void SetSortDirection(bool descending)
+        {
+            if (!SortingAvailable || Core.CenterSettings.LibrarySortDescending == descending) return;
+            Core.CenterSettings.LibrarySortDescending = descending;
+            _libSelectedIndex = 0;
+            RenderLibrary();
+            RefreshTabStrip();
+        }
+
+        private void SetGrouping(bool on)
+        {
+            if (Grouping == GroupingKind.None || Core.CenterSettings.LibraryGrouped == on) return;
+            Core.CenterSettings.LibraryGrouped = on;
+            _libSelectedIndex = 0;
+            RenderLibrary();
+            RefreshTabStrip();
+        }
+
+        /// <summary>
+        /// The sort and grouping readout, top right of the tab row.
+        ///
+        /// A READOUT, not a menu: there is nothing to open and nothing to focus. The right stick
+        /// drives it directly - up/down for the order, left/right for the grouping - so what is on
+        /// screen is a statement of the current state plus the gesture that changes it.
+        /// </summary>
+        private UIElement BuildSortStrip()
+        {
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(28, 0, 0, 0),
+            };
+
+            if (!SortingAvailable && Grouping == GroupingKind.None) return row;
+
+            // Named ONCE, in front of both chips, and each chip then carries only its own axis.
+            // Writing "right stick" into both would say the same thing twice in a row where the
+            // two chips already sit side by side - the caption covers the pair, the arrows say
+            // which way each of them is driven.
+            row.Children.Add(new TextBlock
+            {
+                Text = "Right stick",
+                FontSize = 11,
+                Foreground = UiHelpers.Subtle,
+                Opacity = 0.8,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 8, 0),
+            });
+
+            if (SortingAvailable)
+            {
+                bool desc = Core.CenterSettings.LibrarySortDescending;
+                // The arrow is the AXIS, not the direction. The direction is the label beside it,
+                // which says it in words an arrow cannot - "A-Z" beats "up".
+                row.Children.Add(SortChip("↕", desc ? "Z-A" : "A-Z", true));
+            }
+
+            if (Grouping != GroupingKind.None)
+            {
+                bool on = GroupingOn;
+                row.Children.Add(SortChip("↔", Grouping == GroupingKind.Platform ? "Platform" : "System", on));
+            }
+
+            return row;
+        }
+
+        private UIElement SortChip(string glyph, string label, bool lit)
+        {
+            var content = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            // Plain UI font, not the icon font: these are two ordinary arrow characters and
+            // Segoe UI has both. Sending them through Segoe Fluent Icons, whose private range
+            // is what it is actually for, is one missing glyph away from saying nothing.
+            content.Children.Add(new TextBlock
+            {
+                Text = glyph,
+                FontSize = 12,
+                Foreground = lit ? UiHelpers.Text : UiHelpers.Subtle,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            content.Children.Add(new TextBlock
+            {
+                Text = label,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = lit ? UiHelpers.Text : UiHelpers.Subtle,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(5, 0, 0, 0),
+            });
+
+            return new Border
+            {
+                Child = content,
+                Background = lit ? UiHelpers.Card : Brushes.Transparent,
+                BorderBrush = UiHelpers.Subtle,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(11),
+                Padding = new Thickness(8, 2, 8, 2),
+                Margin = new Thickness(0, 0, 6, 0),
+                // Dimmed rather than hidden when off: the chip is also the only place that says the
+                // gesture exists, so an unused grouping must still be visible to be discovered.
+                Opacity = lit ? 1.0 : 0.5,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+        }
+        #endregion
+
+        #region Immersive mode
+        // Two timers, two different questions. The idle timer asks "has the user stopped?"; the
+        // reveal timer asks "has the peek at the footer run its course?". One timer doing both would
+        // have to remember which of the two it is counting, which is a bug waiting for a fast thumb.
+        private DispatcherTimer _immersiveIdleTimer;
+        private DispatcherTimer _footerRevealTimer;
+        private bool _immersiveDim;
+        private bool _footerRevealed;
+
+        private const double ImmersiveIdleSeconds = 2;
+        private const double FooterRevealSeconds = 4;
+
+        /// <summary>True while the tab strip should be showing plain labels without their counts.</summary>
+        internal bool ImmersiveCountsHidden => _immersiveDim;
+
+        private bool ImmersiveActive => _view == View.Library && Core.CenterSettings.ImmersiveMode;
+
+        /// <summary>
+        /// Called on every pad press while the library is up. It does NOT undim anything.
+        ///
+        /// Its whole job is to keep the idle countdown honest and to switch immersive mode off the
+        /// moment the setting is off or the library is left. Bringing the chrome back belongs to the
+        /// two gestures that ask for it: LB/RB for the tabs, a right-stick flick for the footer.
+        /// </summary>
+        private void NoteLibraryActivity()
+        {
+            if (!ImmersiveActive) { StopImmersive(); return; }
+            if (!_immersiveDim) RestartIdleTimer();
+        }
+
+        /// <summary>
+        /// Only LB/RB bring the tab strip back.
+        ///
+        /// The counts and the bright strip answer ONE question - which tab am I on, and how much is
+        /// in each - so they belong to the buttons that change the tab. Every other press moves a
+        /// cursor inside the tab the user is already looking at, and lighting the strip up for that
+        /// is exactly the flicker immersive mode exists to remove.
+        /// </summary>
+        private void NoteTabChange()
+        {
+            if (!ImmersiveActive) return;
+            _immersiveDim = false;
+            ApplyImmersiveChrome();
+            RestartIdleTimer();
+        }
+
+        private void RestartIdleTimer()
+        {
+            if (_immersiveIdleTimer == null)
+            {
+                _immersiveIdleTimer = new DispatcherTimer();
+                _immersiveIdleTimer.Tick += (_, __) =>
+                {
+                    _immersiveIdleTimer.Stop();
+                    if (!ImmersiveActive) return;
+                    _immersiveDim = true;
+                    _footerRevealed = false;
+                    ApplyImmersiveChrome();
+                };
+            }
+            _immersiveIdleTimer.Interval = TimeSpan.FromSeconds(ImmersiveIdleSeconds);
+            _immersiveIdleTimer.Stop();
+            _immersiveIdleTimer.Start();
+        }
+
+        /// <summary>A flick UP on the right stick: show the footer for a few seconds.</summary>
+        internal void RevealFooterBriefly()
+        {
+            if (!ImmersiveActive || !_immersiveDim) return;
+
+            _footerRevealed = true;
+            ApplyImmersiveChrome();
+
+            if (_footerRevealTimer == null)
+            {
+                _footerRevealTimer = new DispatcherTimer();
+                _footerRevealTimer.Tick += (_, __) =>
+                {
+                    _footerRevealTimer.Stop();
+                    _footerRevealed = false;
+                    ApplyImmersiveChrome();
+                };
+            }
+            _footerRevealTimer.Interval = TimeSpan.FromSeconds(FooterRevealSeconds);
+            // Restarted, not left running: a second flick during the peek should buy another four
+            // seconds, not let the first timer close it early.
+            _footerRevealTimer.Stop();
+            _footerRevealTimer.Start();
+        }
+
+        /// <summary>Puts everything back and stops both timers. Called on the way out of the library
+        /// and whenever the setting is turned off - a dimmed tab strip left behind on the start
+        /// screen would look like a rendering fault.</summary>
+        private void StopImmersive()
+        {
+            _immersiveIdleTimer?.Stop();
+            _footerRevealTimer?.Stop();
+            if (!_immersiveDim && !_footerRevealed) { ApplyImmersiveChrome(); return; }
+            _immersiveDim = false;
+            _footerRevealed = false;
+            ApplyImmersiveChrome();
+        }
+
+        /// <summary>
+        /// True while a prompt, a menu or the settings own the library area.
+        ///
+        /// Immersive mode hides the footer on the SHELF - the one screen whose content speaks for
+        /// itself. On any of these the footer is the only place the available buttons are named, and
+        /// a confirmation whose Yes and No are invisible is not immersive, it is a dead end.
+        /// </summary>
+        private bool LibraryOverlayOwnsScreen =>
+            _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen || LaunchOverlayOpen;
+
+        /// <summary>
+        /// The footer and its stand-in hint only. Cheap, and called from every library action-bar
+        /// refresh - which is what makes an overlay opening or closing bring the footer with it,
+        /// without each of the six of them having to remember to.
+        ///
+        /// Kept apart from ApplyImmersiveChrome deliberately: that one rebuilds the tab strip, and
+        /// doing that on every action-bar refresh would repaint the chips several times per press.
+        /// </summary>
+        private void ApplyFooterVisibility()
+        {
+            // ⚠️ THE FOOTER FOLLOWS THE STICK CLICK ALONE, not the idle state the tabs follow. It is
+            // hidden for as long as immersive mode is on and shown only in the seconds after R3.
+            //
+            // Tying it to idle as well meant it came back on the first press of anything and went
+            // away two seconds later, over and over, on a row that spans the bottom of the screen -
+            // which is more distracting than either of the two states it was moving between.
+            bool footerHidden = ImmersiveActive && !_footerRevealed && !LibraryOverlayOwnsScreen;
+
+            if (FooterBar != null) FooterBar.Visibility = footerHidden ? Visibility.Collapsed : Visibility.Visible;
+            if (ImmersiveHint != null)
+            {
+                ImmersiveHint.Visibility = footerHidden ? Visibility.Visible : Visibility.Collapsed;
+                // As low as it can go in a GRID, higher in the reel.
+                //
+                // The two tabs put different things at the bottom edge. Recent's covers lie in one
+                // horizontal line with the scrollbar underneath them, so there is room there and the
+                // hint needs to clear the bar. A grid runs its last row all the way down, and every
+                // pixel the hint sits up from the edge is a pixel of cover art it stands on.
+                ImmersiveHint.Margin = new Thickness(0, 0, 0, _libReelMode ? 26 : 2);
+            }
+        }
+
+        private void ApplyImmersiveChrome()
+        {
+            bool dim = _immersiveDim && ImmersiveActive;
+            if (TabStrip != null) TabStrip.Opacity = dim ? 0.35 : 1.0;
+
+            ApplyFooterVisibility();
+
+            // The counts live inside the chips, so they only change on a rebuild.
+            RefreshTabStrip();
+        }
+        #endregion
+
         #region Settings
         // The settings screen lives behind Select, and it holds everything about the library that is
         // remembered rather than chosen per session. One screen, because three switches scattered
@@ -989,10 +1634,17 @@ namespace ClawTweaksCenter
         // bare "3" scattered across three places is what breaks silently when a row is added above it.
         private const int SettingsStartInLibraryRow = 0;
         private const int SettingsSquareRomArtRow = 1;
-        private const int SettingsLaunchBehaviorRow = 2;
-        private const int SettingsStartWithClawTweaksRow = 3;
-        private const int SettingsRunInBackgroundRow = 4;
-        private const int SettingsKeyRow = 5;
+        private const int SettingsImmersiveRow = 2;
+        private const int SettingsLaunchBehaviorRow = 3;
+        private const int SettingsStartWithClawTweaksRow = 4;
+        private const int SettingsRunInBackgroundRow = 5;
+
+        /// <summary>The key row, and it is ALWAYS the last one: it holds a text box, so it spans both
+        /// columns and sits on its own line below the pairs. The navigation maths below derives the
+        /// pair count from this, so adding a switch above it needs no other change.</summary>
+        private const int SettingsKeyRow = 6;
+
+        private const int SettingsColumns = 2;
 
         private void OpenLibrarySettings()
         {
@@ -1023,7 +1675,7 @@ namespace ClawTweaksCenter
             {
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 720,
+                MaxWidth = 940,
             };
             stack.Children.Add(new TextBlock
             {
@@ -1034,18 +1686,24 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 0, 0, 16),
             });
 
-            stack.Children.Add(BuildSettingRow(SettingsStartInLibraryRow, "Start in the library",
-                Core.CenterSettings.OpenLibraryAtStartup ? "On" : "Off"));
-            stack.Children.Add(BuildSettingRow(SettingsSquareRomArtRow, "Square ROM art",
-                _squareRomArt ? "On" : "Off"));
-            stack.Children.Add(BuildSettingRow(SettingsLaunchBehaviorRow, "After starting a game",
-                LaunchBehaviorLabel(Core.CenterSettings.LaunchBehavior)));
-            stack.Children.Add(BuildSettingRow(SettingsStartWithClawTweaksRow, "Start Center with ClawTweaks",
-                Core.CenterSettings.StartCenterWithClawTweaks ? "On" : "Off"));
-            stack.Children.Add(BuildSettingRow(SettingsRunInBackgroundRow, "Run in background",
-                Core.CenterSettings.RunInBackground ? "On" : "Off"));
+            // Two columns, because six stacked rows ran off the bottom of an eight-inch panel and the
+            // key row - the one people are sent here for - was the one below the fold.
+            var pairs = new UniformGrid { Columns = SettingsColumns };
+            pairs.Children.Add(BuildSettingRow(SettingsStartInLibraryRow, "Start in the library",
+                Core.CenterSettings.OpenLibraryAtStartup, null));
+            pairs.Children.Add(BuildSettingRow(SettingsSquareRomArtRow, "Square ROM art",
+                _squareRomArt, null));
+            pairs.Children.Add(BuildSettingRow(SettingsImmersiveRow, "Immersive mode",
+                Core.CenterSettings.ImmersiveMode, null));
+            pairs.Children.Add(BuildSettingRow(SettingsLaunchBehaviorRow, "After starting a game",
+                null, LaunchBehaviorLabel(Core.CenterSettings.LaunchBehavior)));
+            pairs.Children.Add(BuildSettingRow(SettingsStartWithClawTweaksRow, "Start Center with ClawTweaks",
+                Core.CenterSettings.StartCenterWithClawTweaks, null));
+            pairs.Children.Add(BuildSettingRow(SettingsRunInBackgroundRow, "Run in background",
+                Core.CenterSettings.RunInBackground, null));
+            stack.Children.Add(pairs);
 
-            var keyRow = BuildSettingRow(SettingsKeyRow, "SteamGridDB key", null);
+            var keyRow = BuildSettingRow(SettingsKeyRow, "SteamGridDB key", null, null);
             var keyStack = (StackPanel)((Grid)keyRow.Child).Children[0];
             _artKeyBox = new TextBox
             {
@@ -1070,17 +1728,22 @@ namespace ClawTweaksCenter
             ApplySettingsSelection();
         }
 
-        /// <summary>One settings row: title on the left, current state on the right. The state is the
-        /// VALUE, not a checkbox glyph - on a handheld the row is read at a glance from across the
-        /// room, and "On" survives that better than a tick.</summary>
-        private Border BuildSettingRow(int index, string title, string state)
+        /// <summary>
+        /// One settings row: title on the left, its state on the right.
+        ///
+        /// A boolean gets a SWITCH; anything else keeps its value as text. The switch is the shape
+        /// people expect from a setting that has two states, and it reads from across the room in a
+        /// way a word does not - which is what a handheld screen actually asks of it.
+        /// </summary>
+        private Border BuildSettingRow(int index, string title, bool? on, string valueText)
         {
-            var left = new StackPanel();
+            var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             left.Children.Add(new TextBlock
             {
                 Text = title,
-                FontSize = 18,
+                FontSize = 17,
                 Foreground = UiHelpers.Text,
+                TextWrapping = TextWrapping.Wrap,
             });
 
             var grid = new Grid();
@@ -1088,19 +1751,21 @@ namespace ClawTweaksCenter
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.Children.Add(left);
 
+            UIElement state = on.HasValue ? BuildToggle(on.Value)
+                : valueText != null ? new TextBlock
+                {
+                    Text = valueText,
+                    FontSize = 16,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = UiHelpers.Subtle,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(12, 0, 0, 0),
+                } : null;
+
             if (state != null)
             {
-                var value = new TextBlock
-                {
-                    Text = state,
-                    FontSize = 18,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = state == "On" ? UiHelpers.Ok : UiHelpers.Subtle,  // On is green, everything else (Off, or a mode name) reads as neutral
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(16, 0, 0, 0),
-                };
-                Grid.SetColumn(value, 1);
-                grid.Children.Add(value);
+                Grid.SetColumn(state, 1);
+                grid.Children.Add(state);
             }
 
             var row = new Border
@@ -1109,16 +1774,46 @@ namespace ClawTweaksCenter
                 Background = UiHelpers.Card,
                 CornerRadius = new CornerRadius(10),
                 Padding = new Thickness(16, 12, 16, 12),
-                Margin = new Thickness(0, 0, 0, 10),
+                Margin = new Thickness(0, 0, 10, 10),
                 BorderThickness = new Thickness(2),
                 BorderBrush = Brushes.Transparent,
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Tag = index,
-                MinWidth = 560,
             };
             row.MouseLeftButtonUp += (_, __) => { _settingsIndex = index; ActivateSetting(); };
             _settingsRows.Add(row);
             return row;
+        }
+
+        /// <summary>
+        /// A switch. The knob is placed by ALIGNMENT rather than by a margin, so it sits against the
+        /// correct end whatever the track ends up measuring - a hard-coded offset only looks right at
+        /// one size, and this control is built at exactly one size today.
+        /// </summary>
+        private static UIElement BuildToggle(bool on)
+        {
+            var knob = new System.Windows.Shapes.Ellipse
+            {
+                Width = 16,
+                Height = 16,
+                Fill = on ? Brushes.White : UiHelpers.Subtle,
+                HorizontalAlignment = on ? HorizontalAlignment.Right : HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            return new Border
+            {
+                Width = 44,
+                Height = 24,
+                CornerRadius = new CornerRadius(12),
+                Background = on ? UiHelpers.Ok : Brushes.Transparent,
+                BorderBrush = on ? UiHelpers.Ok : UiHelpers.Subtle,
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(3, 0, 3, 0),
+                Margin = new Thickness(12, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = knob,
+            };
         }
 
         private void ApplySettingsSelection()
@@ -1127,10 +1822,47 @@ namespace ClawTweaksCenter
                 row.BorderBrush = row.Tag is int i && i == _settingsIndex ? UiHelpers.Accent : Brushes.Transparent;
         }
 
+        /// <summary>
+        /// Two columns of switches with one full-width row underneath.
+        ///
+        /// The pair count comes from the row list rather than from a constant: the key row is always
+        /// the last one, so everything above it is a pair. Adding a switch shifts the maths by itself.
+        /// </summary>
         private void MoveSettingsSelection(PadButton dir)
         {
-            int next = _settingsIndex + (dir == PadButton.Down ? 1 : dir == PadButton.Up ? -1 : 0);
-            if (next < 0 || next >= _settingsRows.Count || next == _settingsIndex) return;
+            if (_settingsRows.Count == 0) return;
+            int last = _settingsRows.Count - 1;   // the full-width key row
+            int pairs = last;                     // everything above it
+            int next = _settingsIndex;
+
+            switch (dir)
+            {
+                case PadButton.Left:
+                    if (_settingsIndex >= pairs || _settingsIndex % SettingsColumns == 0) return;
+                    next = _settingsIndex - 1;
+                    break;
+                case PadButton.Right:
+                    if (_settingsIndex >= pairs || _settingsIndex % SettingsColumns == SettingsColumns - 1) return;
+                    next = _settingsIndex + 1;
+                    if (next >= pairs) return;
+                    break;
+                case PadButton.Up:
+                    // From the key row, back into the LAST pair row rather than to a fixed index -
+                    // with an odd number of switches the last row is half empty, and landing on a
+                    // cell that is not there would leave the cursor invisible.
+                    if (_settingsIndex == last) { next = Math.Max(0, pairs - SettingsColumns); break; }
+                    if (_settingsIndex < SettingsColumns) return;
+                    next = _settingsIndex - SettingsColumns;
+                    break;
+                case PadButton.Down:
+                    if (_settingsIndex >= pairs) return;
+                    next = _settingsIndex + SettingsColumns;
+                    if (next >= pairs) next = last;
+                    break;
+                default: return;
+            }
+
+            if (next == _settingsIndex || next < 0 || next > last) return;
             _settingsIndex = next;
             ApplySettingsSelection();
             RefreshActionBar();
@@ -1146,6 +1878,13 @@ namespace ClawTweaksCenter
                 case SettingsSquareRomArtRow:
                     _squareRomArt = !_squareRomArt;
                     Core.CenterSettings.SquareRomArt = _squareRomArt;
+                    break;
+                case SettingsImmersiveRow:
+                    Core.CenterSettings.ImmersiveMode = !Core.CenterSettings.ImmersiveMode;
+                    // Turning it OFF has to undo it on the spot. The settings screen is reached from
+                    // the library, so a dimmed strip and a hidden footer would otherwise still be
+                    // there when the user goes back - looking like the switch did nothing.
+                    StopImmersive();
                     break;
                 case SettingsLaunchBehaviorRow:
                     Core.CenterSettings.LaunchBehavior = NextLaunchBehavior(Core.CenterSettings.LaunchBehavior);
@@ -1242,7 +1981,7 @@ namespace ClawTweaksCenter
                 {
                     await Library.SteamGridDb.FetchMissingAsync(games, ct, () => Dispatcher.Invoke(() =>
                     {
-                        if (_view == View.Library && !_settingsOpen && _closeTimer == null) RenderLibrary();
+                        if (_view == View.Library && !_settingsOpen && !LaunchOverlayOpen) RenderLibrary();
                     }));
                 }
                 catch (OperationCanceledException) { }
@@ -1265,10 +2004,30 @@ namespace ClawTweaksCenter
         /// Center never sees the sticks the game is using, and the window is not topmost, so it
         /// cannot end up over one either.
         /// </summary>
+        /// <summary>
+        /// A on a game: ASK FIRST. Nothing is started here.
+        ///
+        /// A handheld grid is navigated with a thumbstick and confirmed with the same button that
+        /// scrolls past a dozen covers to get there, so the cost of a stray press was launching a
+        /// game - which on Steam can mean a client coming up, a window taking the foreground, and a
+        /// download resuming. One extra press is cheap; an accidental launch is not.
+        /// </summary>
         private void LaunchSelectedGame()
         {
             var game = SelectedGame;
-            if (game == null || _closeTimer != null) return;
+            if (game == null || LaunchOverlayOpen) return;
+
+            _launchTarget = game;
+            _launchPrompt = LaunchPrompt.Confirm;
+            RenderLaunchOverlay();
+            RefreshActionBar();
+        }
+
+        /// <summary>A on the confirmation: this is where the game actually starts.</summary>
+        private void ConfirmLaunch()
+        {
+            var game = _launchTarget;
+            if (game == null || _launchPrompt != LaunchPrompt.Confirm) return;
 
             bool started = GameLibrary.Launch(game, out var startedProcess);
             if (started)
@@ -1277,40 +2036,53 @@ namespace ClawTweaksCenter
                 _library.History.SaveIfChanged();
             }
 
-            ShowLaunchOverlay(game, started);
-            if (!started) return;
+            _launchPrompt = started ? LaunchPrompt.Running : LaunchPrompt.Failed;
+            RenderLaunchOverlay();
+            RefreshActionBar();
 
-            // Read ONCE, here. The countdown runs for two and a half seconds and the settings
-            // screen is unreachable during it, but binding the decision to the moment of the launch
-            // is what makes the footer label above and the action below agree by construction.
-            var behavior = Core.CenterSettings.LaunchBehavior;
+            // Tracked on EVERY successful launch now, not only when the window minimises. The running
+            // screen has to know when the game ends, and that is the same question the restore was
+            // already answering - one tracker, two readers.
+            if (started) StartTrackingForRestore(game, startedProcess);
+        }
 
-            _closeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
-            _closeTimer.Tick += (_, __) =>
+        /// <summary>
+        /// "Hide" on the running screen. The game keeps running; only Center goes away, in whatever
+        /// way the user picked under After starting a game.
+        ///
+        /// The setting is read HERE rather than at launch time, because the screen it is acting on
+        /// stays up for as long as the game does - reading it minutes earlier would act on a choice
+        /// the user could have changed since.
+        /// </summary>
+        private void HideAfterLaunch()
+        {
+            if (_launchPrompt != LaunchPrompt.Running) return;
+
+            switch (Core.CenterSettings.LaunchBehavior)
             {
-                CancelPendingClose();
-                switch (behavior)
-                {
-                    case Core.LaunchBehavior.Minimize:
-                        WindowState = WindowState.Minimized;
-                        // Only Minimize needs to come back on its own - StayOpen never left, and
-                        // Close has already exited by this point in a way there is nothing left to
-                        // restore. Mirrors Playnite's own pairing (AfterLaunch=Minimize with
-                        // AfterGameClose=Restore) rather than tracking every launch unconditionally.
-                        StartTrackingForRestore(game, startedProcess);
-                        break;
-                    case Core.LaunchBehavior.StayOpen:
-                        break;
-                    default:
-                        Application.Current.Shutdown();
-                        return;
-                }
-                // Back to the grid for both surviving modes: leaving "Starting X…" on screen would
-                // greet the user with a stale line whenever they came back.
-                RenderLibrary();
-                RefreshActionBar();
-            };
-            _closeTimer.Start();
+                case Core.LaunchBehavior.Minimize:
+                    WindowState = WindowState.Minimized;
+                    break;
+                case Core.LaunchBehavior.StayOpen:
+                    // Nothing to hide. Leaving the running screen up would be a dead end, so the
+                    // library comes back - the tracker keeps watching either way.
+                    ClearLaunchOverlay();
+                    break;
+                default:
+                    // Close means exit. The tracker dies with the process, which is correct: there is
+                    // no window left to bring back.
+                    Application.Current.Shutdown();
+                    return;
+            }
+
+            RefreshActionBar();
+        }
+
+        private void ClearLaunchOverlay()
+        {
+            _launchPrompt = LaunchPrompt.None;
+            _launchTarget = null;
+            RenderLibrary();
             RefreshActionBar();
         }
 
@@ -1351,6 +2123,10 @@ namespace ClawTweaksCenter
             restoreTimer.Tick += (_, __) =>
             {
                 restoreTimer.Stop();
+                // The running screen has served its purpose the moment the game ends - leaving it up
+                // would greet the user with a line claiming a game is running that just stopped.
+                if (_launchPrompt == LaunchPrompt.Running) ClearLaunchOverlay();
+
                 // Covers both ways the window could be out of sight: minimized (the normal case for
                 // this path) and hidden-to-tray (RunInBackground On) if the user closed it by hand
                 // while this same tracker was still watching the game it started before that.
@@ -1362,7 +2138,109 @@ namespace ClawTweaksCenter
             restoreTimer.Start();
         }
 
-        private void ShowLaunchOverlay(GameEntry game, bool started)
+        private void RenderLaunchOverlay()
+        {
+            LibraryRoot.Children.Clear();
+            LibraryRoot.RowDefinitions.Clear();
+
+            string title = _launchTarget?.Title ?? string.Empty;
+            string head, sub;
+            switch (_launchPrompt)
+            {
+                case LaunchPrompt.Confirm:
+                    head = "Start " + title + "?";
+                    sub = null;
+                    break;
+                case LaunchPrompt.Running:
+                    head = title + " is running";
+                    sub = "Center comes back when the game ends.";
+                    break;
+                default:
+                    head = "Could not start " + title + ".";
+                    sub = null;
+                    break;
+            }
+
+            var stack = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 720,
+            };
+            stack.Children.Add(new TextBlock
+            {
+                Text = head,
+                FontSize = 26,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = _launchPrompt == LaunchPrompt.Failed ? UiHelpers.Error : UiHelpers.Text,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+                TextAlignment = TextAlignment.Center,
+            });
+            if (sub != null)
+                stack.Children.Add(new TextBlock
+                {
+                    Text = sub,
+                    FontSize = 15,
+                    Foreground = UiHelpers.Subtle,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    TextAlignment = TextAlignment.Center,
+                    Margin = new Thickness(0, 10, 0, 0),
+                });
+
+            LibraryRoot.Children.Add(stack);
+        }
+
+        /// <summary>
+        /// Drops whatever launch screen is up. Called on the way out of the library, so a running
+        /// screen cannot survive into a tab it says nothing about.
+        ///
+        /// It does NOT stop the game. On the confirmation screen there is nothing to stop; after it,
+        /// ShellExecute has long since fired and the handler we got back is Steam or the shell, never
+        /// the game itself.
+        /// </summary>
+        private void CancelPendingClose()
+        {
+            _launchPrompt = LaunchPrompt.None;
+            _launchTarget = null;
+        }
+        #endregion
+
+        #region Footer
+        #region Info
+        private void OpenLibraryInfo()
+        {
+            if (_launchPrompt != LaunchPrompt.None || _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen) return;
+            if (_infoOpen) return;
+
+            _exitPromptOpen = false;
+            _infoOpen = true;
+            Core.CenterSettings.LibraryInfoSeen = true;
+            RenderLibraryInfo();
+            RefreshActionBar();
+        }
+
+        private void CloseLibraryInfo()
+        {
+            _infoOpen = false;
+            RenderLibrary();
+            RefreshActionBar();
+        }
+
+        /// <summary>
+        /// Shown once, automatically, the first time the library is opened.
+        ///
+        /// The flag is written by OpenLibraryInfo, so it is set by the act of SHOWING it, not by the
+        /// user dismissing it. That is deliberate: a user who leaves the screen some other way should
+        /// not meet it again on the next visit as though nothing happened.
+        /// </summary>
+        private void ShowLibraryInfoOnFirstVisit()
+        {
+            if (Core.CenterSettings.LibraryInfoSeen) return;
+            OpenLibraryInfo();
+        }
+
+        private void RenderLibraryInfo()
         {
             LibraryRoot.Children.Clear();
             LibraryRoot.RowDefinitions.Clear();
@@ -1371,54 +2249,255 @@ namespace ClawTweaksCenter
             {
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 640,
             };
             stack.Children.Add(new TextBlock
             {
-                Text = started ? "Starting " + game.Title + "…" : "Could not start " + game.Title + ".",
+                Text = "Your ClawTweaks library",
                 FontSize = 26,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
-                HorizontalAlignment = HorizontalAlignment.Center,
-                TextWrapping = TextWrapping.Wrap,
-                TextAlignment = TextAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 18),
             });
+
+            stack.Children.Add(InfoLine("Shows your installed Steam, Xbox and Epic games."));
+            stack.Children.Add(InfoLine("Steam cover art is found automatically."));
+            stack.Children.Add(InfoGap());
+            stack.Children.Add(InfoLine("Xbox, Epic and your own covers need a free SteamGridDB account."));
+            stack.Children.Add(InfoLine("Signing up takes two minutes."));
+            stack.Children.Add(InfoLine("Copy your key from Preferences \u2192 API Key."));
+            stack.Children.Add(InfoLine("Add it under Settings \u2192 SteamGridDB key."));
+            stack.Children.Add(InfoGap());
+            stack.Children.Add(InfoLine("ROMs come from Playnite, so add them there."));
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = SteamGridDbUrl,
+                FontSize = 13,
+                Foreground = UiHelpers.Accent,
+                Margin = new Thickness(0, 18, 0, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+
             LibraryRoot.Children.Add(stack);
         }
 
-        /// <summary>
-        /// B during the countdown.
-        ///
-        /// It cancels the CLOSING, and nothing else. ShellExecute has long since fired by then, the
-        /// game is on its way, and there is no process of ours to stop - the handler returns Steam or
-        /// the shell, never the game. Which is why the footer says "Keep Center open" and not
-        /// "Cancel": a label promising to stop the launch, followed by the game appearing anyway,
-        /// reads as a bug.
-        /// </summary>
-        private void CancelPendingClose()
+        /// <summary>One statement per line, and the bullet is a real element rather than a character
+        /// in the text: a wrapped line then indents under the words instead of under the dot.</summary>
+        private static UIElement InfoLine(string text)
         {
-            if (_closeTimer == null) return;
-            _closeTimer.Stop();
-            _closeTimer = null;
+            var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            grid.Children.Add(new TextBlock
+            {
+                Text = "\u2022",
+                FontSize = 16,
+                Foreground = UiHelpers.Subtle,
+            });
+
+            var body = new TextBlock
+            {
+                Text = text,
+                FontSize = 16,
+                Foreground = UiHelpers.Text,
+                TextWrapping = TextWrapping.Wrap,
+            };
+            Grid.SetColumn(body, 1);
+            grid.Children.Add(body);
+            return grid;
         }
 
-        private void KeepCenterOpen()
+        private static UIElement InfoGap() => new Border { Height = 10 };
+        #endregion
+
+        #region Leaving the library
+        private void OpenExitPrompt()
         {
-            CancelPendingClose();
+            if (LaunchOverlayOpen || _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen) return;
+            _exitPromptOpen = true;
+            _exitPromptIndex = 0;
+            RenderExitPrompt();
+            RefreshActionBar();
+        }
+
+        private void CloseExitPrompt()
+        {
+            _exitPromptOpen = false;
+            _exitPromptRows.Clear();
             RenderLibrary();
             RefreshActionBar();
         }
+
+        private void RenderExitPrompt()
+        {
+            LibraryRoot.Children.Clear();
+            LibraryRoot.RowDefinitions.Clear();
+            _exitPromptRows.Clear();
+
+            var stack = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 720,
+            };
+            stack.Children.Add(new TextBlock
+            {
+                Text = "Leave the library",
+                FontSize = 26,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = UiHelpers.Text,
+                Margin = new Thickness(0, 0, 0, 16),
+            });
+
+            // Ordered by how much they throw away: least first. Tray keeps everything, Start screen
+            // keeps the process, Close keeps nothing.
+            stack.Children.Add(ExitPromptRow(0, "\uE7C4", "Minimize to tray", "Center keeps running."));
+            stack.Children.Add(ExitPromptRow(1, "\uE80F", "Center start screen", "Leave the library open."));
+            stack.Children.Add(ExitPromptRow(2, "\uE711", "Close Center", "Ends Center completely."));
+
+            LibraryRoot.Children.Add(stack);
+            ApplyExitPromptSelection();
+        }
+
+        private Border ExitPromptRow(int index, string glyph, string title, string subtitle)
+        {
+            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            text.Children.Add(new TextBlock { Text = title, FontSize = 18, Foreground = UiHelpers.Text });
+            text.Children.Add(new TextBlock
+            {
+                Text = subtitle,
+                FontSize = 13,
+                Foreground = UiHelpers.Subtle,
+                Margin = new Thickness(0, 2, 0, 0),
+            });
+            Grid.SetColumn(text, 1);
+
+            var icon = new TextBlock
+            {
+                Text = glyph,
+                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                FontSize = 20,
+                Foreground = UiHelpers.Text,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.Children.Add(icon);
+            grid.Children.Add(text);
+
+            var row = new Border
+            {
+                Child = grid,
+                Background = UiHelpers.Card,
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(16, 12, 16, 12),
+                Margin = new Thickness(0, 0, 0, 10),
+                BorderThickness = new Thickness(2),
+                BorderBrush = Brushes.Transparent,
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = index,
+                MinWidth = 520,
+            };
+            int captured = index;
+            row.MouseLeftButtonUp += (_, __) => { _exitPromptIndex = captured; ActivateExitPromptRow(); };
+            _exitPromptRows.Add(row);
+            return row;
+        }
+
+        private void ApplyExitPromptSelection()
+        {
+            foreach (var row in _exitPromptRows)
+                row.BorderBrush = row.Tag is int i && i == _exitPromptIndex ? UiHelpers.Accent : Brushes.Transparent;
+        }
+
+        private void MoveExitPromptSelection(PadButton dir)
+        {
+            if (_exitPromptRows.Count == 0) return;
+            int next = _exitPromptIndex + (dir == PadButton.Down ? 1 : dir == PadButton.Up ? -1 : 0);
+            if (next < 0 || next >= _exitPromptRows.Count || next == _exitPromptIndex) return;
+            _exitPromptIndex = next;
+            ApplyExitPromptSelection();
+        }
+
+        private void ActivateExitPromptRow()
+        {
+            switch (_exitPromptIndex)
+            {
+                case 0:
+                    // Close(), not Hide(): the Closing handler already knows what closing means on
+                    // this machine. With Run in background off it exits instead, which is the honest
+                    // answer - there is no tray to minimize into.
+                    _exitPromptOpen = false;
+                    Close();
+                    return;
+                case 1:
+                    _exitPromptOpen = false;
+                    _exitPromptRows.Clear();
+                    GoHome();
+                    return;
+                default:
+                    Application.Current.Shutdown();
+                    return;
+            }
+        }
         #endregion
 
-        #region Footer
+        /// <summary>What A does on the running screen, named after the behaviour the user picked.
+        /// The game is untouched in all three.</summary>
+        private static string HideLabel()
+        {
+            switch (Core.CenterSettings.LaunchBehavior)
+            {
+                case Core.LaunchBehavior.Minimize: return "Minimize Center";
+                case Core.LaunchBehavior.StayOpen: return "Back to library";
+                default: return "Close Center";
+            }
+        }
+
         private void RefreshLibraryActionBar()
         {
-            if (_closeTimer != null)
+            // Before the chips are built, not after: this decides whether the row they go into is on
+            // screen at all, and doing it afterwards would show one frame of the old state.
+            ApplyFooterVisibility();
+
+            if (_infoOpen)
             {
-                // "Keep Center open" is only true when the countdown would otherwise exit. Promising
-                // to keep something open that was never going to close reads as a broken label.
-                AddAction(PadButton.B,
-                    Core.CenterSettings.LaunchBehavior == Core.LaunchBehavior.Close ? "Keep Center open" : "Back",
-                    true, KeepCenterOpen);
+                AddAction(PadButton.A, "Open SteamGridDB", true,
+                    () => Core.PrerequisiteGuide.OpenPage(SteamGridDbUrl, m => Core.InstallLog.Write(m)));
+                AddAction(PadButton.B, "Close", true, CloseLibraryInfo);
+                return;
+            }
+
+            if (_exitPromptOpen)
+            {
+                AddAction(PadButton.A, "Select", true, ActivateExitPromptRow);
+                AddAction(PadButton.B, "Back to library", true, CloseExitPrompt);
+                return;
+            }
+
+            if (LaunchOverlayOpen)
+            {
+                switch (_launchPrompt)
+                {
+                    case LaunchPrompt.Confirm:
+                        AddAction(PadButton.A, "Play", true, ConfirmLaunch);
+                        AddAction(PadButton.B, "Cancel", true, ClearLaunchOverlay);
+                        break;
+                    case LaunchPrompt.Running:
+                        // The label says what happens to CENTER, because that is all this does. The
+                        // three modes read differently enough that one word would be a lie in two of
+                        // them: "Hide" over an app that exits is not hiding.
+                        AddAction(PadButton.A, HideLabel(), true, HideAfterLaunch);
+                        break;
+                    default:
+                        AddAction(PadButton.B, "Back", true, ClearLaunchOverlay);
+                        break;
+                }
                 return;
             }
 
@@ -1446,9 +2525,15 @@ namespace ClawTweaksCenter
             // the stores does nothing for a list that is not scanned, and Rescan stays on Y in every
             // other tab. Braced deliberately - AddAction just overwrites a dictionary slot, so an
             // unguarded Rescan call below this block would silently win over "Edit" on every redraw.
+            // X is the info screen in EVERY tab, so the key cap next to the icon in the tab strip is
+            // true wherever the user is standing. Misc's "Add app" moved to Y, which is free there -
+            // Y is the tab-specific slot (Rescan elsewhere), X is the one that means the same thing
+            // everywhere.
+            AddAction(PadButton.X, "Info", true, OpenLibraryInfo);
+
             if (_libraryGroup == LibraryGroup.Misc)
             {
-                AddAction(PadButton.X, "Add app", true, OpenMiscAdd);
+                AddAction(PadButton.Y, "Add app", true, OpenMiscAdd);
             }
             else
             {
@@ -1463,7 +2548,7 @@ namespace ClawTweaksCenter
             }
 
             AddAction(PadButton.View, "Settings", true, OpenLibrarySettings);
-            AddAction(PadButton.B, "Back", true, GoHome);
+            AddAction(PadButton.B, "Back", true, OpenExitPrompt);
 
             // The triggers move between ROM SYSTEMS - the shoulders own the tabs now. Bound WITHOUT
             // a footer chip: both are labelled in the strip they belong to, which is where someone
@@ -1490,6 +2575,11 @@ namespace ClawTweaksCenter
         public CenterMenuWindow Owner;
         public int FirstIndex;
         public List<GameEntry> Items;
+
+        /// <summary>Set on a HEADING row, which carries no tiles. One list holds both kinds so the
+        /// virtualising panel keeps working - a second ItemsControl per group would defeat the
+        /// recycling the grid depends on for a library of a few hundred covers.</summary>
+        public string Heading;
     }
 
     /// <summary>One reel entry - a single game, since the reel is one long line.</summary>
@@ -1780,11 +2870,55 @@ namespace ClawTweaksCenter
         private static void OnRowChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
             => ((LibraryRowHost)d).Build(e.NewValue as LibraryRow);
 
+        /// <summary>
+        /// A group heading row. It registers with nothing and holds no tiles - the selection never
+        /// lands on it, which is why it needs no entry in the row map either.
+        /// </summary>
+        private void BuildHeading(LibraryRow row)
+        {
+            _owner?.UnregisterRow(this);
+            _owner = row.Owner;
+
+            var text = new TextBlock
+            {
+                Text = row.Heading,
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Ui.UiHelpers.Subtle,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            var rule = new Border
+            {
+                Height = 1,
+                Background = Ui.UiHelpers.Subtle,
+                Opacity = 0.25,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(10, 0, 0, 0),
+            };
+            Grid.SetColumn(rule, 1);
+
+            var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.Children.Add(text);
+            grid.Children.Add(rule);
+
+            Child = new Border
+            {
+                Child = grid,
+                Margin = new Thickness(_owner.LibOuterMarginValue, 6, _owner.LibOuterMarginValue, 8),
+            };
+        }
+
         private void Build(LibraryRow row)
         {
             _tiles.Clear();
             Child = null;
-            if (row?.Items == null) return;
+            if (row == null) return;
+
+            if (row.Heading != null) { BuildHeading(row); return; }
+            if (row.Items == null) return;
 
             _owner?.UnregisterRow(this);
             _owner = row.Owner;

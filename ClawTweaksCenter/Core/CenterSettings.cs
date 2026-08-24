@@ -133,6 +133,50 @@ namespace ClawTweaksCenter.Core
         /// for an instant reopen from ClawTweaks", and an explicit game-launch close silently
         /// bypassing that would undo the very thing the user turned on.
         /// </summary>
+        /// <summary>
+        /// Whether the library's info screen has been shown once. It opens by itself the first time
+        /// the library is opened and never again on its own.
+        ///
+        /// Remembered rather than shown every time BECAUSE it is the answer to questions asked once:
+        /// where covers come from, and why some are missing. A panel that reappears on every visit
+        /// is a panel people learn to dismiss without reading, which costs exactly the users who
+        /// have not set a key yet.
+        /// </summary>
+        /// <summary>
+        /// Immersive mode: the library dims its own furniture once the user stops touching anything.
+        ///
+        /// OPT IN, and it stays that way. It hides the footer, which is where every button on the
+        /// screen is named - useful once you know the library, and a dead end on the first visit.
+        /// </summary>
+        /// <summary>Z-A instead of A-Z. One bool rather than an enum: there are two orders, and an
+        /// enum with two members is a bool that needs a migration when a third never arrives.</summary>
+        public static bool LibrarySortDescending
+        {
+            get => ReadBool("LibrarySortDescending", false);
+            set => WriteBool("LibrarySortDescending", value);
+        }
+
+        /// <summary>Group the flat tabs by where the game came from. Only some tabs can group at all
+        /// (see CenterMenuWindow.GroupingKind); the setting is remembered for all of them together,
+        /// because "grouped" is a habit, not a per-tab decision.</summary>
+        public static bool LibraryGrouped
+        {
+            get => ReadBool("LibraryGrouped", true);
+            set => WriteBool("LibraryGrouped", value);
+        }
+
+        public static bool ImmersiveMode
+        {
+            get => ReadBool("ImmersiveMode", false);
+            set => WriteBool("ImmersiveMode", value);
+        }
+
+        public static bool LibraryInfoSeen
+        {
+            get => ReadBool("LibraryInfoSeen", false);
+            set => WriteBool("LibraryInfoSeen", value);
+        }
+
         public static bool RunInBackground
         {
             get => ReadBool("RunInBackground", false);

@@ -225,11 +225,22 @@ namespace ClawTweaksCenter
                 _nav.ButtonPressed += b => Dispatcher.Invoke(() => Invoke(b));
                 _nav.RightStickScrollRequested += d => Dispatcher.Invoke(() =>
                 {
+                    // The library takes its right stick from RightStickFlicked instead - one raise
+                    // per push, not one per tick. This continuous signal is a scroll rate, and a
+                    // rate applied to a discrete choice flips it a dozen times per second.
+                    if (_view == View.Library) return;
+
                     // Defensive: this fires at up to ~25Hz straight off a live gamepad reading, so any
                     // transient WPF layout hiccup here must never take the whole app down with it.
                     try { ContentScroller.ScrollToVerticalOffset(ContentScroller.VerticalOffset + d); }
                     catch { }
                 });
+                // Right stick DIRECTIONS arrange the shelf: up/down the sort order, left/right the
+                // grouping. Bringing the button hints back moved off the stick's directions and onto
+                // its CLICK (PadButton.R3) once both axes were spoken for - three jobs did not fit on
+                // two axes, and overloading a flick to do two things at once was the version of this
+                // that had a stray sort change in it every time.
+                _nav.RightStickFlicked += dir => Dispatcher.Invoke(() => OnRightStickFlick(dir));
                 _nav.Start();
 
                 var deviceTask = Task.Run(() => DeviceDetect.Detect());
@@ -282,17 +293,50 @@ namespace ClawTweaksCenter
             };
         }
 
+        /// <summary>Right-stick flicks, which belong entirely to the library.</summary>
+        private void OnRightStickFlick(PadButton dir)
+        {
+            if (_view != View.Library || _confirming || _busy) return;
+            // Nothing while an overlay owns the screen: the sort readout is not on it, so a change
+            // nobody can see is a change nobody asked for.
+            if (_settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen || LaunchOverlayOpen) return;
+
+            switch (dir)
+            {
+                case PadButton.Up: SetSortDirection(false); break;    // A-Z
+                case PadButton.Down: SetSortDirection(true); break;   // Z-A
+                case PadButton.Left: SetGrouping(false); break;
+                case PadButton.Right: SetGrouping(true); break;
+            }
+        }
+
         private void Invoke(PadButton b)
         {
+            // Every pad press, before anything acts on it: immersive mode counts from the last input,
+            // and putting the call here means a screen added later cannot forget it.
+            NoteLibraryActivity();
+
             // Shoulders and triggers are handled before the per-screen action table so they behave
             // the same everywhere, without a chip in six different footers.
             //
             // INSIDE the library the shoulders belong to ITS tabs - that is what they read as on a
             // pad, and the library is the only screen with a second row of tabs. The way IN is
             // therefore RT, which keeps the shoulders free for the thing they will be used for most.
+            // Right stick click: the button hints, in immersive mode. Handled before the per-screen
+            // action table so it works on every library screen without each one binding it.
+            if (b == PadButton.R3)
+            {
+                if (_view == View.Library) RevealFooterBriefly();
+                return;
+            }
+
             if (b == PadButton.LB || b == PadButton.RB)
             {
-                if (_view == View.Library && !_confirming && !_busy) CycleLibraryGroup(b == PadButton.LB ? -1 : 1);
+                if (_view == View.Library && !_confirming && !_busy)
+                {
+                    CycleLibraryGroup(b == PadButton.LB ? -1 : 1);
+                    NoteTabChange();
+                }
                 return;
             }
             if (b == PadButton.RT && _view != View.Library && LibraryAvailable && !_confirming && !_busy)

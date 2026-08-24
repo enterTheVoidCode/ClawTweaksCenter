@@ -56,7 +56,7 @@ namespace ClawTweaksCenter
         #region Entry and exit
         private void OpenMiscAdd()
         {
-            if (_closeTimer != null || _settingsOpen) return;
+            if (LaunchOverlayOpen || _settingsOpen) return;
             _miscOverlay = MiscOverlay.Sources;
             _miscMenuIndex = 0;
             RenderMiscOverlay();

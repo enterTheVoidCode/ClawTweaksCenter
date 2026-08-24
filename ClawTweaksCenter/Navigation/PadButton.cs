@@ -20,6 +20,18 @@
         // reporting a value. A held trigger must produce exactly one group change, not 25 per second.
         LB, RB, LT, RT,
 
+        /// <summary>
+        /// Right stick CLICK (XINPUT_GAMEPAD_RIGHT_THUMB).
+        ///
+        /// Added because the right stick's four directions were already spoken for - sorting on one
+        /// axis, grouping on the other - and immersive mode still needed a gesture of its own to
+        /// bring the button hints back. A click is not a direction, so it collides with neither.
+        ///
+        /// NOT rendered as a footer chip: there is no bundled artwork for a stick click, and the one
+        /// screen that uses it names it in the hint it replaces.
+        /// </summary>
+        R3,
+
         // Discrete D-Pad presses (edge-triggered, like the face buttons above) — NOT rendered as
         // footer chips (no fixed-button glyph makes sense for "move"). Used by screens with a real
         // list/grid selection, e.g. CenterMenuWindow's build picker. Windows that don't bind these

@@ -56,7 +56,16 @@ namespace ClawTweaksCenter
             // LaunchBehavior.Close case after a game launch) without editing each of them separately.
             Closing += (_, e) =>
             {
-                if (_reallyExiting || !Core.CenterSettings.RunInBackground) return;
+                bool resident = !_reallyExiting && Core.CenterSettings.RunInBackground;
+                // Logged on BOTH outcomes, not just the interesting one. A window that closed when it
+                // was supposed to hide leaves no trace of having made that decision, and working out
+                // afterwards which of the two branches ran is exactly the question a wedged process
+                // cannot answer. It cost a session once.
+                Core.InstallLog.Write(resident
+                    ? "Closing: staying resident (hiding to tray)."
+                    : $"Closing: really closing (reallyExiting={_reallyExiting}, runInBackground={Core.CenterSettings.RunInBackground}).");
+
+                if (!resident) return;
                 e.Cancel = true;
                 Hide();
             };
@@ -65,6 +74,21 @@ namespace ClawTweaksCenter
             {
                 _trayListenCts?.Cancel();
                 _trayIcon?.Dispose();
+
+                // ⚠️ THE PROCESS DOES NOT END BY ITSELF HERE. A --background start sets
+                // ShutdownMode.OnExplicitShutdown (there is no first window whose closing could end
+                // the app), so reaching this point without shutting down leaves a process with no
+                // window, no tray icon and a cancelled wake listener - and it still holds the
+                // single-instance mutex. Every later launch then signals into a pipe nobody is
+                // listening on and quietly exits, so the button does nothing, for ever, until
+                // somebody finds the process in Task Manager.
+                //
+                // Measured on 2026-08-24: 272 MB, 26 threads, MainWindowHandle 0, no pipe.
+                //
+                // If the Closing handler above let the close through, residency was not wanted (or
+                // could not be confirmed). Then this process has nothing left to do.
+                Core.InstallLog.Write("Closed: window is gone - shutting the process down.");
+                try { Application.Current?.Shutdown(); } catch { }
             };
         }
 

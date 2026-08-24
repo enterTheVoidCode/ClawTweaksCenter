@@ -1,5 +1,6 @@
-using System;
+﻿using System;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using ClawTweaksCenter.Core;
 using ClawTweaksCenter.Navigation;
@@ -56,6 +57,13 @@ namespace ClawTweaksCenter
                 case InstallCenterMode.Update:
                     TitleText.Text = "Update ClawTweaks Center";
                     TitleIcon.Text = ((char)0xE777).ToString(); // Segoe Fluent "UpdateRestore"
+
+                    // NOT ticked on an update. The box only ever ADDS an icon or removes one, so on a
+                    // machine that already has Center installed a ticked box means "put the icon back"
+                    // - which quietly undoes a user who deleted it, on every single update. Unticked,
+                    // an update leaves the desktop exactly as the user left it, and someone who does
+                    // want the icon is one press away.
+                    DesktopShortcutOption.IsChecked = false;
                     break;
                 case InstallCenterMode.AlreadyInstalled:
                     TitleText.Text = "ClawTweaks Center is already installed";
@@ -190,7 +198,21 @@ namespace ClawTweaksCenter
             ActionBar.Children.Add(ActionBarBuilder.BuildChip(PadButton.B, "Exit", true, () => Application.Current.Shutdown()));
         }
 
-        private void StartInstall()
+        /// <summary>
+        /// ⚠️ ASYNC, AND THAT IS THE FIX, NOT A TIDY-UP.
+        ///
+        /// InstallAndRelaunch BLOCKS: it closes the running Center (up to 5 s of waiting on a process
+        /// to go away) and then retries the file copy three times with growing pauses (another 3 s).
+        /// Run on the UI thread, as this was, the window cannot repaint for as long as that lasts -
+        /// "Updating..." is assigned and never drawn, the progress lines are assigned and never
+        /// drawn, and every one of the log callbacks below hits Dispatcher.Invoke from the dispatcher
+        /// thread itself, which runs inline and paints nothing.
+        ///
+        /// From outside that is indistinguishable from a dead button: the user clicks Update and the
+        /// window sits there unchanged for the better part of ten seconds. It was never doing
+        /// nothing; it was doing everything with the screen frozen.
+        /// </summary>
+        private async void StartInstall()
         {
             // Defense in depth — RenderActionBar already omits this chip and the button handlers
             // already check _legacyBlocking, so this only matters if something else calls StartInstall
@@ -208,8 +230,21 @@ namespace ClawTweaksCenter
             // (and carry a ResumeArg across the prompt so the user didn't have to click Install twice);
             // moving off Program Files removed the reason for all of it. See SelfInstaller.
             bool desktopIcon = DesktopShortcutOption.IsChecked == true;
-            bool ok = SelfInstaller.InstallAndRelaunch(
-                msg => Dispatcher.Invoke(() => StatusText.Text = msg), desktopIcon);
+            bool ok;
+            try
+            {
+                ok = await Task.Run(() => SelfInstaller.InstallAndRelaunch(
+                    msg => Dispatcher.Invoke(() => StatusText.Text = msg), desktopIcon));
+            }
+            catch (Exception ex)
+            {
+                // async void: an escaping exception here would take the process down instead of
+                // showing the user anything. InstallAndRelaunch catches its own, so this covers only
+                // the unexpected - but the unexpected is exactly what must not become a silent exit.
+                Core.InstallLog.Write("StartInstall threw: " + ex);
+                ok = false;
+            }
+
             if (ok)
             {
                 // A new process is already starting from the installed location; this one is done.

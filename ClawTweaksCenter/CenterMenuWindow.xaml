@@ -82,7 +82,16 @@
              than content inside it, so the two never fight over scrolling. -->
         <Grid x:Name="LibraryRoot" Grid.Row="2" Visibility="Collapsed" />
 
-        <Border Grid.Row="3" Background="{StaticResource FooterBrush}"
+        <!-- Immersive mode's replacement for the footer. In row 2, NOT in the footer's row 3: row 3
+             has to collapse completely so the grid grows into it and the scrollbar reaches the
+             bottom edge. An overlay pinned to the bottom of the content takes no layout space. -->
+        <TextBlock x:Name="ImmersiveHint" Grid.Row="2" Visibility="Collapsed"
+                   HorizontalAlignment="Center" VerticalAlignment="Bottom"
+                   Margin="0,0,0,26" FontSize="12" Opacity="0.35"
+                   Foreground="{StaticResource SubtleTextBrush}"
+                   Text="Click the right stick to show the button hints" />
+
+        <Border x:Name="FooterBar" Grid.Row="3" Background="{StaticResource FooterBrush}"
                 BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,1,0,0">
             <WrapPanel x:Name="ActionBar" Orientation="Horizontal"
                        HorizontalAlignment="Center" VerticalAlignment="Center"

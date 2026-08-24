@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.IO;
 using Microsoft.Win32;
@@ -416,40 +416,126 @@ namespace ClawTweaksCenter.Core
         }
 
         /// <summary>
-        /// Closes every Center running from <see cref="InstallDir"/>, leaving this process alone.
-        /// Used by both the install path (the exe it is about to overwrite must not be in use) and the
-        /// uninstall path (a running copy keeps its own folder alive).
+        /// Ends every OTHER installed Center, so its exe can be replaced.
+        ///
+        /// ⚠️ MATCHED BY PROCESS NAME, NOT BY Process.MainModule. MainModule needs PROCESS_VM_READ,
+        /// and on 2026-08-24 it was measured failing with "access denied" for our OWN Center - the
+        /// process was pid 8292, the log says "pid 8292 could not be handled", and the summary line
+        /// said "0 found, 0 ended" while the copy that followed failed three times and told the user
+        /// to try again as an administrator, which would not have helped either.
+        ///
+        /// The name is SHARPER than the path test it replaces, not weaker, and that is a property of
+        /// how these files are named: the installed file is CTW_Center.exe, the distributed one is
+        /// CTW_Center_&lt;version&gt;_Setup.exe. Their process names therefore differ, so matching
+        /// "CTW_Center" cannot catch a portable copy the user is running out of Downloads - the case
+        /// the old path test existed to avoid.
+        ///
+        /// The path is still CHECKED where it can be read (QueryFullProcessImageName, which only
+        /// needs PROCESS_QUERY_LIMITED_INFORMATION and is granted where MainModule is not). It is a
+        /// veto, not a requirement: an unreadable path must never again be the reason a process is
+        /// left holding the file being replaced.
+        ///
+        /// It logs what it found and what it did, including failures. A silent step is unanswerable
+        /// afterwards - "the update did nothing" and "the update never looked" leave the same trace.
         /// </summary>
         private static void CloseOtherInstances()
         {
             int self = Process.GetCurrentProcess().Id;
+            string name = Path.GetFileNameWithoutExtension(InstalledExePath);
+            string dir = InstallDir.TrimEnd('\\');
+            int found = 0, ended = 0;
 
-            // Matched on the exe in OUR install folder, not on process name: the distributed file is
-            // called CTW_Center_<version>_Setup.exe and the installed one CTW_Center.exe, so a name
-            // match would either miss instances or catch a portable copy the user is running from their
-            // Downloads folder, which this has no business closing.
-            foreach (var p in Process.GetProcesses())
+            InstallLog.Write("CloseOtherInstances: looking for '" + name + "' processes under " + dir);
+
+            Process[] candidates;
+            try { candidates = Process.GetProcessesByName(name); }
+            catch (Exception ex)
             {
-                if (p.Id == self) { p.Dispose(); continue; }
+                InstallLog.Write("CloseOtherInstances: could not enumerate: " + ex.Message);
+                return;
+            }
+
+            foreach (var proc in candidates)
+            {
+                if (proc.Id == self) { proc.Dispose(); continue; }
                 try
                 {
-                    string path = p.MainModule?.FileName;
-                    if (path == null ||
-                        !path.StartsWith(InstallDir.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+                    string path = TryGetProcessPath(proc.Id);
+                    if (path != null && !path.StartsWith(dir, StringComparison.OrdinalIgnoreCase))
+                    {
+                        InstallLog.Write("CloseOtherInstances: pid " + proc.Id + " is " + path
+                                         + " - outside the install folder, leaving it alone.");
                         continue;
+                    }
 
-                    if (p.CloseMainWindow() && p.WaitForExit(3000)) continue;
-                    p.Kill();
-                    p.WaitForExit(2000);
+                    found++;
+                    InstallLog.Write("CloseOtherInstances: pid " + proc.Id + " is "
+                                     + (path ?? "(path unreadable)") + " - ending it.");
+
+                    // ⚠️ NOT CloseMainWindow(). Center is a tray-resident app: with "Run in
+                    // background" on, its Closing handler CANCELS the close and hides the window
+                    // instead - by design, that is what the button does. Posting WM_CLOSE therefore
+                    // cannot end it, and the three-second wait that followed was spent proving that
+                    // every single time. A background instance has no main window at all.
+                    //
+                    // Nothing is lost by killing it: settings are written to the registry as they
+                    // change, and the user asked to replace this exe.
+                    proc.Kill();
+                    if (proc.WaitForExit(5000))
+                    {
+                        ended++;
+                        InstallLog.Write("CloseOtherInstances: pid " + proc.Id + " exited.");
+                    }
+                    else InstallLog.Write("CloseOtherInstances: pid " + proc.Id + " did NOT exit within 5 s.");
                 }
-                catch
+                catch (Exception ex)
                 {
-                    // Access denied on a process we can't inspect, or it exited while we looked at it.
-                    // Either way the retried rmdir above is the backstop.
+                    // Named rather than swallowed: "could not be killed" and "was never there" leave
+                    // exactly the same silence otherwise, and only the first of the two explains a
+                    // copy that then fails.
+                    InstallLog.Write("CloseOtherInstances: pid " + proc.Id + " could not be handled: "
+                                     + ex.GetType().Name + " - " + ex.Message);
                 }
-                finally { try { p.Dispose(); } catch { } }
+                finally { try { proc.Dispose(); } catch { } }
             }
+
+            InstallLog.Write("CloseOtherInstances: " + found + " found, " + ended + " ended.");
         }
+
+        /// <summary>
+        /// Another process's image path, or null when it cannot be read.
+        ///
+        /// QueryFullProcessImageName rather than Process.MainModule: it needs only
+        /// PROCESS_QUERY_LIMITED_INFORMATION, which is granted for a process of the same user even
+        /// where the VM read MainModule performs is refused. Null is a normal answer here and the
+        /// caller treats it as "unknown", never as "does not match".
+        /// </summary>
+        private static string TryGetProcessPath(int pid)
+        {
+            IntPtr handle = IntPtr.Zero;
+            try
+            {
+                const int PROCESS_QUERY_LIMITED_INFORMATION = 0x1000;
+                handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+                if (handle == IntPtr.Zero) return null;
+
+                var buffer = new System.Text.StringBuilder(1024);
+                int size = buffer.Capacity;
+                return QueryFullProcessImageName(handle, 0, buffer, ref size) ? buffer.ToString() : null;
+            }
+            catch { return null; }
+            finally { if (handle != IntPtr.Zero) CloseHandle(handle); }
+        }
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr OpenProcess(int access, bool inheritHandle, int processId);
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool CloseHandle(IntPtr handle);
+
+        [System.Runtime.InteropServices.DllImport("kernel32.dll", SetLastError = true, CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+        private static extern bool QueryFullProcessImageName(IntPtr process, int flags,
+            System.Text.StringBuilder exeName, ref int size);
 
         private static void CopySiblingIfPresent(string sourceDir, string searchPattern)
         {

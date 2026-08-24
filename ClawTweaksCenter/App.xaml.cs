@@ -118,13 +118,28 @@ namespace ClawTweaksCenter
             _instanceMutex = Core.CenterInstanceSignal.TryClaim();
             if (_instanceMutex == null)
             {
-                Core.CenterInstanceSignal.SignalRunningInstance(
+                bool delivered = Core.CenterInstanceSignal.SignalRunningInstance(
                     startHome ? Core.CenterInstanceSignal.CommandShowHome :
                     toggleLibrary ? Core.CenterInstanceSignal.CommandToggleLibrary :
                     startLibrary ? Core.CenterInstanceSignal.CommandShowLibrary :
                     Core.CenterInstanceSignal.CommandShow);
-                Shutdown();
-                return;
+
+                if (delivered) { Shutdown(); return; }
+
+                // ⚠️ THE RETURN VALUE IS THE WHOLE POINT, and ignoring it is what made a wedged
+                // Center unrecoverable. The mutex proves a PROCESS exists; it proves nothing about
+                // whether that process can still do anything. One that lost its window keeps the
+                // mutex and has no listener, so every launch after it signalled into nothing and
+                // then shut itself down - the button did nothing, for ever.
+                //
+                // Nobody answered, so this launch takes over. It runs WITHOUT the mutex, because a
+                // mutex cannot be taken from its holder: the leftover process will never give it
+                // back, and refusing to start until it does is the deadlock this is fixing. The cost
+                // is that a later launch will not find THIS one either - a strictly smaller problem
+                // than a Center that cannot be opened at all.
+                Core.InstallLog.Write(
+                    "Another instance holds the mutex but did not answer the wake pipe - " +
+                    "starting anyway, without the single-instance claim.");
             }
 
             var window = new CenterMenuWindow(

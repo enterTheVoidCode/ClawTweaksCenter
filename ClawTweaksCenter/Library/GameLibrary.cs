@@ -332,6 +332,12 @@ namespace ClawTweaksCenter.Library
             }
 
             if (game.LaunchUri == null) return false;
+
+            // The steam:// handler starts Steam when it is not running, and Steam then comes up with
+            // its full window in front of the game - which is why it only ever happens on the FIRST
+            // launch after a boot. Starting it ourselves, silently, first is the whole fix.
+            PrewarmSteamIfNeeded(game.LaunchUri);
+
             try
             {
                 var psi = new ProcessStartInfo
@@ -343,6 +349,52 @@ namespace ClawTweaksCenter.Library
                 return true;
             }
             catch { return false; }
+        }
+
+        /// <summary>
+        /// Brings Steam up in the tray before handing it a steam:// URI, but only when it is not
+        /// running yet.
+        ///
+        /// WHY NOT -applaunch INSTEAD OF THE URI: the URI route is the one that already works, launch
+        /// options and all, and rungameid covers shortcuts and mod ids that -applaunch does not. This
+        /// changes only the STATE Steam is in when the URI arrives, so the launch path itself is
+        /// untouched.
+        ///
+        /// The wait is bounded and it is a wait for the PROCESS, not for readiness - Steam is not
+        /// finished starting when its process appears, but the URI is queued by the handler either
+        /// way, and the alternative is holding a button press for as long as a cold Steam takes.
+        /// If anything here fails, the URI is fired anyway: a visible Steam window is a nuisance, a
+        /// game that does not start is a defect.
+        /// </summary>
+        private static void PrewarmSteamIfNeeded(string launchUri)
+        {
+            try
+            {
+                if (launchUri == null || !launchUri.StartsWith("steam:", StringComparison.OrdinalIgnoreCase)) return;
+                if (Process.GetProcessesByName("steam").Length > 0) return;
+
+                string root = SteamSource.SteamPath();
+                if (root == null) return;
+                string exe = System.IO.Path.Combine(root, "steam.exe");
+                if (!System.IO.File.Exists(exe)) return;
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = exe,
+                    Arguments = "-silent",
+                    WorkingDirectory = root,
+                    UseShellExecute = true,
+                });
+
+                // Up to five seconds, checked ten times a second. A cold Steam usually shows its
+                // process within one.
+                for (int i = 0; i < 50; i++)
+                {
+                    if (Process.GetProcessesByName("steam").Length > 0) break;
+                    System.Threading.Thread.Sleep(100);
+                }
+            }
+            catch { }
         }
     }
 }

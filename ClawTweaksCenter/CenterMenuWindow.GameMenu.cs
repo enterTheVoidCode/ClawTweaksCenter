@@ -35,7 +35,9 @@ namespace ClawTweaksCenter
 
         // Fixed column count for the art picker grid - unlike the library's own grid it does not need
         // to adapt to window width, so the same number drives both the layout and the D-pad math.
-        private const int ArtPickerColumns = 4;
+        // Five, not four. Four left a visible gutter down each side of the grid on this panel - the
+        // tiles are a fixed size, so the spare width went into the gaps rather than into the covers.
+        private const int ArtPickerColumns = 5;
         private const double ArtPickerTileWidth = 130;
         private const double ArtPickerTileHeight = 195;
 
@@ -69,6 +71,13 @@ namespace ClawTweaksCenter
         private List<ArtCandidate> _artPickerResults = new List<ArtCandidate>();
         private readonly List<Border> _artPickerTiles = new List<Border>();
         private ScrollViewer _artPickerScroller;
+        // Paging state. The game id is kept so the next page never repeats the autocomplete step -
+        // that costs a round trip and, worse, is not guaranteed to resolve to the same game twice.
+        private int _artPickerGameId;
+        private int _artPickerPage;
+        private bool _artPickerHasMore;
+        private bool _artPickerLoadingMore;
+
         private bool _artPickerSearching;
         private bool _artPickerSearched;   // distinguishes "never searched" from "searched, nothing found"
         private bool _artPickerApplying;   // downloading + committing the picked candidate
@@ -79,7 +88,7 @@ namespace ClawTweaksCenter
         #region Entry and exit
         private void OpenGameMenu()
         {
-            if (_closeTimer != null || _settingsOpen || MiscOverlayOpen) return;
+            if (LaunchOverlayOpen || _settingsOpen || MiscOverlayOpen) return;
             var target = SelectedGame;
             if (target == null) return;
 
@@ -116,6 +125,10 @@ namespace ClawTweaksCenter
             _artPickerSearching = false;
             _artPickerSearched = false;
             _artPickerApplying = false;
+            _artPickerGameId = 0;
+            _artPickerPage = 0;
+            _artPickerHasMore = false;
+            _artPickerLoadingMore = false;
         }
 
         /// <summary>B: one step back, not all the way out - leaving the art picker should land back
@@ -447,6 +460,57 @@ namespace ClawTweaksCenter
             RunArtSearch(_artPickerQueryText);
         }
 
+        /// <summary>
+        /// Fetches the next page and APPENDS it, leaving the cursor and the scroll position where
+        /// they are.
+        ///
+        /// Re-rendering the whole picker is what makes appending non-trivial: the render rebuilds
+        /// every tile, so the selection is re-applied afterwards from the index that was already
+        /// held. Anything that reset the index here would throw the user back to the top of a grid
+        /// they just scrolled to the bottom of.
+        /// </summary>
+        private void LoadMoreArtIfAtEnd()
+        {
+            if (!_artPickerHasMore || _artPickerLoadingMore || _artPickerSearching) return;
+            if (_artPickerGameId == 0) return;
+
+            _artPickerLoadingMore = true;
+            int nextPage = _artPickerPage + 1;
+            int gameId = _artPickerGameId;
+            var ct = _artPickerCts?.Token ?? CancellationToken.None;
+
+            _ = Task.Run(async () =>
+            {
+                Library.SteamGridDb.ArtPage page;
+                try { page = await Library.SteamGridDb.MoreArtAsync(gameId, nextPage, ct).ConfigureAwait(false); }
+                catch (OperationCanceledException) { return; }
+                catch (Exception ex)
+                {
+                    Core.InstallLog.Write("SteamGridDB art paging failed: " + ex.Message);
+                    page = new Library.SteamGridDb.ArtPage { GameId = gameId };
+                }
+
+                Dispatcher.Invoke(() =>
+                {
+                    if (ct.IsCancellationRequested || _gameMenuOverlay != GameMenuOverlay.ArtPicker) return;
+                    // Guard against a search having landed while this was in flight: appending an old
+                    // game's covers underneath a new search is the kind of mix-up nobody would
+                    // recognise as a bug, they would just wonder why the results look wrong.
+                    if (_artPickerGameId != gameId) return;
+
+                    _artPickerLoadingMore = false;
+                    _artPickerPage = nextPage;
+                    _artPickerHasMore = page.HasMore;
+                    if (page.Items.Count == 0) return;
+
+                    _artPickerResults.AddRange(page.Items);
+                    RenderGameMenuOverlay();
+                    ScrollArtPickerSelectionIntoView();
+                    RefreshActionBar();
+                });
+            }, ct);
+        }
+
         private void RenderArtPicker()
         {
             LibraryRoot.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -594,6 +658,12 @@ namespace ClawTweaksCenter
                         next += ArtPickerColumns;
                         if (next >= _artPickerTiles.Count)
                         {
+                            // Reaching past the end is the request for more. Driven by the CURSOR and
+                            // not by a scroll position, because the cursor is the only thing a
+                            // thumbstick moves here - a scroll-based trigger would never fire for
+                            // someone who never touches the touchscreen.
+                            LoadMoreArtIfAtEnd();
+
                             // Clamp into the last, partially filled row rather than refusing to move.
                             // Straight down from the second column of the last full row would
                             // otherwise be a dead end whenever the final row is short.
@@ -662,19 +732,23 @@ namespace ClawTweaksCenter
 
             _ = Task.Run(async () =>
             {
-                IReadOnlyList<ArtCandidate> results;
-                try { results = await Library.SteamGridDb.SearchArtAsync(query, ct).ConfigureAwait(false); }
+                Library.SteamGridDb.ArtPage page;
+                try { page = await Library.SteamGridDb.SearchArtAsync(query, ct).ConfigureAwait(false); }
                 catch (OperationCanceledException) { return; }
                 catch (Exception ex)
                 {
                     Core.InstallLog.Write("SteamGridDB art search failed: " + ex.Message);
-                    results = Array.Empty<ArtCandidate>();
+                    page = new Library.SteamGridDb.ArtPage();
                 }
 
                 Dispatcher.Invoke(() =>
                 {
                     if (ct.IsCancellationRequested || _gameMenuOverlay != GameMenuOverlay.ArtPicker) return;
-                    _artPickerResults = new List<ArtCandidate>(results);
+                    _artPickerResults = new List<ArtCandidate>(page.Items);
+                    _artPickerGameId = page.GameId;
+                    _artPickerPage = 0;
+                    _artPickerHasMore = page.HasMore;
+                    _artPickerLoadingMore = false;
                     _artPickerSearching = false;
                     _artPickerSearched = true;
                     _artPickerIndex = _artPickerResults.Count > 0 ? 0 : -1;
