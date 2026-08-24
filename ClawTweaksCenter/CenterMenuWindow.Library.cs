@@ -5,6 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Shapes;
 using System.Windows.Threading;
@@ -73,6 +74,11 @@ namespace ClawTweaksCenter
         // is up, which is also what tells the footer to offer "Keep Center open".
         private DispatcherTimer _closeTimer;
 
+        // The background watcher for "restore Center once this game ends" (see GameRunTracker /
+        // StartTrackingForRestore). Held so a second launch can cancel a stale watch instead of
+        // leaving two of them racing to restore the same window.
+        private CancellationTokenSource _gameTrackCts;
+
         /// <summary>
         /// The tab exists only once we KNOW ClawTweaks is installed. The check runs through
         /// PowerShell and takes about a second, during which the answer is genuinely unknown - and a
@@ -123,6 +129,10 @@ namespace ClawTweaksCenter
                     // No ROMs chip without Playnite: a tab that can only ever be empty is a dead end,
                     // and "ROMs 0" invites a hunt for a bug that is really "you have no Playnite".
                     if (g == LibraryGroup.Roms && !Library.PlayniteSource.IsPresent) continue;
+                    // Same reasoning for Favorites: it does not exist until there is at least one -
+                    // an empty Favorites tab next to Recent on a fresh install would look like the
+                    // feature is broken rather than simply unused yet.
+                    if (g == LibraryGroup.Favorites && !Library.FavoritesStore.Any()) continue;
                     var chip = BuildGroupChip(g);
                     if (g == _libraryGroup) _activeGroupChip = chip as FrameworkElement;
                     chips.Children.Add(chip);
@@ -409,6 +419,13 @@ namespace ClawTweaksCenter
         {
             if (LibraryRoot == null) return;
 
+            // An overlay owns the whole area while it is up. Checked HERE rather than at every call
+            // site: RenderLibrary is called from the art fetch, from the resize handler and from the
+            // scan loop, and any one of them arriving mid-overlay would wipe the screen underneath
+            // the user.
+            if (MiscOverlayOpen) { RenderMiscOverlay(); return; }
+            if (GameMenuOverlayOpen) { RenderGameMenuOverlay(); return; }
+
             _liveRows.Clear();
             LibraryRoot.Children.Clear();
             LibraryRoot.RowDefinitions.Clear();
@@ -561,6 +578,10 @@ namespace ClawTweaksCenter
                         ? "No Xbox games are registered for this account."
                         : "No Xbox games installed.";
                 case LibraryGroup.Steam: return "No Steam games installed.";
+                case LibraryGroup.Misc: return "No tools added yet.";
+                // Reachable for one frame: unfavoriting the last game while its own tab is on screen
+                // still redraws it before the tab strip drops the now-empty chip.
+                case LibraryGroup.Favorites: return "No favorites yet.";
                 case LibraryGroup.Roms:
                     if (!Library.PlayniteSource.IsPresent) return "Playnite is not installed.";
                     if (_romSystem == GameLibrary.RomRecentSystem) return "No ROM has been played yet.";
@@ -804,6 +825,8 @@ namespace ClawTweaksCenter
         private void MoveLibrarySelection(PadButton dir)
         {
             if (_settingsOpen) { MoveSettingsSelection(dir); return; }
+            if (MiscOverlayOpen) { MoveMiscSelection(dir); return; }
+            if (GameMenuOverlayOpen) { MoveGameMenuSelection(dir); return; }
             if (_libraryGames.Count == 0) return;
             if (_closeTimer != null) return;  // a launch countdown owns the screen
 
@@ -846,7 +869,7 @@ namespace ClawTweaksCenter
             // A launch countdown owns the screen: switching tabs under it would leave Center closing
             // itself from a view the user has already moved on from. The key box owns it for the same
             // reason - a shoulder press mid-typing would throw the entry away.
-            if (_closeTimer != null || _settingsOpen) return;
+            if (_closeTimer != null || _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen) return;
             if (_libraryGroup == group) return;
             _libraryGroup = group;
             // Leaving ROMs drops the system filter: coming back to a tab still narrowed to "Atari
@@ -864,6 +887,7 @@ namespace ClawTweaksCenter
             // Same rule as the chip row: without Playnite the ROM tab is not in the cycle either,
             // otherwise the shoulders stop on a tab that has nothing to show.
             if (!Library.PlayniteSource.IsPresent) values.Remove(LibraryGroup.Roms);
+            if (!Library.FavoritesStore.Any()) values.Remove(LibraryGroup.Favorites);
             if (values.Count == 0) return;
 
             int i = values.IndexOf(_libraryGroup) + delta;
@@ -907,6 +931,16 @@ namespace ClawTweaksCenter
         private TextBlock _artKeyStatus;
         private readonly List<Border> _settingsRows = new List<Border>();
 
+        // Row indices as names, not magic numbers - the key row is the only one whose activation
+        // (focus a text box, not toggle a value) and A-button label differ from the rest, and a
+        // bare "3" scattered across three places is what breaks silently when a row is added above it.
+        private const int SettingsStartInLibraryRow = 0;
+        private const int SettingsSquareRomArtRow = 1;
+        private const int SettingsLaunchBehaviorRow = 2;
+        private const int SettingsStartWithClawTweaksRow = 3;
+        private const int SettingsRunInBackgroundRow = 4;
+        private const int SettingsKeyRow = 5;
+
         private void OpenLibrarySettings()
         {
             _settingsOpen = true;
@@ -947,14 +981,18 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 0, 0, 16),
             });
 
-            stack.Children.Add(BuildSettingRow(0, "Start in the library",
+            stack.Children.Add(BuildSettingRow(SettingsStartInLibraryRow, "Start in the library",
                 Core.CenterSettings.OpenLibraryAtStartup ? "On" : "Off"));
-            stack.Children.Add(BuildSettingRow(1, "Square ROM art",
+            stack.Children.Add(BuildSettingRow(SettingsSquareRomArtRow, "Square ROM art",
                 _squareRomArt ? "On" : "Off"));
-            stack.Children.Add(BuildSettingRow(2, "Start Center with ClawTweaks",
+            stack.Children.Add(BuildSettingRow(SettingsLaunchBehaviorRow, "After starting a game",
+                LaunchBehaviorLabel(Core.CenterSettings.LaunchBehavior)));
+            stack.Children.Add(BuildSettingRow(SettingsStartWithClawTweaksRow, "Start Center with ClawTweaks",
                 Core.CenterSettings.StartCenterWithClawTweaks ? "On" : "Off"));
+            stack.Children.Add(BuildSettingRow(SettingsRunInBackgroundRow, "Run in background",
+                Core.CenterSettings.RunInBackground ? "On" : "Off"));
 
-            var keyRow = BuildSettingRow(3, "SteamGridDB key", null);
+            var keyRow = BuildSettingRow(SettingsKeyRow, "SteamGridDB key", null);
             var keyStack = (StackPanel)((Grid)keyRow.Child).Children[0];
             _artKeyBox = new TextBox
             {
@@ -1004,7 +1042,7 @@ namespace ClawTweaksCenter
                     Text = state,
                     FontSize = 18,
                     FontWeight = FontWeights.SemiBold,
-                    Foreground = state == "On" ? UiHelpers.Ok : UiHelpers.Subtle,
+                    Foreground = state == "On" ? UiHelpers.Ok : UiHelpers.Subtle,  // On is green, everything else (Off, or a mode name) reads as neutral
                     VerticalAlignment = VerticalAlignment.Center,
                     Margin = new Thickness(16, 0, 0, 0),
                 };
@@ -1049,23 +1087,54 @@ namespace ClawTweaksCenter
         {
             switch (_settingsIndex)
             {
-                case 0:
+                case SettingsStartInLibraryRow:
                     Core.CenterSettings.OpenLibraryAtStartup = !Core.CenterSettings.OpenLibraryAtStartup;
                     break;
-                case 1:
+                case SettingsSquareRomArtRow:
                     _squareRomArt = !_squareRomArt;
                     Core.CenterSettings.SquareRomArt = _squareRomArt;
                     break;
-                case 2:
+                case SettingsLaunchBehaviorRow:
+                    Core.CenterSettings.LaunchBehavior = NextLaunchBehavior(Core.CenterSettings.LaunchBehavior);
+                    break;
+                case SettingsStartWithClawTweaksRow:
                     Core.CenterSettings.StartCenterWithClawTweaks = !Core.CenterSettings.StartCenterWithClawTweaks;
                     break;
-                case 3:
+                case SettingsRunInBackgroundRow:
+                    Core.CenterSettings.RunInBackground = !Core.CenterSettings.RunInBackground;
+                    // Takes effect immediately, not just on the next launch - a tray icon that only
+                    // appears after a restart would look like the toggle silently failed.
+                    SyncTrayIcon();
+                    break;
+                case SettingsKeyRow:
                     _artKeyBox?.Focus();
                     _artKeyBox?.SelectAll();
                     return;
             }
             RenderLibrarySettings();
             RefreshActionBar();
+        }
+
+        private static string LaunchBehaviorLabel(Core.LaunchBehavior behavior)
+        {
+            switch (behavior)
+            {
+                case Core.LaunchBehavior.Minimize: return "Minimize";
+                case Core.LaunchBehavior.StayOpen: return "Stay open";
+                default: return "Close Center";
+            }
+        }
+
+        /// <summary>A three-way cycle rather than a toggle - there is no natural "off" state among
+        /// three genuinely different behaviours, so A steps through all of them in a fixed order.</summary>
+        private static Core.LaunchBehavior NextLaunchBehavior(Core.LaunchBehavior current)
+        {
+            switch (current)
+            {
+                case Core.LaunchBehavior.Close: return Core.LaunchBehavior.Minimize;
+                case Core.LaunchBehavior.Minimize: return Core.LaunchBehavior.StayOpen;
+                default: return Core.LaunchBehavior.Close;
+            }
         }
 
         /// <summary>
@@ -1131,21 +1200,24 @@ namespace ClawTweaksCenter
 
         #region Launch
         /// <summary>
-        /// Starts the selected game and then closes Center.
+        /// Starts the selected game, then does whatever the launch-behaviour setting says.
         ///
-        /// Not "launch, then Close()". Steam can take several seconds to put a window up, and a Center
+        /// Not "launch, then act". Steam can take several seconds to put a window up, and a Center
         /// that vanishes the instant A is pressed looks like a crash - so the user gets a line saying
-        /// what is starting, and the window goes away a couple of seconds later.
+        /// what is starting, and the window reacts a couple of seconds later.
         ///
-        /// Closing means EXITING. A hidden window keeps its XInput timer running and would react to
-        /// the same sticks the game does.
+        /// Closing means EXITING, not hiding. Staying open and minimising are both safe, though, and
+        /// the reason is worth keeping written down because this comment used to claim the opposite:
+        /// XInputNavigator.OnTick returns immediately unless the window is active, so a background
+        /// Center never sees the sticks the game is using, and the window is not topmost, so it
+        /// cannot end up over one either.
         /// </summary>
         private void LaunchSelectedGame()
         {
             var game = SelectedGame;
             if (game == null || _closeTimer != null) return;
 
-            bool started = GameLibrary.Launch(game);
+            bool started = GameLibrary.Launch(game, out var startedProcess);
             if (started)
             {
                 _library.History.Note(game.InstallDir, DateTime.Now);
@@ -1155,14 +1227,86 @@ namespace ClawTweaksCenter
             ShowLaunchOverlay(game, started);
             if (!started) return;
 
+            // Read ONCE, here. The countdown runs for two and a half seconds and the settings
+            // screen is unreachable during it, but binding the decision to the moment of the launch
+            // is what makes the footer label above and the action below agree by construction.
+            var behavior = Core.CenterSettings.LaunchBehavior;
+
             _closeTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2.5) };
             _closeTimer.Tick += (_, __) =>
             {
                 CancelPendingClose();
-                Application.Current.Shutdown();
+                switch (behavior)
+                {
+                    case Core.LaunchBehavior.Minimize:
+                        WindowState = WindowState.Minimized;
+                        // Only Minimize needs to come back on its own - StayOpen never left, and
+                        // Close has already exited by this point in a way there is nothing left to
+                        // restore. Mirrors Playnite's own pairing (AfterLaunch=Minimize with
+                        // AfterGameClose=Restore) rather than tracking every launch unconditionally.
+                        StartTrackingForRestore(game, startedProcess);
+                        break;
+                    case Core.LaunchBehavior.StayOpen:
+                        break;
+                    default:
+                        Application.Current.Shutdown();
+                        return;
+                }
+                // Back to the grid for both surviving modes: leaving "Starting X…" on screen would
+                // greet the user with a stale line whenever they came back.
+                RenderLibrary();
+                RefreshActionBar();
             };
             _closeTimer.Start();
             RefreshActionBar();
+        }
+
+        /// <summary>
+        /// Watches the just-launched game (see GameRunTracker) and brings Center back once it ends -
+        /// the half of Playnite's Minimize/Restore pairing that used to be missing: Center could
+        /// minimize itself, but nothing ever brought it back.
+        ///
+        /// Cancels any tracker already running first. Only one game is ever "the one Center is
+        /// waiting on" - launching a second game while the first's tracker is still watching an old,
+        /// already-closed process would otherwise leave two background loops racing to restore the
+        /// same window.
+        /// </summary>
+        private void StartTrackingForRestore(GameEntry game, System.Diagnostics.Process startedProcess)
+        {
+            _gameTrackCts?.Cancel();
+            _gameTrackCts = new CancellationTokenSource();
+            var ct = _gameTrackCts.Token;
+
+            Library.GameRunTracker.Track(game, startedProcess, ct, () => Dispatcher.Invoke(() =>
+            {
+                if (ct.IsCancellationRequested) return;
+                RestoreAfterGameEnded();
+            }));
+        }
+
+        /// <summary>
+        /// Brings the window back after the tracked game ends.
+        ///
+        /// The 1-second delay before restoring is Playnite's own fix, not a guess - their comment on
+        /// it (GamesEditor.Controllers_Stopped) says some emulators (RPCS3 named specifically) hand
+        /// focus back to Windows in a way that leaves the restoring app visually back but not actually
+        /// active until something else nudges it. Cheap to keep even where it turns out unnecessary.
+        /// </summary>
+        private void RestoreAfterGameEnded()
+        {
+            var restoreTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            restoreTimer.Tick += (_, __) =>
+            {
+                restoreTimer.Stop();
+                // Covers both ways the window could be out of sight: minimized (the normal case for
+                // this path) and hidden-to-tray (RunInBackground On) if the user closed it by hand
+                // while this same tracker was still watching the game it started before that.
+                if (!IsVisible) Show();
+                if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+                Activate();
+                try { Ui.WindowMode.ForceForeground(this); } catch { }
+            };
+            restoreTimer.Start();
         }
 
         private void ShowLaunchOverlay(GameEntry game, bool started)
@@ -1217,28 +1361,55 @@ namespace ClawTweaksCenter
         {
             if (_closeTimer != null)
             {
-                AddAction(PadButton.B, "Keep Center open", true, KeepCenterOpen);
+                // "Keep Center open" is only true when the countdown would otherwise exit. Promising
+                // to keep something open that was never going to close reads as a broken label.
+                AddAction(PadButton.B,
+                    Core.CenterSettings.LaunchBehavior == Core.LaunchBehavior.Close ? "Keep Center open" : "Back",
+                    true, KeepCenterOpen);
                 return;
             }
 
             if (_settingsOpen)
             {
-                AddAction(PadButton.A, _settingsIndex == 3 ? "Edit" : "Toggle", true, ActivateSetting);
+                string label = _settingsIndex == SettingsKeyRow ? "Edit"
+                    : _settingsIndex == SettingsLaunchBehaviorRow ? "Cycle"
+                    : "Toggle";
+                AddAction(PadButton.A, label, true, ActivateSetting);
                 AddAction(PadButton.B, "Back", true, SaveArtKeyAndClose);
                 return;
             }
 
+            if (RefreshMiscActionBar()) return;
+            if (RefreshGameMenuActionBar()) return;
+
             AddAction(PadButton.A, "Play", SelectedGame != null, LaunchSelectedGame);
+            // The per-game menu (favorite, cover art) - only makes sense with something selected, and
+            // Start is free everywhere in the library: nothing else has claimed it since the
+            // key-entry screen it used to open moved behind View (Select) instead.
+            AddAction(PadButton.Menu, "Menu", SelectedGame != null, OpenGameMenu);
 
-            // The square-art switch used to sit here as an X chip. It moved into the settings screen:
-            // it is remembered across launches, and a footer is for what you do now, not for what you
-            // configure once.
-
-            AddAction(PadButton.Y, "Rescan", !_libraryScanning, () =>
+            // The Misc tab is the one place with entries the user OWNS, so it is the one place with
+            // add and edit. X is free everywhere; Y takes over from Rescan here because rescanning
+            // the stores does nothing for a list that is not scanned, and Rescan stays on Y in every
+            // other tab. Braced deliberately - AddAction just overwrites a dictionary slot, so an
+            // unguarded Rescan call below this block would silently win over "Edit" on every redraw.
+            if (_libraryGroup == LibraryGroup.Misc)
             {
-                _libraryScanned = false;
-                _ = ScanLibraryAsync();
-            });
+                AddAction(PadButton.X, "Add app", true, OpenMiscAdd);
+                AddAction(PadButton.Y, "Edit", SelectedGame != null, OpenMiscEdit);
+            }
+            else
+            {
+                // The square-art switch used to sit here as an X chip. It moved into the settings
+                // screen: it is remembered across launches, and a footer is for what you do now, not
+                // for what you configure once.
+                AddAction(PadButton.Y, "Rescan", !_libraryScanning, () =>
+                {
+                    _libraryScanned = false;
+                    _ = ScanLibraryAsync();
+                });
+            }
+
             AddAction(PadButton.View, "Settings", true, OpenLibrarySettings);
             AddAction(PadButton.B, "Back", true, GoHome);
 
@@ -1284,7 +1455,18 @@ namespace ClawTweaksCenter
         /// One cover. The no-cover state is not an error state: a coloured plate with the title on it
         /// is a deliberate-looking tile, and it can never fail the way a missing image can.
         /// </summary>
-        public static Border Build(CenterMenuWindow owner, GameEntry game, int index, Action<int> onClick)
+        /// <summary>Corner radius of the tile's outer Border.</summary>
+        private const double TileRadius = 8;
+        private const double TileBorder = 3;
+
+        /// <summary>The sweep overlay of a tile, so ApplySelected can find it again without walking
+        /// the visual tree by index - the child order of the content grid is an implementation detail
+        /// and should not become load-bearing.</summary>
+        private static readonly DependencyProperty SweepProperty = DependencyProperty.RegisterAttached(
+            "Sweep", typeof(Rectangle), typeof(CenterMenuWindow));
+
+        public static Border Build(CenterMenuWindow owner, GameEntry game, int index, Action<int> onClick,
+            bool glass = false)
         {
             var fallback = new Border
             {
@@ -1311,23 +1493,142 @@ namespace ClawTweaksCenter
             content.Children.Add(fallback);
             content.Children.Add(image);
 
+            if (glass)
+            {
+                content.Children.Add(BuildGlass());
+                var sweep = BuildSweep();
+                content.Children.Add(sweep);
+                content.SetValue(SweepProperty, sweep);
+            }
+
             var tile = new Border
             {
                 Width = owner.LibTileWidth,
                 Height = owner.LibTileHeight,
-                CornerRadius = new CornerRadius(8),
+                CornerRadius = new CornerRadius(TileRadius),
                 Background = Brushes.Transparent,
                 BorderBrush = Brushes.Transparent,
-                BorderThickness = new Thickness(3),
-                ClipToBounds = true,
+                BorderThickness = new Thickness(TileBorder),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Tag = index,
                 Child = content,
             };
             tile.MouseLeftButtonUp += (_, __) => onClick(index);
 
+            // ⚠ NOT ClipToBounds. That clips to the LAYOUT RECTANGLE, never to CornerRadius - so a
+            // cover (Stretch=UniformToFill, filling the whole content area) painted square corners
+            // exactly where the rounded accent border should be, and the focus frame looked like its
+            // corners had been cut off. A tile with NO cover looked right, because its coloured
+            // fallback plate is itself a Border with the same CornerRadius - which is what made this
+            // read as "only some tiles are wrong".
+            //
+            // A real rounded clip on the content is the fix. Driven off SizeChanged rather than
+            // computed from LibTileWidth/Height so it cannot drift from whatever WPF actually
+            // arranged, and the inner radius is the outer one less the border thickness so the two
+            // curves sit concentrically instead of the clip cutting a second, tighter arc.
+            content.SizeChanged += (_, e) => content.Clip = new RectangleGeometry(
+                new Rect(0, 0, e.NewSize.Width, e.NewSize.Height),
+                TileRadius - TileBorder, TileRadius - TileBorder);
+
             if (game.ArtPath != null) LoadCover(owner, game.ArtPath, image);
             return tile;
+        }
+
+        /// <summary>
+        /// The glass sheen over a reel cover: one soft highlight down the top third, nothing else.
+        ///
+        /// Kept deliberately weak (12% white at the very top, gone by 45% down). The cover art IS the
+        /// content here - a glass effect strong enough to notice on its own is one that has started
+        /// washing out the picture it sits on.
+        /// </summary>
+        private static Rectangle BuildGlass()
+        {
+            var brush = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(0, 1) };
+            brush.GradientStops.Add(new GradientStop(Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF), 0));
+            brush.GradientStops.Add(new GradientStop(Color.FromArgb(0x0A, 0xFF, 0xFF, 0xFF), 0.22));
+            brush.GradientStops.Add(new GradientStop(Colors.Transparent, 0.45));
+            brush.Freeze();
+
+            return new Rectangle { Fill = brush, IsHitTestVisible = false };
+        }
+
+        /// <summary>
+        /// The focus sweep: a skewed band of light that travels across the selected cover.
+        ///
+        /// Same construction as the one in the ClawTweaks widget and the user's Handheld Companion
+        /// fork (TemplatesDictionary.xaml, "Focus shimmer"): a transparent-to-white-to-transparent
+        /// horizontal gradient, skewed -18 degrees, translated across and then held off-screen for a
+        /// beat before repeating. Starts hidden and motionless - ApplySelected is what animates it,
+        /// so only ever ONE tile in the view is running an animation.
+        /// </summary>
+        private static Rectangle BuildSweep()
+        {
+            var brush = new LinearGradientBrush { StartPoint = new Point(0, 0), EndPoint = new Point(1, 0) };
+            brush.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 0));
+            brush.GradientStops.Add(new GradientStop(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF), 0.5));
+            brush.GradientStops.Add(new GradientStop(Color.FromArgb(0x00, 0xFF, 0xFF, 0xFF), 1));
+            brush.Freeze();
+
+            return new Rectangle
+            {
+                Width = SweepWidth,
+                Fill = brush,
+                Opacity = 0,
+                IsHitTestVisible = false,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                RenderTransform = new TransformGroup
+                {
+                    Children =
+                    {
+                        new SkewTransform(-18, 0),
+                        new TranslateTransform(-SweepWidth, 0),
+                    },
+                },
+            };
+        }
+
+        private const double SweepWidth = 64;
+
+        /// <summary>
+        /// Paints the selection frame and starts or stops the sweep.
+        ///
+        /// Both hosts route through here so "selected" means one thing. A tile built without glass
+        /// simply has no sweep attached and gets the frame alone.
+        /// </summary>
+        public static void ApplySelected(Border tile, bool selected)
+        {
+            if (tile == null) return;
+            tile.BorderBrush = selected ? UiHelpers.Accent : Brushes.Transparent;
+
+            var sweep = tile.Child?.GetValue(SweepProperty) as Rectangle;
+            if (sweep == null) return;
+
+            var translate = (sweep.RenderTransform as TransformGroup)?.Children[1] as TranslateTransform;
+            if (translate == null) return;
+
+            if (!selected)
+            {
+                // Handing null to BeginAnimation removes the animation's hold on the property - just
+                // setting the value would be overridden again on the animation's next frame, and the
+                // clock would keep running on a tile nobody is looking at.
+                sweep.BeginAnimation(UIElement.OpacityProperty, null);
+                translate.BeginAnimation(TranslateTransform.XProperty, null);
+                sweep.Opacity = 0;
+                translate.X = -SweepWidth;
+                return;
+            }
+
+            sweep.BeginAnimation(UIElement.OpacityProperty,
+                new DoubleAnimation(1, TimeSpan.FromSeconds(0.2)));
+
+            double travel = tile.Width + SweepWidth;
+            var slide = new DoubleAnimationUsingKeyFrames { RepeatBehavior = RepeatBehavior.Forever };
+            slide.KeyFrames.Add(new LinearDoubleKeyFrame(-SweepWidth, KeyTime.FromTimeSpan(TimeSpan.Zero)));
+            slide.KeyFrames.Add(new LinearDoubleKeyFrame(travel, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(1.4))));
+            // Parked off the far edge for a beat before going again, so it reads as an occasional
+            // glint rather than a continuously scrolling stripe.
+            slide.KeyFrames.Add(new LinearDoubleKeyFrame(travel, KeyTime.FromTimeSpan(TimeSpan.FromSeconds(2.4))));
+            translate.BeginAnimation(TranslateTransform.XProperty, slide);
         }
 
         private static void LoadCover(CenterMenuWindow owner, string path, Image image)
@@ -1451,7 +1752,7 @@ namespace ClawTweaksCenter
         public void ApplySelection(int selectedIndex)
         {
             foreach (var tile in _tiles)
-                tile.BorderBrush = tile.Tag is int i && i == selectedIndex ? UiHelpers.Accent : Brushes.Transparent;
+                LibraryTile.ApplySelected(tile, tile.Tag is int i && i == selectedIndex);
         }
     }
 
@@ -1493,7 +1794,7 @@ namespace ClawTweaksCenter
             double w = _owner.LibTileWidth;
             double h = _owner.LibTileHeight;
 
-            _tile = LibraryTile.Build(_owner, item.Game, item.Index, idx => _owner.OnTileClicked(idx));
+            _tile = LibraryTile.Build(_owner, item.Game, item.Index, idx => _owner.OnTileClicked(idx), glass: true);
 
             var stack = new StackPanel { Orientation = Orientation.Vertical };
             stack.Children.Add(_tile);
@@ -1510,7 +1811,7 @@ namespace ClawTweaksCenter
         public void ApplySelection(int selectedIndex)
         {
             if (_tile == null) return;
-            _tile.BorderBrush = _tile.Tag is int i && i == selectedIndex ? UiHelpers.Accent : Brushes.Transparent;
+            LibraryTile.ApplySelected(_tile, _tile.Tag is int i && i == selectedIndex);
         }
     }
 }

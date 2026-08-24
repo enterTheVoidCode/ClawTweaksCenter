@@ -15,10 +15,19 @@ namespace ClawTweaksCenter.Library
     public enum LibraryGroup
     {
         Recent,
+        /// <summary>Games pinned from the Start-button game menu. Right after Recent by declaration
+        /// order - LT/RT and the tab strip both walk the enum in this order, so that placement is
+        /// what actually puts it there, not a separate rule to keep in sync. Excluded from both
+        /// wherever there are zero favourites (see CenterMenuWindow.Library.cs), the same way Roms is
+        /// excluded without Playnite - a tab that can only ever be empty is a dead end.</summary>
+        Favorites,
         All,
         Steam,
         Epic,
         Xbox,
+        /// <summary>Tools the user added by hand. Sits after the stores because that is what it is -
+        /// another shelf next to them, not a store of its own.</summary>
+        Misc,
         /// <summary>ROMs, from Playnite. The only grouping with a second level under it - the
         /// system, cycled with the triggers.</summary>
         Roms,
@@ -44,6 +53,21 @@ namespace ClawTweaksCenter.Library
         public PlayHistory History { get; private set; } = new PlayHistory();
 
         /// <summary>
+        /// Misc entries added or edited WHILE a scan is still landing.
+        ///
+        /// MiscSource takes its own snapshot of the file once, at the moment ScanAsync builds the
+        /// source list. Every other source is fast enough that this never mattered, but Xbox alone
+        /// measures 1.6 s - long enough for a user to add a tool through the UI before the scan has
+        /// finished, and the NEXT source landing would otherwise rebuild `Games` from that first,
+        /// now-stale Misc snapshot and make the freshly added tool disappear again.
+        ///
+        /// Null means "no override, trust whatever MiscSource returned this scan" - cleared at the
+        /// start of every ScanAsync so a later Rescan reads the file fresh rather than replaying a
+        /// stale override from three scans ago.
+        /// </summary>
+        private List<GameEntry> _miscOverride;
+
+        /// <summary>
         /// Scans every store and publishes results AS EACH SOURCE LANDS, not at the end.
         ///
         /// The sources are wildly different in cost - measured here: Steam 97 ms, Epic 11 ms, Xbox
@@ -57,10 +81,11 @@ namespace ClawTweaksCenter.Library
             // for their coverless entries. The order does not decide who paints first (they all run
             // at once and land as they finish), and it does not have to: art is re-resolved on every
             // round, so a tile that had no cover in round one gets one in round three.
-            var sources = new IGameSource[] { new PlayniteSource(), new SteamSource(), new EpicSource(), new XboxSource() };
+            var sources = new IGameSource[] { new PlayniteSource(), new SteamSource(), new EpicSource(), new XboxSource(), new MiscSource() };
             var errors = new Dictionary<GameStore, string>();
             var all = new List<GameEntry>();
             var history = PlayHistory.Load();
+            _miscOverride = null;
 
             var pending = sources.Select(async s =>
             {
@@ -81,8 +106,11 @@ namespace ClawTweaksCenter.Library
                 if (result.error != null) errors[result.Store] = result.error;
                 all.AddRange(result.list);
 
+                ApplyMiscOverride(all);
                 Dedupe(all);
                 GameArt.ResolveLocalArt(all);
+                ArtOverrideStore.ApplyTo(all);  // a manual pick always outranks local/auto-fetched art
+                FavoritesStore.ApplyTo(all);
                 history.ApplyTo(all);
                 all.Sort((a, b) => string.Compare(a.Title, b.Title, StringComparison.CurrentCultureIgnoreCase));
 
@@ -119,6 +147,16 @@ namespace ClawTweaksCenter.Library
             }, ct);
         }
 
+        /// <summary>Swaps in whatever the UI has told us is current for Misc, so a round that lands
+        /// after an add/rename/remove does not resurrect the snapshot MiscSource took at scan
+        /// start.</summary>
+        private void ApplyMiscOverride(List<GameEntry> all)
+        {
+            if (_miscOverride == null) return;
+            all.RemoveAll(g => g.Store == GameStore.Misc);
+            all.AddRange(_miscOverride);
+        }
+
         /// <summary>
         /// Drops repeats of the same game.
         ///
@@ -152,6 +190,28 @@ namespace ClawTweaksCenter.Library
             }
         }
 
+        /// <summary>
+        /// Swaps the Misc entries for a freshly saved list, without rescanning the stores.
+        ///
+        /// Publishes a NEW list rather than editing the published one, exactly as the scan loop does:
+        /// the UI thread reads Games while this runs. A scan that happens to be in flight is not a
+        /// problem either - MiscSource reads the same file, which the caller has already written, so
+        /// the next round arrives at the same answer.
+        /// </summary>
+        public void ReplaceMisc(IReadOnlyList<GameEntry> misc)
+        {
+            _miscOverride = misc != null ? new List<GameEntry>(misc) : new List<GameEntry>();
+
+            var rebuilt = new List<GameEntry>();
+            foreach (var g in Games) if (g.Store != GameStore.Misc) rebuilt.Add(g);
+            if (misc != null) rebuilt.AddRange(misc);
+
+            GameArt.ResolveLocalArt(rebuilt);
+            History.ApplyTo(rebuilt);
+            rebuilt.Sort((a, b) => string.Compare(a.Title, b.Title, StringComparison.CurrentCultureIgnoreCase));
+            Games = rebuilt;
+        }
+
         /// <summary>Every ROM system that actually has games, most-populated first.</summary>
         public IReadOnlyList<string> RomSystems => PlayniteSource.LastSystems;
 
@@ -173,6 +233,8 @@ namespace ClawTweaksCenter.Library
                 case LibraryGroup.Steam: return Games.Where(g => g.Store == GameStore.Steam).ToList();
                 case LibraryGroup.Epic: return Games.Where(g => g.Store == GameStore.Epic).ToList();
                 case LibraryGroup.Xbox: return Games.Where(g => g.Store == GameStore.Xbox).ToList();
+                case LibraryGroup.Misc: return Games.Where(g => g.Store == GameStore.Misc).ToList();
+                case LibraryGroup.Favorites: return Games.Where(g => g.IsFavorite).ToList();
                 case LibraryGroup.Roms:
                     var roms = Games.Where(g => g.Store == GameStore.Playnite);
                     if (system == RomRecentSystem)
@@ -186,12 +248,18 @@ namespace ClawTweaksCenter.Library
                     // evening of browsing a Game Boy collection would push every PC game off the
                     // shelf, and Recent is meant to be the short list you reach for. ROMs have their
                     // own recent, inside their own tab (RomRecentSystem).
-                    return Games.Where(g => g.LastPlayed.HasValue && g.Store != GameStore.Playnite)
+                    // Misc is out for a second reason on top of the ROM one: these are tools, and
+                    // a shelf meant to hold "what you were playing" should not fill up with the fan
+                    // curve editor you open more often than any game.
+                    return Games.Where(g => g.LastPlayed.HasValue
+                                            && g.Store != GameStore.Playnite
+                                            && g.Store != GameStore.Misc)
                                 .OrderByDescending(g => g.LastPlayed.Value)
                                 .ToList();
-                // "All" means the PC library. ROMs are hundreds of entries with their own tab; mixing
-                // them in would bury the installed games they sit next to.
-                default: return Games.Where(g => g.Store != GameStore.Playnite).ToList();
+                // "All" means the PC library - installed GAMES. ROMs are hundreds of entries with
+                // their own tab and would bury the installed games they sit next to; Misc is not
+                // games at all.
+                default: return Games.Where(g => g.Store != GameStore.Playnite && g.Store != GameStore.Misc).ToList();
             }
         }
 
@@ -203,6 +271,8 @@ namespace ClawTweaksCenter.Library
                 case LibraryGroup.Epic: return "Epic";
                 case LibraryGroup.Xbox: return "Xbox";
                 case LibraryGroup.Recent: return "Recent";
+                case LibraryGroup.Favorites: return "Favorites";
+                case LibraryGroup.Misc: return "Misc";
                 case LibraryGroup.Roms: return "ROMs";
                 default: return "All";
             }
@@ -217,9 +287,24 @@ namespace ClawTweaksCenter.Library
         /// second game detector living next to the helper's, which is the one component that already
         /// does this properly.
         /// </summary>
-        public static bool Launch(GameEntry game)
+        public static bool Launch(GameEntry game) => Launch(game, out _);
+
+        /// <summary>
+        /// Starts a game through its store, and hands back the actual Process object when there is
+        /// one to hand back - only true for the direct-exe path (ROMs, Misc). A store launch (Steam,
+        /// Epic, Xbox, the shell URI fallback) returns Steam/the launcher/explorer, never the game
+        /// itself, so GameRunTracker falls back to watching the install directory for those instead
+        /// of pretending this Process handle means anything.
+        /// </summary>
+        public static bool Launch(GameEntry game, out Process startedProcess)
         {
+            startedProcess = null;
             if (game == null) return false;
+
+            // Misc entries were resolved once, when the user added them, and know exactly which of
+            // the two activation routes applies. Guessing again here would mean re-deciding it on
+            // every launch from data that has not changed.
+            if (game.Store == GameStore.Misc) return MiscSource.Launch(game, out startedProcess);
 
             // A resolved emulator command line goes straight to the emulator. The URI route works
             // too, but it starts Playnite first and leaves it running afterwards.
@@ -236,7 +321,7 @@ namespace ClawTweaksCenter.Library
                         WorkingDirectory = System.IO.Path.GetDirectoryName(game.LaunchExe),
                         UseShellExecute = false,
                     };
-                    Process.Start(direct);
+                    startedProcess = Process.Start(direct);
                     return true;
                 }
                 catch

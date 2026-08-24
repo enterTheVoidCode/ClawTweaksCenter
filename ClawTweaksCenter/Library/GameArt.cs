@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media;
@@ -161,6 +162,92 @@ namespace ClawTweaksCenter.Library
             }
             catch { return null; }
             finally { Gate.Release(); }
+        }
+
+        /// <summary>
+        /// Fetches a remote image (the art picker's SteamGridDB previews) and decodes it.
+        ///
+        /// ⚠ THIS CANNOT GO THROUGH <see cref="LoadAsync"/>, and the reason is not obvious enough to
+        /// leave unwritten - the art picker shipped broken on exactly this assumption. Decode above
+        /// sets BitmapImage.UriSource, which is synchronous ONLY for a local file. Handed an http(s)
+        /// URI, WPF starts an ASYNCHRONOUS download instead: EndInit returns immediately with
+        /// IsDownloading true, and Freeze then throws because a still-downloading BitmapImage is not
+        /// freezable. Decode's catch swallowed that and returned null, so every picker tile stayed a
+        /// grey rectangle with nothing anywhere saying why. (The async download would not have
+        /// completed either - Task.Run puts it on a thread-pool thread with no Dispatcher to pump the
+        /// download callbacks.)
+        ///
+        /// Downloading the bytes ourselves and decoding from a MemoryStream keeps the whole thing
+        /// synchronous inside our own control, which is what makes Freeze legal again.
+        /// </summary>
+        public static Task<BitmapSource> LoadRemoteAsync(string url, int decodePixelWidth)
+        {
+            if (string.IsNullOrEmpty(url) || decodePixelWidth <= 0) return Task.FromResult<BitmapSource>(null);
+            string key = "remote|" + decodePixelWidth + "|" + url;
+            return Cache.GetOrAdd(key, _ => DownloadAndDecodeAsync(url, decodePixelWidth, key));
+        }
+
+        private static async Task<BitmapSource> DownloadAndDecodeAsync(string url, int decodePixelWidth, string cacheKey)
+        {
+            try
+            {
+                byte[] bytes = await RemoteHttp.GetByteArrayAsync(url).ConfigureAwait(false);
+                if (bytes != null && bytes.Length > 0)
+                {
+                    var decoded = DecodeBytes(bytes, decodePixelWidth);
+                    if (decoded != null) return decoded;
+                    Core.InstallLog.Write("[ArtPicker] preview decode produced nothing for " + url);
+                }
+                else
+                {
+                    Core.InstallLog.Write("[ArtPicker] preview download was empty for " + url);
+                }
+            }
+            catch (Exception ex)
+            {
+                Core.InstallLog.Write("[ArtPicker] preview download failed for " + url + ": " + ex.Message);
+            }
+
+            // Do NOT leave a failed remote load in the cache. Cache.GetOrAdd stores the Task itself,
+            // so a transient network blip would otherwise pin "this image is unavailable" for the rest
+            // of the session and searching again would show the same grey tiles. Local files keep the
+            // old behaviour - a missing file on disk stays missing.
+            Cache.TryRemove(cacheKey, out _);
+            return null;
+        }
+
+        private static BitmapSource DecodeBytes(byte[] bytes, int decodePixelWidth)
+        {
+            Gate.Wait();
+            try
+            {
+                using var stream = new MemoryStream(bytes);
+                var bmp = new BitmapImage();
+                bmp.BeginInit();
+                bmp.StreamSource = stream;
+                bmp.DecodePixelWidth = decodePixelWidth;
+                // OnLoad is what lets the MemoryStream be disposed on the way out of this method.
+                bmp.CacheOption = BitmapCacheOption.OnLoad;
+                bmp.CreateOptions = BitmapCreateOptions.IgnoreColorProfile;
+                bmp.EndInit();
+                bmp.Freeze();
+                return bmp;
+            }
+            catch (Exception ex)
+            {
+                Core.InstallLog.Write("[ArtPicker] preview decode threw: " + ex.Message);
+                return null;
+            }
+            finally { Gate.Release(); }
+        }
+
+        private static readonly HttpClient RemoteHttp = CreateRemoteHttp();
+
+        private static HttpClient CreateRemoteHttp()
+        {
+            var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("ClawTweaksCenter");
+            return client;
         }
 
         /// <summary>

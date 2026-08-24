@@ -11,6 +11,9 @@ namespace ClawTweaksCenter.Library
         /// <summary>A ROM, described and launched by Playnite. Not a store - the name is what the
         /// user sees, and "Playnite" is what they installed.</summary>
         Playnite,
+        /// <summary>A tool the user added by hand. The only kind of entry nothing discovered - see
+        /// MiscSource.</summary>
+        Misc,
     }
 
     /// <summary>
@@ -67,6 +70,16 @@ namespace ClawTweaksCenter.Library
         /// Null = never seen played, which is a normal answer, not a gap.</summary>
         public DateTime? LastPlayed { get; set; }
 
+        /// <summary>User-picked, via the Start-button game menu. Backed by FavoritesStore and
+        /// re-applied on every scan round from that file - the flag on this object is a read cache,
+        /// never the source of truth, so toggling it never needs to survive a rebuild by itself.</summary>
+        public bool IsFavorite { get; set; }
+
+        /// <summary>Stable cross-source identity for FavoritesStore and ArtOverrideStore: Store alone
+        /// is not unique, Id alone collides between stores (a Steam AppID and an Epic AppName can be
+        /// the same string by coincidence), so both together are what those stores key on.</summary>
+        public string FavoriteKey => Store + "|" + Id;
+
         public string StoreName
         {
             get
@@ -76,6 +89,7 @@ namespace ClawTweaksCenter.Library
                     case GameStore.Steam: return "Steam";
                     case GameStore.Epic: return "Epic";
                     case GameStore.Xbox: return "Xbox";
+                    case GameStore.Misc: return "Misc";
                     default: return SystemName ?? "Playnite";
                 }
             }
