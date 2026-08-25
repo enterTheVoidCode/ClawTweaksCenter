@@ -562,34 +562,67 @@ namespace ClawTweaksCenter
         private void RenderInstallDone()
         {
             ContentHost.Children.Clear();
-            ContentHost.Children.Add(UiHelpers.Title(
-                _installWasUpdate ? "ClawTweaks updated" : "ClawTweaks installed"));
-            ContentHost.Children.Add(UiHelpers.Body("Choose what to do next."));
 
-            // Columns follow the tile count - a fixed 3 left a tile-wide hole where the library
-            // would have been on a machine that has no ClawTweaks yet.
-            var tiles = new UniformGrid { Columns = LibraryAvailable ? 3 : 2 };
+            // CENTRED BOTH WAYS, and the vertical half needs help: ContentHost is a StackPanel inside
+            // a ScrollViewer, so it is arranged at its natural height and sits at the top no matter
+            // what VerticalAlignment says. The block therefore goes into a Grid that is told to be at
+            // least as tall as the scroller's viewport - then centring inside it means centring on
+            // screen. Bound rather than read once: ViewportHeight is 0 on the first pass and again
+            // after every resize.
+            var host = new Grid();
+            host.SetBinding(FrameworkElement.MinHeightProperty,
+                new System.Windows.Data.Binding("ViewportHeight") { Source = ContentScroller });
 
-            tiles.Children.Add(BuildHomeTile(
-                "", "Onboarding", "Set up Center M, controller and Game Bar.",
-                clickable: true, onClick: () => { _installDoneIndex = 0; OpenOnboarding(); },
-                selected: _installDoneIndex == 0));
+            var column = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            var title = UiHelpers.Title(_installWasUpdate ? "ClawTweaks updated" : "ClawTweaks installed");
+            title.HorizontalAlignment = HorizontalAlignment.Center;
+            title.TextAlignment = TextAlignment.Center;
+            column.Children.Add(title);
+
+            var body = UiHelpers.Body("Choose what to do next.");
+            body.HorizontalAlignment = HorizontalAlignment.Center;
+            body.TextAlignment = TextAlignment.Center;
+            column.Children.Add(body);
+
+            // Stacked, not side by side: three answers to one question read as a list, and a row of
+            // three wide tiles pushed the text of each into two lines on an eight-inch panel.
+            column.Children.Add(InstallDoneTile(
+                "\uE8FD", "Onboarding", "Set up Center M, controller and Game Bar.",
+                0, OpenOnboarding));
 
             // Absent, not greyed out, when ClawTweaks did not come up: the same rule Home follows.
             // A tile that opens nothing is worse than one tile fewer.
             if (LibraryAvailable)
-                tiles.Children.Add(BuildHomeTile(
-                    "", "Game Library", "Play your Steam, Epic and Xbox games.",
-                    clickable: true, onClick: () => { _installDoneIndex = 1; OpenLibrary(); },
-                    selected: _installDoneIndex == 1));
+                column.Children.Add(InstallDoneTile(
+                    "\uE7FC", "Game Library", "Play your Steam, Epic and Xbox games.",
+                    1, OpenLibrary));
 
-            tiles.Children.Add(BuildHomeTile(
-                "", "Close Center", "Finish here and close the window.",
-                clickable: true,
-                onClick: () => { _installDoneIndex = InstallDoneMaxIndex; CloseFromInstallDone(); },
-                selected: _installDoneIndex == InstallDoneMaxIndex));
+            column.Children.Add(InstallDoneTile(
+                "\uE711", "Close Center", "Finish here and close the window.",
+                InstallDoneMaxIndex, CloseFromInstallDone));
 
-            ContentHost.Children.Add(tiles);
+            host.Children.Add(column);
+            ContentHost.Children.Add(host);
+        }
+
+        /// <summary>
+        /// One hand-off tile at a FIXED WIDTH. Stacked tiles size to their own content otherwise, so
+        /// the three would have three different widths down the middle of the screen - which reads as
+        /// a layout accident rather than as a list of equal choices.
+        /// </summary>
+        private UIElement InstallDoneTile(string glyph, string title, string detail, int index, Action onClick)
+        {
+            var tile = BuildHomeTile(glyph, title, detail, clickable: true,
+                onClick: () => { _installDoneIndex = index; onClick(); },
+                selected: _installDoneIndex == index);
+            tile.Width = 460;
+            tile.Margin = new Thickness(0, 0, 0, 10);
+            return tile;
         }
 
         /// <summary>2 with a library tile, 1 without - the Close tile is always the last one.</summary>
@@ -598,8 +631,11 @@ namespace ClawTweaksCenter
         private void MoveInstallDoneSelection(PadButton dir)
         {
             int next = _installDoneIndex;
-            if (dir == PadButton.Left) next--;
-            else if (dir == PadButton.Right) next++;
+            // The tiles are stacked, so Up/Down are the real axis. Left/Right keep working because
+            // they used to be the only ones and a direction that suddenly does nothing is a worse
+            // surprise than one that does the obvious thing.
+            if (dir == PadButton.Up || dir == PadButton.Left) next--;
+            else if (dir == PadButton.Down || dir == PadButton.Right) next++;
             else return;
 
             if (next < 0) next = 0;
@@ -1261,11 +1297,14 @@ namespace ClawTweaksCenter
         {
             ContentHost.Children.Clear();
             _rowElements.Clear();
-            AddSection("Stable releases", "Recommended production builds",
+            // "Release" and "build" are developer words. The three channels are named for what
+            // they are to somebody choosing one: the main version, a test version, an experimental
+            // one. The translations follow that, not the English jargon.
+            AddSection("Main versions", "Recommended for everyday use",
                        UiHelpers.Ok, _releases, _releasesError);
-            AddSection("Test releases", "Preview builds for validating upcoming changes",
+            AddSection("Test versions", "Preview versions for trying upcoming changes",
                        UiHelpers.Warn, _testBuilds, _testBuildsError);
-            AddSection("Nightly releases", "Experimental snapshots with the newest changes",
+            AddSection("Experimental versions (nightly)", "The newest changes, least tested",
                        UiHelpers.Error, _nightlies, _nightliesError);
         }
 
@@ -1304,7 +1343,7 @@ namespace ClawTweaksCenter
             var labels = new StackPanel();
             labels.Children.Add(new TextBlock
             {
-                Text = header,
+                Text = Core.Loc.T(header),
                 FontSize = 19,
                 FontWeight = FontWeights.SemiBold,
                 // Neutral, not the channel colour: the bar already says which channel this is, and a
@@ -1313,7 +1352,7 @@ namespace ClawTweaksCenter
             });
             labels.Children.Add(new TextBlock
             {
-                Text = description,
+                Text = Core.Loc.T(description),
                 FontSize = 13,
                 Foreground = UiHelpers.Subtle,
                 Margin = new Thickness(0, 2, 0, 0),
@@ -1333,7 +1372,10 @@ namespace ClawTweaksCenter
                     VerticalAlignment = VerticalAlignment.Center,
                     Child = new TextBlock
                     {
-                        Text = items.Count == 1 ? "1 build" : $"{items.Count} builds",
+                        // Count and noun kept apart: a key with the number in it could never match
+                        // twice. Singular and plural are separate keys because not every language
+                        // forms them the same way.
+                        Text = items.Count + " " + Core.Loc.T(items.Count == 1 ? "version" : "versions"),
                         FontSize = 12,
                         Foreground = UiHelpers.Subtle,
                     },
@@ -1481,7 +1523,7 @@ namespace ClawTweaksCenter
             if (tag != null) badges.Children.Add(BuildTagBadge(tag, tagBrush));
 
             bool blocked = IsBlocked(b, out string blockReason);
-            if (blocked) badges.Children.Add(BuildTagBadge("⛔ " + blockReason, UiHelpers.Error));
+            if (blocked) badges.Children.Add(BuildTagBadge("⛔ " + Core.Loc.T(blockReason), UiHelpers.Error));
 
             if (badges.Children.Count > 0) stack.Children.Add(badges);
 
@@ -1537,10 +1579,12 @@ namespace ClawTweaksCenter
             tagBrush = UiHelpers.Subtle;
             if (_installedVersion == null || !TryParseVersion(b.Version, out var v)) return null;
 
-            if (v > _installedVersion) { tagBrush = UiHelpers.Ok; return "▲ Newer than installed"; }
-            if (v < _installedVersion) { tagBrush = UiHelpers.Subtle; return "▼ Older than installed"; }
+            // The arrow stays outside the key: it is a picture of the direction, identical in every
+            // language, and putting it in would make three keys that differ only by a symbol.
+            if (v > _installedVersion) { tagBrush = UiHelpers.Ok; return "▲ " + Core.Loc.T("Newer than installed"); }
+            if (v < _installedVersion) { tagBrush = UiHelpers.Subtle; return "▼ " + Core.Loc.T("Older than installed"); }
             tagBrush = UiHelpers.Accent;
-            return "● Currently installed";
+            return "● " + Core.Loc.T("Currently installed");
         }
 
         /// <summary>
@@ -1568,7 +1612,9 @@ namespace ClawTweaksCenter
             var deviceMin = DeviceDetect.MinimumSupportedVersion(_deviceModel);
             if (deviceMin != null && v < deviceMin)
             {
-                reason = $"Not supported on this device — needs {deviceMin}+";
+                // Version appended, not interpolated into the key - see the note on the
+                // downgrade warning above.
+                reason = Core.Loc.T("Not supported on this device") + " — " + deviceMin + "+";
                 return true;
             }
 
@@ -1829,7 +1875,7 @@ namespace ClawTweaksCenter
                 return;
             }
 
-            AddAction(PadButton.A, "Install this build", _flat.Count > 0, () =>
+            AddAction(PadButton.A, "Install this version", _flat.Count > 0, () =>
             {
                 if (_selectedIndex >= 0 && _selectedIndex < _flat.Count) ShowConfirm(_flat[_selectedIndex]);
             });
@@ -1908,7 +1954,7 @@ namespace ClawTweaksCenter
             if (IsBlocked(build, out string blockReason))
             {
                 _buildBlocked = true;
-                ContentHost.Children.Add(UiHelpers.Title("This build can't be installed"));
+                ContentHost.Children.Add(UiHelpers.Title("This version can't be installed"));
                 ContentHost.Children.Add(UiHelpers.Body($"{build.Version} — {build.Origin} — {build.Title}"));
                 ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Error, "Blocked", blockReason));
                 RefreshActionBar();
@@ -1916,13 +1962,17 @@ namespace ClawTweaksCenter
             }
             _buildBlocked = false;
 
-            ContentHost.Children.Add(UiHelpers.Title($"Install {build.Version}?"));
+            ContentHost.Children.Add(UiHelpers.Title(Core.Loc.T("Install this version?")));
+            ContentHost.Children.Add(UiHelpers.Body(build.Version));
             ContentHost.Children.Add(UiHelpers.Body($"{build.Origin} — {build.Title}"));
 
             if (_installedVersion != null && TryParseVersion(build.Version, out var selVer) && selVer < _installedVersion)
             {
+                // The two version numbers are appended rather than interpolated into the key -
+                // a sentence with a version in it can never match a table entry twice.
                 ContentHost.Children.Add(UiHelpers.StatusRow(StatusKind.Warning, "Downgrade",
-                    $"Currently installed: {_installedVersion} — this installs an OLDER version ({selVer})."));
+                    Core.Loc.T("This installs an OLDER version than the one installed.") +
+                    "  " + _installedVersion + " → " + selVer));
             }
 
             // "What's new" — only Releases/Test builds carry a GitHub release body; nightlies don't.
@@ -1930,7 +1980,7 @@ namespace ClawTweaksCenter
             {
                 ContentHost.Children.Add(new TextBlock
                 {
-                    Text = "What's new", FontSize = 18, FontWeight = FontWeights.Bold,
+                    Text = Core.Loc.T("What's new"), FontSize = 18, FontWeight = FontWeights.Bold,
                     Foreground = UiHelpers.Text, Margin = new Thickness(0, 16, 0, 6),
                 });
                 var notes = new StackPanel();
@@ -2469,7 +2519,10 @@ namespace ClawTweaksCenter
                 Dispatcher.Invoke(() =>
                 {
                     FinishLogRow(currentLogBadge, true);
-                    logPanel.Children.Add(BuildLogRow(s, out currentLogBadge, out currentLogDetail));
+                    // ENGLISH to the file, translated to the screen. The file is read by whoever is
+                    // diagnosing an install and has to line up with the helper's log, which is
+                    // English; the panel is read by the user while it happens.
+                    logPanel.Children.Add(BuildLogRow(Core.Loc.T(s), out currentLogBadge, out currentLogDetail));
                     logScroller.ScrollToBottom();
                 });
             }
