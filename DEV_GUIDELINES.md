@@ -161,6 +161,37 @@ self-contained publish (see the Build section) and the D-pad requirement below �
 handheld and is used with a controller far more often than with a mouse. Neither rules an approach
 out, but a proposal that has not accounted for them will get asked about both.
 
+## 🟡 Open: the Steam download readout has never been watched live
+
+The Not Installed tab shows a percentage for a Steam download in progress. **That number is derived,
+not measured**, and it is the only claim in the library work that is.
+
+What IS measured: a Steam manifest that is not `FullyInstalled` is kept and marked not-installed, and
+a *pending* download carries real figures — Helldivers 2 sat at `StateFlags=6` with
+`BytesToDownload=84,396,352` and `BytesDownloaded=0` while being perfectly playable, which is what
+proved the update case and the install case have to be told apart.
+
+What is NOT measured: whether `BytesDownloaded` actually grows while Steam is fetching a game, which
+`StateFlags` value stands during it, and whether `steamapps\downloading\<appid>` appears and
+disappears at the two ends. Every one of those is an assumption from the field names.
+
+**How to close it** — the same before/after that settled the Battle.net question, and it takes one
+real download:
+
+1. Start any Steam install. While it runs, record for that appid: the whole `appmanifest_<id>.acf`,
+   and whether `steamapps\downloading\<id>` exists.
+2. Let it finish. Record both again.
+3. The diff is the answer. If `BytesDownloaded` moved, the percentage is honest; if it did not, the
+   tab is showing 0% for the whole download and the figure has to come from the folder size instead.
+
+Until that is done, treat a bug report about the percentage as likely real. The rest of the tab — the
+list, the covers, the install hand-over — is verified: 839 owned-but-not-installed games with 831
+covers, and zero of them leaking into any other tab.
+
+Battle.net has the same question already answered, and answered differently: there is no percentage
+there at all, only "finished or not", because that is all `.patch.result` says. See
+`Library/OtherStores.cs`.
+
 ## Layout
 
 | Path | What lives there |
