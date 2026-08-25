@@ -106,11 +106,12 @@ namespace ClawTweaksCenter
         /// accident - one stray press threw away the tab, the scroll position and the covers already
         /// decoded. The three answers here are the three things B could reasonably have meant.
         /// </summary>
-        /// <summary>The library's own info screen. Opens by itself the first time (see
-        /// CenterSettings.LibraryInfoSeen) and from the info button in the tab strip after that.</summary>
+        /// <summary>The library's own info screen. Opened only by the user, from the info chip in the
+        /// tab strip - which pulses until they have done so once (CenterSettings.LibraryInfoSeen).</summary>
         private bool _infoOpen;
 
         private const string SteamGridDbUrl = "https://www.steamgriddb.com/";
+        private const string AnyFseUrl = "https://github.com/ashpynov/AnyFSE";
 
         private bool _exitPromptOpen;
         private int _exitPromptIndex;
@@ -207,13 +208,14 @@ namespace ClawTweaksCenter
             }
             else
             {
-                var tabs = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-                tabs.Children.Add(BuildTab("Start", true, null));
-                tabs.Children.Add(BuildTab("Library", false, OpenLibrary));
-                // RT, not RB. The shoulders belong to the library's own tabs once you are inside it,
-                // so the way IN is a trigger and stays out of their way.
-                tabs.Children.Add(BuildKeyCap("RT"));
-                FillDock(TabStripPanel, null, null, tabs);
+                // NO TAB STRIP OUTSIDE THE LIBRARY. There used to be a "Start | Library" pair with an
+                // RT hint here, and it was a second way to reach something Home already has a tile
+                // for - two controls for one destination, one of them invisible on the screens where
+                // it made no sense at all (it rode along through the whole update run).
+                //
+                // Inside the library the strip stays: there it is the game TABS, which is a different
+                // thing wearing the same row.
+                TabStrip.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -304,30 +306,6 @@ namespace ClawTweaksCenter
             }), DispatcherPriority.Loaded);
         }
 
-        private UIElement BuildTab(string label, bool active, Action onClick)
-        {
-            var border = new Border
-            {
-                Child = new TextBlock
-                {
-                    Text = label,
-                    FontSize = 17,
-                    FontWeight = active ? FontWeights.Bold : FontWeights.Normal,
-                    Foreground = active ? UiHelpers.Text : UiHelpers.Subtle,
-                },
-                Padding = new Thickness(4, 8, 4, 8),
-                Margin = new Thickness(0, 0, 22, 0),
-                Background = Brushes.Transparent,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                // The active tab is marked by an underline rather than a filled pill: the header
-                // above already carries the brand block, and two filled shapes in a row read as two
-                // competing headers.
-                BorderBrush = active ? UiHelpers.Accent : Brushes.Transparent,
-                BorderThickness = new Thickness(0, 0, 0, 3),
-            };
-            if (onClick != null) border.MouseLeftButtonUp += (_, __) => onClick();
-            return border;
-        }
 
         /// <summary>A shoulder button drawn as its key cap plus what it does.</summary>
         private UIElement BuildPadHint(string cap, string label, Action onClick)
@@ -366,6 +344,13 @@ namespace ClawTweaksCenter
         /// </summary>
         private UIElement BuildInfoButton()
         {
+            // Never opened: the chip is accented and breathes, so it reads as "there is
+            // something here" instead of sitting in the same grey as every other hint in the
+            // strip. Once opened it drops back to grey for good - an attention cue that never
+            // stops is one the user learns to ignore.
+            bool unseen = !Core.CenterSettings.LibraryInfoSeen;
+            Brush ink = unseen ? UiHelpers.Accent : UiHelpers.Subtle;
+
             var row = new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -376,14 +361,14 @@ namespace ClawTweaksCenter
                 Text = "X",
                 FontSize = 11,
                 FontWeight = FontWeights.Bold,
-                Foreground = UiHelpers.Subtle,
+                Foreground = ink,
                 VerticalAlignment = VerticalAlignment.Center,
             });
             row.Children.Add(new Border
             {
                 Width = 1,
                 Height = 12,
-                Background = UiHelpers.Subtle,
+                Background = ink,
                 Opacity = 0.4,
                 Margin = new Thickness(7, 0, 7, 0),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -393,7 +378,7 @@ namespace ClawTweaksCenter
                 Text = "\uE946",
                 FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
                 FontSize = 14,
-                Foreground = UiHelpers.Subtle,
+                Foreground = ink,
                 VerticalAlignment = VerticalAlignment.Center,
             });
 
@@ -401,7 +386,7 @@ namespace ClawTweaksCenter
             {
                 Child = row,
                 Background = UiHelpers.Card,
-                BorderBrush = UiHelpers.Subtle,
+                BorderBrush = ink,
                 BorderThickness = new Thickness(1),
                 CornerRadius = new CornerRadius(11),
                 Padding = new Thickness(8, 2, 8, 2),
@@ -411,7 +396,30 @@ namespace ClawTweaksCenter
                 ToolTip = "About this library",
             };
             button.MouseLeftButtonUp += (_, __) => OpenLibraryInfo();
+
+            if (unseen) StartInfoPulse(button);
             return button;
+        }
+
+        /// <summary>
+        /// The slow opacity pulse on the unseen info chip.
+        ///
+        /// Started on the element itself rather than through a Storyboard resource: the chip is
+        /// built fresh on every tab-strip refresh, and an animation attached to a throwaway element
+        /// dies with it. Nothing has to stop it - opening the info flips the flag, and the next
+        /// refresh builds a grey chip with no animation on it at all.
+        /// </summary>
+        private static void StartInfoPulse(UIElement target)
+        {
+            var pulse = new System.Windows.Media.Animation.DoubleAnimation
+            {
+                From = 1.0,
+                To = 0.45,
+                Duration = new Duration(TimeSpan.FromMilliseconds(900)),
+                AutoReverse = true,
+                RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
+            };
+            target.BeginAnimation(UIElement.OpacityProperty, pulse);
         }
 
         private UIElement BuildKeyCap(string text) => new Border
@@ -513,7 +521,7 @@ namespace ClawTweaksCenter
 
             var chip = new Border
             {
-                Child = BuildChipContent(GameLibrary.GroupLabel(g),
+                Child = BuildChipContent(Core.Loc.T(GameLibrary.GroupLabel(g)),
                                          _libraryScanned && !ImmersiveCountsHidden ? count : (int?)null, active, 14),
                 Padding = new Thickness(10, 4, 10, 4),
                 Margin = new Thickness(0, 0, 6, 0),
@@ -552,10 +560,6 @@ namespace ClawTweaksCenter
                 RestartIdleTimer();
             }
 
-            // After the render above, not before: it draws over the grid, and a grid that paints
-            // itself on top afterwards would leave the info screen invisible but still in charge of
-            // every button.
-            ShowLibraryInfoOnFirstVisit();
         }
 
         /// <summary>Puts the build-list host back in front and restores the header. Called from
@@ -781,8 +785,10 @@ namespace ClawTweaksCenter
 
         private static string SystemLabel(string system)
         {
-            if (system == GameLibrary.RomRecentSystem) return "Recent";
-            return system ?? "All systems";
+            // Only the two OWN labels are translated. A console name is a product name and reads the
+            // same everywhere, so passing it through Loc would be a lookup that can only ever miss.
+            if (system == GameLibrary.RomRecentSystem) return Core.Loc.T("Recent");
+            return system ?? Core.Loc.T("All systems");
         }
 
         /// <summary>
@@ -885,9 +891,24 @@ namespace ClawTweaksCenter
                 return;
             }
             _libHeadline.Text = g.Title;
-            _libSubline.Text = g.LastPlayed.HasValue
-                ? g.StoreName + "  ·  Last played " + g.LastPlayed.Value.ToString("d MMM yyyy")
-                : g.StoreName;
+            // The labels are translated, the store name and the date are not: one is a brand, and
+            // the other is formatted by the CURRENT CULTURE so it already reads correctly for the
+            // user. Splitting it this way is why the key is the label alone rather than the whole
+            // line - a key with a date in it would never match twice.
+            //
+            // EVERY PART IS OPTIONAL EXCEPT THE STORE. Playtime exists for Steam and nowhere else,
+            // and a date exists only once something has been played. A missing part is left out
+            // rather than shown empty: "0 h" is a claim, and "—" is a gap the user has to interpret.
+            var parts = new List<string> { g.StoreName };
+
+            string played = Library.SteamPlaytime.Format(g.PlaytimeMinutes);
+            if (played != null) parts.Add(played);
+
+            if (g.LastPlayed.HasValue)
+                parts.Add(Core.Loc.T("Last played") + " " +
+                          g.LastPlayed.Value.ToString("d MMM yyyy", System.Globalization.CultureInfo.CurrentCulture));
+
+            _libSubline.Text = string.Join("  ·  ", parts);
         }
 
         private GameEntry SelectedGame =>
@@ -895,6 +916,8 @@ namespace ClawTweaksCenter
 
         private UIElement BuildLibraryMessage(string text, bool working)
         {
+            text = Core.Loc.T(text);
+
             var stack = new StackPanel
             {
                 HorizontalAlignment = HorizontalAlignment.Center,
@@ -1398,7 +1421,7 @@ namespace ClawTweaksCenter
             // which way each of them is driven.
             row.Children.Add(new TextBlock
             {
-                Text = "Right stick",
+                Text = Core.Loc.T("Right stick"),
                 FontSize = 11,
                 Foreground = UiHelpers.Subtle,
                 Opacity = 0.8,
@@ -1417,7 +1440,7 @@ namespace ClawTweaksCenter
             if (Grouping != GroupingKind.None)
             {
                 bool on = GroupingOn;
-                row.Children.Add(SortChip("↔", Grouping == GroupingKind.Platform ? "Platform" : "System", on));
+                row.Children.Add(SortChip("↔", Core.Loc.T(Grouping == GroupingKind.Platform ? "Platform" : "System"), on));
             }
 
             return row;
@@ -1597,6 +1620,10 @@ namespace ClawTweaksCenter
             if (FooterBar != null) FooterBar.Visibility = footerHidden ? Visibility.Collapsed : Visibility.Visible;
             if (ImmersiveHint != null)
             {
+                // Set here rather than left to the XAML: it is the one piece of text in the shell
+                // that is authored as a literal attribute, so it is the one Loc never sees. Assigned
+                // on every pass because the language can change while the window is open.
+                ImmersiveHint.Text = Core.Loc.T("Click the right stick to show the button hints");
                 ImmersiveHint.Visibility = footerHidden ? Visibility.Visible : Visibility.Collapsed;
                 // As low as it can go in a GRID, higher in the reel.
                 //
@@ -1679,7 +1706,7 @@ namespace ClawTweaksCenter
             };
             stack.Children.Add(new TextBlock
             {
-                Text = "Library settings",
+                Text = Core.Loc.T("Library settings"),
                 FontSize = 26,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
@@ -1715,7 +1742,8 @@ namespace ClawTweaksCenter
             keyStack.Children.Add(_artKeyBox);
             _artKeyStatus = new TextBlock
             {
-                Text = Library.SteamGridDb.HasKey ? "Set. Covers are downloaded for games with none." : "Not set.",
+                Text = Core.Loc.T(Library.SteamGridDb.HasKey
+                    ? "Set. Covers are downloaded for games with none." : "Not set."),
                 FontSize = 13,
                 Foreground = UiHelpers.Subtle,
                 Margin = new Thickness(0, 6, 0, 0),
@@ -1740,7 +1768,7 @@ namespace ClawTweaksCenter
             var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             left.Children.Add(new TextBlock
             {
-                Text = title,
+                Text = Core.Loc.T(title),
                 FontSize = 17,
                 Foreground = UiHelpers.Text,
                 TextWrapping = TextWrapping.Wrap,
@@ -1911,9 +1939,9 @@ namespace ClawTweaksCenter
         {
             switch (behavior)
             {
-                case Core.LaunchBehavior.Minimize: return "Minimize";
-                case Core.LaunchBehavior.StayOpen: return "Stay open";
-                default: return "Close Center";
+                case Core.LaunchBehavior.Minimize: return Core.Loc.T("Minimize");
+                case Core.LaunchBehavior.StayOpen: return Core.Loc.T("Stay open");
+                default: return Core.Loc.T("Close Center");
             }
         }
 
@@ -2224,21 +2252,18 @@ namespace ClawTweaksCenter
         {
             _infoOpen = false;
             RenderLibrary();
+            // Rebuilds the info chip, which is how the pulse and the accent go away: opening the info
+            // set LibraryInfoSeen, but nothing on screen has re-read it yet.
+            RefreshTabStrip();
             RefreshActionBar();
         }
 
-        /// <summary>
-        /// Shown once, automatically, the first time the library is opened.
-        ///
-        /// The flag is written by OpenLibraryInfo, so it is set by the act of SHOWING it, not by the
-        /// user dismissing it. That is deliberate: a user who leaves the screen some other way should
-        /// not meet it again on the next visit as though nothing happened.
-        /// </summary>
-        private void ShowLibraryInfoOnFirstVisit()
-        {
-            if (Core.CenterSettings.LibraryInfoSeen) return;
-            OpenLibraryInfo();
-        }
+        // The info page used to open ITSELF on the first library visit. It does not any more: the
+        // first thing someone wants from a library is to see their games, not a page of text in front
+        // of them. What replaced it is the info chip in the tab strip - accented and pulsing until it
+        // has been opened once (see BuildInfoButton). Do not put the auto-open back without also
+        // removing the pulse; the flag they both hang off is the same one, so together they cancel
+        // each other out - the auto-open marks the page seen before the pulse is ever visible.
 
         private void RenderLibraryInfo()
         {
@@ -2253,41 +2278,91 @@ namespace ClawTweaksCenter
             };
             stack.Children.Add(new TextBlock
             {
-                Text = "Your ClawTweaks library",
+                Text = Core.Loc.T("Your ClawTweaks library"),
                 FontSize = 26,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
                 Margin = new Thickness(0, 0, 0, 18),
             });
 
+            // Top line, above every heading: it is the one setting that changes what the user sees
+            // on the NEXT start, so it belongs where it is read before anything else.
+            stack.Children.Add(InfoLead("Turn on Settings \u2192 Start in the library to open here every time."));
+
+            stack.Children.Add(InfoHeading("Your games"));
             stack.Children.Add(InfoLine("Shows your installed Steam, Xbox and Epic games."));
             stack.Children.Add(InfoLine("Steam cover art is found automatically."));
-            stack.Children.Add(InfoGap());
-            stack.Children.Add(InfoLine("Xbox, Epic and your own covers need a free SteamGridDB account."));
-            stack.Children.Add(InfoLine("Signing up takes two minutes."));
-            stack.Children.Add(InfoLine("Copy your key from Preferences \u2192 API Key."));
-            stack.Children.Add(InfoLine("Add it under Settings \u2192 SteamGridDB key."));
-            stack.Children.Add(InfoGap());
-            stack.Children.Add(InfoLine("ROMs come from Playnite, so add them there."));
+            stack.Children.Add(InfoLine("Add ROMs in Playnite \u2014 they are imported from there."));
 
+            // These four were one flat run of bullets, which read as four unrelated facts. They are
+            // one task in order, so they get a heading and an indent under it.
+            stack.Children.Add(InfoHeading("Covers for Xbox, Epic and your own games"));
+            stack.Children.Add(InfoLine("Create a free SteamGridDB account.", indent: true));
+            stack.Children.Add(InfoLine("Copy your key from Preferences \u2192 API Key.", indent: true));
+            stack.Children.Add(InfoLine("Add it under Settings \u2192 SteamGridDB key.", indent: true));
             stack.Children.Add(new TextBlock
             {
                 Text = SteamGridDbUrl,
                 FontSize = 13,
                 Foreground = UiHelpers.Accent,
-                Margin = new Thickness(0, 18, 0, 0),
+                // Lines up with the TEXT of the bullets above, not with their dots.
+                Margin = new Thickness(InfoIndent + InfoBulletColumn, 2, 0, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
+
+            stack.Children.Add(InfoHeading("Immersive mode"));
+            stack.Children.Add(InfoLine("Turn it on under Settings to show covers only."));
+
+            stack.Children.Add(InfoHeading("Full screen with AnyFSE"));
+            stack.Children.Add(InfoLine("Add ClawTweaks Center in AnyFSE as your full screen app.", indent: true));
+            stack.Children.Add(InfoLine("Enter the path below, then turn on Start in the library.", indent: true));
+            stack.Children.Add(BuildAnyFsePathRow());
+            stack.Children.Add(new TextBlock
+            {
+                Text = AnyFseUrl,
+                FontSize = 13,
+                Foreground = UiHelpers.Accent,
+                Margin = new Thickness(InfoIndent + InfoBulletColumn, 6, 0, 0),
                 TextTrimming = TextTrimming.CharacterEllipsis,
             });
 
             LibraryRoot.Children.Add(stack);
         }
 
+        /// <summary>Width of the bullet column, and how far a sub-step sits in from the margin. Both
+        /// are named because the SteamGridDB link under the last sub-step has to line up with the
+        /// TEXT of the bullets above it, not with their dots.</summary>
+        private const double InfoBulletColumn = 18;
+        private const double InfoIndent = 18;
+
+        /// <summary>Section heading. What follows it is one topic - nine bullets in a row read as
+        /// nine unrelated facts.</summary>
+        private static UIElement InfoHeading(string text) => new TextBlock
+        {
+            Text = Core.Loc.T(text),
+            FontSize = 15,
+            FontWeight = FontWeights.SemiBold,
+            Foreground = UiHelpers.Subtle,
+            Margin = new Thickness(0, 14, 0, 6),
+            TextWrapping = TextWrapping.Wrap,
+        };
+
+        /// <summary>The line above the first heading. No bullet: it belongs to no section.</summary>
+        private static UIElement InfoLead(string text) => new TextBlock
+        {
+            Text = Core.Loc.T(text),
+            FontSize = 16,
+            Foreground = UiHelpers.Text,
+            Margin = new Thickness(0, 0, 0, 4),
+            TextWrapping = TextWrapping.Wrap,
+        };
+
         /// <summary>One statement per line, and the bullet is a real element rather than a character
         /// in the text: a wrapped line then indents under the words instead of under the dot.</summary>
-        private static UIElement InfoLine(string text)
+        private static UIElement InfoLine(string text, bool indent = false)
         {
-            var grid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(18) });
+            var grid = new Grid { Margin = new Thickness(indent ? InfoIndent : 0, 0, 0, 6) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(InfoBulletColumn) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             grid.Children.Add(new TextBlock
@@ -2299,7 +2374,7 @@ namespace ClawTweaksCenter
 
             var body = new TextBlock
             {
-                Text = text,
+                Text = Core.Loc.T(text),
                 FontSize = 16,
                 Foreground = UiHelpers.Text,
                 TextWrapping = TextWrapping.Wrap,
@@ -2310,6 +2385,49 @@ namespace ClawTweaksCenter
         }
 
         private static UIElement InfoGap() => new Border { Height = 10 };
+
+        /// <summary>The Center path AnyFSE has to be pointed at, with a Copy button next to it.
+        /// Typing it out on a handheld means an on-screen keyboard and a path with two capitalised
+        /// folder names in it, so the path is offered rather than described.</summary>
+        private UIElement BuildAnyFsePathRow()
+        {
+            var row = new Grid { Margin = new Thickness(InfoIndent + InfoBulletColumn, 6, 0, 0) };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var path = new TextBox
+            {
+                Text = Core.SelfInstaller.InstalledExe,
+                IsReadOnly = true,
+                FontSize = 13,
+                Padding = new Thickness(8, 5, 8, 5),
+                VerticalAlignment = VerticalAlignment.Center,
+                VerticalContentAlignment = VerticalAlignment.Center,
+            };
+            row.Children.Add(path);
+
+            var copy = new Button
+            {
+                Content = "Copy",
+                Style = (Style)Application.Current.Resources["SetupButton"],
+                MinWidth = 90,
+                Margin = new Thickness(8, 0, 0, 0),
+            };
+            copy.Click += (_, __) => CopyAnyFsePath();
+            Grid.SetColumn(copy, 1);
+            row.Children.Add(copy);
+
+            return row;
+        }
+
+        /// <summary>Puts the installed Center path on the clipboard. Wrapped because the clipboard is
+        /// a shared OS resource - another process holding it open makes Clipboard.SetText throw, and
+        /// a failed copy must not take the library down with it.</summary>
+        private void CopyAnyFsePath()
+        {
+            try { Clipboard.SetText(Core.SelfInstaller.InstalledExe); }
+            catch (Exception ex) { Core.InstallLog.Write("Copying the Center path failed: " + ex.Message); }
+        }
         #endregion
 
         #region Leaving the library
@@ -2344,7 +2462,7 @@ namespace ClawTweaksCenter
             };
             stack.Children.Add(new TextBlock
             {
-                Text = "Leave the library",
+                Text = Core.Loc.T("Leave the library"),
                 FontSize = 26,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
@@ -2364,10 +2482,10 @@ namespace ClawTweaksCenter
         private Border ExitPromptRow(int index, string glyph, string title, string subtitle)
         {
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            text.Children.Add(new TextBlock { Text = title, FontSize = 18, Foreground = UiHelpers.Text });
+            text.Children.Add(new TextBlock { Text = Core.Loc.T(title), FontSize = 18, Foreground = UiHelpers.Text });
             text.Children.Add(new TextBlock
             {
-                Text = subtitle,
+                Text = Core.Loc.T(subtitle),
                 FontSize = 13,
                 Foreground = UiHelpers.Subtle,
                 Margin = new Thickness(0, 2, 0, 0),
@@ -2385,7 +2503,11 @@ namespace ClawTweaksCenter
             };
 
             var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(34) });
+            // 48, not 34: the glyph is drawn at 20pt and centred, so a 34-wide column left barely
+            // three pixels between it and the text. The gap belongs to the COLUMN rather than to a
+            // margin on the text, so the two lines of the label still start at the same x whatever
+            // width the glyph happens to have.
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.Children.Add(icon);
             grid.Children.Add(text);
@@ -2469,6 +2591,9 @@ namespace ClawTweaksCenter
             {
                 AddAction(PadButton.A, "Open SteamGridDB", true,
                     () => Core.PrerequisiteGuide.OpenPage(SteamGridDbUrl, m => Core.InstallLog.Write(m)));
+                AddAction(PadButton.Y, "Open AnyFSE", true,
+                    () => Core.PrerequisiteGuide.OpenPage(AnyFseUrl, m => Core.InstallLog.Write(m)));
+                AddAction(PadButton.X, "Copy Center path", true, CopyAnyFsePath);
                 AddAction(PadButton.B, "Close", true, CloseLibraryInfo);
                 return;
             }
@@ -2635,6 +2760,9 @@ namespace ClawTweaksCenter
             content.Children.Add(fallback);
             content.Children.Add(image);
 
+            var badge = BuildProfileBadge(game.Profiles);
+            if (badge != null) content.Children.Add(badge);
+
             if (glass)
             {
                 content.Children.Add(BuildGlass());
@@ -2675,6 +2803,58 @@ namespace ClawTweaksCenter
             if (game.ArtPath != null) LoadCover(owner, game.ArtPath, image);
             return tile;
         }
+
+        /// <summary>
+        /// The mark that says "ClawTweaks has a profile for this game" - a small dark chip in the
+        /// bottom-left corner of the cover, one glyph per kind.
+        ///
+        /// DELIBERATELY QUIET. The cover is the content of this screen; a badge loud enough to read
+        /// across the room is one that has started competing with the artwork it sits on. It is there
+        /// to be noticed when looked for, not to announce itself - hence a dim plate, a small glyph,
+        /// and the corner furthest from where the eye lands.
+        ///
+        /// BOTTOM-LEFT, not top-right: the selection sweep travels across the upper area of a
+        /// selected tile, and a badge there flickers under it on every cursor move.
+        ///
+        /// Returns null when there is nothing to say. An "empty" badge - a plate with no glyph - would
+        /// still be a mark on the cover, and every game would carry one.
+        /// </summary>
+        private static UIElement BuildProfileBadge(ClawProfileKinds kinds)
+        {
+            if (kinds == ClawProfileKinds.None) return null;
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+
+            // Performance first, because it is the one that changes how the game runs. Lightning for
+            // power, gamepad for the controller - the same two pictures the widget uses for the same
+            // two things, so nothing new has to be learned here.
+            if ((kinds & ClawProfileKinds.Performance) != 0) row.Children.Add(BadgeGlyph(""));
+            if ((kinds & ClawProfileKinds.Controller) != 0) row.Children.Add(BadgeGlyph(""));
+
+            return new Border
+            {
+                Background = new SolidColorBrush(Color.FromArgb(0xAA, 0x00, 0x00, 0x00)),
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(5, 2, 5, 3),
+                Margin = new Thickness(6),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Bottom,
+                // The tile itself handles the click. A badge that swallowed it would make the corner
+                // of every marked cover dead.
+                IsHitTestVisible = false,
+                Child = row,
+            };
+        }
+
+        private static TextBlock BadgeGlyph(string glyph) => new TextBlock
+        {
+            Text = glyph,
+            FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+            FontSize = 11,
+            Foreground = new SolidColorBrush(Color.FromArgb(0xDD, 0xFF, 0xFF, 0xFF)),
+            Margin = new Thickness(1, 0, 1, 0),
+            VerticalAlignment = VerticalAlignment.Center,
+        };
 
         /// <summary>
         /// The glass sheen over a reel cover: one soft highlight down the top third, nothing else.

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Windows;
@@ -38,6 +38,9 @@ namespace ClawTweaksCenter
         public MainWindow(string[] args)
         {
             InitializeComponent();
+            // XAML literals never reach Loc, so the one translatable string in the header is
+            // set here. The product name above it stays as it is - it is a name.
+            SubtitleText.Text = Core.Loc.T("Guided setup");
             ModernWindow.Apply(this);
 
             _phases.Add(new DetectPhase());
@@ -210,13 +213,15 @@ namespace ClawTweaksCenter
             if (_index < _phases.Count - 1) { GoTo(_index + 1); return; }
 
             // Wizard finished. If InstallPhase completed a real install/update this run (helper
-            // confirmed elevated and running), hand off to ClawTweaks Center's home page — that's
-            // where onboarding (Center M off, virtual controller on, Game Bar auto-jump) lives now,
-            // see Doku/PLAN_Center_Helper_Integration.md §3 Phase 3.
+            // confirmed elevated and running), hand off to ClawTweaks Center and let the user say
+            // what happens next: onboarding, the library, or nothing at all. It used to open
+            // onboarding unconditionally, which on an update means a checklist with every step
+            // already done. Onboarding still lives there — see
+            // Doku/PLAN_Center_Helper_Integration.md §3 Phase 3.
             var installPhase = _phases.OfType<Phases.InstallPhase>().FirstOrDefault();
             if (installPhase != null && installPhase.ReadyForOnboarding)
             {
-                new CenterMenuWindow(startOnboarding: true).Show();
+                new CenterMenuWindow(installDone: true, installWasUpdate: installPhase.WasUpdate).Show();
             }
             Close();
         }

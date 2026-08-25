@@ -183,6 +183,29 @@ namespace ClawTweaksCenter.Core
             set => WriteBool("RunInBackground", value);
         }
 
+        /// <summary>
+        /// The interface language, as the user chose it - including "follow the OS", which is the
+        /// default and what a fresh installation runs on.
+        ///
+        /// STORED AS THE NAME, not as the ordinal, unlike LaunchBehavior above. The two are stored
+        /// differently on purpose: LaunchBehavior has three members that will never be reordered,
+        /// whereas the language list is expected to grow and would most naturally grow in
+        /// alphabetical order - and an ordinal moves silently when a member is inserted, turning
+        /// somebody's German into French on an update. A name cannot do that, and an unknown name
+        /// falls back to System, which is the right answer for a language we no longer ship.
+        /// </summary>
+        public static UiLanguage Language
+        {
+            get
+            {
+                string raw = ReadString("Language", string.Empty);
+                return Enum.TryParse(raw, out UiLanguage parsed) && Enum.IsDefined(typeof(UiLanguage), parsed)
+                    ? parsed
+                    : UiLanguage.System;
+            }
+            set => WriteString("Language", value.ToString());
+        }
+
         /// <summary>Removes everything this class stored. Called from the uninstall path.</summary>
         public static void Clear()
         {

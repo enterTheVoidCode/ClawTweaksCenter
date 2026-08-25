@@ -108,6 +108,16 @@ namespace ClawTweaksCenter.Library
 
                 ApplyMiscOverride(all);
                 Dedupe(all);
+                // Both are file reads off the local disk and both are re-done per round rather than
+                // once: a profile can appear while Center is open (the user sets one in the widget),
+                // and Steam rewrites localconfig.vdf when a game exits.
+                SteamPlaytime.Refresh();
+                ClawProfiles.Refresh();
+                foreach (var g in all)
+                {
+                    if (g.Store == GameStore.Steam) g.PlaytimeMinutes = SteamPlaytime.MinutesFor(g.Id);
+                    g.Profiles = ClawProfiles.For(g);
+                }
                 GameArt.ResolveLocalArt(all);
                 ArtOverrideStore.ApplyTo(all);  // a manual pick always outranks local/auto-fetched art
                 FavoritesStore.ApplyTo(all);

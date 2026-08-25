@@ -66,6 +66,17 @@ namespace ClawTweaksCenter.Library
         /// itself from the title (see GameArt), it never shows a broken image.</summary>
         public string ArtPath { get; set; }
 
+        /// <summary>
+        /// Total minutes played, where the store records it locally. 0 = unknown, which is the normal
+        /// answer for everything except Steam - Epic writes no playtime to disk, Xbox keeps it in the
+        /// cloud, and a ROM's time belongs to Playnite. See SteamPlaytime.
+        /// </summary>
+        public int PlaytimeMinutes { get; set; }
+
+        /// <summary>Which ClawTweaks per-game profiles exist for this entry. Filled on every scan
+        /// round from the files on disk - see ClawProfiles.</summary>
+        public ClawProfileKinds Profiles { get; set; }
+
         /// <summary>Last time this was played, from whichever source knew it best (see PlayHistory).
         /// Null = never seen played, which is a normal answer, not a gap.</summary>
         public DateTime? LastPlayed { get; set; }

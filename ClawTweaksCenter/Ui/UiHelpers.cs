@@ -1,4 +1,4 @@
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using ClawTweaksCenter.Navigation;
@@ -30,9 +30,13 @@ namespace ClawTweaksCenter.Ui
             }
         }
 
+        // Title / Caption / Body / StatusRow / ActionCallout / ToolRow / ModeBanner all translate
+        // their own text. These seven are what the installer wizard, onboarding and maintenance are
+        // built out of, so a lookup in each covers those screens without touching a single one of
+        // their call sites. A string that is not in a table renders as itself - see Core/Loc.
         public static TextBlock Title(string t) => new TextBlock
         {
-            Text = t,
+            Text = Core.Loc.T(t),
             FontSize = 34,
             FontWeight = FontWeights.SemiBold,
             Foreground = Text,
@@ -42,7 +46,7 @@ namespace ClawTweaksCenter.Ui
         /// <summary>Small dim caption, e.g. "Last checked 12:34:56".</summary>
         public static TextBlock Caption(string t) => new TextBlock
         {
-            Text = t,
+            Text = Core.Loc.T(t),
             FontSize = 14,
             Foreground = Subtle,
             Opacity = 0.8,
@@ -51,7 +55,7 @@ namespace ClawTweaksCenter.Ui
 
         public static TextBlock Body(string t) => new TextBlock
         {
-            Text = t,
+            Text = Core.Loc.T(t),
             FontSize = 19,
             LineHeight = 28,
             TextWrapping = TextWrapping.Wrap,
@@ -94,6 +98,10 @@ namespace ClawTweaksCenter.Ui
         /// <summary>A status row: status badge + bold name + detail line.</summary>
         public static Border StatusRow(StatusKind kind, string name, string detail)
         {
+            // Same reasoning as the footer chips: one lookup where every status row is built.
+            name = Core.Loc.T(name);
+            detail = Core.Loc.T(detail);
+
             var grid = new Grid();
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -158,7 +166,7 @@ namespace ClawTweaksCenter.Ui
             row.Children.Add(glyph);
             row.Children.Add(new TextBlock
             {
-                Text = text,
+                Text = Core.Loc.T(text),
                 FontSize = 20,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Text,
@@ -194,16 +202,16 @@ namespace ClawTweaksCenter.Ui
             var stack = new StackPanel();
             stack.Children.Add(new TextBlock
             {
-                Text = name, FontSize = 21, FontWeight = FontWeights.SemiBold, Foreground = Text,
+                Text = Core.Loc.T(name), FontSize = 21, FontWeight = FontWeights.SemiBold, Foreground = Text,
             });
             stack.Children.Add(new TextBlock
             {
-                Text = whatItDoes, FontSize = 15, Foreground = Subtle,
+                Text = Core.Loc.T(whatItDoes), FontSize = 15, Foreground = Subtle,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0),
             });
             stack.Children.Add(new TextBlock
             {
-                Text = status, FontSize = 16, FontWeight = FontWeights.SemiBold,
+                Text = Core.Loc.T(status), FontSize = 16, FontWeight = FontWeights.SemiBold,
                 Foreground = BrushFor(kind), Margin = new Thickness(0, 6, 0, 0),
             });
             Grid.SetColumn(stack, 1);
@@ -227,7 +235,7 @@ namespace ClawTweaksCenter.Ui
             var stack = new StackPanel();
             stack.Children.Add(new TextBlock
             {
-                Text = label,
+                Text = Core.Loc.T(label),
                 FontSize = 24,
                 FontWeight = FontWeights.Bold,
                 Foreground = Text,
@@ -235,7 +243,7 @@ namespace ClawTweaksCenter.Ui
             if (!string.IsNullOrEmpty(sub))
                 stack.Children.Add(new TextBlock
                 {
-                    Text = sub,
+                    Text = Core.Loc.T(sub),
                     FontSize = 16,
                     Foreground = Subtle,
                     TextWrapping = TextWrapping.Wrap,

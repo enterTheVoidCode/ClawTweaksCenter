@@ -378,7 +378,7 @@ namespace ClawTweaksCenter
 
         private static TextBlock MiscHeadline(string text) => new TextBlock
         {
-            Text = text,
+            Text = Core.Loc.T(text),
             FontSize = 26,
             FontWeight = FontWeights.SemiBold,
             Foreground = UiHelpers.Text,
@@ -392,14 +392,14 @@ namespace ClawTweaksCenter
             var left = new StackPanel();
             left.Children.Add(new TextBlock
             {
-                Text = title,
+                Text = Core.Loc.T(title),
                 FontSize = 18,
                 Foreground = UiHelpers.Text,
             });
             if (subtitle != null)
                 left.Children.Add(new TextBlock
                 {
-                    Text = subtitle,
+                    Text = Core.Loc.T(subtitle),
                     FontSize = 13,
                     Foreground = UiHelpers.Subtle,
                     Margin = new Thickness(0, 2, 0, 0),

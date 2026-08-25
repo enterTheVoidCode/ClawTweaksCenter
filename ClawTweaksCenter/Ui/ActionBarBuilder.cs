@@ -24,9 +24,12 @@ namespace ClawTweaksCenter.Ui
         {
             UIElement glyph = BuildGlyph(button);
 
+            // Translated HERE rather than at the call sites. Every footer label in both windows
+            // goes through this one method, so a lookup here localises all of them and a label that
+            // is not in the table passes through as its own English. See Core/Localization.cs.
             var text = new TextBlock
             {
-                Text = label,
+                Text = Core.Loc.T(label),
                 FontSize = LabelFontSize,
                 FontWeight = FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -115,9 +118,12 @@ namespace ClawTweaksCenter.Ui
             };
             RenderOptions.SetBitmapScalingMode(glyph, BitmapScalingMode.HighQuality);
 
+            // Translated HERE rather than at the call sites. Every footer label in both windows
+            // goes through this one method, so a lookup here localises all of them and a label that
+            // is not in the table passes through as its own English. See Core/Localization.cs.
             var text = new TextBlock
             {
-                Text = label,
+                Text = Core.Loc.T(label),
                 FontSize = LabelFontSize,
                 FontWeight = FontWeights.SemiBold,
                 VerticalAlignment = VerticalAlignment.Center,

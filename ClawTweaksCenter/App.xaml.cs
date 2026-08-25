@@ -12,6 +12,12 @@ namespace ClawTweaksCenter
         {
             base.OnStartup(e);
 
+            // BEFORE the uninstall branch and before any window: every builder that draws text asks
+            // Loc for it, so the language has to be resolved while nothing has been drawn yet.
+            // Reading it is a registry read and a culture lookup - cheap enough to sit ahead of the
+            // early exits rather than to be repeated in each of them.
+            Loc.Initialise();
+
             // Uninstall callback (registered as the Add/Remove Programs UninstallString) — clean up
             // and exit immediately, never reaching any window.
             //

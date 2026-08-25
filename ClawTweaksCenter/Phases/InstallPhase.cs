@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -27,6 +27,11 @@ namespace ClawTweaksCenter.Phases
         /// trusted, package installed, helper confirmed up) — the trigger MainWindow uses to hand off
         /// to the onboarding sequence on ClawTweaks Center's home page.</summary>
         public bool ReadyForOnboarding { get; private set; }
+
+        /// <summary>True when ClawTweaks was already installed when this run started - the difference
+        /// between "installed" and "updated" on the hand-off screen. Read BEFORE the package is
+        /// written; asking afterwards would answer yes either way.</summary>
+        public bool WasUpdate { get; private set; }
 
         private readonly ProgressBar _progress = new ProgressBar
         {
@@ -172,6 +177,7 @@ namespace ClawTweaksCenter.Phases
 
             // 2) Package
             string pkg = PackageInstaller.FindPackage();
+            WasUpdate = await Task.Run(() => PackageInstaller.GetInstalledVersion() != null);
             if (ok && pkg != null)
             {
                 var deps = PackageInstaller.FindDependencies(pkg);

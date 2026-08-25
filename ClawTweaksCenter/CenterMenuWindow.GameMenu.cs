@@ -261,11 +261,11 @@ namespace ClawTweaksCenter
             _gameMenuActions.Add((actionLabel, run));
 
             var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            left.Children.Add(new TextBlock { Text = title, FontSize = 18, Foreground = titleBrush });
+            left.Children.Add(new TextBlock { Text = Core.Loc.T(title), FontSize = 18, Foreground = titleBrush });
             if (subtitle != null)
                 left.Children.Add(new TextBlock
                 {
-                    Text = subtitle,
+                    Text = Core.Loc.T(subtitle),
                     FontSize = 13,
                     Foreground = UiHelpers.Subtle,
                     Margin = new Thickness(0, 2, 0, 0),
@@ -519,7 +519,7 @@ namespace ClawTweaksCenter
             var head = new StackPanel { Margin = new Thickness(LibOuterMargin, 14, LibOuterMargin, 10), MaxWidth = 720 };
             head.Children.Add(new TextBlock
             {
-                Text = "Choose cover art",
+                Text = Core.Loc.T("Choose cover art"),
                 FontSize = 22,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
@@ -538,7 +538,7 @@ namespace ClawTweaksCenter
             head.Children.Add(_artPickerQueryBox);
             head.Children.Add(new TextBlock
             {
-                Text = "Portrait covers only. No match? Edit the text above and search again.",
+                Text = Core.Loc.T("Portrait covers only. No match? Edit the text above and search again."),
                 FontSize = 12,
                 Foreground = UiHelpers.Subtle,
                 Margin = new Thickness(2, 6, 0, 0),

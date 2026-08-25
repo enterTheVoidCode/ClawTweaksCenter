@@ -44,6 +44,12 @@ namespace ClawTweaksCenter
             Ui.ModernWindow.Apply(this);
             Ui.WindowMode.Attach(this); // after ModernWindow — see WindowMode.Attach on the ordering
 
+            // The XAML defaults are English literals and XAML never reaches Loc, so every string this
+            // window shows is set from code. This one is the default title and the tick box; the
+            // switch below overrides the title per mode.
+            TitleText.Text = Core.Loc.T("Install ClawTweaks Center");
+            DesktopShortcutOption.Content = Core.Loc.T("Add a desktop icon");
+
             // Nothing is going to be installed on these two screens, so an install option would be a
             // control that does nothing. Hidden rather than disabled: a greyed-out tick still reads as
             // a promise about what the next click will do.
@@ -55,7 +61,7 @@ namespace ClawTweaksCenter
             switch (mode)
             {
                 case InstallCenterMode.Update:
-                    TitleText.Text = "Update ClawTweaks Center";
+                    TitleText.Text = Core.Loc.T("Update ClawTweaks Center");
                     TitleIcon.Text = ((char)0xE777).ToString(); // Segoe Fluent "UpdateRestore"
 
                     // NOT ticked on an update. The box only ever ADDS an icon or removes one, so on a
@@ -66,11 +72,14 @@ namespace ClawTweaksCenter
                     DesktopShortcutOption.IsChecked = false;
                     break;
                 case InstallCenterMode.AlreadyInstalled:
-                    TitleText.Text = "ClawTweaks Center is already installed";
+                    TitleText.Text = Core.Loc.T("ClawTweaks Center is already installed");
                     TitleIcon.Text = ((char)0xE73E).ToString(); // Segoe Fluent "CheckMark"
                     StatusText.Visibility = Visibility.Visible;
-                    StatusText.Text = $"Version {installedVersion} is already installed. Open it from the Start Menu " +
-                                       "or the ClawTweaks Game Bar widget instead of running this Setup file again.";
+                    // Split rather than interpolated: a key with a version number in it could never
+                    // match twice, so the sentence is translated and the number concatenated.
+                    StatusText.Text = "Version " + installedVersion + " — " +
+                        Core.Loc.T("This version is already installed. Open it from the Start Menu " +
+                                   "or the ClawTweaks Game Bar widget instead of running this Setup file again.");
                     break;
             }
 
@@ -143,14 +152,14 @@ namespace ClawTweaksCenter
                 // Either there never was an old install, or the re-check just confirmed it's gone —
                 // fall back to the plain first-time-install screen (XAML's defaults).
                 TitleIcon.Text = "";
-                TitleText.Text = "Install ClawTweaks Center";
+                TitleText.Text = Core.Loc.T("Install ClawTweaks Center");
                 StatusText.Foreground = UiHelpers.Accent;
                 StatusText.Visibility = Visibility.Collapsed;
                 return;
             }
 
             TitleIcon.Text = ((char)0xE7BA).ToString(); // Segoe Fluent "Warning"
-            TitleText.Text = "Transition to new Center App - Uninstall the old version";
+            TitleText.Text = Core.Loc.T("Transition to new Center App - Uninstall the old version");
             StatusText.Foreground = UiHelpers.Warn;
             StatusText.Visibility = Visibility.Visible;
             StatusText.Text =
@@ -222,7 +231,7 @@ namespace ClawTweaksCenter
             RenderActionBar();
 
             StatusText.Visibility = Visibility.Visible;
-            StatusText.Text = _mode == InstallCenterMode.Update ? "Updating..." : "Installing...";
+            StatusText.Text = Core.Loc.T(_mode == InstallCenterMode.Update ? "Updating..." : "Installing...");
 
             // No elevation, and no UAC prompt. Center installs per-user — %LOCALAPPDATA%\Programs, the
             // user's own Start Menu, HKCU's Uninstall hive — so installing and updating are ordinary
@@ -234,7 +243,9 @@ namespace ClawTweaksCenter
             try
             {
                 ok = await Task.Run(() => SelfInstaller.InstallAndRelaunch(
-                    msg => Dispatcher.Invoke(() => StatusText.Text = msg), desktopIcon));
+                    // The installer reports progress as finished strings; this is where they
+                    // reach the screen, so this is where they can be translated.
+                    msg => Dispatcher.Invoke(() => StatusText.Text = Core.Loc.T(msg)), desktopIcon));
             }
             catch (Exception ex)
             {
@@ -254,7 +265,9 @@ namespace ClawTweaksCenter
             {
                 _installing = false;
                 StatusText.Foreground = UiHelpers.Error;
-                StatusText.Text = (_mode == InstallCenterMode.Update ? "Update" : "Install") + " failed — see the log for details. Try again, or run as Administrator.";
+                StatusText.Text = Core.Loc.T(_mode == InstallCenterMode.Update
+                    ? "Update failed — see the log for details. Try again, or run as Administrator."
+                    : "Install failed — see the log for details. Try again, or run as Administrator.");
                 RenderActionBar();
             }
         }

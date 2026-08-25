@@ -81,6 +81,59 @@ binary.
 
 Both rules exist because of real antivirus findings, not as a matter of taste.
 
+## Translations
+
+Center ships English, German, French, Korean and Spanish. On a fresh installation it follows the
+Windows **display** language (`CultureInfo.CurrentUICulture`, not `CurrentCulture` — that one follows
+the region and would put a German keyboard on an English Windows into German). The user can pin a
+language on **Home → Center Settings**; the choice is stored in `HKCU\Software\ClawTweaks\Center`
+under `Language`, **by name, not by ordinal**, so inserting a language later cannot silently turn
+somebody's German into French.
+
+**The tables are keyed by the English string** (`Core/Localization.Tables.cs`). A string that is not
+in a table renders as itself, so:
+
+- adding a label to the interface needs no work here at all, and
+- **leaving a string untranslated is a decision, not a bug.**
+
+**Translation happens at the builders, not at the call sites.** One lookup in each of these covers
+every screen that goes through them, so **new text needs no work here at all** as long as it goes
+through one of them:
+
+`UiHelpers.Title` · `Caption` · `Body` · `StatusRow` · `ActionCallout` · `ToolRow` · `ModeBanner`
+· `ActionBarBuilder.BuildChip` · `BuildHomeTile` · `BuildTab` · `BuildSettingRow` ·
+`BuildCenterSettingRow` · `BuildLibraryMessage` · `ExitPromptRow` · `InfoLead` / `InfoHeading` /
+`InfoLine` · the maintenance, misc and game-menu row builders · the onboarding step card.
+
+Do not sprinkle `Loc.T` through new code. If a new string does not reach the screen through one of
+those, that is the thing to fix.
+
+**Two shapes CANNOT be translated by this mechanism, and neither is an oversight:**
+
+- **Interpolated strings.** `$"Last checked {time}"` is built at runtime, so it can never match a
+  key. Where such a line matters, split it: translate the fixed part and concatenate the value, the
+  way `UpdateSelectedTitle` does with "Last played".
+- **Date and number formats.** `"d MMM yyyy"` reaches a builder like any other string; translating
+  one would corrupt the output. They are simply absent from the tables, and formatting is left to
+  `CultureInfo.CurrentCulture`, which already reads correctly for the user.
+
+### The two rules a new translation has to pass
+
+1. **It has to FIT.** Center's chips, tabs and tiles are sized for the English word and do not grow.
+   The budget is at most **1.7× the English, or five characters more, whichever is larger**, counting
+   CJK characters as two because they render about twice as wide. A translation over budget is left
+   out and the English stays — the alternative is a clipped label, which is worse than an English one.
+   The entries that failed this check are listed at the **bottom of `Localization.Tables.cs`**; that
+   list is the answer to "why is this one word still English", so keep it up to date rather than
+   tidying it away.
+2. **Menu headings stay English.** The Home tiles keep their English titles and only their one-line
+   descriptions are translated. "Library" is the deliberate exception and is translated everywhere it
+   appears.
+
+Adding a language means: a member on `UiLanguage`, a case in `Loc.Detect`, a name in `Loc.NameOf`
+(**in that language** — somebody who has landed in a script they cannot read has to find their way
+out), an entry in `Loc.Order`, a table, and a case in `TableFor`.
+
 ## Commits
 
 - **Commit messages and code comments in English.** UI strings are exempt.

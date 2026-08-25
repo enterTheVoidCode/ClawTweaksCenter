@@ -47,6 +47,11 @@ namespace ClawTweaksCenter.Core
 
         private static string InstalledExePath => Path.Combine(InstallDir, ExeName);
 
+        /// <summary>Full path of the INSTALLED Center exe - what an external full-screen launcher
+        /// (AnyFSE) has to be pointed at. Deliberately not the running exe: a portable copy sitting in
+        /// Downloads is not a path anyone should configure another program against.</summary>
+        public static string InstalledExe => InstalledExePath;
+
         private static string UninstallRegistryKey =>
             $@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{UninstallKeyName}";
 

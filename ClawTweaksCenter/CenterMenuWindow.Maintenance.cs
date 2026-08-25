@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -211,7 +211,7 @@ namespace ClawTweaksCenter
                 string sub = b.ManifestValid
                     ? $"ClawTweaks {b.AppVersion ?? "?"} · {b.DeviceModel ?? "?"} · {b.StoreCount} stores · {FormatSize(b.SizeBytes)}"
                     : $"⚠ No valid backup manifest · {FormatSize(b.SizeBytes)}";
-                stack.Children.Add(new TextBlock { Text = sub, FontSize = 13, Foreground = UiHelpers.Subtle, Margin = new Thickness(0, 3, 0, 0), TextWrapping = TextWrapping.Wrap });
+                stack.Children.Add(new TextBlock { Text = Core.Loc.T(sub), FontSize = 13, Foreground = UiHelpers.Subtle, Margin = new Thickness(0, 3, 0, 0), TextWrapping = TextWrapping.Wrap });
                 stack.Children.Add(new TextBlock { Text = b.FileName, FontSize = 12, Foreground = UiHelpers.Subtle, Margin = new Thickness(0, 2, 0, 0), TextWrapping = TextWrapping.Wrap });
 
                 var card = WrapSelectableCard(stack, selected, () => { _maintRestoreIndex = index; SelectBackupForRestore(index); });
@@ -263,8 +263,8 @@ namespace ClawTweaksCenter
         private Border BuildMaintCard(string title, string detail, bool selected, Action onClick)
         {
             var stack = new StackPanel();
-            stack.Children.Add(new TextBlock { Text = title, FontSize = 18, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Text });
-            stack.Children.Add(new TextBlock { Text = detail, FontSize = 14, Foreground = UiHelpers.Subtle, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) });
+            stack.Children.Add(new TextBlock { Text = Core.Loc.T(title), FontSize = 18, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Text });
+            stack.Children.Add(new TextBlock { Text = Core.Loc.T(detail), FontSize = 14, Foreground = UiHelpers.Subtle, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0) });
             return WrapSelectableCard(stack, selected, onClick);
         }
 
