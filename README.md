@@ -8,6 +8,28 @@ tasks once everything is in place.
 Center is a WPF desktop app, shipped as **one self-contained exe**: no .NET installation required,
 nothing to unpack, runs from wherever you put it.
 
+## The game library
+
+Steam, Epic, Xbox, Ubisoft, EA, Battle.net and GOG, your ROMs from Playnite and your own apps on one
+shelf — made for the controller, with the cover art the stores already cached. Center can open
+straight into it.
+
+<img src="https://raw.githubusercontent.com/enterTheVoidCode/ClawTweaksCenter/master/Doku/Releases/0.1.9.40/1_Library.png" width="600" alt="Game library" />
+
+Games without cached art can be given a cover from SteamGridDB, and any cover can be swapped the
+same way.
+
+<img src="https://raw.githubusercontent.com/enterTheVoidCode/ClawTweaksCenter/master/Doku/Releases/0.1.9.40/1.1_Coverart_ViaSteamgridDB.png" width="600" alt="Cover art from SteamGridDB" />
+
+ROMs come in from Playnite with their systems, icons and emulator start parameters. Keep managing
+them in Playnite.
+
+<img src="https://raw.githubusercontent.com/enterTheVoidCode/ClawTweaksCenter/master/Doku/Releases/0.1.9.40/3_Library_PlayniteRoms.png" width="600" alt="ROMs from Playnite" />
+
+Anything else you want to start from the same place goes under My Apps.
+
+<img src="https://raw.githubusercontent.com/enterTheVoidCode/ClawTweaksCenter/master/Doku/Releases/0.1.9.40/2_Library_Misc.png" width="600" alt="My Apps" />
+
 ## Contributing
 
 Read [DEV_GUIDELINES.md](DEV_GUIDELINES.md) before changing anything — it is written for human
