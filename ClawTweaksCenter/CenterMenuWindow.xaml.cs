@@ -241,7 +241,15 @@ namespace ClawTweaksCenter
                     // The library takes its right stick from RightStickFlicked instead - one raise
                     // per push, not one per tick. This continuous signal is a scroll rate, and a
                     // rate applied to a discrete choice flips it a dozen times per second.
-                    if (_view == View.Library) return;
+                    //
+                    // The one exception is the OptiScaler wiki panel, which is a READING screen
+                    // rather than a shelf: there the continuous rate is exactly right, and it is the
+                    // only thing the stick has to do while that panel is up.
+                    if (_view == View.Library)
+                    {
+                        ScrollOptiWiki(d);
+                        return;
+                    }
 
                     // Defensive: this fires at up to ~25Hz straight off a live gamepad reading, so any
                     // transient WPF layout hiccup here must never take the whole app down with it.
@@ -315,12 +323,17 @@ namespace ClawTweaksCenter
             // nobody can see is a change nobody asked for.
             if (_settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen || LaunchOverlayOpen) return;
 
+            // In Recent the two axes are free - it has no sort of its own and nothing to group by -
+            // so left/right jumps to the two ends of the reel instead. That is the one tab where the
+            // end is worth reaching and unreachable: no sorting means no other way to get there.
+            bool reel = _libraryGroup == Library.LibraryGroup.Recent;
+
             switch (dir)
             {
                 case PadButton.Up: SetSortDirection(false); break;    // A-Z
                 case PadButton.Down: SetSortDirection(true); break;   // Z-A
-                case PadButton.Left: SetGrouping(false); break;
-                case PadButton.Right: SetGrouping(true); break;
+                case PadButton.Left: if (reel) JumpLibrarySelection(false); else SetGrouping(false); break;
+                case PadButton.Right: if (reel) JumpLibrarySelection(true); else SetGrouping(true); break;
             }
         }
 

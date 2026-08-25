@@ -25,12 +25,36 @@ namespace ClawTweaksCenter.Library
         Steam,
         Epic,
         Xbox,
-        /// <summary>Tools the user added by hand. Sits after the stores because that is what it is -
+        /// <summary>Ubisoft Connect, EA, Battle.net and GOG on ONE shelf.
+        ///
+        /// One tab for four stores because of how many games are behind them: someone with three
+        /// Ubisoft games and one Battle.net game would otherwise get four tabs holding one row
+        /// between them, and would still have to visit all four to see it. Hidden entirely when it
+        /// is empty, the same rule Favorites and Roms already follow.
+        ///
+        /// The entries keep their own store identity underneath - the subline under a cover says
+        /// "Ubisoft", and grouping the All tab by platform still separates them.</summary>
+        OtherStores,
+        /// <summary>Apps the user added by hand. Sits after the stores because that is what it is -
         /// another shelf next to them, not a store of its own.</summary>
         Misc,
         /// <summary>ROMs, from Playnite. The only grouping with a second level under it - the
         /// system, cycled with the triggers.</summary>
         Roms,
+        /// <summary>
+        /// Owned but not playable yet: games with no install on this machine, and downloads that
+        /// have not finished.
+        ///
+        /// LAST IN THE STRIP ON PURPOSE. Every other tab is a shelf of things to start; this one is
+        /// a shelf of things to fetch, which is a different errand and not the one anybody opens the
+        /// library for. It is also the only tab whose A button does not launch anything.
+        ///
+        /// STEAM ONLY for now, and the tab says so above the covers rather than leaving the user to
+        /// wonder where their Epic library went. Nothing about the grouping is Steam-specific - any
+        /// store that can be asked what it owns fits here - but Steam is the one that answers
+        /// without an account, a key or a network call.
+        /// </summary>
+        NotInstalled,
     }
 
     /// <summary>
@@ -81,7 +105,14 @@ namespace ClawTweaksCenter.Library
             // for their coverless entries. The order does not decide who paints first (they all run
             // at once and land as they finish), and it does not have to: art is re-resolved on every
             // round, so a tile that had no cover in round one gets one in round three.
-            var sources = new IGameSource[] { new PlayniteSource(), new SteamSource(), new EpicSource(), new XboxSource(), new MiscSource() };
+            var sources = new IGameSource[]
+            {
+                new PlayniteSource(), new SteamSource(), new EpicSource(), new XboxSource(),
+                // Four separate sources, one shelf. Each is a handful of registry reads and each
+                // fails on its own - see OtherStores.cs.
+                new UbisoftSource(), new EaSource(), new BattleNetSource(), new GogSource(),
+                new MiscSource(),
+            };
             var errors = new Dictionary<GameStore, string>();
             var all = new List<GameEntry>();
             var history = PlayHistory.Load();
@@ -115,7 +146,28 @@ namespace ClawTweaksCenter.Library
                 ClawProfiles.Refresh();
                 foreach (var g in all)
                 {
-                    if (g.Store == GameStore.Steam) g.PlaytimeMinutes = SteamPlaytime.MinutesFor(g.Id);
+                    if (g.Store == GameStore.Steam)
+                    {
+                        g.PlaytimeMinutes = SteamPlaytime.MinutesFor(g.Id);
+
+                        // TWO Steam timestamps, and the second one is not a refinement - it is
+                        // most of the answer. SteamSource reads LastPlayed out of the app manifest,
+                        // which belongs to the INSTALLATION; localconfig.vdf belongs to the ACCOUNT.
+                        //
+                        // MEASURED on this machine: of 44 installed games, 15 carry NO manifest
+                        // timestamp at all while the account file knows exactly when they were last
+                        // played, and not one game is the other way round. Those 15 could only ever
+                        // reach Recent if the helper's own log happened to still hold a play event
+                        // for them - so a third of the library was invisible on the tab the library
+                        // opens on.
+                        //
+                        // Merged on MAXIMUM rather than by picking a winner, the same rule
+                        // PlayHistory.Note applies to every other source: both files are written by
+                        // Steam, at different moments, and neither is reliably the fresher one.
+                        var fromAccount = SteamPlaytime.LastPlayedFor(g.Id);
+                        if (fromAccount.HasValue && (!g.LastPlayed.HasValue || fromAccount.Value > g.LastPlayed.Value))
+                            g.LastPlayed = fromAccount;
+                    }
                     g.Profiles = ClawProfiles.For(g);
                 }
                 GameArt.ResolveLocalArt(all);
@@ -230,6 +282,23 @@ namespace ClawTweaksCenter.Library
         /// them.</summary>
         public const string RomRecentSystem = "\u0001recent";
 
+        /// <summary>
+        /// How many games Recent shows.
+        ///
+        /// A shelf, not an archive. Recent is one reel with no sorting and no second level, and the
+        /// point of it is the games someone is actually playing through - past this the tab stops
+        /// answering "what was I playing" and starts being a worse copy of All, which is right there
+        /// and sortable. It is also what makes the jump-to-the-end flick worth having: a bounded row
+        /// has an end that means something.
+        /// </summary>
+        public const int RecentLimit = 30;
+
+        /// <summary>The four stores that share the Other Stores shelf. In one place because the tab,
+        /// the tab-strip visibility check and the trigger cycle all have to agree about it.</summary>
+        public static bool IsOtherStore(GameStore store) =>
+            store == GameStore.Ubisoft || store == GameStore.EA ||
+            store == GameStore.BattleNet || store == GameStore.Gog;
+
         public IReadOnlyList<GameEntry> ForGroup(LibraryGroup group) => ForGroup(group, null);
 
         /// <summary>
@@ -238,15 +307,29 @@ namespace ClawTweaksCenter.Library
         /// </summary>
         public IReadOnlyList<GameEntry> ForGroup(LibraryGroup group, string system)
         {
+            // NOT INSTALLED IS THE ONE TAB THAT WANTS THE OTHERS. Everything below it works on
+            // `playable`, so an entry that cannot be started cannot leak onto a shelf that offers to
+            // start it - one filter in one place rather than a condition in nine branches.
+            if (group == LibraryGroup.NotInstalled)
+                return Games.Where(g => !g.Installed)
+                            // Downloads first: they are the ones with something happening, and the
+                            // ones the user just pressed a button to cause.
+                            .OrderByDescending(g => g.DownloadTotalBytes > 0)
+                            .ThenBy(g => g.Title, StringComparer.CurrentCultureIgnoreCase)
+                            .ToList();
+
+            var playable = Games.Where(g => g.Installed).ToList();
+
             switch (group)
             {
-                case LibraryGroup.Steam: return Games.Where(g => g.Store == GameStore.Steam).ToList();
-                case LibraryGroup.Epic: return Games.Where(g => g.Store == GameStore.Epic).ToList();
-                case LibraryGroup.Xbox: return Games.Where(g => g.Store == GameStore.Xbox).ToList();
-                case LibraryGroup.Misc: return Games.Where(g => g.Store == GameStore.Misc).ToList();
-                case LibraryGroup.Favorites: return Games.Where(g => g.IsFavorite).ToList();
+                case LibraryGroup.Steam: return playable.Where(g => g.Store == GameStore.Steam).ToList();
+                case LibraryGroup.Epic: return playable.Where(g => g.Store == GameStore.Epic).ToList();
+                case LibraryGroup.Xbox: return playable.Where(g => g.Store == GameStore.Xbox).ToList();
+                case LibraryGroup.Misc: return playable.Where(g => g.Store == GameStore.Misc).ToList();
+                case LibraryGroup.OtherStores: return playable.Where(g => IsOtherStore(g.Store)).ToList();
+                case LibraryGroup.Favorites: return playable.Where(g => g.IsFavorite).ToList();
                 case LibraryGroup.Roms:
-                    var roms = Games.Where(g => g.Store == GameStore.Playnite);
+                    var roms = playable.Where(g => g.Store == GameStore.Playnite);
                     if (system == RomRecentSystem)
                         return roms.Where(g => g.LastPlayed.HasValue)
                                    .OrderByDescending(g => g.LastPlayed.Value)
@@ -261,15 +344,16 @@ namespace ClawTweaksCenter.Library
                     // Misc is out for a second reason on top of the ROM one: these are tools, and
                     // a shelf meant to hold "what you were playing" should not fill up with the fan
                     // curve editor you open more often than any game.
-                    return Games.Where(g => g.LastPlayed.HasValue
+                    return playable.Where(g => g.LastPlayed.HasValue
                                             && g.Store != GameStore.Playnite
                                             && g.Store != GameStore.Misc)
                                 .OrderByDescending(g => g.LastPlayed.Value)
+                                .Take(RecentLimit)
                                 .ToList();
                 // "All" means the PC library - installed GAMES. ROMs are hundreds of entries with
                 // their own tab and would bury the installed games they sit next to; Misc is not
                 // games at all.
-                default: return Games.Where(g => g.Store != GameStore.Playnite && g.Store != GameStore.Misc).ToList();
+                default: return playable.Where(g => g.Store != GameStore.Playnite && g.Store != GameStore.Misc).ToList();
             }
         }
 
@@ -282,8 +366,10 @@ namespace ClawTweaksCenter.Library
                 case LibraryGroup.Xbox: return "Xbox";
                 case LibraryGroup.Recent: return "Recent";
                 case LibraryGroup.Favorites: return "Favorites";
-                case LibraryGroup.Misc: return "Misc";
+                case LibraryGroup.OtherStores: return "Other Stores";
+                case LibraryGroup.Misc: return "My Apps";
                 case LibraryGroup.Roms: return "ROMs";
+                case LibraryGroup.NotInstalled: return "Not Installed";
                 default: return "All";
             }
         }
@@ -359,6 +445,29 @@ namespace ClawTweaksCenter.Library
                 return true;
             }
             catch { return false; }
+        }
+
+        /// <summary>
+        /// Sends one steam:// URI to the client, starting it first when it is not running.
+        ///
+        /// The protocol handler would start Steam by itself - it is registered as
+        /// <c>steam.exe -- "%1"</c> - but a cold start that way comes up with the full client window
+        /// in front of everything. Prewarming is the same courtesy a game launch already gets.
+        /// </summary>
+        public static bool OpenSteamUri(string uri)
+        {
+            if (string.IsNullOrWhiteSpace(uri)) return false;
+            try
+            {
+                PrewarmSteamIfNeeded(uri);
+                Process.Start(new ProcessStartInfo { FileName = uri, UseShellExecute = true });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Core.InstallLog.Write("Steam URI '" + uri + "' failed: " + ex.Message);
+                return false;
+            }
         }
 
         /// <summary>

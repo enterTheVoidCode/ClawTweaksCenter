@@ -122,7 +122,7 @@ namespace ClawTweaksCenter
                 VerticalAlignment = VerticalAlignment.Center,
                 MaxWidth = 720,
             };
-            stack.Children.Add(MiscHeadline("Add a tool"));
+            stack.Children.Add(MiscHeadline("Add an app"));
 
             stack.Children.Add(MiscRow(0, "Choose from installed apps",
                 "Start menu, desktop and startup"));

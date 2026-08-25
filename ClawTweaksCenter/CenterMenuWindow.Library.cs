@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
@@ -49,6 +50,14 @@ namespace ClawTweaksCenter
 
         private readonly GameLibrary _library = new GameLibrary();
         private LibraryGroup _libraryGroup = LibraryGroup.Recent;
+
+        /// <summary>Whether the Other Stores shelf has anything on it. Read by the tab strip AND by
+        /// the trigger cycle, which is why it is one property rather than the same LINQ twice.</summary>
+        private bool HasOtherStoreGames =>
+            _libraryScanned && _library.ForGroup(LibraryGroup.OtherStores).Count > 0;
+
+        private bool HasNotInstalledGames =>
+            _libraryScanned && _library.ForGroup(LibraryGroup.NotInstalled).Count > 0;
         // Second-level grouping, ROMs only. Null = every system, which is how the tab opens.
         private string _romSystem;
         // Square ROM tiles. Remembered across launches - it describes the user's collection, not a
@@ -94,6 +103,12 @@ namespace ClawTweaksCenter
             Running,
             /// <summary>The launch itself failed.</summary>
             Failed,
+            /// <summary>"Install X?" - the Not Installed tab's version of Confirm. Nothing has been
+            /// asked of Steam yet.</summary>
+            ConfirmInstall,
+            /// <summary>Handed to Steam. Center has no further part in it - see ConfirmInstallNow.
+            /// </summary>
+            InstallHandedOver,
         }
 
         private LaunchPrompt _launchPrompt;
@@ -180,6 +195,11 @@ namespace ClawTweaksCenter
                     // an empty Favorites tab next to Recent on a fresh install would look like the
                     // feature is broken rather than simply unused yet.
                     if (g == LibraryGroup.Favorites && !Library.FavoritesStore.Any()) continue;
+                    // And for Other Stores, which is empty on most machines: four launchers nobody
+                    // has a game in would put a permanent "Other Stores 0" between Xbox and My Apps.
+                    if (g == LibraryGroup.OtherStores && !HasOtherStoreGames) continue;
+                    // And Not Installed, which is empty on a machine without Steam.
+                    if (g == LibraryGroup.NotInstalled && !HasNotInstalledGames) continue;
                     var chip = BuildGroupChip(g);
                     if (g == _libraryGroup) _activeGroupChip = chip as FrameworkElement;
                     chips.Children.Add(chip);
@@ -195,11 +215,12 @@ namespace ClawTweaksCenter
                 // the row, which is a fixed place, while RB marks its end, which is not.
                 chips.Children.Add(BuildKeyCap("RB"));
 
-                // Sort/grouping and the info button share the docked right end, in that order: the
-                // readout changes with the tab, the info button never does, so the fixed thing sits
-                // at the edge and the changing one next to the tabs it belongs to.
+                // ONLY the info button docks here now. The right-stick readout used to sit beside
+                // it and has moved down to the selected-title row - see BuildSelectedTitle. Two
+                // things pushed it: the tabs are the row that grows (Favorites and Other Stores both
+                // appear when earned), and the readout is about the GAMES, which is what the row
+                // below it is about.
                 var rightEnd = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-                rightEnd.Children.Add(BuildSortStrip());
                 rightEnd.Children.Add(BuildInfoButton());
 
                 _tabScroller = BuildEdgeFadedStrip(chips);
@@ -652,7 +673,13 @@ namespace ClawTweaksCenter
                 ? ArrangeForDisplay(_library.ForGroup(_libraryGroup, _romSystem))
                 : (IReadOnlyList<GameEntry>)Array.Empty<GameEntry>();
 
-            if (_libraryGroup == LibraryGroup.Roms && _libraryScanned)
+            if (_libraryGroup == LibraryGroup.NotInstalled && _libraryScanned)
+            {
+                var note = BuildNotInstalledNote();
+                Grid.SetRow(note, 0);
+                LibraryRoot.Children.Add(note);
+            }
+            else if (_libraryGroup == LibraryGroup.Roms && _libraryScanned)
             {
                 // No advisory line under the strip any more. It said two true things - that the list
                 // came from our cache while Playnite held its database, and that Playnite reappears
@@ -676,6 +703,46 @@ namespace ClawTweaksCenter
 
             Grid.SetRow((FrameworkElement)body, 2);
             LibraryRoot.Children.Add(body);
+        }
+
+        /// <summary>
+        /// The line above the covers in the Not Installed tab.
+        ///
+        /// TWO THINGS, and the first one is not optional: the tab is Steam-only, and a user with an
+        /// Epic library would otherwise read an incomplete list as a broken one. Saying which stores
+        /// are covered is the difference between a limit and a bug.
+        ///
+        /// The second is any download in flight, with its percentage. It sits here rather than on the
+        /// tile because it is the answer to "did my press do anything", and that answer has to be in
+        /// a fixed place - hunting for one cover among eight hundred is not an answer.
+        /// </summary>
+        private UIElement BuildNotInstalledNote()
+        {
+            var stack = new StackPanel { Margin = new Thickness(LibOuterMargin, 8, LibOuterMargin, 0) };
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = Core.Loc.T("Only Steam is supported for now."),
+                FontSize = 12,
+                Foreground = UiHelpers.Subtle,
+                TextWrapping = TextWrapping.Wrap,
+            });
+
+            foreach (var g in _library.ForGroup(LibraryGroup.NotInstalled))
+            {
+                if (g.DownloadTotalBytes <= 0) continue;
+                stack.Children.Add(new TextBlock
+                {
+                    Text = g.Title + "  ·  " + Core.Loc.T("Downloading") + " " + g.DownloadPercent + "%",
+                    FontSize = 13,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = UiHelpers.Accent,
+                    Margin = new Thickness(0, 4, 0, 0),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                });
+            }
+
+            return stack;
         }
 
         /// <summary>
@@ -840,7 +907,10 @@ namespace ClawTweaksCenter
                         ? "No Xbox games are registered for this account."
                         : "No Xbox games installed.";
                 case LibraryGroup.Steam: return "No Steam games installed.";
-                case LibraryGroup.Misc: return "No tools added yet.";
+                case LibraryGroup.Misc: return "No apps added yet.";
+                // Reachable while a scan is still landing: the tab is drawn from the previous
+                // round's count and the source it belongs to has not answered yet.
+                case LibraryGroup.OtherStores: return "No games from these stores installed.";
                 // Reachable for one frame: unfavoriting the last game while its own tab is on screen
                 // still redraws it before the tab strip drops the now-empty chip.
                 case LibraryGroup.Favorites: return "No favorites yet.";
@@ -859,7 +929,7 @@ namespace ClawTweaksCenter
         /// </summary>
         private UIElement BuildSelectedTitle()
         {
-            var stack = new StackPanel { Margin = new Thickness(LibOuterMargin, 10, LibOuterMargin, 10) };
+            var stack = new StackPanel();
 
             _libHeadline = new TextBlock
             {
@@ -877,7 +947,22 @@ namespace ClawTweaksCenter
             stack.Children.Add(_libHeadline);
             stack.Children.Add(_libSubline);
             UpdateSelectedTitle();
-            return stack;
+
+            // The right-stick readout rides along on this row, hard right. It is two short chips
+            // against a title that is already trimmed with an ellipsis, so it gets its width first
+            // and the title takes what is left - the other way round, a long title would push the
+            // only on-screen explanation of the gesture off the edge.
+            var row = new DockPanel
+            {
+                LastChildFill = true,
+                Margin = new Thickness(LibOuterMargin, 10, LibOuterMargin, 10),
+            };
+            var readout = BuildSortStrip();
+            DockPanel.SetDock(readout, Dock.Right);
+            ((FrameworkElement)readout).VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(readout);
+            row.Children.Add(stack);
+            return row;
         }
 
         private void UpdateSelectedTitle()
@@ -901,8 +986,23 @@ namespace ClawTweaksCenter
             // rather than shown empty: "0 h" is a claim, and "—" is a gap the user has to interpret.
             var parts = new List<string> { g.StoreName };
 
+            // AN ENTRY THAT IS NOT INSTALLED SAYS SO FIRST. The rest of the line still applies - the
+            // hours come from the account and are real even for a game that lives on another machine
+            // - but "12 h" with no explanation on a game that is not there reads as a fault.
+            if (!g.Installed)
+                parts.Add(g.DownloadTotalBytes > 0
+                    ? Core.Loc.T("Downloading") + " " + g.DownloadPercent + "%"
+                    : Core.Loc.T("Not installed"));
+
             string played = Library.SteamPlaytime.Format(g.PlaytimeMinutes);
             if (played != null) parts.Add(played);
+
+            // How much room it takes. On a handheld with one small drive this is the number that
+            // decides what gets uninstalled next, and Steam hands it over for free in the manifest -
+            // every other store would mean walking the folder tree on every scan round, which is why
+            // this is blank for them rather than computed.
+            string size = Library.SteamPlaytime.FormatSize(g.InstallBytes);
+            if (size != null) parts.Add(size);
 
             if (g.LastPlayed.HasValue)
                 parts.Add(Core.Loc.T("Last played") + " " +
@@ -1166,7 +1266,43 @@ namespace ClawTweaksCenter
                 case PadButton.Down: if (_libReelMode) return; next = NeighbourRowIndex(+1); break;
                 default: return;
             }
+
+            // THE REEL WRAPS, the grid does not.
+            //
+            // Recent is one row with an end that is out of reach: thirty covers on an eight-inch
+            // panel is several screenfuls, and walking to the far end one tile at a time is the
+            // only way there. Left from the first tile lands on the last, which is the shortest
+            // route to "what did I play before that".
+            //
+            // The grid deliberately keeps its hard stops: there, left and right already cross ROW
+            // boundaries, so a wrap at index 0 would jump the cursor from the top-left corner to the
+            // bottom-right one, past everything, on the same key the user is using to step sideways.
+            if (_libReelMode && _libraryGames.Count > 1)
+            {
+                if (next < 0) next = _libraryGames.Count - 1;
+                else if (next >= _libraryGames.Count) next = 0;
+            }
+
             if (next < 0 || next >= _libraryGames.Count) return;
+            if (next == _libSelectedIndex) return;
+
+            _libSelectedIndex = next;
+            ApplySelectionVisuals();
+            UpdateSelectedTitle();
+            ScrollSelectionIntoView();
+        }
+
+        /// <summary>
+        /// Jumps the cursor to the first or last tile. The right stick's left/right flick in Recent.
+        ///
+        /// It sits on the stick because in Recent BOTH stick axes are otherwise idle: the tab has no
+        /// sort (it IS a sort) and no grouping, so the two things a flick normally does are both
+        /// unavailable there. Nothing is being taken away from another tab.
+        /// </summary>
+        private void JumpLibrarySelection(bool toEnd)
+        {
+            if (_libraryGames.Count == 0) return;
+            int next = toEnd ? _libraryGames.Count - 1 : 0;
             if (next == _libSelectedIndex) return;
 
             _libSelectedIndex = next;
@@ -1241,6 +1377,8 @@ namespace ClawTweaksCenter
             // otherwise the shoulders stop on a tab that has nothing to show.
             if (!Library.PlayniteSource.IsPresent) values.Remove(LibraryGroup.Roms);
             if (!Library.FavoritesStore.Any()) values.Remove(LibraryGroup.Favorites);
+            if (!HasOtherStoreGames) values.Remove(LibraryGroup.OtherStores);
+            if (!HasNotInstalledGames) values.Remove(LibraryGroup.NotInstalled);
             if (values.Count == 0) return;
 
             int i = values.IndexOf(_libraryGroup) + delta;
@@ -1365,8 +1503,10 @@ namespace ClawTweaksCenter
                 case GameStore.Epic: return "Epic";
                 case GameStore.Xbox: return "Xbox";
                 case GameStore.Playnite: return "ROMs";
-                case GameStore.Misc: return "Apps";
-                default: return "Other";
+                // Everything else answers for itself - Ubisoft, EA, Battle.net, GOG and My Apps all
+                // carry the name the subline under a cover already uses, so the heading above a
+                // group and the line under the cursor cannot drift apart.
+                default: return g.StoreName;
             }
         }
 
@@ -2046,9 +2186,51 @@ namespace ClawTweaksCenter
             if (game == null || LaunchOverlayOpen) return;
 
             _launchTarget = game;
-            _launchPrompt = LaunchPrompt.Confirm;
+            _launchPrompt = game.Installed ? LaunchPrompt.Confirm : LaunchPrompt.ConfirmInstall;
             RenderLaunchOverlay();
             RefreshActionBar();
+        }
+
+        /// <summary>
+        /// A on the install confirmation. This is where Steam is asked to fetch the game.
+        ///
+        /// STEAM DOES THE WORK AND STEAM ASKS AGAIN. <c>steam://install/&lt;appid&gt;</c> opens the
+        /// client's own install dialog - the one with the library folder and the disk space - and
+        /// there is deliberately no way to skip it. Center starting a fifty-gigabyte download off one
+        /// button press, with no say in where it lands, is not a thing a launcher should be able to
+        /// do. Our own prompt in front of it exists because A is also the button that scrolls past
+        /// eight hundred covers to get here.
+        ///
+        /// The protocol handler starts Steam by itself when it is not running, but it is prewarmed
+        /// first for the same reason a launch is: a cold Steam comes up with its full window in front
+        /// of everything.
+        /// </summary>
+        private void ConfirmInstallNow()
+        {
+            var game = _launchTarget;
+            if (game == null || _launchPrompt != LaunchPrompt.ConfirmInstall) return;
+
+            // Already downloading: there is nothing to ask for, so this opens the queue instead of
+            // asking Steam to install something it is already installing.
+            string uri = game.DownloadTotalBytes > 0
+                ? "steam://open/downloads"
+                : "steam://install/" + game.Id;
+
+            _launchPrompt = GameLibrary.OpenSteamUri(uri) ? LaunchPrompt.InstallHandedOver : LaunchPrompt.Failed;
+            RenderLaunchOverlay();
+            RefreshActionBar();
+        }
+
+        /// <summary>Closes the hand-over screen and rescans, so a finished install moves out of the
+        /// Not Installed tab without the user having to find the Rescan chip on another screen. It is
+        /// NOT automatic: an install takes minutes to hours, and a library that rescans itself on a
+        /// timer would be doing it for nothing almost every time.</summary>
+        private void RescanFromInstall()
+        {
+            ClearLaunchOverlay();
+            if (_libraryScanning) return;
+            _libraryScanned = false;
+            _ = ScanLibraryAsync();
         }
 
         /// <summary>A on the confirmation: this is where the game actually starts.</summary>
@@ -2110,6 +2292,8 @@ namespace ClawTweaksCenter
         {
             _launchPrompt = LaunchPrompt.None;
             _launchTarget = null;
+            _optiWikiOpen = false;
+            _optiWikiScroller = null;
             RenderLibrary();
             RefreshActionBar();
         }
@@ -2166,12 +2350,50 @@ namespace ClawTweaksCenter
             restoreTimer.Start();
         }
 
+        /// <summary>
+        /// The launch screen: the game's own key art behind it, its cover in front, the question on
+        /// top of both.
+        ///
+        /// FOUR LAYERS, and the order is what makes text on a photograph readable at all:
+        ///   1. a flat colour derived from the title, so the screen is never empty while the picture
+        ///      is still decoding and never blank when there is no picture at all,
+        ///   2. the backdrop itself, filled in asynchronously (see ApplyLaunchBackdropAsync),
+        ///   3. a scrim - flat dim plus a vertical gradient - because a key image is designed to be
+        ///      busy and light in places, and white text over it is a coin toss without one,
+        ///   4. the cover, the headline and the line under it.
+        ///
+        /// The cover is sized from the height actually available rather than fixed: this same screen
+        /// is drawn on an eight-inch handheld and in a desktop window, and a 420 px cover that fits
+        /// one of them pushes the question off the other.
+        /// </summary>
+        /// <summary>
+        /// X and Y on the launch screen, when the game has anything behind them.
+        ///
+        /// ON X AND Y RATHER THAN AS BUTTONS ON THE SCREEN. This screen asks one question with two
+        /// answers, and A/B are those two answers everywhere in Center. Putting focusable buttons
+        /// between them would turn a two-press decision into a navigation problem on a device that
+        /// navigates with a thumbstick.
+        ///
+        /// OptiClick needs BOTH halves to be true: this game has an OptiClick route, and this machine
+        /// has OptiClick. Offering it without the second is a button that can only fail.
+        /// </summary>
+        private void AddLaunchOptiActions()
+        {
+            var info = _launchTarget == null ? null : Library.GamePresets.For(_launchTarget);
+            if (info == null) return;
+
+            if (info.HasWiki) AddAction(PadButton.X, "OptiScaler wiki", true, OpenOptiWiki);
+            if (info.IsOptiClick && Library.OptiClick.IsInstalled)
+                AddAction(PadButton.Y, "Open OptiClick", true, LaunchOptiClick);
+        }
+
         private void RenderLaunchOverlay()
         {
             LibraryRoot.Children.Clear();
             LibraryRoot.RowDefinitions.Clear();
 
-            string title = _launchTarget?.Title ?? string.Empty;
+            var game = _launchTarget;
+            string title = game?.Title ?? string.Empty;
             string head, sub;
             switch (_launchPrompt)
             {
@@ -2183,11 +2405,46 @@ namespace ClawTweaksCenter
                     head = title + " is running";
                     sub = "Center comes back when the game ends.";
                     break;
+                case LaunchPrompt.ConfirmInstall:
+                    head = (game != null && game.DownloadTotalBytes > 0)
+                        ? title + " is downloading"
+                        : "Install " + title + "?";
+                    sub = "Steam asks you where to put it.";
+                    break;
+                case LaunchPrompt.InstallHandedOver:
+                    head = title;
+                    sub = "Steam has taken over. Rescan the library when it is done.";
+                    break;
                 default:
                     head = "Could not start " + title + ".";
                     sub = null;
                     break;
             }
+
+            var host = new Grid { ClipToBounds = true };
+
+            // Layer 1 - the plate. The same colour the coverless tiles use, so a game without art
+            // looks like itself here too rather than like a different kind of screen.
+            host.Children.Add(new Rectangle { Fill = Library.GameArt.ColorForTitle(title) });
+
+            // Layer 2 - the backdrop. Added empty and filled in afterwards: it is a file read and
+            // sometimes a download, and the question has to be on screen before either finishes.
+            var backdrop = new Image
+            {
+                Stretch = Stretch.UniformToFill,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Opacity = 0,
+            };
+            host.Children.Add(backdrop);
+
+            // Layer 3 - the scrim.
+            host.Children.Add(new Rectangle { Fill = LaunchScrimFlat });
+            host.Children.Add(new Rectangle { Fill = LaunchScrimGradient });
+
+            // Layer 4 - the content.
+            double available = LibraryRoot.ActualHeight > 0 ? LibraryRoot.ActualHeight : 700;
+            double coverHeight = Math.Max(200, Math.Min(420, available * 0.46));
 
             var stack = new StackPanel
             {
@@ -2195,6 +2452,34 @@ namespace ClawTweaksCenter
                 VerticalAlignment = VerticalAlignment.Center,
                 MaxWidth = 720,
             };
+
+            var cover = new Image
+            {
+                Height = coverHeight,
+                Width = coverHeight / LibCoverAspect,
+                Stretch = Stretch.UniformToFill,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            };
+            stack.Children.Add(new Border
+            {
+                Child = cover,
+                CornerRadius = new CornerRadius(10),
+                // Black behind the picture, and clipped: the corners would otherwise be painted over
+                // by the image and the rounding would only show while the cover is still decoding.
+                Background = Brushes.Black,
+                ClipToBounds = true,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 22),
+                Effect = new System.Windows.Media.Effects.DropShadowEffect
+                {
+                    BlurRadius = 28,
+                    ShadowDepth = 6,
+                    Direction = 270,
+                    Opacity = 0.65,
+                    Color = Colors.Black,
+                },
+            });
+
             stack.Children.Add(new TextBlock
             {
                 Text = head,
@@ -2208,7 +2493,7 @@ namespace ClawTweaksCenter
             if (sub != null)
                 stack.Children.Add(new TextBlock
                 {
-                    Text = sub,
+                    Text = Core.Loc.T(sub),
                     FontSize = 15,
                     Foreground = UiHelpers.Subtle,
                     HorizontalAlignment = HorizontalAlignment.Center,
@@ -2216,8 +2501,382 @@ namespace ClawTweaksCenter
                     Margin = new Thickness(0, 10, 0, 0),
                 });
 
-            LibraryRoot.Children.Add(stack);
+            var opti = game == null ? null : Library.GamePresets.For(game);
+            if (opti != null && opti.HasAnything)
+            {
+                var badges = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 16, 0, 0),
+                };
+
+                // THREE BADGES, THREE DIFFERENT CLAIMS - they only look alike:
+                //   OptiClick  - the tool officially supports this game,
+                //   OptiScaler - somebody tested a manual route and it worked,
+                //   Wiki       - OptiScaler's wiki has a page for it, which is NOT a verdict. A page
+                //                can exist for a game with no working route, which is why this one is
+                //                grey while the other two are lit.
+                if (opti.IsOptiClick) badges.Children.Add(LaunchBadge("OptiClick", true));
+                if (opti.IsOptiScaler) badges.Children.Add(LaunchBadge("OptiScaler", true));
+                if (opti.HasWiki) badges.Children.Add(LaunchBadge(Core.Loc.T("Wiki page"), false));
+
+                stack.Children.Add(badges);
+            }
+
+            host.Children.Add(stack);
+            LibraryRoot.Children.Add(host);
+
+            if (game != null)
+            {
+                ApplyLaunchCover(game, cover, (int)Math.Round(coverHeight / LibCoverAspect));
+                _ = ApplyLaunchBackdropAsync(game, backdrop);
+                EnsureCatalogForLaunch();
+            }
         }
+
+        /// <summary>
+        /// Pulls the catalog in the first time a launch screen is opened, and redraws once it lands.
+        ///
+        /// NOT DURING THE LIBRARY SCAN, deliberately: the file is 3 MB and the answer is only ever
+        /// needed on this one screen. The cost of doing it here is that the very first launch screen
+        /// of a session may show its badges a moment late; the cost of doing it there would be a 3 MB
+        /// download every time somebody opens the library to start a game they already know.
+        /// </summary>
+        private void EnsureCatalogForLaunch()
+        {
+            if (Library.GamePresets.Loaded) return;
+
+            Library.GamePresets.EnsureLoadedAsync(CancellationToken.None).ContinueWith(_ =>
+                Dispatcher.Invoke(() =>
+                {
+                    // Only if a launch screen is still the thing on screen. Redrawing it from under a
+                    // user who has already pressed B would put it back up.
+                    if (_launchPrompt == LaunchPrompt.None || _optiWikiOpen) return;
+                    RenderLaunchOverlay();
+                    RefreshActionBar();
+                }), TaskScheduler.Default);
+        }
+
+        private static UIElement LaunchBadge(string text, bool lit)
+        {
+            return new Border
+            {
+                Child = new TextBlock
+                {
+                    Text = text,
+                    FontSize = 12,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = lit ? UiHelpers.Text : UiHelpers.Subtle,
+                },
+                Background = lit ? UiHelpers.Card : Brushes.Transparent,
+                BorderBrush = lit ? UiHelpers.Accent : UiHelpers.Subtle,
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(11),
+                Padding = new Thickness(10, 3, 10, 3),
+                Margin = new Thickness(0, 0, 8, 0),
+            };
+        }
+
+        /// <summary>Flat dim, under the gradient. A gradient on its own leaves the middle of the
+        /// screen - where the cover and the headline are - at whatever brightness the artwork
+        /// happens to have there.</summary>
+        private static readonly Brush LaunchScrimFlat =
+            Freeze(new SolidColorBrush(Color.FromArgb(0x8A, 0x0B, 0x0B, 0x0E)));
+
+        /// <summary>Darker at the two edges than in the middle, so the picture stays visible where
+        /// nothing sits on top of it and the text has ground under it where something does.</summary>
+        private static readonly Brush LaunchScrimGradient = Freeze(new LinearGradientBrush(
+            new GradientStopCollection
+            {
+                new GradientStop(Color.FromArgb(0xCC, 0x0B, 0x0B, 0x0E), 0.0),
+                new GradientStop(Color.FromArgb(0x33, 0x0B, 0x0B, 0x0E), 0.45),
+                new GradientStop(Color.FromArgb(0xE6, 0x0B, 0x0B, 0x0E), 1.0),
+            },
+            new Point(0.5, 0), new Point(0.5, 1)));
+
+        /// <summary>The SteamGridDB backdrop fetch currently in flight, and the game it belongs to.
+        /// Not a cache - SteamGridDb keeps that - only a way for the two renders of one launch to
+        /// share one request.</summary>
+        private Task<string> _launchHeroTask;
+        private GameEntry _launchHeroFor;
+
+        private void ApplyLaunchCover(GameEntry game, Image target, int decodeWidth)
+        {
+            if (game.ArtPath == null) return;
+
+            var wanted = game;
+            Library.GameArt.LoadAsync(game.ArtPath, Math.Max(120, decodeWidth)).ContinueWith(t =>
+            {
+                var bmp = t.Result;
+                if (bmp == null) return;
+                Dispatcher.Invoke(() =>
+                {
+                    // The screen may have been dismissed, or moved on to another game, while a JPEG
+                    // was decoding. Painting into a discarded Image would be harmless; painting the
+                    // wrong game's cover would not.
+                    if (_launchTarget != wanted || _launchPrompt == LaunchPrompt.None) return;
+                    target.Source = bmp;
+                });
+            }, TaskScheduler.Default);
+        }
+
+        /// <summary>
+        /// Fills in the backdrop, in three descending qualities.
+        ///
+        ///   1. Steam's own cached hero image. Free, local, no key - and present for all 44 installed
+        ///      games on this machine, which is better coverage than the covers themselves have.
+        ///   2. SteamGridDB, ONCE per game and only with a key configured. This is the case Steam
+        ///      cannot answer: Epic, Xbox, Ubisoft, EA, Battle.net and GOG cache no key art at all.
+        ///   3. The cover, filling the screen and blurred hard. It is not a backdrop and does not
+        ///      pretend to be one - it is there so the screen carries the GAME'S colours in the second
+        ///      before it starts, instead of a flat plate.
+        ///
+        /// What (2) finds is written back onto the entry, so a second launch in the same session does
+        /// not even hit the cache index.
+        /// </summary>
+        private async Task ApplyLaunchBackdropAsync(GameEntry game, Image target)
+        {
+            try
+            {
+                string path = game.HeroPath;
+
+                if (path == null && Library.SteamGridDb.HasKey)
+                {
+                    // ⚠ THIS SCREEN IS RENDERED TWICE PER LAUNCH - once to ask, once to say the game
+                    // is running - and a download that is still in flight when the user presses A
+                    // would otherwise be started a second time against the same personal API quota.
+                    // The task is kept, not the result, so the second render awaits the first fetch
+                    // instead of racing it.
+                    if (_launchHeroTask == null || _launchHeroFor != game)
+                    {
+                        _launchHeroFor = game;
+                        _launchHeroTask = Library.SteamGridDb.EnsureHeroAsync(game, CancellationToken.None);
+                    }
+
+                    path = await _launchHeroTask.ConfigureAwait(true);
+                    if (path != null) game.HeroPath = path;
+                }
+
+                bool blur = false;
+                if (path == null) { path = game.ArtPath; blur = true; }
+                if (path == null) return;
+
+                // A picture about to be blurred to a smear does not need decoding at full width - the
+                // blur throws that detail away, and this is the path that runs on the machines with
+                // the least to spare.
+                var bmp = await Library.GameArt.LoadAsync(path, blur ? 360 : 1280).ConfigureAwait(true);
+                if (bmp == null) return;
+                if (_launchTarget != game || _launchPrompt == LaunchPrompt.None) return;
+
+                target.Source = bmp;
+                target.Effect = blur
+                    ? new System.Windows.Media.Effects.BlurEffect
+                    {
+                        Radius = 64,
+                        KernelType = System.Windows.Media.Effects.KernelType.Gaussian,
+                        RenderingBias = System.Windows.Media.Effects.RenderingBias.Performance,
+                    }
+                    : null;
+
+                // Faded in rather than snapped in: the picture lands a moment after the question, and
+                // a hard cut reads as the screen having been redrawn underneath the user.
+                //
+                // The value is ASSIGNED FIRST and animated afterwards. The Image starts at zero
+                // opacity so nothing flashes before its picture is ready, and an animation is the one
+                // way of getting it back that can silently not happen - a backdrop invisible because
+                // an animation was dropped is indistinguishable from a backdrop that was never found.
+                double shown = blur ? 0.85 : 1.0;
+                target.Opacity = shown;
+                target.BeginAnimation(UIElement.OpacityProperty, new DoubleAnimation
+                {
+                    From = 0,
+                    To = shown,
+                    Duration = TimeSpan.FromMilliseconds(220),
+                });
+            }
+            catch { }
+        }
+
+        #region OptiScaler wiki panel
+
+        private bool _optiWikiOpen;
+        private ScrollViewer _optiWikiScroller;
+
+        /// <summary>
+        /// The game's page from OptiScaler's wiki, over the launch screen.
+        ///
+        /// A READING SCREEN, not a menu: there is nothing to select, so the D-pad has nothing to do
+        /// and the RIGHT STICK scrolls it - the same gesture that scrolls every other long screen in
+        /// Center. B goes back to the launch screen, which is still underneath with its question
+        /// unanswered.
+        /// </summary>
+        private async void OpenOptiWiki()
+        {
+            var game = _launchTarget;
+            var info = game == null ? null : Library.GamePresets.For(game);
+            if (info == null || !info.HasWiki) return;
+
+            _optiWikiOpen = true;
+            RenderOptiWiki(info, null, loading: true);
+            RefreshActionBar();
+
+            var rows = await Library.OptiWiki.GetAsync(info.WikiPage, CancellationToken.None);
+
+            // The user may have gone back, or on to another game, while the page was in flight.
+            if (!_optiWikiOpen || _launchTarget != game) return;
+            RenderOptiWiki(info, rows, loading: false);
+        }
+
+        private void CloseOptiWiki()
+        {
+            _optiWikiOpen = false;
+            _optiWikiScroller = null;
+            RenderLaunchOverlay();
+            RefreshActionBar();
+        }
+
+        private void RenderOptiWiki(Library.GamePresets.Info info,
+                                    System.Collections.Generic.List<System.Collections.Generic.KeyValuePair<string, string>> rows,
+                                    bool loading)
+        {
+            LibraryRoot.Children.Clear();
+            LibraryRoot.RowDefinitions.Clear();
+
+            var stack = new StackPanel { MaxWidth = 900, HorizontalAlignment = HorizontalAlignment.Center };
+
+            stack.Children.Add(new TextBlock
+            {
+                Text = info.Title ?? _launchTarget?.Title ?? string.Empty,
+                FontSize = 24,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = UiHelpers.Text,
+                TextWrapping = TextWrapping.Wrap,
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = "OptiScaler wiki · " + (info.WikiPage ?? string.Empty).Replace('-', ' '),
+                FontSize = 12,
+                Foreground = UiHelpers.Subtle,
+                Margin = new Thickness(0, 2, 0, 14),
+                TextWrapping = TextWrapping.Wrap,
+            });
+
+            // WHAT THE CATALOG SAYS COMES FIRST, and it is printed whether or not the wiki answered:
+            // it is the part we can be sure of, and it carries the anti-cheat rule. A route shown
+            // without its caveat is the dangerous half arriving alone.
+            AddWikiRow(stack, Core.Loc.T("Route"), info.SupportPath ?? info.Tool);
+            AddWikiRow(stack, Core.Loc.T("Output"), info.Output);
+            AddWikiRow(stack, Core.Loc.T("Preset"), info.Preset);
+            AddWikiRow(stack, Core.Loc.T("Frame generation"), info.FgOutput);
+            AddWikiRow(stack, Core.Loc.T("Requirements"), info.Requirements);
+            AddWikiRow(stack, Core.Loc.T("Anti-cheat"), info.AntiCheat);
+            AddWikiRow(stack, Core.Loc.T("Recommendation"), info.Policy);
+
+            if (loading)
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T("Loading the page…"),
+                    FontSize = 13,
+                    Foreground = UiHelpers.Subtle,
+                    Margin = new Thickness(0, 16, 0, 0),
+                });
+            }
+            else if (rows == null || rows.Count == 0)
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T("The wiki page could not be read. Open it in a browser."),
+                    FontSize = 13,
+                    Foreground = UiHelpers.Subtle,
+                    Margin = new Thickness(0, 16, 0, 0),
+                    TextWrapping = TextWrapping.Wrap,
+                });
+            }
+            else
+            {
+                stack.Children.Add(new Border
+                {
+                    Height = 1,
+                    Background = UiHelpers.Subtle,
+                    Opacity = 0.3,
+                    Margin = new Thickness(0, 14, 0, 10),
+                });
+                foreach (var kv in rows) AddWikiRow(stack, kv.Key, kv.Value);
+            }
+
+            _optiWikiScroller = new ScrollViewer
+            {
+                Content = stack,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+                Focusable = false,
+                Padding = new Thickness(LibOuterMargin, 18, LibOuterMargin, 18),
+            };
+            LibraryRoot.Children.Add(_optiWikiScroller);
+        }
+
+        private static void AddWikiRow(Panel into, string label, string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+
+            var grid = new Grid { Margin = new Thickness(0, 6, 0, 0) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var name = new TextBlock
+            {
+                Text = label,
+                FontSize = 13,
+                Foreground = UiHelpers.Subtle,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 12, 0),
+            };
+            Grid.SetColumn(name, 0);
+            grid.Children.Add(name);
+
+            var text = new TextBlock
+            {
+                Text = value,
+                FontSize = 13,
+                Foreground = UiHelpers.Text,
+                TextWrapping = TextWrapping.Wrap,
+            };
+            Grid.SetColumn(text, 1);
+            grid.Children.Add(text);
+
+            into.Children.Add(grid);
+        }
+
+        /// <summary>The right stick on the wiki panel. Returns false when the panel is not up, so the
+        /// caller can fall through to whatever else owns the stick.</summary>
+        private bool ScrollOptiWiki(double delta)
+        {
+            if (!_optiWikiOpen || _optiWikiScroller == null) return false;
+            try { _optiWikiScroller.ScrollToVerticalOffset(_optiWikiScroller.VerticalOffset + delta); }
+            catch { }
+            return true;
+        }
+
+        private void OpenOptiWikiInBrowser()
+        {
+            var info = _launchTarget == null ? null : Library.GamePresets.For(_launchTarget);
+            if (info == null || !info.HasWiki) return;
+            Core.PrerequisiteGuide.OpenPage(Library.OptiWiki.BrowserUrl(info.WikiPage),
+                                            m => Core.InstallLog.Write(m));
+        }
+
+        /// <summary>Starts OptiClick. Both halves have to be true before this is offered - the game
+        /// has an OptiClick route AND this machine has OptiClick - so a failure here means it went
+        /// missing between the two, and it says so rather than doing nothing visible.</summary>
+        private void LaunchOptiClick()
+        {
+            if (!Library.OptiClick.Launch())
+                Core.InstallLog.Write("OptiClick could not be started - check that it is still installed.");
+        }
+
+        #endregion
 
         /// <summary>
         /// Drops whatever launch screen is up. Called on the way out of the library, so a running
@@ -2231,6 +2890,8 @@ namespace ClawTweaksCenter
         {
             _launchPrompt = LaunchPrompt.None;
             _launchTarget = null;
+            _optiWikiOpen = false;
+            _optiWikiScroller = null;
         }
         #endregion
 
@@ -2605,6 +3266,13 @@ namespace ClawTweaksCenter
                 return;
             }
 
+            if (_optiWikiOpen)
+            {
+                AddAction(PadButton.A, "Open in browser", true, OpenOptiWikiInBrowser);
+                AddAction(PadButton.B, "Back", true, CloseOptiWiki);
+                return;
+            }
+
             if (LaunchOverlayOpen)
             {
                 switch (_launchPrompt)
@@ -2612,12 +3280,27 @@ namespace ClawTweaksCenter
                     case LaunchPrompt.Confirm:
                         AddAction(PadButton.A, "Play", true, ConfirmLaunch);
                         AddAction(PadButton.B, "Cancel", true, ClearLaunchOverlay);
+                        AddLaunchOptiActions();
+                        break;
+                    case LaunchPrompt.ConfirmInstall:
+                        AddAction(PadButton.A,
+                                  _launchTarget != null && _launchTarget.DownloadTotalBytes > 0 ? "Open Steam" : "Install",
+                                  true, ConfirmInstallNow);
+                        AddAction(PadButton.B, "Cancel", true, ClearLaunchOverlay);
+                        // The wiki and OptiClick apply to a game you own, installed or not - deciding
+                        // whether a game is worth fetching is exactly when that page is useful.
+                        AddLaunchOptiActions();
+                        break;
+                    case LaunchPrompt.InstallHandedOver:
+                        AddAction(PadButton.A, "Rescan", true, RescanFromInstall);
+                        AddAction(PadButton.B, "Back", true, ClearLaunchOverlay);
                         break;
                     case LaunchPrompt.Running:
                         // The label says what happens to CENTER, because that is all this does. The
                         // three modes read differently enough that one word would be a lie in two of
                         // them: "Hide" over an app that exits is not hiding.
                         AddAction(PadButton.A, HideLabel(), true, HideAfterLaunch);
+                        AddLaunchOptiActions();
                         break;
                     default:
                         AddAction(PadButton.B, "Back", true, ClearLaunchOverlay);
@@ -2639,7 +3322,9 @@ namespace ClawTweaksCenter
             if (RefreshMiscActionBar()) return;
             if (RefreshGameMenuActionBar()) return;
 
-            AddAction(PadButton.A, "Play", SelectedGame != null, LaunchSelectedGame);
+            // "Play" would be a lie in the one tab where nothing can be played.
+            bool notInstalled = _libraryGroup == LibraryGroup.NotInstalled;
+            AddAction(PadButton.A, notInstalled ? "Install" : "Play", SelectedGame != null, LaunchSelectedGame);
             // The per-game menu (favorite, cover art) - only makes sense with something selected, and
             // Start is free everywhere in the library: nothing else has claimed it since the
             // key-entry screen it used to open moved behind View (Select) instead.

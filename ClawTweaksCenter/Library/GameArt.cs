@@ -37,6 +37,24 @@ namespace ClawTweaksCenter.Library
         /// so the tile geometry does not care which one is found.
         /// </summary>
         public static string FindSteamCover(string steamPath, string appId)
+            => FindSteamImage(steamPath, appId, CoverPrefixes);
+
+        /// <summary>
+        /// The wide 1920x620 key image Steam caches beside the capsule, for the launch backdrop.
+        ///
+        /// BETTER COVERED THAN THE COVER ITSELF - measured on this machine: all 44 installed games
+        /// have a library_hero.jpg, against 43 with a capsule. It costs nothing, needs no key and no
+        /// network, and it is the same picture Steam puts behind a game on its own library page,
+        /// which is why it looks right behind a title rather than merely large.
+        ///
+        /// NOT the blurred sibling: Steam also ships library_hero_blur.jpg, but at 192x62 it exists
+        /// to be stretched behind a page, not to be looked at. The launch screen dims and gradients
+        /// the sharp one instead, and blurs only where it has to fall back to a cover.
+        /// </summary>
+        public static string FindSteamHero(string steamPath, string appId)
+            => FindSteamImage(steamPath, appId, HeroPrefixes);
+
+        private static string FindSteamImage(string steamPath, string appId, string[] prefixes)
         {
             if (string.IsNullOrEmpty(steamPath) || string.IsNullOrEmpty(appId)) return null;
             try
@@ -44,12 +62,12 @@ namespace ClawTweaksCenter.Library
                 string appDir = Path.Combine(steamPath, "appcache", "librarycache", appId);
                 if (!Directory.Exists(appDir)) return null;
 
-                string hit = FindIn(appDir);
+                string hit = FindIn(appDir, prefixes);
                 if (hit != null) return hit;
 
                 foreach (string sub in Directory.GetDirectories(appDir))
                 {
-                    hit = FindIn(sub);
+                    hit = FindIn(sub, prefixes);
                     if (hit != null) return hit;
                 }
             }
@@ -61,6 +79,12 @@ namespace ClawTweaksCenter.Library
         /// build is one more line here.</summary>
         private static readonly string[] CoverPrefixes = { "library_600x900", "library_capsule" };
 
+        /// <summary>⚠ "library_hero" would also match "library_hero_blur" under the localised-suffix
+        /// rule below, and the blur is a 192x62 thumbnail - a backdrop that arrived as a smear would
+        /// look like a decode fault. The exact name is therefore tried on its own first, and the
+        /// suffix search excludes the blur explicitly.</summary>
+        private static readonly string[] HeroPrefixes = { "library_hero" };
+
         /// <summary>
         /// One directory, checked for any capsule.
         ///
@@ -70,22 +94,36 @@ namespace ClawTweaksCenter.Library
         /// <c>library_600x900_german.jpg</c>. The plain name is preferred where both exist; the
         /// language suffix is whatever this user's Steam is set to, so it cannot be listed up front.
         /// </summary>
-        private static string FindIn(string dir)
+        private static string FindIn(string dir, string[] prefixes)
         {
-            foreach (string prefix in CoverPrefixes)
+            foreach (string prefix in prefixes)
             {
                 string exact = Path.Combine(dir, prefix + ".jpg");
                 if (File.Exists(exact)) return exact;
             }
-            foreach (string prefix in CoverPrefixes)
+            foreach (string prefix in prefixes)
             {
                 string[] hits;
                 try { hits = Directory.GetFiles(dir, prefix + "_*.jpg"); }
                 catch { continue; }
-                if (hits.Length > 0)
+
+                var usable = new List<string>();
+                foreach (string h in hits)
                 {
-                    Array.Sort(hits, StringComparer.OrdinalIgnoreCase);
-                    return hits[0];
+                    // "library_hero_blur.jpg" is not a localised library_hero - and neither is
+                    // "library_hero_blur_german.jpg", which is what this test originally missed by
+                    // looking at the END of the name. The suffix sits between the prefix and the
+                    // language, so what matters is what follows the prefix. Measured: one file in
+                    // 719 on this machine takes that shape, and it was the one that got through.
+                    string rest = Path.GetFileNameWithoutExtension(h);
+                    rest = rest.Length > prefix.Length ? rest.Substring(prefix.Length) : string.Empty;
+                    if (rest.StartsWith("_blur", StringComparison.OrdinalIgnoreCase)) continue;
+                    usable.Add(h);
+                }
+                if (usable.Count > 0)
+                {
+                    usable.Sort(StringComparer.OrdinalIgnoreCase);
+                    return usable[0];
                 }
             }
             return null;
@@ -112,7 +150,14 @@ namespace ClawTweaksCenter.Library
 
             foreach (var g in games)
             {
-                if (g == null || g.ArtPath != null) continue;
+                if (g == null) continue;
+
+                // The hero is resolved even for an entry that already has a cover: the two are
+                // different pictures for different places, and a hand-picked cover (ArtOverrideStore)
+                // must not cost the game its backdrop.
+                if (g.Store == GameStore.Steam && g.HeroPath == null) g.HeroPath = FindSteamHero(steam, g.Id);
+
+                if (g.ArtPath != null) continue;
                 if (g.Store == GameStore.Steam) g.ArtPath = FindSteamCover(steam, g.Id);
                 if (g.ArtPath == null && playnite != null && !playnite.IsEmpty) g.ArtPath = playnite.TryFindArt(g);
             }

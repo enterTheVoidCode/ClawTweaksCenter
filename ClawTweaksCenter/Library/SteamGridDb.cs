@@ -149,6 +149,138 @@ namespace ClawTweaksCenter.Library
             if (found > 0) onProgress?.Invoke();
         }
 
+        #region Hero backdrops
+
+        // Kept in its OWN index file rather than as a second column in index.json: that file is
+        // already on disk on every machine that has ever fetched a cover, and widening its shape
+        // would mean every existing installation reading it back as garbage or losing it.
+        private static string HeroIndexPath => Path.Combine(CacheDir, "heroindex.json");
+
+        private static Dictionary<string, string> _heroIndex;
+        private static readonly object HeroIndexLock = new object();
+
+        private static Dictionary<string, string> HeroIndex
+        {
+            get
+            {
+                lock (HeroIndexLock)
+                {
+                    if (_heroIndex != null) return _heroIndex;
+                    _heroIndex = new Dictionary<string, string>(StringComparer.Ordinal);
+                    try
+                    {
+                        if (File.Exists(HeroIndexPath))
+                        {
+                            var loaded = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(HeroIndexPath));
+                            if (loaded != null) _heroIndex = new Dictionary<string, string>(loaded, StringComparer.Ordinal);
+                        }
+                    }
+                    catch { }
+                    return _heroIndex;
+                }
+            }
+        }
+
+        private static void SaveHeroIndex()
+        {
+            try
+            {
+                Directory.CreateDirectory(CacheDir);
+                string tmp = HeroIndexPath + ".tmp";
+                lock (HeroIndexLock) File.WriteAllText(tmp, JsonSerializer.Serialize(_heroIndex));
+                File.Move(tmp, HeroIndexPath, overwrite: true);
+            }
+            catch { }
+        }
+
+        /// <summary>
+        /// The wide backdrop for one game, from cache or - once, ever - from SteamGridDB.
+        ///
+        /// ON DEMAND, AND THAT IS THE WHOLE DESIGN. Covers are fetched in a sweep because every one
+        /// of them is on screen at once; a backdrop is seen by exactly one game at a time, the one
+        /// being started. Sweeping for them would spend somebody's personal API quota on a hundred
+        /// pictures to show one - so the first launch of a game fetches its backdrop, every launch
+        /// after that reads the file.
+        ///
+        /// A MISS IS CACHED TOO, as an empty entry, for the same reason FetchMissingAsync does it:
+        /// without that, a game SteamGridDB has no backdrop for would ask again on every single
+        /// launch, forever.
+        ///
+        /// Steam's own local hero always wins and never reaches this method - see
+        /// GameArt.FindSteamHero. This is for the stores that cache nothing: Epic, Xbox, Ubisoft, EA,
+        /// Battle.net, GOG.
+        /// </summary>
+        public static async Task<string> EnsureHeroAsync(GameEntry game, CancellationToken ct)
+        {
+            if (game == null || !HasKey) return null;
+
+            string titleKey = PlayniteSource.NormalizeTitle(game.Title);
+            if (titleKey.Length == 0) return null;
+
+            string cachedName;
+            lock (HeroIndexLock) HeroIndex.TryGetValue(titleKey, out cachedName);
+            if (cachedName != null)
+            {
+                if (cachedName.Length == 0) return null;
+                string cachedPath = Path.Combine(CacheDir, cachedName);
+                if (File.Exists(cachedPath)) return cachedPath;
+                // The index said yes and the file is gone (a cleared cache folder). Fall through and
+                // fetch it again rather than returning a path that will decode to nothing.
+            }
+
+            string file = null;
+            try { file = await DownloadHeroAsync(Core.CenterSettings.SteamGridDbApiKey.Trim(), game.Title, titleKey, ct).ConfigureAwait(false); }
+            catch (OperationCanceledException) { return null; }   // NOT cached as a miss: nothing was learned
+            catch { }
+
+            lock (HeroIndexLock) HeroIndex[titleKey] = file ?? string.Empty;
+            SaveHeroIndex();
+
+            return file == null ? null : Path.Combine(CacheDir, file);
+        }
+
+        private static async Task<string> DownloadHeroAsync(string key, string title, string titleKey, CancellationToken ct)
+        {
+            int? id = await SearchGameIdAsync(key, title, ct, strict: true).ConfigureAwait(false);
+            if (id == null) return null;
+
+            // 1920x620 is the shape Steam itself caches, so a backdrop from here and one from Steam
+            // crop identically behind the launch screen.
+            using var request = new HttpRequestMessage(HttpMethod.Get,
+                ApiBase + "heroes/game/" + id.Value + "?dimensions=1920x620&types=static&limit=1");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+
+            using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
+            if (!response.IsSuccessStatusCode) return null;
+
+            string url = null;
+            using (var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false)))
+            {
+                if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array) return null;
+                foreach (var hero in data.EnumerateArray())
+                    if (hero.TryGetProperty("url", out var u) && u.ValueKind == JsonValueKind.String) { url = u.GetString(); break; }
+            }
+            if (url == null) return null;
+
+            byte[] bytes;
+            using (var image = await Http.GetAsync(url, ct).ConfigureAwait(false))
+            {
+                if (!image.IsSuccessStatusCode) return null;
+                bytes = await image.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
+            }
+            if (bytes.Length == 0) return null;
+
+            // "hero_" prefixed so a backdrop and a cover for the same game cannot collide on one
+            // file name - both are named after the title key.
+            string ext = url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? ".png" : ".jpg";
+            string name = "hero_" + titleKey + ext;
+            Directory.CreateDirectory(CacheDir);
+            File.WriteAllBytes(Path.Combine(CacheDir, name), bytes);
+            return name;
+        }
+
+        #endregion
+
         private static async Task<string> DownloadCoverAsync(string key, string title, string titleKey, CancellationToken ct)
         {
             int? id = await SearchGameIdAsync(key, title, ct, strict: true).ConfigureAwait(false);

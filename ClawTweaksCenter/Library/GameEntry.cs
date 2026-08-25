@@ -8,11 +8,21 @@ namespace ClawTweaksCenter.Library
         Steam,
         Epic,
         Xbox,
+        /// <summary>Ubisoft Connect, EA (Origin), Battle.net and GOG Galaxy. They are separate
+        /// stores and keep separate identities here - the library only ever puts them on ONE shelf
+        /// (see <see cref="LibraryGroup.OtherStores"/>), which is a statement about how many games
+        /// people have in them, not about them being the same thing. See OtherStores.cs.</summary>
+        Ubisoft,
+        EA,
+        BattleNet,
+        Gog,
         /// <summary>A ROM, described and launched by Playnite. Not a store - the name is what the
         /// user sees, and "Playnite" is what they installed.</summary>
         Playnite,
-        /// <summary>A tool the user added by hand. The only kind of entry nothing discovered - see
-        /// MiscSource.</summary>
+        /// <summary>An app the user added by hand. The only kind of entry nothing discovered - see
+        /// MiscSource. The enum member keeps its old name on purpose: FavoritesStore and
+        /// ArtOverrideStore key on it as text, so renaming it would silently orphan every favourite
+        /// and every hand-picked cover already on disk. Only the LABEL changed, to "My Apps".</summary>
         Misc,
     }
 
@@ -73,6 +83,45 @@ namespace ClawTweaksCenter.Library
         /// </summary>
         public int PlaytimeMinutes { get; set; }
 
+        /// <summary>
+        /// How much room the install takes, in bytes. 0 = unknown, which is the normal answer
+        /// everywhere except Steam: Steam writes the figure into the manifest, and everyone else
+        /// would mean walking the folder tree on every scan round.
+        /// </summary>
+        public long InstallBytes { get; set; }
+
+        /// <summary>
+        /// The wide 1920x620 key image, for the launch screen's backdrop. Null = none found, and the
+        /// launch screen then falls back to a blurred cover. See GameArt.FindSteamHero.
+        /// </summary>
+        public string HeroPath { get; set; }
+
+        /// <summary>
+        /// Whether the game is on the disk and ready to start.
+        ///
+        /// FALSE HAS TWO MEANINGS and the tab shows both: owned but never installed (from
+        /// SteamOwned), or installed but not finished (a Steam manifest that has not reached
+        /// fully-installed - see DownloadTotalBytes). They belong on the same shelf because they
+        /// answer the same question: this is a game you have that you cannot start yet.
+        ///
+        /// EVERY OTHER GROUPING FILTERS THESE OUT. A shelf of covers is a shelf of things to play,
+        /// and an entry that cannot be played does not belong in Recent, in All, or under its store.
+        /// </summary>
+        public bool Installed { get; set; } = true;
+
+        /// <summary>Download progress, where the store reports it. Both 0 means "not downloading" or
+        /// "no figures" - only Steam fills these in, out of the same manifest the entry came from.
+        /// </summary>
+        public long DownloadedBytes { get; set; }
+
+        public long DownloadTotalBytes { get; set; }
+
+        /// <summary>0..100, or -1 when there is nothing to report. A download Steam has queued but
+        /// not started reads as 0%, which is true and different from "not downloading".</summary>
+        public int DownloadPercent => DownloadTotalBytes <= 0
+            ? -1
+            : (int)Math.Min(100, Math.Max(0, DownloadedBytes * 100 / DownloadTotalBytes));
+
         /// <summary>Which ClawTweaks per-game profiles exist for this entry. Filled on every scan
         /// round from the files on disk - see ClawProfiles.</summary>
         public ClawProfileKinds Profiles { get; set; }
@@ -100,7 +149,11 @@ namespace ClawTweaksCenter.Library
                     case GameStore.Steam: return "Steam";
                     case GameStore.Epic: return "Epic";
                     case GameStore.Xbox: return "Xbox";
-                    case GameStore.Misc: return "Misc";
+                    case GameStore.Ubisoft: return "Ubisoft";
+                    case GameStore.EA: return "EA";
+                    case GameStore.BattleNet: return "Battle.net";
+                    case GameStore.Gog: return "GOG";
+                    case GameStore.Misc: return "My Apps";
                     default: return SystemName ?? "Playnite";
                 }
             }

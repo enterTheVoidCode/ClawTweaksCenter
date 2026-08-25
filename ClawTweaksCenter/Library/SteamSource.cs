@@ -84,7 +84,54 @@ namespace ClawTweaksCenter.Library
                     if (entry != null) games.Add(entry);
                 }
             }
+
+            AddOwnedButNotInstalled(games, ct);
             return games;
+        }
+
+        /// <summary>
+        /// The rest of the account's library: games it owns that have no manifest on this machine.
+        ///
+        /// PART OF THE STEAM SOURCE, not a source of its own. They are Steam games and they carry
+        /// Steam's identity everywhere - the subline says Steam, the cover comes out of Steam's cache
+        /// (measured: 832 of the 840 uninstalled games on this machine already have one), and
+        /// SteamPlaytime knows the hours for the ones played on another machine. What separates them
+        /// from the rest is one flag, not a store.
+        ///
+        /// A GAME WITH A MANIFEST IS NEVER ADDED HERE, whatever state that manifest is in. The
+        /// manifest is the better answer: it knows the install folder, and for a download in progress
+        /// it knows how far along it is.
+        /// </summary>
+        private static void AddOwnedButNotInstalled(List<GameEntry> games, CancellationToken ct)
+        {
+            var owned = SteamOwned.Read();
+            if (owned.Count == 0) return;
+
+            var known = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var g in games) known.Add(g.Id);
+
+            foreach (var kv in owned)
+            {
+                ct.ThrowIfCancellationRequested();
+
+                string id = kv.Key.ToString(CultureInfo.InvariantCulture);
+                if (known.Contains(id)) continue;
+                if (NonGameAppIds.Contains(id)) continue;
+
+                games.Add(new GameEntry
+                {
+                    Id = id,
+                    Store = GameStore.Steam,
+                    Installed = false,
+                    Title = kv.Value.Name,
+                    // No folder, and that is the honest answer rather than a guess: Steam decides
+                    // which library root a game lands in at install time, so there is no such path
+                    // until it exists. It also keeps these out of the install-folder matching that
+                    // ClawProfiles and PlayHistory do.
+                    InstallDir = null,
+                    LaunchUri = "steam://install/" + id,
+                });
+            }
         }
 
         /// <summary>Every Steam library root, the install itself included. A handheld regularly has
@@ -134,23 +181,43 @@ namespace ClawTweaksCenter.Library
 
                 if (!int.TryParse(ValueOf(app, "StateFlags"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int flags))
                     flags = 0;
-                if ((flags & StateFlagFullyInstalled) == 0) return null;
 
+                bool ready = (flags & StateFlagFullyInstalled) != 0;
                 string dir = Path.Combine(steamappsDir, "common", installDir);
-                if (!Directory.Exists(dir)) return null;
+
+                // AN UNFINISHED MANIFEST IS NOT NOTHING. It used to be discarded here, and that left
+                // a game the user had just told Steam to install invisible in both directions: gone
+                // from the owned list the moment the manifest appeared, and not yet in the Steam tab.
+                // It is kept, marked not-installed, and carries its byte counts so the Not Installed
+                // tab can say how far along it is.
+                //
+                // The folder is only required for a game claiming to be READY. A download that has
+                // just been queued has a manifest and no folder yet, and demanding one would hide
+                // exactly the case this branch exists for.
+                if (ready && !Directory.Exists(dir)) return null;
+                if (!ready && !Directory.Exists(dir)) dir = null;
 
                 return new GameEntry
                 {
                     Id = appId,
                     Store = GameStore.Steam,
+                    Installed = ready,
+                    DownloadedBytes = Bytes(ValueOf(app, "BytesDownloaded")),
+                    DownloadTotalBytes = Bytes(ValueOf(app, "BytesToDownload")),
                     Title = string.IsNullOrWhiteSpace(name) ? installDir : name,
                     InstallDir = dir,
                     LaunchUri = "steam://rungameid/" + appId,
                     LastPlayed = UnixToLocal(ValueOf(app, "LastPlayed")),
+                    // Steam already knows what the install weighs, so this costs a parse rather than
+                    // a walk of the folder tree. Present in all 44 manifests on this machine.
+                    InstallBytes = Bytes(ValueOf(app, "SizeOnDisk")),
                 };
             }
             catch { return null; }
         }
+
+        private static long Bytes(string raw)
+            => long.TryParse(raw, NumberStyles.Integer, CultureInfo.InvariantCulture, out long n) && n > 0 ? n : 0;
 
         /// <summary>Steam's own play timestamp. It is reliable where it is set - measured on this
         /// machine, 24 of 44 manifests carry a real value and the rest are games never started here.

@@ -137,6 +137,28 @@ namespace ClawTweaksCenter.Library
         }
 
         /// <summary>
+        /// An install size, or null when it is not known.
+        ///
+        /// BINARY units, because that is what every other size on this machine is quoted in - Windows'
+        /// own properties dialog, Steam's own library page - and a figure that disagrees with the one
+        /// beside it reads as a different measurement rather than a different convention.
+        ///
+        /// No decimals above 10 GB and one below: "8.4 GB" is a useful distinction on a drive this
+        /// size, "137.2 GB" is a false precision on a number that moves with every update.
+        /// </summary>
+        public static string FormatSize(long bytes)
+        {
+            if (bytes <= 0) return null;
+
+            double gb = bytes / (1024.0 * 1024 * 1024);
+            if (gb >= 10) return ((int)Math.Round(gb)).ToString(CultureInfo.CurrentCulture) + " GB";
+            if (gb >= 1) return gb.ToString("0.#", CultureInfo.CurrentCulture) + " GB";
+
+            double mb = bytes / (1024.0 * 1024);
+            return ((int)Math.Round(mb)).ToString(CultureInfo.CurrentCulture) + " MB";
+        }
+
+        /// <summary>
         /// The active Steam account's localconfig.vdf.
         ///
         /// ActiveUser is the right answer and is NOT always available: it is 0 whenever Steam is not

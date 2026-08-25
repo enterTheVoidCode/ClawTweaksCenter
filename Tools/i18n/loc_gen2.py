@@ -13,6 +13,9 @@ from loc_pad import PAD                               # round five: the pad-butt
 from loc_gaps import GAPS                             # round six: gaps reported from the device
 from loc_setup import SETUP                           # round seven: the Center installer window
 from loc_browse import BROWSE                         # round eight: the Update & Release screen
+from loc_stores import STORES                      # round nine: Other Stores, and Misc -> My Apps
+from loc_opti import OPTI                          # round ten: the OptiScaler / OptiClick block
+from loc_notinstalled import NOTINSTALLED          # round eleven: the Not Installed tab
 
 T = dict(loc_gen.T)
 
@@ -339,6 +342,9 @@ T.update(PAD)
 T.update(GAPS)
 T.update(SETUP)
 T.update(BROWSE)
+T.update(STORES)
+T.update(OPTI)
+T.update(NOTINSTALLED)
 
 LANGS = ["German", "French", "Korean", "Spanish"]
 width, budget, esc = loc_gen.width, loc_gen.budget, loc_gen.esc
