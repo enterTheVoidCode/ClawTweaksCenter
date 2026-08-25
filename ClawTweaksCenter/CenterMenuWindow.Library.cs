@@ -2519,7 +2519,10 @@ namespace ClawTweaksCenter
                 //                grey while the other two are lit.
                 if (opti.IsOptiClick) badges.Children.Add(LaunchBadge("OptiClick", true));
                 if (opti.IsOptiScaler) badges.Children.Add(LaunchBadge("OptiScaler", true));
-                if (opti.HasWiki) badges.Children.Add(LaunchBadge(Core.Loc.T("Wiki page"), false));
+                // NAMED, not just "Wiki page". Next to two badges that carry their tool's name, a
+                // bare "Wiki" reads as OptiClick's wiki - it is OptiScaler's, and it is there for
+                // games OptiClick has never heard of.
+                if (opti.HasWiki) badges.Children.Add(LaunchBadge(Core.Loc.T("OptiScaler wiki"), false));
 
                 stack.Children.Add(badges);
             }
