@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Pipes;
@@ -287,6 +287,39 @@ namespace ClawTweaksCenter.Core
             finally
             {
                 PropertyUpdated -= Handler;
+            }
+        }
+
+        /// <summary>
+        /// Sends a single Extra-key request and does NOT wait for anything.
+        ///
+        /// Some of the helper's verbs answer with a correlated Function push (that is
+        /// <see cref="RequestWithResultAsync"/>); others answer with a plain pipe ack addressed to a
+        /// RequestId, which this client does not track. MsiChargeLimit and MsiFanControl are the
+        /// second kind. Returning "it went out on the wire" is therefore the strongest true statement
+        /// available here, and the caller is expected to report it as sent rather than as verified.
+        /// </summary>
+        public bool SendRequest(string extraKey, object extraValue)
+        {
+            if (!IsConnected) return false;
+            try
+            {
+                string extraJson = extraValue is bool bVal
+                    ? (bVal ? "true" : "false")
+                    : (extraValue is int || extraValue is long
+                        ? Convert.ToString(extraValue, System.Globalization.CultureInfo.InvariantCulture)
+                        : "\"" + EscapeJson(Convert.ToString(extraValue, System.Globalization.CultureInfo.InvariantCulture)) + "\"");
+
+                lock (_writeLock)
+                {
+                    _writer.WriteLine($"{{\"RequestId\":0,\"Command\":0,\"Function\":0,\"{extraKey}\":{extraJson}}}");
+                    _writer.Flush();
+                }
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
             }
         }
 

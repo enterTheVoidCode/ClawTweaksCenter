@@ -34,7 +34,7 @@ namespace ClawTweaksCenter
                 onShowLibrary: () => Dispatcher.Invoke(() =>
                 {
                     BringToFront();
-                    if (_view != View.Library && LibraryAvailable) OpenLibrary();
+                    if (_view != View.Library) OpenLibrary();
                     // If the version check has not landed yet, TryEnterLibraryOnceKnown's own
                     // machinery (already wired for --library / OpenLibraryAtStartup) is not reachable
                     // from here without duplicating it - a wake this early in the resident instance's
@@ -134,7 +134,7 @@ namespace ClawTweaksCenter
             libraryItem.Click += (_, __) =>
             {
                 BringToFront();
-                if (_view != View.Library && LibraryAvailable) OpenLibrary();
+                if (_view != View.Library) OpenLibrary();
             };
             menu.Items.Add(libraryItem);
 
@@ -190,7 +190,7 @@ namespace ClawTweaksCenter
             if (showingLibrary) { Close(); return; }
 
             BringToFront();
-            if (_view != View.Library && LibraryAvailable) OpenLibrary();
+            if (_view != View.Library) OpenLibrary();
         }
 
         private void BringToFront()

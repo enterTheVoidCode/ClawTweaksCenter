@@ -62,7 +62,7 @@ namespace ClawTweaksCenter
 
         /// <summary>Which idle screen ContentHost shows — Confirm/Install are transient overlays
         /// triggered from Browse and don't need their own value here.</summary>
-        private enum View { Home, Browse, Onboarding, Maintenance, Library, InstallDone, CenterSettings }
+        private enum View { Home, Browse, Onboarding, Maintenance, Library, InstallDone, CenterSettings, Leave, Faq }
         private View _view = View.Home;
 
         private DeviceDetect.Model _deviceModel = DeviceDetect.Model.Unknown;
@@ -141,8 +141,11 @@ namespace ClawTweaksCenter
         // nothing to resume — the user simply stays in the same process the whole way through.
 
         public CenterMenuWindow(bool startOnboarding = false, bool startLibrary = false, bool forceHome = false,
-                                bool installDone = false, bool installWasUpdate = false)
+                                bool installDone = false, bool installWasUpdate = false,
+                                bool startLeave = false, bool fromWindowsUninstall = false)
         {
+            _startLeaveOnLoad = startLeave;
+            _leaveFromWindowsUninstall = fromWindowsUninstall;
             _startOnboardingOnLoad = startOnboarding;
             _startLibraryOnLoad = startLibrary;
             _startInstallDoneOnLoad = installDone;
@@ -154,6 +157,7 @@ namespace ClawTweaksCenter
             _helperPipe = new Core.HelperPipeClient();
             _onboarding = new OnboardingRunner(_helperPipe);
             _maintenance = new MaintenanceRunner(_helperPipe);
+            _leave = new LeaveRunner(_helperPipe);
 
             InitializeComponent();
 
@@ -171,12 +175,17 @@ namespace ClawTweaksCenter
                 if (_view == View.Onboarding && !_confirming && !_busy) RenderOnboarding();
             });
 
+            _leave.StepsChanged += () => Dispatcher.Invoke(() =>
+            {
+                if (_view == View.Leave) RenderLeave();
+            });
+
             SizeChanged += (_, __) => { UpdateShellLayout(); OnLibrarySizeChanged(); };
 
             SetupVersionLabel.Text = "CTW Center v" + (Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "?");
             RenderDeviceBanner(null);
 
-            if (startLibrary || CenterSettings.OpenLibraryAtStartup)
+            if (!startLeave && (startLibrary || CenterSettings.OpenLibraryAtStartup))
             {
                 // Skips Home entirely rather than shortening its appearance. Home carries the
                 // installed-version check (is the ClawTweaks widget present, which build) and, once
@@ -222,6 +231,10 @@ namespace ClawTweaksCenter
         /// supposed to have already paid.
         /// </summary>
         internal void PrepareResident() => _ = StartupWorkAsync();
+
+        /// <summary>Set when this launch exists only to uninstall (see App.OnStartup's --uninstall),
+        /// so the Leave screen is what the window opens on.</summary>
+        private bool _startLeaveOnLoad;
 
         /// <summary>Everything the window does once, on the way up. Runs from Loaded normally and
         /// from PrepareResident when there will be no Loaded; the guard is what lets both call it -
@@ -278,7 +291,11 @@ namespace ClawTweaksCenter
                 // Reached via MainWindow after a successful install/update (release-folder wizard
                 // path) — the helper is already confirmed running there, so open onboarding right
                 // away instead of waiting for the user to find the tile.
-                if (_startInstallDoneOnLoad) OpenInstallDone();
+                // The uninstall screen comes first, and deliberately BEFORE the library jump: a
+                // machine set to open in the library would otherwise swallow the one screen Windows
+                // started this process to show.
+                if (_startLeaveOnLoad) OpenLeave();
+                else if (_startInstallDoneOnLoad) OpenInstallDone();
                 else if (_startOnboardingOnLoad) OpenOnboarding();
 
                 // --library. Deliberately AFTER the installed-version check above: the tab does not
@@ -456,12 +473,11 @@ namespace ClawTweaksCenter
             var ghTask = FetchGitHubAsync();
             var driveTask = FetchDriveAsync();
 
-            // The version check answers ONE question - is ClawTweaks installed, and which build -
-            // and it alone gates LibraryAvailable and the tab strip. It used to sit behind
-            // Task.WhenAll with the two network fetches below, so a direct-to-library launch waited
-            // on however long GitHub or Google Drive took to answer, even though neither has
-            // anything to do with whether the library can open. Resolved and acted on the moment it
-            // lands; the network fetches keep running underneath for Browse's build lists.
+            // The version check answers ONE question - is ClawTweaks installed, and which build. It
+            // drives the header chip, the update banner, Browse's tags and the uninstall screen's
+            // gating; it no longer decides whether there is a library, and the library no longer
+            // waits for it (see TryEnterLibraryOnceKnown). Awaited on its own rather than inside
+            // Task.WhenAll with the two network fetches below, which have nothing to do with it.
             _installedVersion = await versionTask.ConfigureAwait(true);
             _installedVersionChecked = true;
             TryEnterLibraryOnceKnown();
@@ -522,6 +538,8 @@ namespace ClawTweaksCenter
                 case View.Maintenance: RenderMaintenance(); break;
                 case View.InstallDone: RenderInstallDone(); break;
                 case View.CenterSettings: RenderCenterSettings(); break;
+                case View.Leave: RenderLeave(); break;
+                case View.Faq: RenderFaq(); break;
                 default: RenderBrowse(); break;
             }
         }
@@ -608,12 +626,9 @@ namespace ClawTweaksCenter
                 "\uE8FD", "Onboarding", "Set up Center M, controller and Game Bar.",
                 0, OpenOnboarding));
 
-            // Absent, not greyed out, when ClawTweaks did not come up: the same rule Home follows.
-            // A tile that opens nothing is worse than one tile fewer.
-            if (LibraryAvailable)
-                column.Children.Add(InstallDoneTile(
-                    "\uE7FC", "Game Library", "Play your Steam, Epic and Xbox games.",
-                    1, OpenLibrary));
+            column.Children.Add(InstallDoneTile(
+                "\uE7FC", "Game Library", "Play your Steam, Epic and Xbox games.",
+                1, OpenLibrary));
 
             column.Children.Add(InstallDoneTile(
                 "\uE711", "Close Center", "Finish here and close the window.",
@@ -638,8 +653,8 @@ namespace ClawTweaksCenter
             return tile;
         }
 
-        /// <summary>2 with a library tile, 1 without - the Close tile is always the last one.</summary>
-        private int InstallDoneMaxIndex => LibraryAvailable ? 2 : 1;
+        /// <summary>Onboarding, library, close.</summary>
+        private const int InstallDoneMaxIndex = 2;
 
         private void MoveInstallDoneSelection(PadButton dir)
         {
@@ -688,6 +703,8 @@ namespace ClawTweaksCenter
             // the library's number when there IS a library. One comparison against the property
             // rather than two switch tables that have to agree.
             if (_homeSelectedIndex == HomeCenterSettingsIndex) { OpenCenterSettings(); return; }
+            if (_homeSelectedIndex == HomeLeaveIndex) { OpenLeave(); return; }
+            if (_homeSelectedIndex == HomeFaqIndex) { OpenFaq(); return; }
 
             switch (_homeSelectedIndex)
             {
@@ -708,7 +725,7 @@ namespace ClawTweaksCenter
         /// reading install instructions they may not be able to read. So it takes the free cell after
         /// the library pair when there is one, and starts the second row when there is not.
         /// </summary>
-        private int HomeCenterSettingsIndex => LibraryAvailable ? 4 : 3;
+        private const int HomeCenterSettingsIndex = 4;
 
         /// <summary>The second row, left to right: the library, Center's settings, the library's
         /// settings. Center's sits BETWEEN the two library tiles because that is where the free cell
@@ -718,7 +735,15 @@ namespace ClawTweaksCenter
 
         /// <summary>Highest selectable Home tile: the library settings when there is a library,
         /// otherwise Center's own settings - in both cases the last tile of the second row.</summary>
-        private int HomeMaxIndex => LibraryAvailable ? HomeLibrarySettingsIndex : HomeCenterSettingsIndex;
+        /// <summary>The third row: the FAQ, then the way out.
+        ///
+        /// Constants again. They were properties for exactly one release, while two of the tiles
+        /// above them could be absent - now every tile is always drawn, the grid is always eight
+        /// cells, and the row navigation below can stay plain division.</summary>
+        private const int HomeFaqIndex = 6;
+        private const int HomeLeaveIndex = 7;
+
+        private const int HomeMaxIndex = HomeLeaveIndex;
 
         /// <summary>True when the manifest advertises a newer Center than the one running. See
         /// SetupVersionCheck.IsUpdateOffered.</summary>
@@ -743,13 +768,14 @@ namespace ClawTweaksCenter
             // Same latch for the two screens this window is opened ON: they run at the end of Loaded,
             // this fires from inside RefreshSourcesAsync well before that, so without it a user with
             // "Start in the library" on would be dropped into the library and then yanked back out.
-            if (_startInstallDoneOnLoad || _startOnboardingOnLoad) { _autoLibraryJumpDone = true; return; }
+            if (_startInstallDoneOnLoad || _startOnboardingOnLoad || _startLeaveOnLoad) { _autoLibraryJumpDone = true; return; }
             if (!(_startLibraryOnLoad || CenterSettings.OpenLibraryAtStartup)) return;
-            if (!_installedVersionChecked) return;
 
+            // No longer waits on the ClawTweaks version check. That check takes about a second of
+            // PowerShell and used to decide whether there WAS a library; now it decides nothing here,
+            // and waiting for it only delayed the one screen the user asked to open on.
             _autoLibraryJumpDone = true;
-            if (LibraryAvailable) OpenLibrary();
-            else GoHome();
+            OpenLibrary();
         }
 
         /// <summary>
@@ -853,11 +879,10 @@ namespace ClawTweaksCenter
             // Both library tiles need ClawTweaks installed; without it there is nothing to open and
             // nothing to configure, so they are absent rather than greyed out. Center's own settings
             // are NOT gated that way - see HomeCenterSettingsIndex.
-            if (LibraryAvailable)
-                tiles.Children.Add(BuildHomeTile(
-                    "", "Game Library", "Play your Steam, Epic and Xbox games.",
-                    clickable: true, onClick: () => { _homeSelectedIndex = HomeLibraryIndex; OpenLibrary(); },
-                    selected: _homeSelectedIndex == HomeLibraryIndex));
+            tiles.Children.Add(BuildHomeTile(
+                "", "Game Library", "Play your Steam, Epic and Xbox games.",
+                clickable: true, onClick: () => { _homeSelectedIndex = HomeLibraryIndex; OpenLibrary(); },
+                selected: _homeSelectedIndex == HomeLibraryIndex));
 
             tiles.Children.Add(BuildHomeTile(
                 "", "Center Settings", "Choose the language and how the window opens.",
@@ -865,12 +890,26 @@ namespace ClawTweaksCenter
                 onClick: () => { _homeSelectedIndex = HomeCenterSettingsIndex; OpenCenterSettings(); },
                 selected: _homeSelectedIndex == HomeCenterSettingsIndex));
 
-            if (LibraryAvailable)
-                tiles.Children.Add(BuildHomeTile(
-                    "", "Library Settings", "Choose how the library starts and looks.",
-                    clickable: true,
-                    onClick: () => { _homeSelectedIndex = HomeLibrarySettingsIndex; OpenLibrarySettingsFromHome(); },
-                    selected: _homeSelectedIndex == HomeLibrarySettingsIndex));
+            tiles.Children.Add(BuildHomeTile(
+                "", "Library Settings", "Choose how the library starts and looks.",
+                clickable: true,
+                onClick: () => { _homeSelectedIndex = HomeLibrarySettingsIndex; OpenLibrarySettingsFromHome(); },
+                selected: _homeSelectedIndex == HomeLibrarySettingsIndex));
+
+            // The last two, and both present whether or not ClawTweaks is installed: the FAQ
+            // answers questions about software that is not there yet, and the uninstall tile is the
+            // one that still has something to do when everything else here is gone.
+            tiles.Children.Add(BuildHomeTile(
+                "", "FAQ", "Answers to the questions that come up most.",
+                clickable: true,
+                onClick: () => { _homeSelectedIndex = HomeFaqIndex; OpenFaq(); },
+                selected: _homeSelectedIndex == HomeFaqIndex));
+
+            tiles.Children.Add(BuildHomeTile(
+                "", "Uninstall ClawTweaks", "Restore the device and remove everything.",
+                clickable: true,
+                onClick: () => { _homeSelectedIndex = HomeLeaveIndex; OpenLeave(); },
+                selected: _homeSelectedIndex == HomeLeaveIndex));
 
             ContentHost.Children.Add(tiles);
         }
@@ -1654,6 +1693,8 @@ namespace ClawTweaksCenter
             if (_view == View.Maintenance) { MoveMaintenanceSelection(dir); return; }
             if (_view == View.InstallDone) { MoveInstallDoneSelection(dir); return; }
             if (_view == View.CenterSettings) { MoveCenterSettingsSelection(dir); return; }
+            if (_view == View.Leave) { MoveLeaveSelection(dir); return; }
+            if (_view == View.Faq) { MoveFaqSelection(dir); return; }
 
             // A hand-off screen (missing prerequisites / untrusted certificate) is up. _view is still
             // Browse — these screens replace the CONTENT without being their own view — so without this
@@ -1699,9 +1740,18 @@ namespace ClawTweaksCenter
             // below are non-actionable, so there is still nothing under the tile row).
             // Indices 3 and 4 are the second row (library, startup switch), and they only exist
             // once ClawTweaks is installed - hence HomeMaxIndex rather than a literal 2.
-            bool secondRow = next >= 3;
-            if (dir == PadButton.Up) next = secondRow ? 0 : (CenterUpdateOffered ? -1 : next);
-            else if (dir == PadButton.Down) next = next < 0 ? 0 : (next <= 2 && HomeMaxIndex >= 3 ? 3 : next);
+            // The grid is three columns and has no gaps, so a row is index / 3 and moving one row
+            // is plus or minus three. That replaced a hand-written ladder of index ranges which had
+            // to be edited every time a tile was added - and which, the last time one was, was the
+            // reason Down stopped halfway. Arithmetic cannot fall out of step with the tile list;
+            // a ladder of literals can, and did.
+            int lastRow = HomeMaxIndex / 3;
+            if (dir == PadButton.Up) next = next < 3 ? (CenterUpdateOffered ? -1 : next) : next - 3;
+            else if (dir == PadButton.Down)
+                // Down on the LAST row does nothing, rather than sliding along it. The plain clamp
+                // below would otherwise turn a Down press on the first tile of the bottom row into a
+                // sideways step onto the last one, which reads as the cursor going the wrong way.
+                next = next < 0 ? 0 : (next / 3 >= lastRow ? next : Math.Min(next + 3, HomeMaxIndex));
             else if (dir == PadButton.Left) next = next < 0 ? next : next - 1;
             else if (dir == PadButton.Right) next = next < 0 ? next : next + 1;
             else return;
@@ -1846,7 +1896,7 @@ namespace ClawTweaksCenter
                 // The two buttons under the last step are mouse targets; on a handheld the same two
                 // destinations have to be reachable from the pad, so the library gets a chip and B
                 // keeps leading home.
-                if (LibraryAvailable) AddAction(PadButton.X, "Game Library", true, OpenLibrary);
+                AddAction(PadButton.X, "Game Library", true, OpenLibrary);
                 AddAction(PadButton.B, "Back", true, GoHome);
                 return;
             }
@@ -1854,6 +1904,18 @@ namespace ClawTweaksCenter
             if (_view == View.Maintenance)
             {
                 RefreshMaintenanceActionBar();
+                return;
+            }
+
+            if (_view == View.Leave)
+            {
+                RefreshLeaveActionBar();
+                return;
+            }
+
+            if (_view == View.Faq)
+            {
+                RefreshFaqActionBar();
                 return;
             }
 

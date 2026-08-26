@@ -65,7 +65,7 @@ is exactly what makes it dangerous: Center installs itself by copying a single f
 the apphost dies before `Main`. `SelfInstaller.IsSelfContainedSingleFile` refuses to install one, but
 do not hand one out either.
 
-## Two design rules that are not up for casual change
+## Three design rules that are not up for casual change
 
 **Center never asks for administrator rights.** Not rarely — never. It installs per-user, and the
 three things that genuinely need elevation are handed off instead of performed: drivers go to their
@@ -79,7 +79,29 @@ of a dropper, and verifying its bytes afterwards does not change that shape. Ins
 ClawTweaks **app package** is a different thing and stays — that is `Add-AppxPackage`, not starting a
 binary.
 
-Both rules exist because of real antivirus findings, not as a matter of taste.
+The first two exist because of real antivirus findings, not as a matter of taste.
+
+**Grey it out, do not hide it** (user decision, 2026-08-26). When a control cannot be used on this
+machine, it stays on screen, dimmed, saying why — it does not disappear. The cover-art row in the
+game menu had always worked this way: it stays put and reads "Set a SteamGridDB key in Settings
+first" instead of vanishing. Everything else now follows it.
+
+The argument that used to win the other way is written in the old comments and is worth knowing,
+because it is not stupid: a tab that can only ever be empty is a dead end, and "ROMs 0" invites a
+hunt for a bug that is really "you have no Playnite". That holds for a bare zero. It stops holding
+once the thing is dimmed AND its empty state names the reason — at which point hiding is strictly
+worse, because an absent control cannot tell the user anything, and a user who never learns the
+category exists cannot go and enable it.
+
+Two consequences that are easy to get wrong:
+
+- **A dimmed control must still be reachable.** Hiding it from D-pad navigation gets you a control
+  that can be seen and not focused, which on a handheld is the trap this project has already paid for
+  more than once. The library's shoulder cycle therefore visits the dimmed tabs too.
+- **The reason has to be somewhere the user can actually reach.** A tooltip is not a reason on a
+  device with no mouse. Put it in the row's own subtitle, or in the empty state behind it.
+
+
 
 ## Translations
 
@@ -160,6 +182,108 @@ If you are weighing a larger change, the parts most likely to constrain you are 
 self-contained publish (see the Build section) and the D-pad requirement below — Center runs on a
 handheld and is used with a controller far more often than with a mouse. Neither rules an approach
 out, but a proposal that has not accounted for them will get asked about both.
+
+## The library does not need ClawTweaks
+
+`LibraryAvailable` is gone (2026-08-26). It was `_installedVersionChecked && _installedVersion !=
+null`, and it hid the library tab, both Home tiles and the entire tab strip until a PowerShell
+version check had answered.
+
+The premise was that the library is a ClawTweaks feature. It is not: it scans Steam, Epic, Xbox, the
+four other launchers, Playnite and your own apps, and launches them — none of which involves
+ClawTweaks. The only two parts that do are the profile badge and the play history, and both read
+files that are simply absent without it, which they already handled.
+
+It was **deleted rather than pinned to `true`**, because a property that is always true is an
+invitation to put the condition back. The same change let `HomeCenterSettingsIndex`, `HomeFaqIndex`
+and `HomeLeaveIndex` go back to being constants: every tile is now always drawn, so the grid is
+always eight cells, which is what keeps Home's row navigation as plain division.
+
+The startup jump no longer waits on the version check either. That check still runs — it drives the
+header chip, the update banner, Browse's tags and the uninstall screen's gating — it just no longer
+decides whether there is a library to open.
+
+## The FAQ, and the two rules its entries have to keep
+
+`CenterMenuWindow.Faq.cs`. Eight questions, collapsed until pressed, one statement per line. The
+questions are the index — that is the whole reason they start closed, and why adding a ninth is
+cheap while turning any one answer into a paragraph is not.
+
+**Only what the code actually does.** Every answer is checkable against this repo or the helper: the
+virtual controller really does roll itself back when no pad mounts, the scheduled task really carries
+no version number so updates cost no prompt, Center really never elevates. A FAQ that drifts from the
+software is worse than no FAQ, because it is believed and it is not read alongside the code that
+would contradict it.
+
+**Say where to go, not how it works.** These answer "what do I do". The reasoning lives here and in
+the private repo's `CLAUDE.md`, not on a 7-inch screen.
+
+The entry list is a plain array of `(question, answer lines)` and the answers are ordinary strings, so
+they go through `Loc.T` like everything else — a new entry needs a translation round, not a code
+change.
+
+### Home's row navigation is arithmetic now, and that was the point
+
+The grid is three columns with no gaps, so a row is `index / 3` and moving a row is ±3. It used to be
+a hand-written ladder of index ranges that had to be edited every time a tile was added — and the
+last time one was, Down stopped halfway down the grid because the ladder had not been. Arithmetic
+cannot fall out of step with the tile list; a ladder of literals can, and did.
+
+That only holds while the grid stays gap-free, which is why `HomeFaqIndex` and `HomeLeaveIndex` are
+properties keyed off `LibraryAvailable` rather than constants: without ClawTweaks the two library
+tiles are absent, and fixed numbers would leave dead cursor positions where they used to be.
+
+## Uninstalling: the order is the feature
+
+`CenterMenuWindow.Leave.cs` + `Core/LeaveRunner.cs`. Reached from the Home tile and from Windows
+Settings → Apps, because `--uninstall` now opens this screen instead of deleting Center on the spot.
+
+**Three of the things ClawTweaks changes are hardware state**: the battery charge limit, the fan
+curve in the EC, and which controller the device presents. Removing an app does not undo any of
+them. Someone who deletes ClawTweaks first is left with a charge limit they can no longer see, on a
+device whose fan follows a curve nothing owns any more — and no software on the machine that could
+put either back. That, and nothing about presentation, is why leaving is a list rather than a
+button:
+
+```
+0 Restore the device     needs the helper   ← only ClawTweaks can undo the hardware state
+1 Turn MSI Center M on   needs the helper   ← after step 2 there is no pipe left to ask
+2 Uninstall ClawTweaks                      ← the helper watches for its own package
+                                              disappearing and uses that to remove its
+                                              scheduled task and deployed copy, then exits
+3 Uninstall Center                          ← last: it ends this process
+```
+
+Inside step 0 the same logic runs in miniature: **the full reset goes first, the three hardware
+writes after it.** The reset wipes the helper's settings store, so writing "charge limit off" before
+it would persist a value the reset then erases, and the next helper start would re-apply whatever had
+been stored before. Wipe the settings, then put the hardware back.
+
+### Two rules that must survive any rework
+
+**Step 3 is never gated.** Steps 0–2 need ClawTweaks installed and the helper answering; step 3 needs
+nothing. Someone who already removed ClawTweaks is warned, told that reinstalling it is how the
+device gets restored, pointed at Update & Release — and then allowed to uninstall Center anyway. A
+wizard that cannot be finished is worse than one that finishes badly, and this one is reached from
+Windows Settings, where refusing to proceed means an app that cannot be uninstalled at all.
+
+**`--uninstall` must always end in an uninstall being possible.** The branch in `App.OnStartup` wraps
+the window in a try/catch and falls back to the old direct removal, and `--uninstall-silent` still
+does exactly what `--uninstall` used to do. Windows started that process to remove something; a
+screen that failed to draw must not be the reason nothing happened.
+
+### The Center M step checks, and says when the answer is half
+
+`LeaveRunner.ReenableCenterMAsync` turns Center M back on and then asks
+`CenterM.IsGameBarWidgetInstalled()` whether MSI's Game Bar widget actually came back. It routinely
+has not: disabling Center M removes that package with `-AllUsers`, and that takes the staged copy
+Windows would re-register from with it (measured on the dev machine 2026-08-26, with a control cell —
+the detail is in the private repo's `CLAUDE.md`). The step then reports a warning naming the one fix
+that works, reinstalling MSI Center M, rather than a clean success.
+
+⚠️ **That check hardcodes `9426MICRO-STARINTERNATION.MSIQuickSettings`, and so does the helper.** Two
+repos, no shared compiler. Rename it on one side and nothing breaks — Center simply says "the widget
+did not come back" for ever, about a widget that is right there.
 
 ## 🟡 Open: the Steam download readout has never been watched live
 

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -87,6 +87,41 @@ namespace ClawTweaksCenter.Core
                 "(Get-AppxPackage -Name 'MSIClaw.ClawTweaks*' | Select-Object -First 1 -ExpandProperty Version)",
                 15000, out _);
             return Version.TryParse((outp ?? string.Empty).Trim(), out var v) ? v : null;
+        }
+
+        /// <summary>
+        /// Removes every ClawTweaks registration — the way out, used by the uninstall flow.
+        ///
+        /// Two things are deliberately NOT done here. The app data is not backed up first: this is
+        /// someone leaving, and the flow has already offered a settings backup a step earlier, so a
+        /// silent copy in %TEMP% would be clutter they never asked for. And the helper is not killed:
+        /// it watches for its own package disappearing and uses that to delete its scheduled task and
+        /// its deployed copy before exiting. Killing it first is how those get left behind.
+        ///
+        /// Bundle registrations are included — a family can carry one that a plain Get-AppxPackage
+        /// never shows, and leaving it means the family is still half-registered afterwards.
+        /// </summary>
+        public static bool RemoveClawTweaks(Action<string> log = null)
+        {
+            var entries = InspectFamily();
+            if (entries.Count == 0)
+            {
+                log?.Invoke("ClawTweaks is not installed.");
+                return true;
+            }
+
+            foreach (var e in entries)
+                RemoveRegistration(e.FullName, log);
+
+            var left = InspectFamily();
+            if (left.Count == 0)
+            {
+                log?.Invoke("ClawTweaks removed.");
+                return true;
+            }
+
+            log?.Invoke(left.Count + " registration(s) could not be removed.");
+            return false;
         }
 
         /// <summary>One registration of the ClawTweaks package family as Windows currently sees it.</summary>

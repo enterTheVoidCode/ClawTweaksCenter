@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using Microsoft.Win32;
 
@@ -35,6 +35,38 @@ namespace ClawTweaksCenter.Core
             }
             if (!any) log?.Invoke("MSI Center M was not running.");
             return any;
+        }
+
+        /// <summary>
+        /// Whether MSI's Quick Settings Game Bar widget is registered for this user.
+        ///
+        /// Asked after re-enabling Center M, because "Center M is back" and "all of Center M is back"
+        /// are different answers. Disabling Center M removes this package with -AllUsers, and that
+        /// takes the staged copy Windows would re-register from with it — measured on the dev machine
+        /// 2026-08-26, with a control cell. When it is gone, only reinstalling MSI Center M restores
+        /// the widget, and the flow says so instead of reporting a clean success.
+        /// </summary>
+        public static bool IsGameBarWidgetInstalled()
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("powershell.exe",
+                    "-NoProfile -NonInteractive -ExecutionPolicy Bypass -Command " +
+                    "\"(Get-AppxPackage -Name '9426MICRO-STARINTERNATION.MSIQuickSettings' | " +
+                    "Select-Object -First 1 -ExpandProperty PackageFullName)\"")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                };
+                using var proc = Process.Start(psi);
+                if (proc == null) return false;
+                string outp = proc.StandardOutput.ReadToEnd();
+                if (!proc.WaitForExit(20000)) { try { proc.Kill(); } catch { } return false; }
+                return !string.IsNullOrWhiteSpace(outp);
+            }
+            catch { return false; }
         }
 
         /// <summary>Finds the MSI Center (M) uninstall command in Add/Remove Programs, if present.</summary>

@@ -16,6 +16,8 @@ from loc_browse import BROWSE                         # round eight: the Update 
 from loc_stores import STORES                      # round nine: Other Stores, and Misc -> My Apps
 from loc_opti import OPTI                          # round ten: the OptiScaler / OptiClick block
 from loc_notinstalled import NOTINSTALLED          # round eleven: the Not Installed tab
+from loc_leave import LEAVE                     # round twelve: the guided way out
+from loc_faq import FAQ                         # round thirteen: the FAQ
 
 T = dict(loc_gen.T)
 
@@ -345,6 +347,8 @@ T.update(BROWSE)
 T.update(STORES)
 T.update(OPTI)
 T.update(NOTINSTALLED)
+T.update(LEAVE)
+T.update(FAQ)
 
 LANGS = ["German", "French", "Korean", "Spanish"]
 width, budget, esc = loc_gen.width, loc_gen.budget, loc_gen.esc

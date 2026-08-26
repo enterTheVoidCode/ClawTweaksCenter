@@ -18,17 +18,46 @@ namespace ClawTweaksCenter
             // early exits rather than to be repeated in each of them.
             Loc.Initialise();
 
-            // Uninstall callback (registered as the Add/Remove Programs UninstallString) — clean up
-            // and exit immediately, never reaching any window.
+            // Uninstall callback, registered as the Add/Remove Programs UninstallString.
             //
-            // No elevation: Center installs per-user now (%LOCALAPPDATA%\Programs + HKCU), so removing
-            // it touches nothing outside this user's own profile. An OLD machine-wide install from
-            // before the move is deliberately left alone — it has its own HKLM Add/Remove Programs
-            // entry that elevates itself, which is the honest way for the user to remove it.
-            if (Array.Exists(e.Args, a => a.Equals("--uninstall", StringComparison.OrdinalIgnoreCase)))
+            // It no longer removes Center on the spot. Removing Center is the LAST thing someone
+            // leaving ClawTweaks should do, and it used to be the only thing this path did — which
+            // left the device carrying a battery charge limit, a fan curve in the EC and a controller
+            // mode that nothing on the machine could undo any more, because the software that owned
+            // them had just been deleted. Windows Settings now lands on the same guided screen as the
+            // Home tile, with "Uninstall Center" as its last step.
+            //
+            // The direct removal is still reachable with --uninstall-silent, and is what the screen
+            // itself ends up calling. It is also the fallback below: if the window cannot be built
+            // for any reason, an uninstall that was asked for must still happen rather than leaving
+            // an app that cannot be removed from Settings.
+            //
+            // No elevation either way: Center installs per-user (%LOCALAPPDATA%\Programs + HKCU), so
+            // removing it touches nothing outside this user's own profile. An OLD machine-wide
+            // install from before the move is deliberately left alone — it has its own HKLM entry
+            // that elevates itself, which is the honest way for the user to remove it.
+            if (Array.Exists(e.Args, a => a.Equals("--uninstall-silent", StringComparison.OrdinalIgnoreCase)))
             {
                 SelfInstaller.Uninstall();
                 Shutdown();
+                return;
+            }
+
+            if (Array.Exists(e.Args, a => a.Equals("--uninstall", StringComparison.OrdinalIgnoreCase)))
+            {
+                try
+                {
+                    // Deliberately ahead of the single-instance gate below, exactly like the old
+                    // branch was: a resident Center holding the mutex must not swallow this launch
+                    // and leave Windows waiting on an uninstaller that showed nothing.
+                    ShowForeground(new CenterMenuWindow(startLeave: true, fromWindowsUninstall: true));
+                }
+                catch (Exception ex)
+                {
+                    LogCrash(ex, "uninstall window");
+                    SelfInstaller.Uninstall();
+                    Shutdown();
+                }
                 return;
             }
 

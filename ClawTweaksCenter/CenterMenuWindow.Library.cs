@@ -141,13 +141,17 @@ namespace ClawTweaksCenter
         // leaving two of them racing to restore the same window.
         private CancellationTokenSource _gameTrackCts;
 
-        /// <summary>
-        /// The tab exists only once we KNOW ClawTweaks is installed. The check runs through
-        /// PowerShell and takes about a second, during which the answer is genuinely unknown - and a
-        /// tab that shows up and then disappears reads as a crash, while one that appears a second
-        /// late is not noticed at all. So: absent until certain, then permanent.
-        /// </summary>
-        private bool LibraryAvailable => _installedVersionChecked && _installedVersion != null;
+        // THE LIBRARY DOES NOT NEED CLAWTWEAKS, and the gate that used to say otherwise is gone.
+        //
+        // It was `_installedVersionChecked && _installedVersion != null`, which hid the tab, both
+        // Home tiles and the whole tab strip until a PowerShell version check had answered. The
+        // premise was that the library is a ClawTweaks feature. It is not: it scans Steam, Epic,
+        // Xbox, the four other launchers, Playnite and your own apps, and launches them - none of
+        // which involves ClawTweaks at all. The only parts that do are the profile badge and the
+        // play history, and both read files that simply are not there, which they already handle.
+        //
+        // Removed rather than pinned to `true`: a property that is always true is an invitation to
+        // put the condition back.
 
         #region Tab strip
         /// <summary>
@@ -159,13 +163,6 @@ namespace ClawTweaksCenter
         private void RefreshTabStrip()
         {
             if (TabStrip == null || TabStripPanel == null) return;
-
-            if (!LibraryAvailable)
-            {
-                TabStrip.Visibility = Visibility.Collapsed;
-                if (ShellHeader != null) ShellHeader.Visibility = Visibility.Visible;
-                return;
-            }
 
             bool inLibrary = _view == View.Library;
 
@@ -188,18 +185,13 @@ namespace ClawTweaksCenter
                 _activeGroupChip = null;
                 foreach (LibraryGroup g in Enum.GetValues(typeof(LibraryGroup)))
                 {
-                    // No ROMs chip without Playnite: a tab that can only ever be empty is a dead end,
-                    // and "ROMs 0" invites a hunt for a bug that is really "you have no Playnite".
-                    if (g == LibraryGroup.Roms && !Library.PlayniteSource.IsPresent) continue;
-                    // Same reasoning for Favorites: it does not exist until there is at least one -
-                    // an empty Favorites tab next to Recent on a fresh install would look like the
-                    // feature is broken rather than simply unused yet.
-                    if (g == LibraryGroup.Favorites && !Library.FavoritesStore.Any()) continue;
-                    // And for Other Stores, which is empty on most machines: four launchers nobody
-                    // has a game in would put a permanent "Other Stores 0" between Xbox and My Apps.
-                    if (g == LibraryGroup.OtherStores && !HasOtherStoreGames) continue;
-                    // And Not Installed, which is empty on a machine without Steam.
-                    if (g == LibraryGroup.NotInstalled && !HasNotInstalledGames) continue;
+                    // EVERY tab is drawn, including the ones with nothing behind them - dimmed
+                    // rather than absent (see GroupHasContent). Four of them used to disappear
+                    // silently, and the reasoning was that "ROMs 0" invites a hunt for a bug that is
+                    // really "you have no Playnite". That is true of a bare zero and stops being
+                    // true once the tab is dimmed and its empty state names the reason: the user
+                    // gets to see the category exists, and gets told why it is empty, which is more
+                    // than an absent tab could ever say.
                     var chip = BuildGroupChip(g);
                     if (g == _libraryGroup) _activeGroupChip = chip as FrameworkElement;
                     chips.Children.Add(chip);
@@ -535,10 +527,31 @@ namespace ClawTweaksCenter
 
         private static Brush Freeze(Brush b) { b.Freeze(); return b; }
 
+        /// <summary>
+        /// Whether a tab has anything behind it on THIS machine. Not a permission - every tab can
+        /// still be opened - only whether it is drawn at full strength.
+        ///
+        /// One list, and that is the point: the chip row and the shoulder cycle each used to carry
+        /// their own copy of these four conditions, which is two places to forget when a tab is
+        /// added.
+        /// </summary>
+        private bool GroupHasContent(LibraryGroup g)
+        {
+            switch (g)
+            {
+                case LibraryGroup.Roms: return Library.PlayniteSource.IsPresent;
+                case LibraryGroup.Favorites: return Library.FavoritesStore.Any();
+                case LibraryGroup.OtherStores: return HasOtherStoreGames;
+                case LibraryGroup.NotInstalled: return HasNotInstalledGames;
+                default: return true;
+            }
+        }
+
         private UIElement BuildGroupChip(LibraryGroup g)
         {
             bool active = g == _libraryGroup;
             int count = _libraryScanned ? _library.ForGroup(g).Count : 0;
+            bool hasContent = GroupHasContent(g);
 
             var chip = new Border
             {
@@ -552,6 +565,10 @@ namespace ClawTweaksCenter
                 BorderThickness = new Thickness(active ? 1 : 0),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 VerticalAlignment = VerticalAlignment.Center,
+                // Dimmed, not disabled. It still opens, and what it opens is the empty state that
+                // says why - which is the only place that explanation can reach the user, because a
+                // chip nobody can land on is a chip nobody can be told anything by.
+                Opacity = hasContent || active ? 1.0 : 0.4,
             };
             var captured = g;
             chip.MouseLeftButtonUp += (_, __) => SetLibraryGroup(captured);
@@ -562,7 +579,6 @@ namespace ClawTweaksCenter
         #region Enter / leave
         private void OpenLibrary()
         {
-            if (!LibraryAvailable) return;
             _view = View.Library;
             ContentScroller.Visibility = Visibility.Collapsed;
             LibraryRoot.Visibility = Visibility.Visible;
@@ -914,6 +930,7 @@ namespace ClawTweaksCenter
                 // Reachable for one frame: unfavoriting the last game while its own tab is on screen
                 // still redraws it before the tab strip drops the now-empty chip.
                 case LibraryGroup.Favorites: return "No favorites yet.";
+                case LibraryGroup.NotInstalled: return "No Steam library found on this device.";
                 case LibraryGroup.Roms:
                     if (!Library.PlayniteSource.IsPresent) return "Playnite is not installed.";
                     if (_romSystem == GameLibrary.RomRecentSystem) return "No ROM has been played yet.";
@@ -1372,13 +1389,11 @@ namespace ClawTweaksCenter
 
         private void CycleLibraryGroup(int delta)
         {
+            // Every tab is in the cycle, including the dimmed ones. The shoulders used to skip
+            // them, which made a visible tab unreachable from the pad - the exact trap this project
+            // has paid for before with controls that could be seen and not focused. A dimmed tab
+            // costs one shoulder press and answers a question; an unreachable one answers nothing.
             var values = new List<LibraryGroup>((LibraryGroup[])Enum.GetValues(typeof(LibraryGroup)));
-            // Same rule as the chip row: without Playnite the ROM tab is not in the cycle either,
-            // otherwise the shoulders stop on a tab that has nothing to show.
-            if (!Library.PlayniteSource.IsPresent) values.Remove(LibraryGroup.Roms);
-            if (!Library.FavoritesStore.Any()) values.Remove(LibraryGroup.Favorites);
-            if (!HasOtherStoreGames) values.Remove(LibraryGroup.OtherStores);
-            if (!HasNotInstalledGames) values.Remove(LibraryGroup.NotInstalled);
             if (values.Count == 0) return;
 
             int i = values.IndexOf(_libraryGroup) + delta;

@@ -231,17 +231,26 @@ namespace ClawTweaksCenter
                 UiHelpers.Text, "Choose cover",
                 () => { if (Library.SteamGridDb.HasKey) OpenArtPicker(); }));
 
-            // Renaming and removing exist only for entries the USER added by hand. A Steam or Xbox
+            // Renaming and removing apply only to entries the USER added by hand. A Steam or Xbox
             // game comes from a scan: a new name would be overwritten by the next one and a deleted
             // entry would simply come back, so both would be buttons that undo themselves.
-            if (GameMenuTargetIsMisc)
-            {
-                stack.Children.Add(GameMenuRow("", "Rename…",
-                    "Also looks for new cover art", UiHelpers.Text, "Rename", OpenRename));
+            //
+            // Greyed with the reason rather than hidden, which is the same shape as the cover-art
+            // row directly above: that one has always stayed put and said "Set a SteamGridDB key in
+            // Settings first" instead of vanishing. Hiding them also moved every row below as the
+            // cursor crossed from an added app to a scanned game, so the menu changed height while
+            // the shelf behind it scrolled.
+            bool ownEntry = GameMenuTargetIsMisc;
 
-                stack.Children.Add(GameMenuRow("", "Remove from library",
-                    "Deletes the entry, not the app", UiHelpers.Text, "Remove", RemoveMiscGameFromMenu));
-            }
+            stack.Children.Add(GameMenuRow("", "Rename…",
+                ownEntry ? "Also looks for new cover art" : "Only for apps you added yourself",
+                ownEntry ? UiHelpers.Text : UiHelpers.Subtle, "Rename",
+                () => { if (GameMenuTargetIsMisc) OpenRename(); }));
+
+            stack.Children.Add(GameMenuRow("", "Remove from library",
+                ownEntry ? "Deletes the entry, not the app" : "Only for apps you added yourself",
+                ownEntry ? UiHelpers.Text : UiHelpers.Subtle, "Remove",
+                () => { if (GameMenuTargetIsMisc) RemoveMiscGameFromMenu(); }));
 
             if (_gameMenuIndex >= _gameMenuActions.Count) _gameMenuIndex = _gameMenuActions.Count - 1;
             if (_gameMenuIndex < 0) _gameMenuIndex = 0;
