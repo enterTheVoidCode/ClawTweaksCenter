@@ -132,6 +132,16 @@ namespace ClawTweaksCenter
         private int _exitPromptIndex;
         private readonly List<Border> _exitPromptRows = new List<Border>();
 
+        // What each row DOES, filled in the same call that builds the row (AddExitPromptRow). Kept
+        // beside the rows rather than as a switch over indices: four of these rows end the session,
+        // and a switch drifts silently the first time somebody inserts a row above them.
+        private readonly List<Action> _exitPromptActions = new List<Action>();
+
+        /// <summary>Why the last press did nothing, shown under the heading. Only ever set when an
+        /// action could not be delivered - the prompt stays up, because dismissing it looks exactly
+        /// like a press that worked.</summary>
+        private string _exitPromptNote;
+
         /// <summary>True while one of the launch screens is up. Everything that navigates the grid
         /// checks this - the launch screens own the whole library area while they are on it.</summary>
         private bool LaunchOverlayOpen => _launchPrompt != LaunchPrompt.None || _exitPromptOpen || _infoOpen;
@@ -585,7 +595,7 @@ namespace ClawTweaksCenter
             RefreshTabStrip();
             RenderLibrary();
             RefreshActionBar();
-            if (!_libraryScanned && !_libraryScanning) _ = ScanLibraryAsync();
+            RefreshLibrarySilently();
 
             // Straight into the immersive look, no two-second grace: the footer is meant to be gone
             // in this mode, and showing it for two seconds on every entry is the flicker the mode is
@@ -608,6 +618,30 @@ namespace ClawTweaksCenter
             if (LibraryRoot != null) LibraryRoot.Visibility = Visibility.Collapsed;
             if (ContentScroller != null) ContentScroller.Visibility = Visibility.Visible;
             if (ShellHeader != null) ShellHeader.Visibility = Visibility.Visible;
+        }
+
+        /// <summary>
+        /// A refresh that leaves the screen alone while it runs.
+        ///
+        /// The difference to RescanFromInstall is one line - _libraryScanned STAYS true - and that
+        /// line is the whole point. With it false the grid empties and "Reading your stores..." takes
+        /// the screen: the right answer the first time, and a flicker every time after. Here the list
+        /// that is already up stays up, and each store repaints it as it lands.
+        ///
+        /// Called on EVERY library entry and again once a game ends, because both are moments when
+        /// the answer has genuinely changed. History.Note writes the play at LAUNCH time, but the
+        /// entries the Recent reel sorts were built during the previous scan - so without this,
+        /// Recent keeps the order it had when the library was first opened, and the game you just
+        /// played is missing from the one tab that exists to show it. That was the "press Y to see
+        /// it" report.
+        ///
+        /// The first call still scans the ordinary way: with nothing scanned yet the spinner is the
+        /// honest screen, and the guard below is the only thing this method adds to it.
+        /// </summary>
+        private void RefreshLibrarySilently()
+        {
+            if (_libraryScanning) return;
+            _ = ScanLibraryAsync();
         }
 
         private async System.Threading.Tasks.Task ScanLibraryAsync()
@@ -1097,6 +1131,13 @@ namespace ClawTweaksCenter
         private readonly List<int> _libRowStarts = new List<int>();
         private readonly List<int> _libRowCounts = new List<int>();
 
+        // The LISTBOX item index of each tile row, which is NOT derivable from the tile index. With
+        // grouping on, Items also carries the heading rows, and a group's last row stops early - so
+        // "tile index / columns" drifts one item further off with every group above the cursor. That
+        // drift is why the grid stopped following the cursor downwards whenever grouping was on: the
+        // selection kept moving, while ScrollIntoView was handed a row well above the one to show.
+        private readonly List<int> _libRowItemIndex = new List<int>();
+
         private UIElement BuildGrid()
         {
             MeasureGridMetrics();
@@ -1104,6 +1145,7 @@ namespace ClawTweaksCenter
             var rows = new List<LibraryRow>();
             _libRowStarts.Clear();
             _libRowCounts.Clear();
+            _libRowItemIndex.Clear();
 
             int index = 0;
             while (index < _libraryGames.Count)
@@ -1123,6 +1165,9 @@ namespace ClawTweaksCenter
 
                 _libRowStarts.Add(index);
                 _libRowCounts.Add(slice.Count);
+                // Recorded BEFORE the row goes in, so it is the position this row is about to take.
+                // Any heading for this group is already in the list at this point and counted.
+                _libRowItemIndex.Add(rows.Count);
                 rows.Add(new LibraryRow { Owner = this, FirstIndex = index, Items = slice });
                 index += slice.Count;
             }
@@ -1341,12 +1386,7 @@ namespace ClawTweaksCenter
         {
             if (_libRowStarts.Count == 0) return _libSelectedIndex + delta * _libColumns;
 
-            int row = -1;
-            for (int i = 0; i < _libRowStarts.Count; i++)
-            {
-                if (_libSelectedIndex < _libRowStarts[i]) break;
-                row = i;
-            }
+            int row = RowForTile(_libSelectedIndex);
             if (row < 0) return _libSelectedIndex;
 
             int target = row + delta;
@@ -1362,10 +1402,40 @@ namespace ClawTweaksCenter
             foreach (var row in _liveRows) row.ApplySelection(_libSelectedIndex);
         }
 
+        /// <summary>The tile row holding a given tile, or -1 before the first BuildGrid.</summary>
+        private int RowForTile(int tileIndex)
+        {
+            int row = -1;
+            for (int i = 0; i < _libRowStarts.Count; i++)
+            {
+                if (tileIndex < _libRowStarts[i]) break;
+                row = i;
+            }
+            return row;
+        }
+
         private void ScrollSelectionIntoView()
         {
             if (_libList?.Items == null) return;
-            int itemIndex = _libReelMode ? _libSelectedIndex : (_libColumns > 0 ? _libSelectedIndex / _libColumns : 0);
+
+            int itemIndex;
+            if (_libReelMode)
+            {
+                // One item per tile in the reel, so the tile index IS the item index.
+                itemIndex = _libSelectedIndex;
+            }
+            else
+            {
+                // The row map is the authority wherever it exists. The column arithmetic below is
+                // only for the moment before the first BuildGrid, and it is correct ONLY when every
+                // row is full and nothing else shares the list - which is exactly why it must not be
+                // the normal path.
+                int row = RowForTile(_libSelectedIndex);
+                itemIndex = row >= 0 && row < _libRowItemIndex.Count
+                    ? _libRowItemIndex[row]
+                    : (_libColumns > 0 ? _libSelectedIndex / _libColumns : 0);
+            }
+
             if (itemIndex < 0 || itemIndex >= _libList.Items.Count) return;
             try { _libList.ScrollIntoView(_libList.Items[itemIndex]); } catch { }
         }
@@ -2354,6 +2424,13 @@ namespace ClawTweaksCenter
                 // would greet the user with a line claiming a game is running that just stopped.
                 if (_launchPrompt == LaunchPrompt.Running) ClearLaunchOverlay();
 
+                // The game that just ended is the newest thing Recent has, and nothing else on this
+                // path picks it up: the play was noted at LAUNCH time into the history file, while
+                // the entries the reel sorts came out of the previous scan. Guarded on the view
+                // because a game can end while the user is somewhere else entirely, and a scan for a
+                // screen nobody is looking at is work for nothing - the next entry refreshes anyway.
+                if (_view == View.Library) RefreshLibrarySilently();
+
                 // Covers both ways the window could be out of sight: minimized (the normal case for
                 // this path) and hidden-to-tray (RunInBackground On) if the user closed it by hand
                 // while this same tracker was still watching the game it started before that.
@@ -2542,7 +2619,32 @@ namespace ClawTweaksCenter
                 stack.Children.Add(badges);
             }
 
-            host.Children.Add(stack);
+            // Layer 5 - the two profile panels, one either side of the cover.
+            //
+            // THREE COLUMNS, star / auto / star. The centre column takes exactly the width the cover
+            // and the headline need; the two star columns split what is left, and each panel is
+            // centred inside its own column - so a panel sits midway between the cover and the edge
+            // of the screen rather than being pinned to either. That also means the panels cannot
+            // push the cover off centre, however long a line in them gets.
+            var sides = new Grid();
+            sides.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            sides.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            sides.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(stack, 1);
+            sides.Children.Add(stack);
+
+            var details = game == null ? null : Library.ClawProfileDetails.For(game);
+            if (details != null)
+            {
+                // Performance on the left, controller on the right - the side each one is on is the
+                // whole navigation here, so it is fixed rather than "whichever exists".
+                var left = BuildProfilePanel(Core.Loc.T("Performance"), details.Performance, 0);
+                if (left != null) sides.Children.Add(left);
+                var right = BuildProfilePanel(Core.Loc.T("Controller"), details.Controller, 2);
+                if (right != null) sides.Children.Add(right);
+            }
+
+            host.Children.Add(sides);
             LibraryRoot.Children.Add(host);
 
             if (game != null)
@@ -2575,6 +2677,76 @@ namespace ClawTweaksCenter
                     RefreshActionBar();
                 }), TaskScheduler.Default);
         }
+
+        /// <summary>
+        /// One of the two profile panels beside the cover, or null when the profile sets nothing on
+        /// that side.
+        ///
+        /// NULL RATHER THAN AN EMPTY BOX. A panel headed "Controller" with nothing under it says the
+        /// profile is empty, when what it usually means is that this game has no controller profile
+        /// at all - and the reader only ever emits a line for a value that IS set, so an empty list
+        /// is the normal case rather than a fault.
+        ///
+        /// Not focusable and not in any navigation order: this screen asks one question with two
+        /// answers (A and B), and anything the stick could land on turns that into navigation. The
+        /// panels are here to be READ while deciding, which is why they carry no controls.
+        /// </summary>
+        private UIElement BuildProfilePanel(string heading, List<Library.ProfileLine> lines, int column)
+        {
+            if (lines == null || lines.Count == 0) return null;
+
+            var stack = new StackPanel { MaxWidth = 260 };
+            stack.Children.Add(new TextBlock
+            {
+                Text = heading,
+                FontSize = 12,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = UiHelpers.Subtle,
+                Margin = new Thickness(0, 0, 0, 10),
+            });
+
+            foreach (var line in lines)
+            {
+                // Label above value, not side by side: the labels differ in length by a factor of
+                // three ("HDR" against "Efficient Aggressive At Guaranteed"), and a two-column layout
+                // either wraps the value or leaves most of the panel empty.
+                var row = new StackPanel { Margin = new Thickness(0, 0, 0, 8) };
+                row.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T(line.Label),
+                    FontSize = 11,
+                    Foreground = UiHelpers.Subtle,
+                });
+                row.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T(line.Value),
+                    FontSize = 15,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = UiHelpers.Text,
+                    TextWrapping = TextWrapping.Wrap,
+                });
+                stack.Children.Add(row);
+            }
+
+            var border = new Border
+            {
+                Child = stack,
+                Background = LaunchPanelFill,
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(16, 14, 16, 14),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(24, 0, 24, 0),
+            };
+            Grid.SetColumn(border, column);
+            return border;
+        }
+
+        /// <summary>Darker than the card colour and semi-transparent: these boxes sit on the game's
+        /// own artwork, and an opaque card would read as a dialog over the picture rather than as
+        /// something written on it.</summary>
+        private static readonly Brush LaunchPanelFill =
+            Freeze(new SolidColorBrush(Color.FromArgb(0x99, 0x10, 0x10, 0x14)));
 
         private static UIElement LaunchBadge(string text, bool lit)
         {
@@ -3115,6 +3287,7 @@ namespace ClawTweaksCenter
             if (LaunchOverlayOpen || _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen) return;
             _exitPromptOpen = true;
             _exitPromptIndex = 0;
+            _exitPromptNote = null;
             RenderExitPrompt();
             RefreshActionBar();
         }
@@ -3123,6 +3296,7 @@ namespace ClawTweaksCenter
         {
             _exitPromptOpen = false;
             _exitPromptRows.Clear();
+            _exitPromptActions.Clear();
             RenderLibrary();
             RefreshActionBar();
         }
@@ -3132,6 +3306,7 @@ namespace ClawTweaksCenter
             LibraryRoot.Children.Clear();
             LibraryRoot.RowDefinitions.Clear();
             _exitPromptRows.Clear();
+            _exitPromptActions.Clear();
 
             var stack = new StackPanel
             {
@@ -3148,17 +3323,166 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 0, 0, 16),
             });
 
-            // Ordered by how much they throw away: least first. Tray keeps everything, Start screen
-            // keeps the process, Close keeps nothing.
-            stack.Children.Add(ExitPromptRow(0, "\uE7C4", "Minimize to tray", "Center keeps running."));
-            stack.Children.Add(ExitPromptRow(1, "\uE80F", "Center start screen", "Leave the library open."));
-            stack.Children.Add(ExitPromptRow(2, "\uE711", "Close Center", "Ends Center completely."));
+            if (!string.IsNullOrEmpty(_exitPromptNote))
+                stack.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T(_exitPromptNote),
+                    FontSize = 14,
+                    Foreground = UiHelpers.Warn,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 12),
+                });
+
+            // \u26A0\uFE0F LEAVING CENTER IS ONE ROW, NOT TWO. "Minimize to tray" and "Close Center" both stood
+            // here, and with Run in background OFF they did the SAME THING: the minimize row calls
+            // Close(), and the Closing handler exits when there is no tray to go to. Two rows, one
+            // outcome, and nothing on screen said which. The setting decides which row exists at all.
+            //
+            // Ordered by how much each throws away, least first - so the row order differs between
+            // the two cases rather than the label just swapping in place.
+            if (Core.CenterSettings.RunInBackground)
+                AddExitPromptRow(stack, "\uE921", "Minimize", "Center keeps running.",
+                    () => { _exitPromptOpen = false; Close(); });
+
+            AddExitPromptRow(stack, "\uE80F", "Center start screen", "Leave the library open.",
+                () => { _exitPromptOpen = false; _exitPromptRows.Clear(); _exitPromptActions.Clear(); GoHome(); });
+
+            if (!Core.CenterSettings.RunInBackground)
+                AddExitPromptRow(stack, "\uE711", "Close Center", "Ends Center completely.",
+                    () => Application.Current.Shutdown());
+
+            // THE DEVICE, not Center - which is why the four sit inside ONE card. They are the same
+            // kind of decision as each other and a different kind from the rows above, and four
+            // free-standing rows made the screen read as seven unrelated choices.
+            //
+            // Every one is the helper's own PowerAction verb, the same the Game Bar power tile sends,
+            // so Center carries no power code at all. Reboot to firmware is deliberately left out: it
+            // is the only verb whose mis-press cannot be undone by waiting.
+            //
+            // RESTART LAST. Sleep and Hibernate come back to where you were, Shut down does not, and
+            // Restart is the longest way round of the four - so the list runs from the cheapest to
+            // the most expensive, the same rule as the rows above it.
+            //
+            // Sleep and Hibernate keep their English names in every language on purpose; they are
+            // what Windows itself calls these states here. Restart and Shut down are translated.
+            var power = new StackPanel();
+            AddExitPromptRow(power, "\uE708", "Sleep", "Keeps your session in memory.",
+                () => SendPowerAction("sleep"), inCard: true);
+            AddExitPromptRow(power, "\uE74E", "Hibernate", "Saves your session to disk.",
+                () => SendPowerAction("hibernate"), inCard: true);
+            AddExitPromptRow(power, "\uE7E8", "Shut down", "Closes everything and powers off.",
+                () => SendPowerAction("poweroff"), inCard: true);
+            AddExitPromptRow(power, "\uE777", "Restart", "Closes everything and starts again.",
+                () => SendPowerAction("reboot"), inCard: true);
+
+            stack.Children.Add(new Border
+            {
+                Child = power,
+                Background = UiHelpers.Card,
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(6),
+                Margin = new Thickness(0, 6, 0, 0),
+                MinWidth = 520,
+                HorizontalAlignment = HorizontalAlignment.Center,
+            });
 
             LibraryRoot.Children.Add(stack);
             ApplyExitPromptSelection();
         }
 
-        private Border ExitPromptRow(int index, string glyph, string title, string subtitle)
+        /// <summary>Adds one row and the thing it does, in one call. The index is taken from the list
+        /// rather than passed in: two hand-kept sequences over the same positions is how the wrong row
+        /// gets triggered the moment somebody inserts one, and four of these rows now end the
+        /// session.</summary>
+        private void AddExitPromptRow(StackPanel stack, string glyph, string title, string subtitle,
+                                      Action activate, bool inCard = false)
+        {
+            int index = _exitPromptRows.Count;
+            _exitPromptActions.Add(activate);
+            stack.Children.Add(ExitPromptRow(index, glyph, title, subtitle, inCard));
+        }
+
+        /// <summary>
+        /// Hands a power action to the helper, and says so when there is nobody to hand it to.
+        ///
+        /// Center owns no power code by design. The helper already runs elevated and holds the
+        /// shutdown privilege, and it is the single place that knows what these words mean on this
+        /// device - its "sleep" turns the display off and lets the machine drift into Modern Standby,
+        /// because there is no API to force S0. A second implementation here would be a second answer
+        /// to that question, and the two would drift.
+        /// </summary>
+        /// <summary>Guards against a second press while the first is still connecting - the connect
+        /// can take a couple of seconds, and two shutdown requests in flight is not something to find
+        /// out about afterwards.</summary>
+        private bool _powerActionBusy;
+
+        private async void SendPowerAction(string action)
+        {
+            if (_powerActionBusy) return;
+            _powerActionBusy = true;
+            try
+            {
+                // ⚠️ THE PIPE IS NOT CONNECTED HERE, and assuming it was is what made the first
+                // version of this report "the helper is not running" on a machine where it plainly
+                // was. Center's shared HelperPipeClient is only ever connected from inside the
+                // onboarding, maintenance and uninstall flows; nothing on the library path had ever
+                // needed it, so IsConnected was simply false and SendRequest returned false without
+                // going near the helper. The message was true about the PIPE and wrong about the
+                // thing the user was being told about.
+                if (_helperPipe == null)
+                {
+                    ShowPowerActionFailed(action, "no pipe client");
+                    return;
+                }
+
+                if (!_helperPipe.IsConnected)
+                {
+                    _exitPromptNote = null;
+                    // Short, because this is a keypress and not a setup step: a healthy helper binds
+                    // in well under a second, and the flows that wait 45 s are doing it while the
+                    // user watches a progress screen.
+                    bool ok = await _helperPipe.ConnectAsync(
+                        TimeSpan.FromSeconds(6), m => Core.InstallLog.Write(m));
+                    if (!ok)
+                    {
+                        ShowPowerActionFailed(action, "could not reach the helper");
+                        return;
+                    }
+                }
+
+                if (!_helperPipe.SendRequest("PowerAction", action))
+                {
+                    ShowPowerActionFailed(action, "the pipe rejected the write");
+                    return;
+                }
+
+                Core.InstallLog.Write($"Power action '{action}' sent to the helper.");
+
+                // Sleep and Hibernate come back to a live Center, so the prompt has to be gone by
+                // then. For restart and shut down nobody sees this, and it costs nothing.
+                CloseExitPrompt();
+            }
+            catch (Exception ex)
+            {
+                // async void: an escaping exception here takes the PROCESS, not just the press.
+                ShowPowerActionFailed(action, ex.Message);
+            }
+            finally { _powerActionBusy = false; }
+        }
+
+        /// <summary>The prompt STAYS UP with a line saying why. Closing it would look exactly like a
+        /// press that worked, while the device is still on.</summary>
+        private void ShowPowerActionFailed(string action, string why)
+        {
+            Core.InstallLog.Write($"Power action '{action}' not sent - {why}.");
+            _exitPromptNote = "ClawTweaks is not running. Start it and try again.";
+            if (_exitPromptOpen) RenderExitPrompt();
+        }
+
+        /// <summary>One selectable row. <paramref name="inCard"/> drops its own background and most
+        /// of its margin, because inside the power card the CARD is the surface - a second card
+        /// colour on every row would draw four boxes inside a box and undo the grouping.</summary>
+        private Border ExitPromptRow(int index, string glyph, string title, string subtitle, bool inCard = false)
         {
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             text.Children.Add(new TextBlock { Text = Core.Loc.T(title), FontSize = 18, Foreground = UiHelpers.Text });
@@ -3194,15 +3518,17 @@ namespace ClawTweaksCenter
             var row = new Border
             {
                 Child = grid,
-                Background = UiHelpers.Card,
-                CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(16, 12, 16, 12),
-                Margin = new Thickness(0, 0, 0, 10),
+                Background = inCard ? Brushes.Transparent : UiHelpers.Card,
+                CornerRadius = new CornerRadius(inCard ? 7 : 10),
+                Padding = new Thickness(16, inCard ? 9 : 12, 16, inCard ? 9 : 12),
+                Margin = new Thickness(0, 0, 0, inCard ? 0 : 10),
                 BorderThickness = new Thickness(2),
                 BorderBrush = Brushes.Transparent,
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Tag = index,
-                MinWidth = 520,
+                // The card carries the width for its own rows; setting it here too would fight the
+                // card's padding and push the rows past its rounded edge.
+                MinWidth = inCard ? 0 : 520,
             };
             int captured = index;
             row.MouseLeftButtonUp += (_, __) => { _exitPromptIndex = captured; ActivateExitPromptRow(); };
@@ -3225,26 +3551,17 @@ namespace ClawTweaksCenter
             ApplyExitPromptSelection();
         }
 
+        /// <summary>Runs whatever the selected row was built with. The bounds check is the whole
+        /// safety net: an index that no longer has a row behind it now does NOTHING, where the old
+        /// switch fell through to its default and shut Center down.
+        ///
+        /// Row 0 uses Close(), not Hide(): the Closing handler already knows what closing means on
+        /// this machine, and with Run in background off it exits instead - the honest answer when
+        /// there is no tray to minimize into.</summary>
         private void ActivateExitPromptRow()
         {
-            switch (_exitPromptIndex)
-            {
-                case 0:
-                    // Close(), not Hide(): the Closing handler already knows what closing means on
-                    // this machine. With Run in background off it exits instead, which is the honest
-                    // answer - there is no tray to minimize into.
-                    _exitPromptOpen = false;
-                    Close();
-                    return;
-                case 1:
-                    _exitPromptOpen = false;
-                    _exitPromptRows.Clear();
-                    GoHome();
-                    return;
-                default:
-                    Application.Current.Shutdown();
-                    return;
-            }
+            if (_exitPromptIndex < 0 || _exitPromptIndex >= _exitPromptActions.Count) return;
+            _exitPromptActions[_exitPromptIndex]();
         }
         #endregion
 

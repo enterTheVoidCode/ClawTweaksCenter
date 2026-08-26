@@ -51,7 +51,7 @@ namespace ClawTweaksCenter
 
         private void RenderCenterSettings()
         {
-            ContentHost.Children.Clear();
+            BeginContent(centred: false);
             _centerSettingsRows.Clear();
 
             var stack = new StackPanel { MaxWidth = 940 };

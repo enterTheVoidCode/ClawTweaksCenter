@@ -72,7 +72,7 @@ namespace ClawTweaksCenter
         // ── Render ─────────────────────────────────────────────────────────────────────────────
         private void RenderMaintenance()
         {
-            ContentHost.Children.Clear();
+            BeginContent(centred: false);
             _maintSelectedCard = null;
 
             switch (_maintPage)

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml.Linq;
@@ -38,15 +38,44 @@ namespace ClawTweaksCenter.Library
         /// <summary>Full exe paths that have a performance profile with Use=true.</summary>
         private static List<string> _perfPaths = new List<string>();
 
+        /// <summary>Performance profile path -> the XML it was read from, so the launch screen can
+        /// go back to the file for the VALUES without scanning the folder a second time.</summary>
+        private static Dictionary<string, string> _perfFiles =
+            new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
         /// <summary>Full exe paths that have a per-game controller profile.</summary>
         private static List<string> _ctrlPaths = new List<string>();
 
-        private static string LocalState => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-            "Packages", "MSIClaw.ClawTweaks_7eszav2039cvc", "LocalState");
+        /// <summary>
+        /// THE TWO KINDS LIVE UNDER DIFFERENT PACKAGES, and that is not a mistake in this file - it is
+        /// the state of the app repo. The helper resolves its profile folder through
+        /// ProfileManager.GetLocalFolderPath, which still names the ORIGINAL GoTweaks package; the
+        /// widget's own LocalState, and with it controller-profiles.tsv, is under the ClawTweaks one.
+        /// Measured on this device 2026-08-26: profiles\Animal Well.xml sat under PlayandBuildCustom
+        /// while Center was reading MSIClaw.ClawTweaks - so the performance badge could not appear for
+        /// ANY game, on any machine, and read as "that game has no profile".
+        ///
+        /// BOTH are searched for BOTH kinds, deliberately. Naming one package per kind would be a
+        /// second place that has to be edited on the day the app repo finally unifies them, and the
+        /// failure it causes is silent - a missing badge, which is exactly what this comment exists
+        /// because of. Searching both costs one Directory.Exists on a folder that is not there.
+        /// </summary>
+        private static readonly string[] LocalStates = BuildLocalStates();
+
+        private static string[] BuildLocalStates()
+        {
+            string packages = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages");
+            return new[]
+            {
+                Path.Combine(packages, "PlayandBuildCustom.10365195AA1EC_8edemd50ez3gg", "LocalState"),
+                Path.Combine(packages, "MSIClaw.ClawTweaks_7eszav2039cvc", "LocalState"),
+            };
+        }
 
         public static void Refresh()
         {
+            _perfFiles = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             _perfPaths = ReadPerformanceProfiles();
             _ctrlPaths = ReadControllerMirror();
         }
@@ -73,25 +102,40 @@ namespace ClawTweaksCenter.Library
             return kinds;
         }
 
-        private static bool Matches(List<string> paths, GameEntry game)
+        private static bool Matches(List<string> paths, GameEntry game) =>
+            MatchedPath(paths, game) != null;
+
+        /// <summary>The path from <paramref name="paths"/> that belongs to this game, or null.
+        /// ONE rule, two callers: the badge asks whether there is one, the launch screen asks which
+        /// one. A second copy of the matching would drift from this one.</summary>
+        private static string MatchedPath(List<string> paths, GameEntry game)
         {
-            if (paths.Count == 0) return false;
+            if (game == null || paths.Count == 0) return null;
 
             if (!string.IsNullOrEmpty(game.ExePath))
             {
                 foreach (string p in paths)
-                    if (string.Equals(p, game.ExePath, StringComparison.OrdinalIgnoreCase)) return true;
+                    if (string.Equals(p, game.ExePath, StringComparison.OrdinalIgnoreCase)) return p;
             }
 
-            if (string.IsNullOrEmpty(game.InstallDir)) return false;
+            if (string.IsNullOrEmpty(game.InstallDir)) return null;
 
             string dir = Normalise(game.InstallDir);
-            if (dir.Length == 0) return false;
+            if (dir.Length == 0) return null;
 
             foreach (string p in paths)
-                if (Normalise(p).StartsWith(dir, StringComparison.OrdinalIgnoreCase)) return true;
+                if (Normalise(p).StartsWith(dir, StringComparison.OrdinalIgnoreCase)) return p;
 
-            return false;
+            return null;
+        }
+
+        /// <summary>The performance profile XML for this game, or null. READ ONLY - see the class
+        /// warning: the helper rewrites this file from memory on its next save.</summary>
+        public static string PerformanceFileFor(GameEntry game)
+        {
+            string path = MatchedPath(_perfPaths, game);
+            if (path == null) return null;
+            return _perfFiles.TryGetValue(path, out string file) ? file : null;
         }
 
         /// <summary>Trailing separator included, so "…\Game" cannot match "…\Game2".</summary>
@@ -115,30 +159,36 @@ namespace ClawTweaksCenter.Library
         private static List<string> ReadPerformanceProfiles()
         {
             var paths = new List<string>();
+            foreach (string root in LocalStates) ReadPerformanceProfilesFrom(root, paths);
+            return paths;
+        }
+
+        private static void ReadPerformanceProfilesFrom(string root, List<string> paths)
+        {
             try
             {
-                string dir = Path.Combine(LocalState, "profiles");
-                if (!Directory.Exists(dir)) return paths;
+                string dir = Path.Combine(root, "profiles");
+                if (!Directory.Exists(dir)) return;
 
                 foreach (string file in Directory.GetFiles(dir, "*.xml"))
                 {
                     try
                     {
-                        var doc = XDocument.Load(file);
-                        var root = doc.Root;
-                        if (root == null) continue;
+                        var xml = XDocument.Load(file).Root;
+                        if (xml == null) continue;
 
-                        string use = (string)root.Element("Use");
+                        string use = (string)xml.Element("Use");
                         if (!string.Equals(use, "true", StringComparison.OrdinalIgnoreCase)) continue;
 
-                        string path = (string)root.Element("GameId")?.Element("Path");
-                        if (!string.IsNullOrWhiteSpace(path)) paths.Add(path);
+                        string path = (string)xml.Element("GameId")?.Element("Path");
+                        if (string.IsNullOrWhiteSpace(path)) continue;
+                        paths.Add(path);
+                        _perfFiles[path] = file;
                     }
                     catch { /* one unreadable profile must not lose the rest */ }
                 }
             }
             catch { }
-            return paths;
         }
 
         /// <summary>
@@ -151,20 +201,23 @@ namespace ClawTweaksCenter.Library
         private static List<string> ReadControllerMirror()
         {
             var paths = new List<string>();
-            try
+            foreach (string root in LocalStates)
             {
-                string file = Path.Combine(LocalState, "controller-profiles.tsv");
-                if (!File.Exists(file)) return paths;
-
-                foreach (string line in File.ReadAllLines(file))
+                try
                 {
-                    if (string.IsNullOrWhiteSpace(line)) continue;
-                    int tab = line.IndexOf('\t');
-                    string exe = tab > 0 ? line.Substring(0, tab) : line;
-                    if (!string.IsNullOrWhiteSpace(exe)) paths.Add(exe.Trim());
+                    string file = Path.Combine(root, "controller-profiles.tsv");
+                    if (!File.Exists(file)) continue;
+
+                    foreach (string line in File.ReadAllLines(file))
+                    {
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+                        int tab = line.IndexOf('\t');
+                        string exe = tab > 0 ? line.Substring(0, tab) : line;
+                        if (!string.IsNullOrWhiteSpace(exe)) paths.Add(exe.Trim());
+                    }
                 }
+                catch { }
             }
-            catch { }
             return paths;
         }
     }

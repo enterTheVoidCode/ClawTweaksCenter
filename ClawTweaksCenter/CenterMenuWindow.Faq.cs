@@ -40,21 +40,23 @@ namespace ClawTweaksCenter
         private static readonly FaqEntry[] FaqEntries =
         {
             new FaqEntry("What is the virtual controller for?",
-                "It replaces the Claw's own gamepad with one ClawTweaks drives.",
-                "Button remaps, gyro and per-game controller profiles need it.",
-                "Without it the gamepad still works, but those settings do nothing.",
-                "Turn it on in Onboarding. It switches itself back if no pad appears."),
+                "It is the standard mode in ClawTweaks.",
+                "Your Claw's own gamepad is hidden and replaced by a virtual one.",
+                "That is what makes the extra controller features possible.",
+                "Front and M back-button mapping, gyro with smoothing, per-game profiles.",
+                "Firmware button remapping is there too, and works without it."),
 
             new FaqEntry("Do I have to switch MSI Center M off?",
-                "Yes, if ClawTweaks should own the controller, the fan and the LEDs.",
+                "Yes, if ClawTweaks should control the controller, the fan and the LEDs.",
                 "Both write the same hardware, and the last one to write wins.",
-                "Onboarding switches it off. Uninstall ClawTweaks switches it back on."),
+                "Onboarding lists it as a to-do the first time you install ClawTweaks.",
+                "One click in the widget or in Center brings Center M back."),
 
-            new FaqEntry("How do I uninstall everything?",
-                "Open Uninstall ClawTweaks on the start screen and work down the list.",
-                "Step 1 puts the charge limit, the fan and the controller back.",
-                "Do that before removing the app: afterwards nothing can undo them.",
-                "The last step removes Center and always works."),
+            new FaqEntry("How do I uninstall and go back to MSI Center M?",
+                "Do not remove ClawTweaks through the Windows app list.",
+                "Use Uninstall ClawTweaks here in Center instead.",
+                "It resets the charge limit, the fan and the controller first.",
+                "It walks you through every step."),
 
             new FaqEntry("Why does ClawTweaks ask for admin rights?",
                 "Once, at the first install, to register its background task.",
@@ -78,11 +80,6 @@ namespace ClawTweaksCenter
                 "No. The library runs on its own, without the Game Bar.",
                 "Only the ClawTweaks widget lives in the Game Bar.",
                 "Set the library as the screen Center opens on in Library Settings."),
-
-            new FaqEntry("The MSI button does not open the widget.",
-                "Open Onboarding and enter the slot ClawTweaks sits at in the Game Bar.",
-                "The helper hops to that slot; it cannot read the position itself.",
-                "Raise \"Wait before jumping\" in the widget if a game is busy."),
         };
 
         // ── Entry ──────────────────────────────────────────────────────────────────────────────
@@ -97,7 +94,7 @@ namespace ClawTweaksCenter
         // ── Render ─────────────────────────────────────────────────────────────────────────────
         private void RenderFaq()
         {
-            ContentHost.Children.Clear();
+            BeginContent(centred: false);
             _faqSelectedCard = null;
 
             ContentHost.Children.Add(UiHelpers.Title("FAQ"));

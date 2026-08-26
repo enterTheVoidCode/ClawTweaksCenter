@@ -592,7 +592,7 @@ namespace ClawTweaksCenter
 
         private void RenderInstallDone()
         {
-            ContentHost.Children.Clear();
+            BeginContent(centred: false);
 
             // CENTRED BOTH WAYS, and the vertical half needs help: ContentHost is a StackPanel inside
             // a ScrollViewer, so it is arranged at its natural height and sits at the top no matter
@@ -697,40 +697,51 @@ namespace ClawTweaksCenter
 
         /// <summary>A on the Home screen: opens whichever of the 3 tiles the controller cursor is on,
         /// or the Center download page when the cursor is on the update notice above them.</summary>
+        /// <summary>
+        /// One switch over named positions. Every cell has a constant now, including the three that
+        /// used to be bare numbers - which they could stay only while the library was NOT the first
+        /// tile. It is, so "case 0" and "case HomeLibraryIndex" would be the same label.
+        /// </summary>
         private void ActivateHomeTile()
         {
-            // Center settings first: without ClawTweaks installed it sits at index 3, which is
-            // the library's number when there IS a library. One comparison against the property
-            // rather than two switch tables that have to agree.
-            if (_homeSelectedIndex == HomeCenterSettingsIndex) { OpenCenterSettings(); return; }
-            if (_homeSelectedIndex == HomeLeaveIndex) { OpenLeave(); return; }
-            if (_homeSelectedIndex == HomeFaqIndex) { OpenFaq(); return; }
-
             switch (_homeSelectedIndex)
             {
                 case -1: OpenCenterDownloadPage(); break;
-                case 0: OpenBrowse(); break;
-                case 1: OpenOnboarding(); break;
-                case 2: OpenMaintenance(); break;
                 case HomeLibraryIndex: OpenLibrary(); break;
+                case HomeBrowseIndex: OpenBrowse(); break;
+                case HomeMaintenanceIndex: OpenMaintenance(); break;
+                case HomeOnboardingIndex: OpenOnboarding(); break;
+                case HomeCenterSettingsIndex: OpenCenterSettings(); break;
                 case HomeLibrarySettingsIndex: OpenLibrarySettingsFromHome(); break;
+                case HomeFaqIndex: OpenFaq(); break;
+                case HomeLeaveIndex: OpenLeave(); break;
             }
         }
 
+        // ── Where each Home tile sits, reading left to right, top to bottom ─────────────────────
+        //
+        // THE FIRST ROW IS THE ANSWER TO "what did I open Center for". The library leads it, because
+        // on a device that is already set up that is every visit; the builds tile is beside it,
+        // because on the first visit that is the only one that matters. Backup and restore keeps the
+        // cell it had.
+        //
+        // Onboarding moved DOWN out of the first row. It is a once-per-device screen, and it was
+        // sitting in the second-most prominent cell on every visit after that one.
+
+        /// <summary>First row: library, builds, maintenance.</summary>
+        private const int HomeLibraryIndex = 0;
+        private const int HomeBrowseIndex = 1;
+        private const int HomeMaintenanceIndex = 2;
+
+        /// <summary>Second row: onboarding, then the two settings screens.</summary>
+        private const int HomeOnboardingIndex = 3;
+
         /// <summary>
-        /// Where the Center settings tile sits.
-        ///
-        /// It is ALWAYS on the screen, unlike the two library tiles - the language lives behind it,
-        /// and a machine where ClawTweaks is not installed yet is exactly the machine whose owner is
-        /// reading install instructions they may not be able to read. So it takes the free cell after
-        /// the library pair when there is one, and starts the second row when there is not.
+        /// Center's own settings. ALWAYS on the screen - the language lives behind it, and a machine
+        /// where ClawTweaks is not installed yet is exactly the machine whose owner is reading
+        /// install instructions they may not be able to read.
         /// </summary>
         private const int HomeCenterSettingsIndex = 4;
-
-        /// <summary>The second row, left to right: the library, Center's settings, the library's
-        /// settings. Center's sits BETWEEN the two library tiles because that is where the free cell
-        /// was - the library settings moved right into it and left the middle open.</summary>
-        private const int HomeLibraryIndex = 3;
         private const int HomeLibrarySettingsIndex = 5;
 
         /// <summary>Highest selectable Home tile: the library settings when there is a library,
@@ -814,9 +825,27 @@ namespace ClawTweaksCenter
             };
         }
 
-        private void RenderHome()
+        /// <summary>
+        /// Clears the shared content panel and says how this screen sits in it.
+        ///
+        /// EVERY screen goes through here rather than clearing the panel itself, and that is the
+        /// point: the alignment is shared state on one StackPanel, so a screen that forgets to set it
+        /// inherits whatever the screen before it wanted. With eleven callers, "reset it everywhere
+        /// except one place" is not a rule anybody can keep - passing it on every call is.
+        ///
+        /// Centred only on Home. It has eight tiles and always fits, so centring is what it looks
+        /// like; the other screens are lists that can outgrow the window, and once content is taller
+        /// than the viewport the ScrollViewer takes over and the alignment stops meaning anything.
+        /// </summary>
+        private void BeginContent(bool centred)
         {
             ContentHost.Children.Clear();
+            ContentHost.VerticalAlignment = centred ? VerticalAlignment.Center : VerticalAlignment.Stretch;
+        }
+
+        private void RenderHome()
+        {
+            BeginContent(centred: true);
 
             // Center's OWN update, above everything else — it's the one thing on this screen that
             // changes the app the user is looking at. Distinct from the "Update available on GitHub"
@@ -856,33 +885,34 @@ namespace ClawTweaksCenter
             // was the other half of why they differed - the "coming soon" tiles carried a third line.
             var tiles = new UniformGrid { Columns = 3 };
 
-            tiles.Children.Add(BuildHomeTile(
-                "", "Update & Release", "Install releases, test builds and nightlies.",
-                clickable: true, onClick: () => { _homeSelectedIndex = 0; OpenBrowse(); },
-                selected: _homeSelectedIndex == 0));
-
-            tiles.Children.Add(BuildHomeTile(
-                "", "Onboarding", "Set up Center M, controller and Game Bar.",
-                clickable: true, onClick: () => { _homeSelectedIndex = 1; OpenOnboarding(); },
-                selected: _homeSelectedIndex == 1));
-
-            tiles.Children.Add(BuildHomeTile(
-                "", "Reset · Backup · Restore", "Reset the app, or back up your profiles.",
-                clickable: true, onClick: () => { _homeSelectedIndex = 2; OpenMaintenance(); },
-                selected: _homeSelectedIndex == 2));
-
-            // The second row, and its ORDER IS THE POINT: library, Center settings, library
-            // settings. Center's tile took the MIDDLE cell rather than the free one on the end -
-            // the library settings moved right into that, so the row reads library first and the
-            // two settings screens after it.
-            //
-            // Both library tiles need ClawTweaks installed; without it there is nothing to open and
-            // nothing to configure, so they are absent rather than greyed out. Center's own settings
-            // are NOT gated that way - see HomeCenterSettingsIndex.
+            // THE FIRST ROW ANSWERS "what did I open Center for". The library leads it, because on a
+            // device that is already set up that is every visit; the builds tile sits beside it,
+            // because on the FIRST visit that is the only one that matters. Backup and restore keeps
+            // the cell it had.
             tiles.Children.Add(BuildHomeTile(
                 "", "Game Library", "Play your Steam, Epic and Xbox games.",
                 clickable: true, onClick: () => { _homeSelectedIndex = HomeLibraryIndex; OpenLibrary(); },
                 selected: _homeSelectedIndex == HomeLibraryIndex));
+
+            tiles.Children.Add(BuildHomeTile(
+                "", "Update & Release", "Install releases, test builds and nightlies.",
+                clickable: true, onClick: () => { _homeSelectedIndex = HomeBrowseIndex; OpenBrowse(); },
+                selected: _homeSelectedIndex == HomeBrowseIndex));
+
+            tiles.Children.Add(BuildHomeTile(
+                "", "Reset · Backup · Restore", "Reset the app, or back up your profiles.",
+                clickable: true, onClick: () => { _homeSelectedIndex = HomeMaintenanceIndex; OpenMaintenance(); },
+                selected: _homeSelectedIndex == HomeMaintenanceIndex));
+            // Second row. Onboarding came DOWN out of the first row: it is a once-per-device screen
+            // that was holding the second-most prominent cell on every visit after that one. The two
+            // settings screens follow it.
+            //
+            // Center's own settings are never gated on ClawTweaks being installed - see
+            // HomeCenterSettingsIndex.
+            tiles.Children.Add(BuildHomeTile(
+                "", "Onboarding", "Set up Center M, controller and Game Bar.",
+                clickable: true, onClick: () => { _homeSelectedIndex = HomeOnboardingIndex; OpenOnboarding(); },
+                selected: _homeSelectedIndex == HomeOnboardingIndex));
 
             tiles.Children.Add(BuildHomeTile(
                 "", "Center Settings", "Choose the language and how the window opens.",
@@ -895,10 +925,9 @@ namespace ClawTweaksCenter
                 clickable: true,
                 onClick: () => { _homeSelectedIndex = HomeLibrarySettingsIndex; OpenLibrarySettingsFromHome(); },
                 selected: _homeSelectedIndex == HomeLibrarySettingsIndex));
-
-            // The last two, and both present whether or not ClawTweaks is installed: the FAQ
-            // answers questions about software that is not there yet, and the uninstall tile is the
-            // one that still has something to do when everything else here is gone.
+            // The last two, both present whether or not ClawTweaks is installed: the FAQ answers
+            // questions about software that is not there yet, and the uninstall tile is the one that
+            // still has something to do when everything else here is gone.
             tiles.Children.Add(BuildHomeTile(
                 "", "FAQ", "Answers to the questions that come up most.",
                 clickable: true,
@@ -958,7 +987,7 @@ namespace ClawTweaksCenter
         /// greyed out, instead of blindly offering to redo something that's already correct.</summary>
         private void RenderOnboarding()
         {
-            ContentHost.Children.Clear();
+            BeginContent(centred: false);
             ContentHost.Children.Add(UiHelpers.Title("Onboarding"));
             ContentHost.Children.Add(UiHelpers.Body(
                 "Helps set the most important ClawTweaks settings."));
@@ -1347,7 +1376,7 @@ namespace ClawTweaksCenter
         #region Build list rendering + grid navigation
         private void RenderBrowse()
         {
-            ContentHost.Children.Clear();
+            BeginContent(centred: false);
             _rowElements.Clear();
             // "Release" and "build" are developer words. The three channels are named for what
             // they are to somebody choosing one: the main version, a test version, an experimental
@@ -1867,7 +1896,13 @@ namespace ClawTweaksCenter
                 // "Exit" only when it exits. With Run in background on, this hides the window and
                 // Center stays in the tray - a chip promising one and doing the other is how the
                 // feature reads as broken to someone who never opened the settings.
-                AddAction(PadButton.B, Core.CenterSettings.RunInBackground ? "To tray" : "Exit",
+                //
+                // "Minimize" rather than "To tray": it is the SAME WORD the library's leave prompt
+                // uses for the same outcome, and one screen calling it the tray while the other calls
+                // it minimizing reads as two different things. Shutdown() is still correct here - it
+                // closes every window through Close(), and the Closing handler in Tray.cs cancels the
+                // whole shutdown and hides instead.
+                AddAction(PadButton.B, Core.CenterSettings.RunInBackground ? "Minimize" : "Exit",
                     true, () => Application.Current.Shutdown());
                 return;
             }
@@ -2024,7 +2059,7 @@ namespace ClawTweaksCenter
             _pendingBuild = build;
             _confirming = true;
 
-            ContentHost.Children.Clear();
+            BeginContent(centred: false);
 
             if (IsBlocked(build, out string blockReason))
             {
@@ -2105,7 +2140,7 @@ namespace ClawTweaksCenter
             // Ⓨ resumes the SAME build without downloading it again (reuseStaged).
             _recheckLabel = recheckLabel;
             _recheckAction = () => _ = InstallSelectedAsync(build, reuseStaged: true);
-            ContentHost.Children.Clear();
+            BeginContent(centred: false);
             ContentHost.Children.Add(screen);
             RefreshActionBar();
         }
@@ -2492,7 +2527,7 @@ namespace ClawTweaksCenter
             Grid.SetColumn(right, 1);
             layout.Children.Add(right);
 
-            ContentHost.Children.Clear();
+            BeginContent(centred: false);
             ContentHost.Children.Add(layout);
 
             left.Children.Add(UiHelpers.Title($"Installing {build.Version}"));
@@ -2530,7 +2565,7 @@ namespace ClawTweaksCenter
             var historyPanel = new StackPanel();
             right.Children.Add(new TextBlock
             {
-                Text = "Status", FontSize = 15, Foreground = UiHelpers.Subtle, Margin = new Thickness(0, 0, 0, 8),
+                Text = Core.Loc.T("Status"), FontSize = 15, Foreground = UiHelpers.Subtle, Margin = new Thickness(0, 0, 0, 8),
             });
             right.Children.Add(statusPanel);
             right.Children.Add(historyPanel);

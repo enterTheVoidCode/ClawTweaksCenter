@@ -65,7 +65,7 @@ namespace ClawTweaksCenter
         // ── Render ─────────────────────────────────────────────────────────────────────────────
         private void RenderLeave()
         {
-            ContentHost.Children.Clear();
+            BeginContent(centred: false);
             _leaveSelectedCard = null;
 
             if (_leavePage == LeavePage.Confirm) { RenderLeaveConfirm(); RefreshActionBar(); return; }
