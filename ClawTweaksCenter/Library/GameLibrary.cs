@@ -392,9 +392,21 @@ namespace ClawTweaksCenter.Library
         /// itself, so GameRunTracker falls back to watching the install directory for those instead
         /// of pretending this Process handle means anything.
         /// </summary>
+        /// <summary>
+        /// Whether the last launch had to start Steam itself, rather than finding it already
+        /// running. Read by the running screen, which says the wait will be longer when it is true.
+        ///
+        /// A STATIC rather than a second out parameter: it is a fact about how long the user is
+        /// about to wait, not about whether the launch worked, and every caller that does not draw a
+        /// screen would otherwise have to declare a variable for it. Reset on every launch, so it is
+        /// never the answer for the game before this one.
+        /// </summary>
+        public static bool LastLaunchStartedSteam { get; private set; }
+
         public static bool Launch(GameEntry game, out Process startedProcess)
         {
             startedProcess = null;
+            LastLaunchStartedSteam = false;
             if (game == null) return false;
 
             // Misc entries were resolved once, when the user added them, and know exactly which of
@@ -432,7 +444,7 @@ namespace ClawTweaksCenter.Library
             // The steam:// handler starts Steam when it is not running, and Steam then comes up with
             // its full window in front of the game - which is why it only ever happens on the FIRST
             // launch after a boot. Starting it ourselves, silently, first is the whole fix.
-            PrewarmSteamIfNeeded(game.LaunchUri);
+            LastLaunchStartedSteam = PrewarmSteamIfNeeded(game.LaunchUri);
 
             try
             {
@@ -456,10 +468,11 @@ namespace ClawTweaksCenter.Library
         /// </summary>
         public static bool OpenSteamUri(string uri)
         {
+            LastLaunchStartedSteam = false;
             if (string.IsNullOrWhiteSpace(uri)) return false;
             try
             {
-                PrewarmSteamIfNeeded(uri);
+                LastLaunchStartedSteam = PrewarmSteamIfNeeded(uri);
                 Process.Start(new ProcessStartInfo { FileName = uri, UseShellExecute = true });
                 return true;
             }
@@ -485,17 +498,20 @@ namespace ClawTweaksCenter.Library
         /// If anything here fails, the URI is fired anyway: a visible Steam window is a nuisance, a
         /// game that does not start is a defect.
         /// </summary>
-        private static void PrewarmSteamIfNeeded(string launchUri)
+        /// <returns>True when Steam was NOT running and this call started it - which is the one
+        /// case where the wait before the game appears is noticeably longer, and the only reason the
+        /// running screen has anything to say about Steam.</returns>
+        private static bool PrewarmSteamIfNeeded(string launchUri)
         {
             try
             {
-                if (launchUri == null || !launchUri.StartsWith("steam:", StringComparison.OrdinalIgnoreCase)) return;
-                if (Process.GetProcessesByName("steam").Length > 0) return;
+                if (launchUri == null || !launchUri.StartsWith("steam:", StringComparison.OrdinalIgnoreCase)) return false;
+                if (Process.GetProcessesByName("steam").Length > 0) return false;
 
                 string root = SteamSource.SteamPath();
-                if (root == null) return;
+                if (root == null) return false;
                 string exe = System.IO.Path.Combine(root, "steam.exe");
-                if (!System.IO.File.Exists(exe)) return;
+                if (!System.IO.File.Exists(exe)) return false;
 
                 Process.Start(new ProcessStartInfo
                 {
@@ -512,8 +528,22 @@ namespace ClawTweaksCenter.Library
                     if (Process.GetProcessesByName("steam").Length > 0) break;
                     System.Threading.Thread.Sleep(100);
                 }
+                return true;
             }
-            catch { }
+            catch { return false; }
+        }
+
+        /// <summary>
+        /// Starts Steam in the tray if it is not running, outside any launch.
+        ///
+        /// Behind CenterSettings.StartSteamWithLibrary and called when the library opens. It blocks
+        /// for as long as five seconds waiting for the process, so the caller has to be off the UI
+        /// thread - which is also why it is a separate entry point rather than the launch path's own
+        /// prewarm with a different argument: at launch that wait is the launch, here it is not.
+        /// </summary>
+        public static bool PrewarmSteam()
+        {
+            return PrewarmSteamIfNeeded("steam://");
         }
     }
 }

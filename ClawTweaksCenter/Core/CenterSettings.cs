@@ -177,6 +177,27 @@ namespace ClawTweaksCenter.Core
             set => WriteBool("LibraryInfoSeen", value);
         }
 
+        /// <summary>
+        /// Start Steam, silently, when the library opens.
+        ///
+        /// WHAT IT BUYS: the first Steam game of a session otherwise waits for a cold client, and a
+        /// cold client started by the steam:// handler comes up with its full window in front of the
+        /// game. The launch path already prewarms it (GameLibrary.PrewarmSteamIfNeeded); doing it
+        /// when the library opens moves that wait to a moment where nobody is waiting on it.
+        ///
+        /// OFF BY DEFAULT, and it stays that way. Starting somebody else's application on their
+        /// behalf is a thing to opt into, not to discover - and on a machine with no Steam games it
+        /// would be pure cost.
+        ///
+        /// "-silent" is Steam's own switch for coming up in the tray only. It is what keeps this out
+        /// of the way of the library it was started from.
+        /// </summary>
+        public static bool StartSteamWithLibrary
+        {
+            get => ReadBool("StartSteamWithLibrary", false);
+            set => WriteBool("StartSteamWithLibrary", value);
+        }
+
         public static bool RunInBackground
         {
             get => ReadBool("RunInBackground", false);

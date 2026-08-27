@@ -115,6 +115,32 @@ namespace ClawTweaksCenter
         private GameEntry _launchTarget;
 
         /// <summary>
+        /// How long after a launch the running screen says "starting" rather than "running".
+        ///
+        /// A CLOCK, NOT A SIGNAL, and deliberately so. There is no reliable "the game is up" here -
+        /// every store launch hands back the launcher rather than the game (GameLibrary.Launch says
+        /// why), and the one component that answers this properly is the helper's game detection,
+        /// which Center does not hear from. A minute is long enough to cover a cold Steam plus a
+        /// shader build, and being wrong costs a line of text that is a minute stale.
+        /// </summary>
+        private static readonly TimeSpan LaunchStartingWindow = TimeSpan.FromSeconds(60);
+
+        private DateTime _launchStartedAt;
+
+        /// <summary>Whether the launch just gone had to start Steam - see
+        /// GameLibrary.LastLaunchStartedSteam. Copied at launch time rather than read at render
+        /// time, because a second launch would otherwise rewrite this screen's own history.</summary>
+        private bool _launchSteamColdStart;
+
+        /// <summary>Redraws the running screen once, when the starting window is up. Without it the
+        /// line only changes the next time something else happens to redraw the screen, which on a
+        /// game that is left running is never.</summary>
+        private DispatcherTimer _launchStartingTimer;
+
+        private bool LaunchStartingPhase =>
+            _launchStartedAt != default(DateTime) && DateTime.UtcNow - _launchStartedAt < LaunchStartingWindow;
+
+        /// <summary>
         /// B in the library asks instead of acting.
         ///
         /// It used to drop straight back to the start screen, and B is the button a thumb finds by
@@ -596,6 +622,7 @@ namespace ClawTweaksCenter
             RenderLibrary();
             RefreshActionBar();
             RefreshLibrarySilently();
+            if (Core.CenterSettings.StartSteamWithLibrary) PrewarmSteamInBackground();
 
             // Straight into the immersive look, no two-second grace: the footer is meant to be gone
             // in this mode, and showing it for two seconds on every entry is the flicker the mode is
@@ -607,6 +634,24 @@ namespace ClawTweaksCenter
                 RestartIdleTimer();
             }
 
+        }
+
+        /// <summary>
+        /// Starts Steam in the tray, off the UI thread, when the setting asks for it.
+        ///
+        /// OFF THE UI THREAD IS NOT OPTIONAL: the prewarm waits up to five seconds for Steam's
+        /// process, and this runs while the library is drawing itself.
+        ///
+        /// Nothing is reported back, and nothing should be. It is a courtesy that either happened or
+        /// did not - Steam already running is the normal outcome, and it is indistinguishable from
+        /// success from anywhere the user can see.
+        /// </summary>
+        private static void PrewarmSteamInBackground()
+        {
+            System.Threading.Tasks.Task.Run(() =>
+            {
+                try { Library.GameLibrary.PrewarmSteam(); } catch { }
+            });
         }
 
         /// <summary>Puts the build-list host back in front and restores the header. Called from
@@ -1915,11 +1960,12 @@ namespace ClawTweaksCenter
         private const int SettingsLaunchBehaviorRow = 3;
         private const int SettingsStartWithClawTweaksRow = 4;
         private const int SettingsRunInBackgroundRow = 5;
+        private const int SettingsStartSteamRow = 6;
 
         /// <summary>The key row, and it is ALWAYS the last one: it holds a text box, so it spans both
         /// columns and sits on its own line below the pairs. The navigation maths below derives the
         /// pair count from this, so adding a switch above it needs no other change.</summary>
-        private const int SettingsKeyRow = 6;
+        private const int SettingsKeyRow = 7;
 
         private const int SettingsColumns = 2;
 
@@ -1978,6 +2024,8 @@ namespace ClawTweaksCenter
                 Core.CenterSettings.StartCenterWithClawTweaks, null));
             pairs.Children.Add(BuildSettingRow(SettingsRunInBackgroundRow, "Run in background",
                 Core.CenterSettings.RunInBackground, null));
+            pairs.Children.Add(BuildSettingRow(SettingsStartSteamRow, "Start Steam with the library",
+                Core.CenterSettings.StartSteamWithLibrary, null));
             stack.Children.Add(pairs);
 
             var keyRow = BuildSettingRow(SettingsKeyRow, "SteamGridDB key", null, null);
@@ -2125,10 +2173,11 @@ namespace ClawTweaksCenter
                     if (next >= pairs) return;
                     break;
                 case PadButton.Up:
-                    // From the key row, back into the LAST pair row rather than to a fixed index -
-                    // with an odd number of switches the last row is half empty, and landing on a
-                    // cell that is not there would leave the cursor invisible.
-                    if (_settingsIndex == last) { next = Math.Max(0, pairs - SettingsColumns); break; }
+                    // From the key row, onto the LAST switch that exists rather than a fixed index.
+                    // With an odd number of switches the bottom row is half empty, so "one row up"
+                    // is a cell that is not there - and "pairs - columns" lands a whole row too high
+                    // in exactly that case, skipping the switch the cursor just came down past.
+                    if (_settingsIndex == last) { next = Math.Max(0, pairs - 1); break; }
                     if (_settingsIndex < SettingsColumns) return;
                     next = _settingsIndex - SettingsColumns;
                     break;
@@ -2175,6 +2224,13 @@ namespace ClawTweaksCenter
                     // Takes effect immediately, not just on the next launch - a tray icon that only
                     // appears after a restart would look like the toggle silently failed.
                     SyncTrayIcon();
+                    break;
+                case SettingsStartSteamRow:
+                    Core.CenterSettings.StartSteamWithLibrary = !Core.CenterSettings.StartSteamWithLibrary;
+                    // Turning it ON acts now rather than at the next library entry: the user is one
+                    // B press away from the library they just came out of, and a switch that only
+                    // works from the second visit onwards looks like one that did not work.
+                    if (Core.CenterSettings.StartSteamWithLibrary) PrewarmSteamInBackground();
                     break;
                 case SettingsKeyRow:
                     _artKeyBox?.Focus();
@@ -2356,6 +2412,13 @@ namespace ClawTweaksCenter
                 _library.History.SaveIfChanged();
             }
 
+            if (started)
+            {
+                _launchStartedAt = DateTime.UtcNow;
+                _launchSteamColdStart = GameLibrary.LastLaunchStartedSteam;
+                StartLaunchStartingTimer();
+            }
+
             _launchPrompt = started ? LaunchPrompt.Running : LaunchPrompt.Failed;
             RenderLaunchOverlay();
             RefreshActionBar();
@@ -2398,8 +2461,35 @@ namespace ClawTweaksCenter
             RefreshActionBar();
         }
 
+        /// <summary>
+        /// Arms the one redraw that moves the screen from "starting" to "running".
+        ///
+        /// One-shot: it stops itself on the first tick. A repeating timer would keep rebuilding a
+        /// screen that has nothing left to change on it, for as long as the game runs.
+        /// </summary>
+        private void StartLaunchStartingTimer()
+        {
+            _launchStartingTimer?.Stop();
+            _launchStartingTimer = new DispatcherTimer { Interval = LaunchStartingWindow };
+            _launchStartingTimer.Tick += (_, __) =>
+            {
+                _launchStartingTimer?.Stop();
+                _launchStartingTimer = null;
+                // Only if this screen is still the thing on it. The user can have pressed B, hidden
+                // Center or started something else in the meantime.
+                if (_launchPrompt != LaunchPrompt.Running || _optiWikiOpen) return;
+                RenderLaunchOverlay();
+                RefreshActionBar();
+            };
+            _launchStartingTimer.Start();
+        }
+
         private void ClearLaunchOverlay()
         {
+            _launchStartingTimer?.Stop();
+            _launchStartingTimer = null;
+            _launchStartedAt = default(DateTime);
+            _launchSteamColdStart = false;
             _launchPrompt = LaunchPrompt.None;
             _launchTarget = null;
             _optiWikiOpen = false;
@@ -2515,17 +2605,28 @@ namespace ClawTweaksCenter
             switch (_launchPrompt)
             {
                 case LaunchPrompt.Confirm:
-                    head = "Start " + title + "?";
+                    head = Core.Loc.F("Start {0}?", title);
                     sub = null;
                     break;
                 case LaunchPrompt.Running:
-                    head = title + " is running";
-                    sub = "Center comes back when the game ends.";
+                    // Two lines for one state, split on the clock - see LaunchStartingWindow. The
+                    // first minute is where a cold Steam, a launcher update and a shader build all
+                    // sit, and "X is running" over a black screen for that minute reads as a lie.
+                    if (LaunchStartingPhase)
+                    {
+                        head = Core.Loc.F("{0} is starting", title);
+                        sub = "This can take a moment.";
+                    }
+                    else
+                    {
+                        head = Core.Loc.F("{0} is running", title);
+                        sub = "The library comes back when the game ends.";
+                    }
                     break;
                 case LaunchPrompt.ConfirmInstall:
                     head = (game != null && game.DownloadTotalBytes > 0)
-                        ? title + " is downloading"
-                        : "Install " + title + "?";
+                        ? Core.Loc.F("{0} is downloading", title)
+                        : Core.Loc.F("Install {0}?", title);
                     sub = "Steam asks you where to put it.";
                     break;
                 case LaunchPrompt.InstallHandedOver:
@@ -2533,7 +2634,7 @@ namespace ClawTweaksCenter
                     sub = "Steam has taken over. Rescan the library when it is done.";
                     break;
                 default:
-                    head = "Could not start " + title + ".";
+                    head = Core.Loc.F("Could not start {0}.", title);
                     sub = null;
                     break;
             }
@@ -2642,6 +2743,45 @@ namespace ClawTweaksCenter
                 if (opti.HasWiki) badges.Children.Add(LaunchBadge(Core.Loc.T("OptiScaler wiki"), false));
 
                 stack.Children.Add(badges);
+            }
+
+            // Under the badges: the one thing that explains a longer than usual wait.
+            //
+            // NOT A BADGE, deliberately, even though it sits under a row of them. The badges above
+            // are STANDING FACTS about the game - a lit OptiClick badge says the same thing tomorrow.
+            // This says something is happening right now, and giving it the same shape would file it
+            // with the facts. The spinner is the whole difference: it is the one element on this
+            // screen that moves, and movement is what separates "still working" from "a label".
+            //
+            // ONLY WHILE STARTING, and only when we actually started Steam ourselves. Once the game
+            // is up it is no longer about anything, and on a machine where Steam was already running
+            // it never was - a permanent notice about a wait nobody is having teaches people to stop
+            // reading this area.
+            if (_launchPrompt == LaunchPrompt.Running && _launchSteamColdStart && LaunchStartingPhase)
+            {
+                var steamNote = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 16, 0, 0),
+                };
+
+                var spinner = Ui.GifSpinner.Create(22);
+                spinner.VerticalAlignment = VerticalAlignment.Center;
+                spinner.Margin = new Thickness(0, 0, 10, 0);
+                steamNote.Children.Add(spinner);
+
+                steamNote.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T("Steam starts first. This takes longer."),
+                    FontSize = 15,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = UiHelpers.Text,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    TextWrapping = TextWrapping.Wrap,
+                });
+
+                stack.Children.Add(steamNote);
             }
 
             // Layer 5 - the two profile panels, one either side of the cover.

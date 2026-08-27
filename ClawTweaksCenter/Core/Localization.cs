@@ -118,6 +118,28 @@ namespace ClawTweaksCenter.Core
             return table.TryGetValue(english, out string s) ? s : english;
         }
 
+        /// <summary>
+        /// A translated string with values filled in.
+        ///
+        /// THE FORMAT IS THE KEY, not the finished sentence, and that is the point. "Half-Life is
+        /// running" glues a name onto one end of an English sentence, and a language that puts it
+        /// somewhere else cannot be translated at all from that shape; "{0} is running" can.
+        ///
+        /// It never throws at render time. A translation whose placeholders were mistyped falls back
+        /// to the English format, and a broken English format returns the unformatted string - a
+        /// screen that reads slightly wrong beats a screen that does not come up.
+        /// </summary>
+        public static string F(string english, params object[] args)
+        {
+            string s = T(english);
+            if (args == null || args.Length == 0) return s;
+
+            try { return string.Format(CultureInfo.CurrentCulture, s, args); }
+            catch (FormatException) { }
+            try { return string.Format(CultureInfo.CurrentCulture, english, args); }
+            catch (FormatException) { return s; }
+        }
+
         /// <summary>The language's name IN THAT LANGUAGE. Somebody who has landed in a language they
         /// cannot read has to be able to find their way out, and "German" does not help them -
         /// "Deutsch" does.</summary>

@@ -18,9 +18,14 @@ namespace ClawTweaksCenter.Core
         // their one-line descriptions are translated. "Library" is the exception, and it is
         // translated everywhere it appears.
         //
-        // NOT IN HERE, and not by oversight: date format strings ("d MMM yyyy"), brand names, and
-        // anything carrying a {placeholder}. An interpolated string is built at runtime, so it can
-        // never match a key - those need the call site rewritten before a translation could show.
+        // NOT IN HERE, and not by oversight: date format strings ("d MMM yyyy") and brand names.
+        //
+        // A HANDFUL OF KEYS DO CARRY {0}, and they are the exception that proves the rule above: an
+        // INTERPOLATED string is built at runtime and can never match a key, so those call sites were
+        // rewritten to pass the format itself through Loc.F and fill it in afterwards. Translating
+        // the format rather than the finished sentence is what lets a language put the game name
+        // somewhere other than where English puts it. Everything still built by interpolation stays
+        // English, and stays out of here.
 
         private static readonly Dictionary<string, string> German = new Dictionary<string, string>
         {
@@ -68,7 +73,6 @@ namespace ClawTweaksCenter.Core
             ["CPU boost"] = "CPU-Boost",
             ["CTW Full Reset"] = "CTW ganz zur\u00FCcksetzen",
             ["Cancel"] = "Abbrechen",
-            ["Center comes back when the game ends."] = "Center kommt zur\u00FCck, wenn das Spiel endet.",
             ["Center home"] = "Center-Startseite",
             ["Center is how you update ClawTweaks and reset the device. Remove ClawTweaks first if you meant to remove both."] = "\u00DCber Center aktualisierst du ClawTweaks und setzt das Ger\u00E4t zur\u00FCck. Entferne erst ClawTweaks, wenn beides weg soll.",
             ["Center itself never asks for admin rights."] = "Center selbst fragt nie nach Adminrechten.",
@@ -434,6 +438,7 @@ namespace ClawTweaksCenter.Core
             ["The helper hops to that slot; it cannot read the position itself."] = "Der Helper springt dorthin; auslesen kann er die Position nicht.",
             ["The helper is not answering"] = "Der Helper antwortet nicht",
             ["The last step removes Center and always works."] = "Der letzte Schritt entfernt Center und geht immer.",
+            ["The library comes back when the game ends."] = "Die Bibliothek kommt nach Spielende zur\u00FCck.",
             ["The native controller must be clean before the virtual controller mode can work. In virtual mode the physical pad is hidden and one virtual VIIPER controller is active; in hardware mode the physical pad is used directly."] = "Der native Controller muss sauber sein, bevor der virtuelle Controller-Modus funktioniert. Im virtuellen Modus wird der physische Pad versteckt und ein virtueller VIIPER-Controller ist aktiv; im Hardware-Modus wird der physische Pad direkt benutzt.",
             ["The newest changes, least tested"] = "Die neuesten \u00C4nderungen, am wenigsten getestet",
             ["The old helper exited on its own."] = "Der alte Helper hat sich selbst beendet.",
@@ -529,6 +534,15 @@ namespace ClawTweaksCenter.Core
             ["\u2022 The hardware controller comes back"] = "\u2022 Der Hardware-Controller kommt zur\u00FCck",
             ["\u2022 The widget disappears from the Game Bar"] = "\u2022 Das Widget verschwindet aus der Game Bar",
             ["\u2022 Your profiles and settings are deleted with the app"] = "\u2022 Deine Profile und Einstellungen gehen mit der App",
+            ["Could not start {0}."] = "{0} konnte nicht starten.",
+            ["Install {0}?"] = "{0} installieren?",
+            ["Start Steam with the library"] = "Steam mit der Bibliothek starten",
+            ["Start {0}?"] = "{0} starten?",
+            ["Steam starts first. This takes longer."] = "Steam startet zuerst. Das dauert l\u00E4nger.",
+            ["This can take a moment."] = "Das kann einen Moment dauern.",
+            ["{0} is downloading"] = "{0} wird geladen",
+            ["{0} is running"] = "{0} l\u00E4uft",
+            ["{0} is starting"] = "{0} startet",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -577,7 +591,6 @@ namespace ClawTweaksCenter.Core
             ["CPU boost"] = "Boost CPU",
             ["CTW Full Reset"] = "Reset complet CTW",
             ["Cancel"] = "Annuler",
-            ["Center comes back when the game ends."] = "Center revient \u00E0 la fin du jeu.",
             ["Center home"] = "Accueil Center",
             ["Center is how you update ClawTweaks and reset the device. Remove ClawTweaks first if you meant to remove both."] = "C'est par Center que tu mets ClawTweaks \u00E0 jour et que tu restaures l'appareil. Supprime ClawTweaks d'abord si tu veux tout enlever.",
             ["Center itself never asks for admin rights."] = "Center lui-m\u00EAme ne demande jamais les droits admin.",
@@ -941,6 +954,7 @@ namespace ClawTweaksCenter.Core
             ["The helper hops to that slot; it cannot read the position itself."] = "Le helper saute jusque-l\u00E0 ; il ne peut pas lire la position.",
             ["The helper is not answering"] = "Le helper ne r\u00E9pond pas",
             ["The last step removes Center and always works."] = "La derni\u00E8re \u00E9tape supprime Center et fonctionne toujours.",
+            ["The library comes back when the game ends."] = "La biblioth\u00E8que revient \u00E0 la fin du jeu.",
             ["The native controller must be clean before the virtual controller mode can work. In virtual mode the physical pad is hidden and one virtual VIIPER controller is active; in hardware mode the physical pad is used directly."] = "La manette native doit \u00EAtre propre avant que le mode virtuel puisse fonctionner. En mode virtuel la manette physique est masqu\u00E9e et une manette VIIPER virtuelle est active ; en mode mat\u00E9riel la manette physique est utilis\u00E9e directement.",
             ["The newest changes, least tested"] = "Les changements les plus r\u00E9cents, les moins test\u00E9s",
             ["The old helper exited on its own."] = "L'ancien assistant s'est arr\u00EAt\u00E9 tout seul.",
@@ -1036,6 +1050,15 @@ namespace ClawTweaksCenter.Core
             ["\u2022 The hardware controller comes back"] = "\u2022 La manette mat\u00E9rielle revient",
             ["\u2022 The widget disappears from the Game Bar"] = "\u2022 Le widget dispara\u00EEt du Game Bar",
             ["\u2022 Your profiles and settings are deleted with the app"] = "\u2022 Tes profils et r\u00E9glages partent avec l'app",
+            ["Could not start {0}."] = "Impossible de d\u00E9marrer {0}.",
+            ["Install {0}?"] = "Installer {0} ?",
+            ["Start Steam with the library"] = "Lancer Steam avec la biblioth\u00E8que",
+            ["Start {0}?"] = "D\u00E9marrer {0} ?",
+            ["Steam starts first. This takes longer."] = "Steam d\u00E9marre d'abord. C'est plus long.",
+            ["This can take a moment."] = "Cela peut prendre un moment.",
+            ["{0} is downloading"] = "{0} se t\u00E9l\u00E9charge",
+            ["{0} is running"] = "{0} est en cours",
+            ["{0} is starting"] = "{0} d\u00E9marre",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -1084,7 +1107,6 @@ namespace ClawTweaksCenter.Core
             ["CPU boost"] = "CPU \uBD80\uC2A4\uD2B8",
             ["CTW Full Reset"] = "CTW \uC804\uCCB4 \uCD08\uAE30\uD654",
             ["Cancel"] = "\uCDE8\uC18C",
-            ["Center comes back when the game ends."] = "\uAC8C\uC784\uC774 \uB05D\uB098\uBA74 Center\uB85C \uB3CC\uC544\uC635\uB2C8\uB2E4.",
             ["Center home"] = "Center \uD648",
             ["Center is how you update ClawTweaks and reset the device. Remove ClawTweaks first if you meant to remove both."] = "Center\uB85C ClawTweaks\uB97C \uC5C5\uB370\uC774\uD2B8\uD558\uACE0 \uAE30\uAE30\uB97C \uB418\uB3CC\uB9BD\uB2C8\uB2E4. \uB458 \uB2E4 \uC9C0\uC6B0\uB824\uBA74 ClawTweaks\uB97C \uBA3C\uC800 \uC81C\uAC70\uD558\uC138\uC694.",
             ["Center itself never asks for admin rights."] = "Center \uC790\uCCB4\uB294 \uAD00\uB9AC\uC790 \uAD8C\uD55C\uC744 \uC694\uAD6C\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4.",
@@ -1451,6 +1473,7 @@ namespace ClawTweaksCenter.Core
             ["The helper hops to that slot; it cannot read the position itself."] = "\uD5EC\uD37C\uB294 \uADF8 \uC704\uCE58\uB85C \uC774\uB3D9\uD569\uB2C8\uB2E4. \uC704\uCE58\uB97C \uC9C1\uC811 \uC77D\uC744 \uC218\uB294 \uC5C6\uC2B5\uB2C8\uB2E4.",
             ["The helper is not answering"] = "\uD5EC\uD37C\uAC00 \uC751\uB2F5\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4",
             ["The last step removes Center and always works."] = "\uB9C8\uC9C0\uB9C9 \uB2E8\uACC4\uB294 Center\uB97C \uC81C\uAC70\uD558\uBA70 \uD56D\uC0C1 \uC2E4\uD589\uB429\uB2C8\uB2E4.",
+            ["The library comes back when the game ends."] = "\uAC8C\uC784\uC774 \uB05D\uB098\uBA74 \uB77C\uC774\uBE0C\uB7EC\uB9AC\uB85C \uB3CC\uC544\uC635\uB2C8\uB2E4.",
             ["The native controller must be clean before the virtual controller mode can work. In virtual mode the physical pad is hidden and one virtual VIIPER controller is active; in hardware mode the physical pad is used directly."] = "\uAC00\uC0C1 \uCEE8\uD2B8\uB864\uB7EC \uBAA8\uB4DC\uAC00 \uB3D9\uC791\uD558\uB824\uBA74 \uAE30\uBCF8 \uCEE8\uD2B8\uB864\uB7EC\uAC00 \uAE68\uB057\uD574\uC57C \uD569\uB2C8\uB2E4. \uAC00\uC0C1 \uBAA8\uB4DC\uC5D0\uC11C\uB294 \uBB3C\uB9AC \uD328\uB4DC\uAC00 \uC228\uACA8\uC9C0\uACE0 VIIPER \uAC00\uC0C1 \uCEE8\uD2B8\uB864\uB7EC\uAC00 \uD65C\uC131\uD654\uB418\uBA70, \uD558\uB4DC\uC6E8\uC5B4 \uBAA8\uB4DC\uC5D0\uC11C\uB294 \uBB3C\uB9AC \uD328\uB4DC\uB97C \uC9C1\uC811 \uC0AC\uC6A9\uD569\uB2C8\uB2E4.",
             ["The newest changes, least tested"] = "\uAC00\uC7A5 \uC0C8\uB85C\uC6B4 \uBCC0\uACBD, \uAC00\uC7A5 \uC801\uAC8C \uAC80\uC99D\uB428",
             ["The old helper exited on its own."] = "\uC774\uC804 \uD5EC\uD37C\uAC00 \uC2A4\uC2A4\uB85C \uC885\uB8CC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.",
@@ -1546,6 +1569,15 @@ namespace ClawTweaksCenter.Core
             ["\u2022 The hardware controller comes back"] = "\u2022 \uD558\uB4DC\uC6E8\uC5B4 \uCEE8\uD2B8\uB864\uB7EC\uAC00 \uB3CC\uC544\uC635\uB2C8\uB2E4",
             ["\u2022 The widget disappears from the Game Bar"] = "\u2022 \uC704\uC82F\uC774 \uAC8C\uC784 \uBC14\uC5D0\uC11C \uC0AC\uB77C\uC9D1\uB2C8\uB2E4",
             ["\u2022 Your profiles and settings are deleted with the app"] = "\u2022 \uD504\uB85C\uD544\uACFC \uC124\uC815\uB3C4 \uC571\uACFC \uD568\uAED8 \uC0AD\uC81C\uB429\uB2C8\uB2E4",
+            ["Could not start {0}."] = "{0}\uC744(\uB97C) \uC2DC\uC791\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4.",
+            ["Install {0}?"] = "{0} \uC124\uCE58\uD560\uAE4C\uC694?",
+            ["Start Steam with the library"] = "\uB77C\uC774\uBE0C\uB7EC\uB9AC\uC640 \uD568\uAED8 Steam \uC2DC\uC791",
+            ["Start {0}?"] = "{0} \uC2DC\uC791\uD560\uAE4C\uC694?",
+            ["Steam starts first. This takes longer."] = "Steam\uC774 \uBA3C\uC800 \uC2DC\uC791\uD569\uB2C8\uB2E4. \uB354 \uC624\uB798 \uAC78\uB9BD\uB2C8\uB2E4.",
+            ["This can take a moment."] = "\uC7A0\uC2DC \uAC78\uB9B4 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+            ["{0} is downloading"] = "{0} \uB2E4\uC6B4\uB85C\uB4DC \uC911",
+            ["{0} is running"] = "{0} \uC2E4\uD589 \uC911",
+            ["{0} is starting"] = "{0} \uC2DC\uC791 \uC911",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -1594,7 +1626,6 @@ namespace ClawTweaksCenter.Core
             ["CPU boost"] = "Boost de CPU",
             ["CTW Full Reset"] = "Restablecer todo CTW",
             ["Cancel"] = "Cancelar",
-            ["Center comes back when the game ends."] = "Center vuelve al terminar el juego.",
             ["Center home"] = "Inicio de Center",
             ["Center is how you update ClawTweaks and reset the device. Remove ClawTweaks first if you meant to remove both."] = "Con Center actualizas ClawTweaks y restauras el dispositivo. Quita antes ClawTweaks si quieres eliminar ambos.",
             ["Center itself never asks for admin rights."] = "Center nunca pide permisos de administrador.",
@@ -1960,6 +1991,7 @@ namespace ClawTweaksCenter.Core
             ["The helper hops to that slot; it cannot read the position itself."] = "El helper salta a esa posici\u00F3n; no puede leerla por su cuenta.",
             ["The helper is not answering"] = "El helper no responde",
             ["The last step removes Center and always works."] = "El \u00FAltimo paso quita Center y siempre funciona.",
+            ["The library comes back when the game ends."] = "La biblioteca vuelve al terminar el juego.",
             ["The native controller must be clean before the virtual controller mode can work. In virtual mode the physical pad is hidden and one virtual VIIPER controller is active; in hardware mode the physical pad is used directly."] = "El mando nativo debe estar limpio antes de que funcione el modo de mando virtual. En modo virtual el mando f\u00EDsico se oculta y hay un mando virtual VIIPER activo; en modo hardware se usa el mando f\u00EDsico directamente.",
             ["The newest changes, least tested"] = "Los cambios m\u00E1s nuevos, los menos probados",
             ["The old helper exited on its own."] = "El asistente anterior se cerr\u00F3 solo.",
@@ -2055,6 +2087,15 @@ namespace ClawTweaksCenter.Core
             ["\u2022 The hardware controller comes back"] = "\u2022 Vuelve el mando f\u00EDsico",
             ["\u2022 The widget disappears from the Game Bar"] = "\u2022 El widget desaparece de la Game Bar",
             ["\u2022 Your profiles and settings are deleted with the app"] = "\u2022 Tus perfiles y ajustes se borran con la app",
+            ["Could not start {0}."] = "No se pudo iniciar {0}.",
+            ["Install {0}?"] = "\u00BFInstalar {0}?",
+            ["Start Steam with the library"] = "Iniciar Steam con la biblioteca",
+            ["Start {0}?"] = "\u00BFIniciar {0}?",
+            ["Steam starts first. This takes longer."] = "Steam se inicia primero. Tarda m\u00E1s.",
+            ["This can take a moment."] = "Esto puede tardar un momento.",
+            ["{0} is downloading"] = "{0} se est\u00E1 descargando",
+            ["{0} is running"] = "{0} est\u00E1 en marcha",
+            ["{0} is starting"] = "{0} se est\u00E1 iniciando",
         };
 
     }
