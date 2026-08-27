@@ -1796,7 +1796,19 @@ namespace ClawTweaksCenter
         /// <summary>True while the tab strip should be showing plain labels without their counts.</summary>
         internal bool ImmersiveCountsHidden => _immersiveDim;
 
-        private bool ImmersiveActive => _view == View.Library && Core.CenterSettings.ImmersiveMode;
+        /// <summary>
+        /// Immersive mode belongs to ONE screen: the Recent shelf, in the library.
+        ///
+        /// The tab gate is not cosmetic. Recent is a single horizontal row of covers that speaks for
+        /// itself; every other tab is a grid with counts, filters and a scrollbar, where hiding the
+        /// chrome removes the only labels naming what the buttons do. And the setting is reachable
+        /// from a screen the user may be driving with a mouse on an external display, where "click
+        /// the right stick" is not an instruction they can follow.
+        /// </summary>
+        private bool ImmersiveActive =>
+            _view == View.Library
+            && _libraryGroup == LibraryGroup.Recent
+            && Core.CenterSettings.ImmersiveMode;
 
         /// <summary>
         /// Called on every pad press while the library is up. It does NOT undim anything.
@@ -1821,7 +1833,10 @@ namespace ClawTweaksCenter
         /// </summary>
         private void NoteTabChange()
         {
-            if (!ImmersiveActive) return;
+            // Leaving Recent leaves immersive mode, so this has to RESTORE rather than return. A
+            // bare return left the strip dimmed and the footer hidden on a grid tab, which is the
+            // same stuck state the way out of the library used to produce.
+            if (!ImmersiveActive) { StopImmersive(); return; }
             _immersiveDim = false;
             ApplyImmersiveChrome();
             RestartIdleTimer();
@@ -1871,17 +1886,36 @@ namespace ClawTweaksCenter
             _footerRevealTimer.Start();
         }
 
-        /// <summary>Puts everything back and stops both timers. Called on the way out of the library
-        /// and whenever the setting is turned off - a dimmed tab strip left behind on the start
-        /// screen would look like a rendering fault.</summary>
+        /// <summary>Puts everything back and stops both timers. Called on the way out of the library,
+        /// on the way off the Recent tab, and whenever the setting is turned off - a dimmed tab strip
+        /// left behind on the start screen would look like a rendering fault.</summary>
         private void StopImmersive()
         {
             _immersiveIdleTimer?.Stop();
             _footerRevealTimer?.Stop();
-            if (!_immersiveDim && !_footerRevealed) { ApplyImmersiveChrome(); return; }
             _immersiveDim = false;
             _footerRevealed = false;
             ApplyImmersiveChrome();
+
+            // ⚠️ And then put the chrome back WITHOUT consulting ImmersiveActive again.
+            //
+            // Both callers that leave the library run in this order:
+            //
+            //     LeaveLibrary();      // -> lands here
+            //     _view = View.Home;   // only afterwards
+            //
+            // so _view still reads Library while this executes, ApplyFooterVisibility recomputes
+            // footerHidden as true, and the footer is collapsed on the way OUT. Nothing outside the
+            // library ever writes FooterBar.Visibility again - the single assignment lives in
+            // ApplyFooterVisibility and both of its callers are library paths - so it stayed hidden
+            // on Home, on Maintenance and on the ClawTweaks update screen, next to a hint telling a
+            // mouse user on an external display to click the right stick.
+            //
+            // Restoring here rather than reordering those two callers is deliberate: the ordering is
+            // not this method's to enforce, and the next screen that leaves the library would have
+            // to remember it.
+            if (FooterBar != null) FooterBar.Visibility = Visibility.Visible;
+            if (ImmersiveHint != null) ImmersiveHint.Visibility = Visibility.Collapsed;
         }
 
         /// <summary>
