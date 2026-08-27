@@ -3294,7 +3294,7 @@ namespace ClawTweaksCenter
             };
             stack.Children.Add(new TextBlock
             {
-                Text = Core.Loc.T("Your ClawTweaks library"),
+                Text = Core.Loc.T("ClawTweaks Library Overview"),
                 FontSize = 26,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
@@ -3303,12 +3303,16 @@ namespace ClawTweaksCenter
 
             // Top line, above every heading: it is the one setting that changes what the user sees
             // on the NEXT start, so it belongs where it is read before anything else.
-            stack.Children.Add(InfoLead("Turn on Settings \u2192 Start in the library to open here every time."));
+            stack.Children.Add(InfoLead("Go into Library Settings and switch on Start in the library."));
 
             stack.Children.Add(InfoHeading("Your games"));
             stack.Children.Add(InfoLine("Shows your installed Steam, Xbox and Epic games."));
             stack.Children.Add(InfoLine("Steam cover art is found automatically."));
-            stack.Children.Add(InfoLine("Add ROMs in Playnite \u2014 they are imported from there."));
+            // One line, not three: this screen has no scroll viewer and was already clipping at the
+            // bottom. Playnite locks its database while it runs, so closing it is not a nicety - an
+            // open Playnite makes the ROMs unreadable. The instruction is on screen, the reason is
+            // not.
+            stack.Children.Add(InfoLine("Add ROMs in Playnite, then close it \u2014 they are found automatically."));
 
             // These four were one flat run of bullets, which read as four unrelated facts. They are
             // one task in order, so they get a heading and an indent under it.
@@ -3326,10 +3330,11 @@ namespace ClawTweaksCenter
                 TextTrimming = TextTrimming.CharacterEllipsis,
             });
 
-            stack.Children.Add(InfoHeading("Immersive mode"));
-            stack.Children.Add(InfoLine("Turn it on under Settings to show covers only."));
-
-            stack.Children.Add(InfoHeading("Full screen with AnyFSE"));
+            // The immersive-mode block used to sit here. It is gone because this screen clips, and
+            // it was the least load-bearing section on it: the setting explains itself where it
+            // lives, in Library Settings. The "Immersive mode" translation key stays - the settings
+            // row still uses it.
+            stack.Children.Add(InfoHeading("Use CTW Library with Windows Fullscreen Experience (FSE) via AnyFSE"));
             stack.Children.Add(InfoLine("Add ClawTweaks Center in AnyFSE as your full screen app.", indent: true));
             stack.Children.Add(InfoLine("Enter the path below, then turn on Start in the library.", indent: true));
             stack.Children.Add(BuildAnyFsePathRow());
