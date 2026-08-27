@@ -645,10 +645,17 @@ namespace ClawTweaksCenter
         /// </summary>
         private UIElement InstallDoneTile(string glyph, string title, string detail, int index, Action onClick)
         {
+            // Roomier than a Home tile, because this one can afford it: three stacked tiles down
+            // the middle of the screen have the width the Home grid does not, and at 30pt the glyph
+            // nearly touched the title inside a 46-wide column. Same reasoning - and roughly the same
+            // resulting gap - as the exit-prompt rows, which widened their column for exactly this.
             var tile = BuildHomeTile(glyph, title, detail, clickable: true,
                 onClick: () => { _installDoneIndex = index; onClick(); },
-                selected: _installDoneIndex == index);
-            tile.Width = 460;
+                selected: _installDoneIndex == index,
+                glyphColumn: 62, padding: new Thickness(24, 20, 24, 20));
+            // Widened with the padding, so the description keeps the room it had and does not start
+            // wrapping into a second line - the reason these are stacked rather than side by side.
+            tile.Width = 500;
             tile.Margin = new Thickness(0, 0, 0, 10);
             return tile;
         }
@@ -1155,7 +1162,15 @@ namespace ClawTweaksCenter
         /// puts its text at the same x - with the icon merely left-aligned, a narrow glyph and a wide
         /// one shifted their titles against each other across the row.
         /// </summary>
-        private Border BuildHomeTile(string glyph, string title, string detail, bool clickable, Action onClick = null, bool selected = false)
+        /// <param name="glyphColumn">Width of the icon column. The glyph is CENTRED in it, so this
+        /// is what sets the gap between icon and text - a margin on the text would not, because the
+        /// glyph's own width varies. The default is what the Home grid uses, where three tiles share
+        /// the row and every point spent here comes off the description.</param>
+        /// <param name="padding">Inner padding, for callers with a tile wide enough to afford more
+        /// than the Home grid can.</param>
+        private Border BuildHomeTile(string glyph, string title, string detail, bool clickable,
+            Action onClick = null, bool selected = false,
+            double glyphColumn = 46, Thickness? padding = null)
         {
             var icon = new TextBlock
             {
@@ -1185,7 +1200,7 @@ namespace ClawTweaksCenter
             Grid.SetColumn(text, 1);
 
             var layout = new Grid();
-            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(46) });
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(glyphColumn) });
             layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             layout.Children.Add(icon);
             layout.Children.Add(text);
@@ -1198,7 +1213,7 @@ namespace ClawTweaksCenter
             // The padding is derived from the ring thickness rather than written out per state, so
             // border + padding stays constant and a tile measures the same selected or not. Offset by
             // 1 because the unselected tile (1px) is the state the padding was authored against.
-            var tilePad = new Thickness(18, 16, 18, 16);
+            var tilePad = padding ?? new Thickness(18, 16, 18, 16);
 
             var border = new Border
             {

@@ -753,6 +753,31 @@ namespace ClawTweaksCenter
 
             Grid.SetRow((FrameworkElement)body, 2);
             LibraryRoot.Children.Add(body);
+
+            // ── PUT THE CURSOR BACK ON SCREEN ───────────────────────────────────────────────────
+            //
+            // BuildReel and BuildGrid hand back a BRAND-NEW ListBox every time, so the scroll offset
+            // is 0 again while _libSelectedIndex - a field - survives untouched. Cursor and covers
+            // therefore disagree: the selection visuals and A/Start still act on the right game, and
+            // that game is off screen, with the view sitting on the first tile. Reported for Recent
+            // after leaving the game menu or the launch screen; it is not a Recent problem, it is
+            // every path that re-renders - tab switch, art fetch, scan round, overlay close.
+            //
+            // Queued at Loaded priority, not called straight away: the list has not been measured
+            // yet at this point, and ScrollIntoView on an unmeasured, unrealised virtualising panel
+            // does nothing at all. Same reasoning, same fix as BringChipIntoView above.
+            //
+            // The identity check is what makes it safe to queue: a second render can land before
+            // this runs, and scrolling a ListBox that is no longer on screen would move the cursor
+            // of a view the user has already left.
+            var builtList = _libList;
+            if (builtList != null && ReferenceEquals(body, builtList))
+            {
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (ReferenceEquals(_libList, builtList)) ScrollSelectionIntoView();
+                }), DispatcherPriority.Loaded);
+            }
         }
 
         /// <summary>
