@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -111,8 +111,48 @@ namespace ClawTweaksCenter.Library
             int rr = p.Int("RefreshRate");
             if (rr > 0) Add(lines, "Refresh rate", rr + " Hz");
 
+            // Resolution and scaling. Both are plain elements in this file and always have been -
+            // they were simply never read here, which is why a profile that drops the game to 720p
+            // and stretches it looked, from the launch screen, exactly like one that did neither.
+            // They belong next to each other: scaling only does anything while the game runs BELOW
+            // the panel's native resolution, so "Stretch" on its own says nothing about whether it
+            // is in play.
+            string res = p.Text("Resolution");
+            if (!string.IsNullOrWhiteSpace(res)) Add(lines, "Resolution", res);
+
+            AddScaling(p, lines);
+
             if (p.Bool("HDREnabled") == true) Add(lines, "HDR", "On");
         }
+
+        /// <summary>
+        /// Scaling as ONE line, labelled by its mode, in the words the widget puts on screen.
+        ///
+        /// The method names are NOT interchangeable between modes and this must not flatten them:
+        /// GPU scaling offers Centered / Stretch / Preserve Aspect Ratio, Retro scaling offers
+        /// Integer / Nearest Neighbour, and the stored index means a different thing in each. Reading
+        /// index 1 as "Stretch" while the mode says Retro would print a setting that cannot exist.
+        ///
+        /// Mode 0 is deliberately nothing: the widget does not offer it, because at the panel's
+        /// native resolution the driver takes Identity and ignores the setting anyway.
+        /// </summary>
+        private static void AddScaling(Reader p, List<ProfileLine> lines)
+        {
+            int mode = p.Int("IntelScalingMode");
+            if (mode <= 0) return;
+
+            string[] methods = mode == RetroScalingMode
+                ? new[] { "Integer", "Nearest Neighbour" }
+                : new[] { "Centered", "Stretch", "Preserve Aspect Ratio" };
+
+            int method = p.Int("IntelScalingMethod");
+            if (method < 0 || method >= methods.Length) return;
+
+            Add(lines, mode == RetroScalingMode ? "Retro scaling" : "GPU scaling", methods[method]);
+        }
+
+        /// <summary>The driver's own value for retro scaling, mirrored from the widget's combo tags.</summary>
+        private const int RetroScalingMode = 2;
 
         /// <summary>
         /// The cap, resolved the way the helper resolves it (Program.ProfileHandlers): FpsCapMode 1
