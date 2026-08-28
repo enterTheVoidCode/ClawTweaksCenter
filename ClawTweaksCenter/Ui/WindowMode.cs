@@ -86,6 +86,20 @@ namespace ClawTweaksCenter.Ui
                                 debounce.Stop();
                                 if (!IsFullscreen(window)) return;
 
+                                // ONLY WHEN THE WINDOW IS ACTUALLY WRONG. Without this it ran the
+                                // leave/enter cycle on every display event, and that cycle is visible:
+                                // reported as Center flickering three times at start and twice after a
+                                // game exits. Most of those events change nothing about our bounds -
+                                // a refresh-rate switch, a second adapter settling, the same mode being
+                                // re-applied - so the repair ran where there was nothing to repair.
+                                //
+                                // A borderless maximized window covers the primary screen exactly, so
+                                // "do the bounds match the screen" IS the question. Two DIPs of slack
+                                // because rounding at fractional scale factors is not a mismatch.
+                                if (Math.Abs(window.ActualWidth - SystemParameters.PrimaryScreenWidth) < 2
+                                 && Math.Abs(window.ActualHeight - SystemParameters.PrimaryScreenHeight) < 2)
+                                    return;
+
                                 // The same cycle the toggle performs. Leave first so WPF recomputes
                                 // the bounds for the mode that is live NOW; re-entering while already
                                 // maximized would keep the stale ones, which is the whole bug.
