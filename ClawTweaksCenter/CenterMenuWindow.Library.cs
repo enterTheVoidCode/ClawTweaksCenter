@@ -77,6 +77,16 @@ namespace ClawTweaksCenter
         private int _libDecodeWidth = (int)LibGridTileWidth;
         private bool _libReelMode;
         private bool _libraryScanned;
+
+        /// <summary>Whether a scan has EVER completed this session. The first one paints once at
+        /// the end; every later one keeps painting as each store lands, because by then there is
+        /// already a full grid on screen and filling it in beats blanking it.</summary>
+        private bool _libraryEverScanned;
+
+        /// <summary>How long the first scan may hold the spinner before it gives up and paints
+        /// per store after all. A source that hangs must not turn into a frozen screen - the same
+        /// rule every other wait in this app follows.</summary>
+        private const int FirstScanPatienceMs = 6000;
         private bool _libraryScanning;
         private CancellationTokenSource _libraryCts;
         private ListBox _libList;
@@ -622,7 +632,6 @@ namespace ClawTweaksCenter
             RenderLibrary();
             RefreshActionBar();
             RefreshLibrarySilently();
-            BeginControllerWaitIfEnabled();
             if (Core.CenterSettings.StartSteamWithLibrary) PrewarmSteamInBackground();
 
             // Straight into the immersive look, no two-second grace: the footer is meant to be gone
@@ -660,9 +669,6 @@ namespace ClawTweaksCenter
         private void LeaveLibrary()
         {
             StopImmersive();
-            // Leaving cancels the wait unconditionally - the overlay belongs to the library, and
-            // a blur left behind on a hidden host comes back with it.
-            EndControllerWait();
             CancelPendingClose();
             if (LibraryRoot != null) LibraryRoot.Visibility = Visibility.Collapsed;
             if (ContentScroller != null) ContentScroller.Visibility = Visibility.Visible;
@@ -712,12 +718,34 @@ namespace ClawTweaksCenter
                 // three), so the view fills in instead of waiting on the slowest source. Marked as
                 // scanned on the FIRST result: from that point the screen has content, and leaving
                 // the "reading your stores" spinner up over a full grid would be a lie.
+                // THE FIRST SCAN OF A SESSION PAINTS ONCE, AT THE END.
+                //
+                // Nine sources land one after another and each landing repainted the whole reel,
+                // so the library visibly rebuilt itself up to nine times while the user watched -
+                // reported as "only the first two games, then the rest pull in". Filling in beats
+                // waiting on the slowest source when there is already something on screen; at
+                // startup there is not, so it is only jitter, and the user is waiting for the
+                // controller to mount anyway.
+                //
+                // _libraryScanned stays false while we hold, which is what keeps the
+                // "Reading your stores" spinner up instead of showing a half-built grid.
+                //
+                // WITH A CEILING. Past FirstScanPatienceMs it falls back to painting per store,
+                // because a hung source must degrade to the old behaviour rather than to a frozen
+                // screen.
+                var firstScanClock = System.Diagnostics.Stopwatch.StartNew();
+                bool holdFirstPaint = !_libraryEverScanned;
+
                 await _library.ScanAsync(ct, () => Dispatcher.Invoke(() =>
                 {
+                    if (holdFirstPaint && firstScanClock.ElapsedMilliseconds < FirstScanPatienceMs)
+                        return;
+                    holdFirstPaint = false;
                     _libraryScanned = true;
                     RenderLibraryIfNoOverlay();
                     RefreshTabStrip();
                 }));
+                _libraryEverScanned = true;
                 _libraryScanned = true;
                 _libraryScanning = false;
                 RenderLibraryIfNoOverlay();
@@ -748,6 +776,11 @@ namespace ClawTweaksCenter
         private void RenderLibrary()
         {
             if (LibraryRoot == null) return;
+
+            // The hint depends on WHICH tab is showing, so it is refreshed by the thing that
+            // already runs on every tab change instead of from a hand-kept list of call sites.
+            // Cheap - three property writes - and it cannot be forgotten by a screen added later.
+            ApplyFooterVisibility();
 
             // An overlay owns the whole area while it is up. Checked HERE rather than at every call
             // site: RenderLibrary is called from the art fetch, from the resize handler and from the
@@ -1403,21 +1436,19 @@ namespace ClawTweaksCenter
                 default: return;
             }
 
-            // THE REEL WRAPS, the grid does not.
+            // NOTHING WRAPS. The reel used to: left from the first tile landed on the last, as a
+            // shortcut to the far end.
             //
-            // Recent is one row with an end that is out of reach: thirty covers on an eight-inch
-            // panel is several screenfuls, and walking to the far end one tile at a time is the
-            // only way there. Left from the first tile lands on the last, which is the shortest
-            // route to "what did I play before that".
+            // The right stick now owns that shortcut (JumpLibrarySelection), and having both
+            // was worse than having either. Two ways to reach the end is not twice as convenient
+            // when one of them fires on the key you step sideways with: you arrive at the start,
+            // press left once more out of habit, and are suddenly at the other end of the shelf
+            // with nothing having said so. Reported exactly that way - "man versteht manchmal
+            // nicht, wenn man am Anfang ankommt".
             //
-            // The grid deliberately keeps its hard stops: there, left and right already cross ROW
-            // boundaries, so a wrap at index 0 would jump the cursor from the top-left corner to the
-            // bottom-right one, past everything, on the same key the user is using to step sideways.
-            if (_libReelMode && _libraryGames.Count > 1)
-            {
-                if (next < 0) next = _libraryGames.Count - 1;
-                else if (next >= _libraryGames.Count) next = 0;
-            }
+            // A hard stop is also what makes the ends legible: the cursor refusing to move IS the
+            // signal that there is nothing further, and it costs nothing because the stick flick
+            // is the fast route and it is now named in the footer hint.
 
             if (next < 0 || next >= _libraryGames.Count) return;
             if (next == _libSelectedIndex) return;
@@ -1956,8 +1987,35 @@ namespace ClawTweaksCenter
                 // Set here rather than left to the XAML: it is the one piece of text in the shell
                 // that is authored as a literal attribute, so it is the one Loc never sees. Assigned
                 // on every pass because the language can change while the window is open.
-                ImmersiveHint.Text = Core.Loc.T("Click the right stick to show the button hints");
-                ImmersiveHint.Visibility = footerHidden ? Visibility.Visible : Visibility.Collapsed;
+                // WHAT THE RIGHT STICK DOES HERE, and it is two different things that must not
+                // read as one sentence.
+                //
+                // In Recent the flick jumps to the end or back to the start. That line is shown
+                // ALWAYS, immersive or not, because it replaces the wrap-around that used to be on
+                // the D-pad: taking a shortcut away without naming its replacement would just make
+                // the shelf feel longer.
+                //
+                // The click-for-button-hints line stays tied to the hidden footer - it is the way
+                // back to a footer that is not there, and it says nothing while the footer is up.
+                //
+                // Together they go under one heading with a separator rather than as two
+                // sentences: they are both "what the right stick does", and a hint row that reads
+                // as a list of unrelated tips is a row people stop reading.
+                string jump = _libReelMode
+                    ? Core.Loc.T("Right stick: right jumps to the end, left to the start")
+                    : null;
+                string click = footerHidden
+                    ? Core.Loc.T("Click the right stick to show the button hints")
+                    : null;
+
+                if (jump != null && click != null)
+                    ImmersiveHint.Text = Core.Loc.T("Right stick actions") + ": " + jump + "  \u2022  " + click;
+                else
+                    ImmersiveHint.Text = jump ?? click ?? string.Empty;
+
+                ImmersiveHint.Visibility = ImmersiveHint.Text.Length > 0
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
                 // As low as it can go in a GRID, higher in the reel.
                 //
                 // The two tabs put different things at the bottom edge. Recent's covers lie in one

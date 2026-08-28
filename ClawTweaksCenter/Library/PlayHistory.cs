@@ -36,6 +36,14 @@ namespace ClawTweaksCenter.Library
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ClawTweaks", "Center", "playhistory.json");
 
+        /// <summary>
+        /// Which helper logs have already been harvested, as name -> "length:lastWriteUtcTicks".
+        /// Beside the history rather than inside it: the history file is a published shape and
+        /// this is bookkeeping.
+        /// </summary>
+        private static string HarvestManifestPath => Path.Combine(
+            Path.GetDirectoryName(StorePath), "playharvest.json");
+
         private static string HelperLogDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "Packages", "MSIClaw.ClawTweaks_7eszav2039cvc", "LocalCache", "Local");
@@ -190,11 +198,28 @@ namespace ClawTweaksCenter.Library
             try { files = Directory.GetFiles(logDir, "helper_*.log"); }
             catch { return; }
 
+            // A LOG THAT HAS NOT CHANGED HOLDS NOTHING NEW.
+            //
+            // Measured on this machine: 36 files, 11 MB, 78,387 lines read on EVERY library open
+            // to find 67 matching lines - and the result was already saved from last time. Only
+            // the newest file can still grow, and it fails the size/timestamp test by itself, so
+            // it is always read.
+            //
+            // The manifest is thrown away when the SET OF INSTALL FOLDERS changes, and that is a
+            // correctness requirement rather than a nicety: the filter below keeps only paths
+            // inside a folder some store already knows, so a game installed later has its old
+            // play events sitting in files we would otherwise never open again.
+            var manifest = LoadHarvestManifest(dirs);
+
             foreach (string file in files)
             {
                 ct.ThrowIfCancellationRequested();
                 try
                 {
+                    var info = new FileInfo(file);
+                    string stamp = info.Length.ToString(CultureInfo.InvariantCulture) + ":" +
+                                   info.LastWriteTimeUtc.Ticks.ToString(CultureInfo.InvariantCulture);
+                    if (manifest.Seen.TryGetValue(info.Name, out string had) && had == stamp) continue;
                     // Shared read: the helper holds these open and writes to them continuously.
                     using (var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
                     using (var reader = new StreamReader(fs))
@@ -222,9 +247,55 @@ namespace ClawTweaksCenter.Library
                             NoteExe(dir, exe);
                         }
                     }
+
+                    // Stamped only after the whole file was read: a cancellation or a read error
+                    // partway through must not mark it done.
+                    manifest.Seen[info.Name] = stamp;
                 }
                 catch { }
             }
+
+            SaveHarvestManifest(manifest);
+        }
+
+        private sealed class HarvestManifest
+        {
+            public string DirsKey { get; set; }
+            public Dictionary<string, string> Seen { get; set; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
+
+        private static string DirsKeyFor(List<string> dirs)
+        {
+            var copy = new List<string>(dirs);
+            copy.Sort(StringComparer.OrdinalIgnoreCase);
+            return copy.Count + "|" + string.Join("|", copy).GetHashCode().ToString(CultureInfo.InvariantCulture);
+        }
+
+        private static HarvestManifest LoadHarvestManifest(List<string> dirs)
+        {
+            string key = DirsKeyFor(dirs);
+            try
+            {
+                if (File.Exists(HarvestManifestPath))
+                {
+                    var m = JsonSerializer.Deserialize<HarvestManifest>(File.ReadAllText(HarvestManifestPath));
+                    if (m != null && m.Seen != null && m.DirsKey == key) return m;
+                }
+            }
+            catch { }
+            return new HarvestManifest { DirsKey = key };
+        }
+
+        private static void SaveHarvestManifest(HarvestManifest m)
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(HarvestManifestPath));
+                string tmp = HarvestManifestPath + ".tmp";
+                File.WriteAllText(tmp, JsonSerializer.Serialize(m));
+                File.Move(tmp, HarvestManifestPath, overwrite: true);
+            }
+            catch { }
         }
 
         private static string Normalize(string path)

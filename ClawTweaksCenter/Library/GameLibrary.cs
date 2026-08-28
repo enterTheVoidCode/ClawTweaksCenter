@@ -291,7 +291,7 @@ namespace ClawTweaksCenter.Library
         /// and sortable. It is also what makes the jump-to-the-end flick worth having: a bounded row
         /// has an end that means something.
         /// </summary>
-        public const int RecentLimit = 30;
+        public const int RecentLimit = 50;
 
         /// <summary>The four stores that share the Other Stores shelf. In one place because the tab,
         /// the tab-strip visibility check and the trigger cycle all have to agree about it.</summary>
