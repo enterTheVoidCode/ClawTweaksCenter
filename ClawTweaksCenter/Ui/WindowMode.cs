@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using ClawTweaksCenter.Core;
 
 namespace ClawTweaksCenter.Ui
@@ -41,6 +42,69 @@ namespace ClawTweaksCenter.Ui
             window.SourceInitialized += (_, __) =>
             {
                 if (CenterSettings.BorderlessFullscreen) EnterFullscreen(window);
+            };
+
+            AttachDisplayChangeReflow(window);
+        }
+
+        /// <summary>
+        /// Re-applies fullscreen after a DISPLAY MODE CHANGE, because WPF does not.
+        ///
+        /// WPF computes the maximized bounds when the state is ENTERED - the note in EnterFullscreen
+        /// below says the same thing for a different reason. So when a game drops the panel from
+        /// 1200p to 800p and puts it back, the window keeps the bounds it was given at 800p and comes
+        /// back visibly too small. Leaving the library and toggling fullscreen fixes it precisely
+        /// because that runs Normal -> None -> Maximized again; this does the same thing without
+        /// making the user find it.
+        ///
+        /// Four things this has to get right, and every one of them is a way to make it worse:
+        ///   • SystemEvents raises on ITS OWN THREAD. Touching the window from there throws.
+        ///   • It fires several times per mode change, and again at game start and game end, so it
+        ///     is debounced rather than acted on per event.
+        ///   • SystemEvents holds a STATIC handler reference. Without the unhook on Closed the window
+        ///     never gets collected.
+        ///   • It must NOT pull focus. The resolution change usually happens because a game is
+        ///     starting, and stealing the foreground at that exact moment is worse than a small
+        ///     window. Re-entering fullscreen does not call ForceForeground, and it must stay that way.
+        /// </summary>
+        private static void AttachDisplayChangeReflow(Window window)
+        {
+            DispatcherTimer debounce = null;
+
+            EventHandler onChanged = null;
+            onChanged = (_, __) =>
+            {
+                try
+                {
+                    window.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (debounce == null)
+                        {
+                            debounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(700) };
+                            debounce.Tick += (___, ____) =>
+                            {
+                                debounce.Stop();
+                                if (!IsFullscreen(window)) return;
+
+                                // The same cycle the toggle performs. Leave first so WPF recomputes
+                                // the bounds for the mode that is live NOW; re-entering while already
+                                // maximized would keep the stale ones, which is the whole bug.
+                                LeaveFullscreen(window);
+                                EnterFullscreen(window);
+                            };
+                        }
+                        debounce.Stop();
+                        debounce.Start();
+                    }));
+                }
+                catch { }
+            };
+
+            Microsoft.Win32.SystemEvents.DisplaySettingsChanged += onChanged;
+            window.Closed += (_, __) =>
+            {
+                try { Microsoft.Win32.SystemEvents.DisplaySettingsChanged -= onChanged; } catch { }
+                try { debounce?.Stop(); } catch { }
             };
         }
 
