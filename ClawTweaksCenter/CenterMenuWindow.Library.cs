@@ -622,6 +622,7 @@ namespace ClawTweaksCenter
             RenderLibrary();
             RefreshActionBar();
             RefreshLibrarySilently();
+            BeginControllerWaitIfEnabled();
             if (Core.CenterSettings.StartSteamWithLibrary) PrewarmSteamInBackground();
 
             // Straight into the immersive look, no two-second grace: the footer is meant to be gone
@@ -659,6 +660,9 @@ namespace ClawTweaksCenter
         private void LeaveLibrary()
         {
             StopImmersive();
+            // Leaving cancels the wait unconditionally - the overlay belongs to the library, and
+            // a blur left behind on a hidden host comes back with it.
+            EndControllerWait();
             CancelPendingClose();
             if (LibraryRoot != null) LibraryRoot.Visibility = Visibility.Collapsed;
             if (ContentScroller != null) ContentScroller.Visibility = Visibility.Visible;

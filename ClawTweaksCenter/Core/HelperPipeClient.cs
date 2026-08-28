@@ -386,6 +386,38 @@ namespace ClawTweaksCenter.Core
         }
 
         /// <summary>
+        /// Asks the helper whether a VIRTUAL pad is coming up and whether it is usable yet. Returns
+        /// the raw "virtual=..;ready=..;failed=.." payload, or null when the helper does not answer.
+        ///
+        /// A plain Get, not one of the Extra-key requests next door: ControllerReadyState is a real
+        /// Function the helper answers in HandlePipePropertyRequest, and it is cheap - three values
+        /// already in memory. The library asks once when it opens; the helper pushes the same payload
+        /// again on its own when the answer changes, so nothing here polls.
+        /// </summary>
+        public async Task<string> RequestControllerReadyStateAsync(TimeSpan timeout)
+        {
+            if (!IsConnected) return null;
+
+            var tcs = new TaskCompletionSource<string>();
+            void Handler(Function f, string c) { if (f == Function.ControllerReadyState) tcs.TrySetResult(c); }
+            PropertyUpdated += Handler;
+            try
+            {
+                string json = $"{{\"RequestId\":0,\"Command\":{(int)Command.Get},\"Function\":{(int)Function.ControllerReadyState}}}";
+                lock (_writeLock)
+                {
+                    _writer.WriteLine(json);
+                    _writer.Flush();
+                }
+
+                var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeout)).ConfigureAwait(false);
+                return completed == tcs.Task ? tcs.Task.Result : null;
+            }
+            catch (Exception) { return null; }
+            finally { PropertyUpdated -= Handler; }
+        }
+
+        /// <summary>
         /// Sets a property, then waits (via the PropertyUpdated push, not polling a request/response)
         /// until the helper confirms the expected value — or times out. Used for onboarding steps that
         /// must not proceed until the previous one is actually done (e.g. Center M fully disabled).

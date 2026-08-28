@@ -850,13 +850,15 @@
         // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
         CPUMaxFrequencyMHz,             // int MHz, -1 = unset (leave it to the OS)
 
-        // Windows Game Mode (HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled). NOT a ClawTweaks
-        // setting - a mirror of a Windows one, shown next to the frequency cap because Game Mode is
-        // the documented reason a max-frequency limit can be ignored while a game runs. We only read
-        // it and write it when the USER asks; nothing here turns it off by itself, because whether it
-        // actually overrides the cap in a real game has not been measured yet.
+        // RETIRED 2026-08-25. Was a mirror of Windows' own Game Mode switch
+        // (HKCU\Software\Microsoft\GameBar\AutoGameModeEnabled), shown next to the frequency cap.
+        // Withdrawn on the user's instruction: nothing sends or receives it any more, and neither the
+        // widget property nor the helper property exists.
+        // IT STAYS HERE, and it must: Function is serialised by ORDINAL. Deleting the member would
+        // shift every value below it by one, so an older helper and a newer widget would silently
+        // read each other's settings as something else. A retired slot is the cheap half of that.
         // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
-        WindowsGameModeEnabled,         // bool
+        WindowsGameModeEnabled_Retired, // unused - do NOT remove, do NOT reuse
 
         // The P-core half of the max frequency. CPUMaxFrequencyMHz above is the BASE register
         // (75b0ae3f-...e100), this one is efficiency class 1 (...e101) - the same base/class-1 split
@@ -881,5 +883,20 @@
         // 0 = the helper has not answered, or does not know - the consumer keeps its own value.
         // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
         DeviceMinPL1,                   // int watts
+
+        // Whether a VIRTUAL pad is being brought up right now, and whether it is usable yet. For
+        // ClawTweaks Center: booting straight into the library puts a fully drawn, fully unresponsive
+        // screen in front of the user for 7-10 s while the pad mounts (measured from [ClawReady]),
+        // which reads as a hang rather than as a wait. Center gates its "waiting" overlay on this.
+        //
+        // A compact string, not a bool, and the reason is the gate: a bool could not tell "not ready
+        // yet" from "hardware mode, there is nothing to wait for" - and showing the overlay in the
+        // second case would be the whole feature backwards. Same payload style as ControllerHwHealth,
+        // which Center already parses without a JSON dependency.
+        //   virtual=<0|1>  a virtual pad is the effective mode (per-game exception included)
+        //   ready=<0|1>    the pad is mounted, DInput acquired and the physical pad hidden
+        //   failed=<0|1>   the mount gave up; the consumer must stop waiting immediately
+        // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
+        ControllerReadyState,           // string - "virtual=..;ready=..;failed=.."
     }
 }
