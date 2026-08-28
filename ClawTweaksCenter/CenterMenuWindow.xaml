@@ -82,33 +82,6 @@
              than content inside it, so the two never fight over scrolling. -->
         <Grid x:Name="LibraryRoot" Grid.Row="2" Visibility="Collapsed" />
 
-        <!-- Sits BESIDE LibraryRoot, not inside it: the blur is applied to LibraryRoot, and a child
-             would be blurred along with the thing it is explaining. Collapsed unless the user turned
-             the wait on AND a virtual pad is actually still mounting. -->
-        <Grid x:Name="ControllerWaitOverlay" Grid.Row="2" Visibility="Collapsed" Background="#A8000000">
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                <TextBlock x:Name="ControllerWaitText"
-                           FontSize="24" FontWeight="SemiBold" Foreground="White" TextAlignment="Center"
-                           HorizontalAlignment="Center"
-                           Text="Waiting for the virtual controller to settle…" />
-
-                <!-- The way out. White only, no accent: an escape hatch should be readable, not
-                     advertised, and a coloured chip here would compete with the message above it.
-                     It exists because the wait can be wrong about the user - an external pad is
-                     already usable while the built-in one is still mounting. -->
-                <StackPanel x:Name="ControllerWaitSkipHint" Orientation="Horizontal"
-                            HorizontalAlignment="Center" Margin="0,18,0,0" Opacity="0.75">
-                    <Border Width="26" Height="26" CornerRadius="13" Background="Transparent"
-                            BorderBrush="White" BorderThickness="1.5">
-                        <TextBlock Text="A" Foreground="White" FontSize="13" FontWeight="SemiBold"
-                                   HorizontalAlignment="Center" VerticalAlignment="Center" />
-                    </Border>
-                    <TextBlock x:Name="ControllerWaitSkipText" Text="Skip the wait"
-                               Foreground="White" FontSize="14" VerticalAlignment="Center"
-                               Margin="10,0,0,0" />
-                </StackPanel>
-            </StackPanel>
-        </Grid>
 
         <!-- Immersive mode's replacement for the footer. In row 2, NOT in the footer's row 3: row 3
              has to collapse completely so the grid grows into it and the scrollbar reaches the

@@ -360,16 +360,6 @@ namespace ClawTweaksCenter
             // and putting the call here means a screen added later cannot forget it.
             NoteLibraryActivity();
 
-            // A ends the controller wait, and it does so BEFORE the per-screen action table.
-            //
-            // The wait can be wrong about the user: an external pad is usable long before the
-            // built-in one has mounted, and someone holding one should not be made to sit it out
-            // because of a state that is not about them.
-            //
-            // The press is CONSUMED, not passed on. The overlay covers the library, so letting A
-            // through would launch whatever tile happens to be selected behind the blur - the
-            // press that dismisses a thing must not also act on what it was covering.
-            if (_controllerWaitActive && b == PadButton.A) { EndControllerWait(); return; }
 
             // Shoulders and triggers are handled before the per-screen action table so they behave
             // the same everywhere, without a chip in six different footers.

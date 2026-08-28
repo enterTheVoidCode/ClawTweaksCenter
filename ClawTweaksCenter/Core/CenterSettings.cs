@@ -56,22 +56,6 @@ namespace ClawTweaksCenter.Core
         /// collection, not something we can detect per game, so it is a setting.
         /// </summary>
         /// <summary>
-        /// Hold the library behind a blur until the VIRTUAL controller is usable.
-        ///
-        /// OFF by default, and it has to be opt-in rather than clever: the wait is only right for a
-        /// machine that boots straight into the library with the virtual pad as its standard, and on
-        /// any other setup an overlay between the user and their games is a regression. The user asks
-        /// for it or it does not happen.
-        ///
-        /// It does nothing at all in hardware-controller mode - there is no mount to wait for - and
-        /// nothing when the pad is already up, which is the normal case for a Center started by hand.
-        /// </summary>
-        public static bool WaitForVirtualController
-        {
-            get => ReadBool("WaitForVirtualController", false);
-            set => WriteBool("WaitForVirtualController", value);
-        }
-
         public static bool SquareRomArt
         {
             get => ReadBool("SquareRomArt", false);

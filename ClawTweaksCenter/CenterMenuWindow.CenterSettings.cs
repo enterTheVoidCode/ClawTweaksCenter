@@ -37,7 +37,6 @@ namespace ClawTweaksCenter
 
         private const int CenterSettingsLanguageRow = 0;
         private const int CenterSettingsFullscreenRow = 1;
-        private const int CenterSettingsWaitControllerRow = 2;
 
         private void OpenCenterSettings()
         {
@@ -72,9 +71,6 @@ namespace ClawTweaksCenter
                 Loc.NameOf(Loc.Preference)));
             pairs.Children.Add(BuildCenterSettingRow(CenterSettingsFullscreenRow, Loc.T("Fullscreen"),
                 null, WindowMode.IsFullscreen(this)));
-            pairs.Children.Add(BuildCenterSettingRow(CenterSettingsWaitControllerRow,
-                Loc.T("Wait for the virtual controller"),
-                null, Core.CenterSettings.WaitForVirtualController));
             stack.Children.Add(pairs);
 
             if (_languageListOpen) stack.Children.Add(BuildLanguageList());
@@ -337,9 +333,6 @@ namespace ClawTweaksCenter
                     WindowMode.Toggle(this);
                     break;
 
-                case CenterSettingsWaitControllerRow:
-                    Core.CenterSettings.WaitForVirtualController = !Core.CenterSettings.WaitForVirtualController;
-                    break;
             }
 
             RenderCenterSettings();
