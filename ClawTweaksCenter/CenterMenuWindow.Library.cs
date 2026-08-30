@@ -262,7 +262,7 @@ namespace ClawTweaksCenter
                 rightEnd.Children.Add(BuildInfoButton());
 
                 _tabScroller = BuildEdgeFadedStrip(chips);
-                FillDock(TabStripPanel, BuildKeyCap("LB"), rightEnd, _tabScroller);
+                FillDock(TabStripPanel, BuildLibraryBrandAndLb(), rightEnd, _tabScroller);
                 BringChipIntoView(_tabScroller, _activeGroupChip);
             }
             else
@@ -479,6 +479,49 @@ namespace ClawTweaksCenter
                 RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
             };
             target.BeginAnimation(UIElement.OpacityProperty, pulse);
+        }
+
+        /// <summary>
+        /// The library mark, then the LB cap - the far-left end of the tab strip.
+        ///
+        /// This is the ONLY thing on this screen that says which app the covers belong to: the
+        /// brand-and-device header is deliberately collapsed inside the library (see RefreshTabStrip),
+        /// because covers want the height. A full-screen grid of box art with no mark on it reads as
+        /// somebody else's launcher.
+        ///
+        /// ⚠️ It is NOT the header wordmark. Each area of ClawTweaks wears its own object and colour,
+        /// so the library has a mark of its own; Home keeps the app's own icon. Swapping one for the
+        /// other undoes the distinction rather than tidying it up.
+        ///
+        /// LB stays, and stays to the RIGHT of the mark: it says where the scrolling row starts, and
+        /// the row starts after the brand, not at the window edge. The mark is decoration - it takes
+        /// no focus and answers no button.
+        /// </summary>
+        private UIElement BuildLibraryBrandAndLb()
+        {
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+            };
+
+            var mark = new Image
+            {
+                Source = new BitmapImage(new Uri(
+                    "pack://application:,,,/Assets/branding/ctw-library-icon.png", UriKind.Absolute)),
+                Width = 26,
+                Height = 26,
+                Stretch = Stretch.Uniform,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 10, 0),
+            };
+            // The source is 256 px for a 26 px box, so the downscale is where this either looks
+            // clean or looks like a thumbnail. Same setting the header wordmark uses.
+            RenderOptions.SetBitmapScalingMode(mark, BitmapScalingMode.HighQuality);
+            row.Children.Add(mark);
+
+            row.Children.Add(BuildKeyCap("LB"));
+            return row;
         }
 
         private UIElement BuildKeyCap(string text) => new Border

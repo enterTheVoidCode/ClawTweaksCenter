@@ -22,7 +22,7 @@
     <Authors>ClawTweaks</Authors>
     <Copyright>Copyright (c) ClawTweaks</Copyright>
     <Description>ClawTweaks Center - installer and control panel for ClawTweaks on the MSI Claw.</Description>
-    <Version>0.2.8.16</Version>
+    <Version>0.2.8.17</Version>
     <!-- Distributed filename carries the version + "Setup" suffix (e.g. CTW_Center_0.1.0.2_Setup.exe)
          so a user can tell builds apart in their Downloads folder. This is ONLY the distributed
          filename — the INSTALLED copy in Program Files always keeps the fixed name
@@ -88,6 +88,11 @@
     <Resource Include="Assets\devices\*.png" />
     <!-- Branding: header wordmark logo. -->
     <Resource Include="Assets\branding\ctw-center-logo.png" />
+    <!-- Branding: the LIBRARY mark, far left of the tab strip. Each area of ClawTweaks wears its
+         own object and colour, so this is deliberately NOT the header wordmark - it is the one
+         thing on that screen that says which app the covers belong to, because the brand header is
+         hidden inside the library. -->
+    <Resource Include="Assets\branding\ctw-library-icon.png" />
     <!-- Branding: 16:10 handheld artwork — background/centerpiece for the Install/Update gate. -->
     <Resource Include="Assets\branding\ctw-handheld-16-10.png" />
     <!-- Loading spinner GIF — replaces the pulsing "…" Working badge everywhere it's used. -->
