@@ -179,11 +179,11 @@ namespace ClawTweaksCenter.Core
         /// <summary>Launches the already-installed copy as-is (no copy/relaunch dance) — used when the
         /// running exe is the same version or older than what's already installed, so there's nothing
         /// to install or update. Caller should shut down right after calling this.</summary>
-        public static void LaunchInstalledAndExit(Action<string> log = null)
+        public static void LaunchInstalledAndExit(Action<string> log = null, string args = null)
         {
             // Unelevated even if we happen to be elevated right now — see ElevationGate.LaunchUnelevated
             // for why inheriting the token here is what broke UAC prompting for everything downstream.
-            ElevationGate.LaunchUnelevated(InstalledExePath, log);
+            ElevationGate.LaunchUnelevated(InstalledExePath, log, args);
         }
 
         /// <summary>
@@ -239,7 +239,13 @@ namespace ClawTweaksCenter.Core
         /// <param name="desktopShortcut">Also drop an icon on this user's Desktop. Offered as a
         /// pre-ticked box on the install screen; the Start Menu entry is not optional, because it is
         /// what Settings → Apps and the Start search both rely on.</param>
-        public static bool InstallAndRelaunch(Action<string> log = null, bool desktopShortcut = true)
+        /// <param name="relaunchArgs">
+        /// Passed to the installed copy when it is started. The installer's post-reboot hand-off uses
+        /// it to carry --onboarding across the self-install, so the first thing a new user sees after
+        /// the restart is the onboarding list rather than Home with a tile to find.
+        /// </param>
+        public static bool InstallAndRelaunch(Action<string> log = null, bool desktopShortcut = true,
+                                              string relaunchArgs = null)
         {
             try
             {
@@ -308,7 +314,7 @@ namespace ClawTweaksCenter.Core
                 // and then a plain start would hand the installed copy an admin token it would keep for
                 // its whole run. See ElevationGate.LaunchUnelevated.
                 log?.Invoke("Relaunching from install location...");
-                ElevationGate.LaunchUnelevated(InstalledExePath, log);
+                ElevationGate.LaunchUnelevated(InstalledExePath, log, relaunchArgs);
                 return true;
             }
             catch (Exception ex)

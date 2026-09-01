@@ -110,7 +110,16 @@ namespace ClawTweaksCenter
                 // acted once and already granted the UAC prompt, so this proceeds straight into the
                 // install instead of making them click Install/Update a second time for no extra signal.
                 bool autoStart = Array.Exists(e.Args, a => a == InstallCenterWindow.ResumeArg);
-                ShowForeground(new InstallCenterWindow(mode, installedVersion, runningVersion, autoStart));
+
+                // --onboarding given to the SETUP exe is meant for the copy that ends up installed,
+                // not for this one - this process exits as soon as the install hands over. Passing it
+                // through is what lets the installer's post-reboot RunOnce land on onboarding in one
+                // step, without Center having to come up twice.
+                string relaunchArgs =
+                    Array.Exists(e.Args, a => a.Equals("--onboarding", StringComparison.OrdinalIgnoreCase))
+                        ? "--onboarding" : null;
+
+                ShowForeground(new InstallCenterWindow(mode, installedVersion, runningVersion, autoStart, relaunchArgs));
                 return;
             }
 
@@ -137,6 +146,16 @@ namespace ClawTweaksCenter
             // duplicate of the other.
             bool startHome = Array.Exists(e.Args, a => a.Equals("--home", StringComparison.OrdinalIgnoreCase));
 
+            // --onboarding lands straight in the onboarding view. It exists for the installer's
+            // post-reboot handoff: setup finished, the machine came back, and the five onboarding
+            // steps ARE the next thing to do. Home with a tile to find would put that discovery on
+            // the user, which is the one thing the handoff is supposed to remove.
+            //
+            // Like --home it has to WIN over the remembered "start in the library" preference, for
+            // the same reason: a destination that quietly becomes a different destination is not a
+            // destination.
+            bool startOnboarding = Array.Exists(e.Args, a => a.Equals("--onboarding", StringComparison.OrdinalIgnoreCase));
+
             // --background starts resident and INVISIBLE: no window, just the tray icon and the wake
             // pipe, so the first press of that button hits a process that is already warm. Honoured
             // only with "Run in background" on - starting an invisible process that nothing can bring
@@ -153,8 +172,15 @@ namespace ClawTweaksCenter
             _instanceMutex = Core.CenterInstanceSignal.TryClaim();
             if (_instanceMutex == null)
             {
+                // --onboarding deliberately signals CommandShowHome rather than a word of its own.
+                // The wake vocabulary is a contract with the HELPER, in another repo, with no
+                // compiler between the two halves; a word added here that the other side does not
+                // know is exactly the silent-failure shape this project has already paid for. Home
+                // carries the Onboarding tile, so the degraded answer is still the right screen one
+                // click away - and the case barely arises, because the post-reboot launch has no
+                // running instance to signal in the first place.
                 bool delivered = Core.CenterInstanceSignal.SignalRunningInstance(
-                    startHome ? Core.CenterInstanceSignal.CommandShowHome :
+                    startHome || startOnboarding ? Core.CenterInstanceSignal.CommandShowHome :
                     toggleLibrary ? Core.CenterInstanceSignal.CommandToggleLibrary :
                     startLibrary ? Core.CenterInstanceSignal.CommandShowLibrary :
                     Core.CenterInstanceSignal.CommandShow);
@@ -178,7 +204,8 @@ namespace ClawTweaksCenter
             }
 
             var window = new CenterMenuWindow(
-                startLibrary: !startHome && (startLibrary || toggleLibrary),
+                startOnboarding: startOnboarding,
+                startLibrary: !startHome && !startOnboarding && (startLibrary || toggleLibrary),
                 forceHome: startHome);
 
             if (startBackground)

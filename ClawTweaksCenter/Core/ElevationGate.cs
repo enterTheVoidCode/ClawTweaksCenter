@@ -49,7 +49,14 @@ namespace ClawTweaksCenter.Core
         /// exactly as if the user had double-clicked it. It is only needed when we ARE elevated;
         /// otherwise a plain start already produces the right token and is the more direct path.
         /// </summary>
-        public static bool LaunchUnelevated(string exePath, Action<string> log = null)
+        /// <param name="args">
+        /// Optional command line for the child. ⚠️ It CANNOT survive the shell indirection below:
+        /// "explorer.exe path" opens the file and drops everything after it. That path is only taken
+        /// when THIS process is elevated, so a caller that needs arguments must be unelevated - which
+        /// the installer's RunOnce hand-off is. When they would be dropped, this says so rather than
+        /// starting a process that quietly does something other than what was asked.
+        /// </param>
+        public static bool LaunchUnelevated(string exePath, Action<string> log = null, string args = null)
         {
             try
             {
@@ -61,9 +68,14 @@ namespace ClawTweaksCenter.Core
                 {
                     if (IsAdmin())
                         log?.Invoke("No running shell to de-elevate through — starting with this process's token.");
-                    Process.Start(new ProcessStartInfo(exePath) { UseShellExecute = true });
+                    var psi = new ProcessStartInfo(exePath) { UseShellExecute = true };
+                    if (!string.IsNullOrEmpty(args)) psi.Arguments = args;
+                    Process.Start(psi);
                     return true;
                 }
+
+                if (!string.IsNullOrEmpty(args))
+                    log?.Invoke($"De-elevating through the shell, so the arguments '{args}' are dropped.");
 
                 Process.Start(new ProcessStartInfo
                 {

@@ -37,9 +37,18 @@ namespace ClawTweaksCenter
         /// top of it adds no real signal, so there is no reason to make the user do it.</summary>
         public const string ResumeArg = "--resume-install";
 
-        public InstallCenterWindow(InstallCenterMode mode, Version installedVersion = null, Version runningVersion = null, bool autoStart = false)
+        /// <summary>Command line handed to the INSTALLED copy once the self-install finished. Empty in
+        /// every normal run; the ClawTweaks installer's post-reboot hand-off uses it to carry
+        /// --onboarding across, so a new device comes back from its restart on the onboarding list
+        /// instead of on Home. Kept as an opaque string: this window has no business knowing what the
+        /// switch means, only that it has to survive the relaunch.</summary>
+        private readonly string _relaunchArgs;
+
+        public InstallCenterWindow(InstallCenterMode mode, Version installedVersion = null, Version runningVersion = null,
+                                   bool autoStart = false, string relaunchArgs = null)
         {
             _mode = mode;
+            _relaunchArgs = relaunchArgs;
             InitializeComponent();
             Ui.ModernWindow.Apply(this);
             Ui.WindowMode.Attach(this); // after ModernWindow — see WindowMode.Attach on the ordering
@@ -245,7 +254,8 @@ namespace ClawTweaksCenter
                 ok = await Task.Run(() => SelfInstaller.InstallAndRelaunch(
                     // The installer reports progress as finished strings; this is where they
                     // reach the screen, so this is where they can be translated.
-                    msg => Dispatcher.Invoke(() => StatusText.Text = Core.Loc.T(msg)), desktopIcon));
+                    msg => Dispatcher.Invoke(() => StatusText.Text = Core.Loc.T(msg)), desktopIcon,
+                    _relaunchArgs));
             }
             catch (Exception ex)
             {
