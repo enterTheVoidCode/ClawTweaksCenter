@@ -185,7 +185,20 @@ namespace ClawTweaksCenter
             SetupVersionLabel.Text = "CTW Center v" + (Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "?");
             RenderDeviceBanner(null);
 
-            if (!startLeave && (startLibrary || CenterSettings.OpenLibraryAtStartup))
+            // startOnboarding and startLeave BOTH veto the jump, and for the same reason: an argument
+            // given to this launch is an explicit instruction, OpenLibraryAtStartup is a stored
+            // default, and explicit beats default. The caller already gets this right for the
+            // explicit `startLibrary` (App.OnStartup passes `!startHome && !startOnboarding && ...`),
+            // but that guard is bypassed the moment the `||` here reads the setting on its own.
+            //
+            // Measured 2026-09-02: the Inno installer learned to switch OpenLibraryAtStartup on, and
+            // the post-reboot RunOnce handoff (`--resume-install --onboarding`) then landed in the
+            // library instead of onboarding - on a machine where onboarding had never run. Nothing
+            // failed and nothing said anything; the five onboarding steps were simply never offered.
+            //
+            // The sibling latch in TryAutoOpenLibrary already checks _startOnboardingOnLoad, with a
+            // comment describing this exact shape. This is the one place it was missing.
+            if (!startLeave && !startOnboarding && (startLibrary || CenterSettings.OpenLibraryAtStartup))
             {
                 // Skips Home entirely rather than shortening its appearance. Home carries the
                 // installed-version check (is the ClawTweaks widget present, which build) and, once

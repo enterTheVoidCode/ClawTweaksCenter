@@ -27,7 +27,37 @@ namespace ClawTweaksCenter.Core
     /// </summary>
     public static class SelfInstaller
     {
+        /// <summary>
+        /// The product name, and it is NOT just a label: it names the install folder
+        /// (%LOCALAPPDATA%\Programs\ClawTweaks Center), the legacy Program Files folder, the Start
+        /// Menu shortcut, the Desktop shortcut and that shortcut's description.
+        ///
+        /// !! CHANGING THIS MOVES THE INSTALL FOLDER and orphans every existing installation, which
+        /// is why the Settings -> Apps caption got its own constant below instead of being folded in
+        /// here. The ClawTweaks installer also hard-codes this path to find CTW_Center.exe.
+        /// </summary>
         private const string AppDisplayName = "ClawTweaks Center";
+
+        /// <summary>
+        /// What Settings -> Apps shows, and nothing else.
+        ///
+        /// Three ClawTweaks rows sit there and they used to be told apart by a version number, which
+        /// is a distinguishing mark for a developer and none at all for a user. The other two now say
+        /// what they are - "ClawTweaks (Game Bar widget)" and "ClawTweaks Core (uninstall this for a
+        /// full clean-up)" - so this one says what IT is rather than reading like the whole product.
+        ///
+        /// It is deliberately NOT hidden. SystemComponent=1 would take the row out of the list
+        /// entirely, and hiding an uninstall entry is a known scoring signal for unwanted software -
+        /// a price this project cannot pay while it ships unsigned. A row that explains itself is the
+        /// cheaper answer to the same problem (user's decision, 2026-09-02).
+        ///
+        /// !! It must still CONTAIN "ClawTweaks Center". The ClawTweaks installer finds this entry by
+        /// substring (ArpUninstallCommand), and that is what runs the guided Leave screen during an
+        /// uninstall. Drop those two words and the offboarding silently stops being found, while the
+        /// warning tells the user Center is not installed - with Center sitting right there.
+        /// </summary>
+        private const string ArpDisplayName = "ClawTweaks Center (Manage Updates and Library)";
+
         private const string UninstallKeyName = "ClawTweaksCenter";
         private const string ExeName = "CTW_Center.exe";
 
@@ -640,7 +670,7 @@ namespace ClawTweaksCenter.Core
             using var key = Registry.CurrentUser.CreateSubKey(UninstallRegistryKey);
             string version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0.0";
 
-            key.SetValue("DisplayName", AppDisplayName);
+            key.SetValue("DisplayName", ArpDisplayName);
             key.SetValue("DisplayVersion", version);
             key.SetValue("Publisher", "ClawTweaks");
             key.SetValue("InstallLocation", InstallDir);
