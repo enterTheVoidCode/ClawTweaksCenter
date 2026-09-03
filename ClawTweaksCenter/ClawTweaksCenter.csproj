@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -22,7 +22,11 @@
     <Authors>ClawTweaks</Authors>
     <Copyright>Copyright (c) ClawTweaks</Copyright>
     <Description>ClawTweaks Center - installer and control panel for ClawTweaks on the MSI Claw.</Description>
-    <Version>0.2.8.23</Version>
+    <!-- 3-PART, and that is a requirement rather than a style choice: Velopack refuses anything
+         else ("it must be a 3-part SemVer2 compliant version string"), measured 2026-09-03. It has to
+         stay in step with the packVersion the feed is built with, or Center shows the user one
+         number while deciding on another. -->
+    <Version>0.2.10</Version>
     <!-- Distributed filename carries the version + "Setup" suffix (e.g. CTW_Center_0.1.0.2_Setup.exe)
          so a user can tell builds apart in their Downloads folder. This is ONLY the distributed
          filename — the INSTALLED copy in Program Files always keeps the fixed name
@@ -142,6 +146,11 @@
          for the same purpose) - this fork ships a net10.0-windows7.0 target instead of relying on
          .NET Framework compat shims. -->
     <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
+    <!-- The Velopack updater. MIT. ⚠️ OFF unless HKCU\Software\ClawTweaks\Center
+         \VelopackUpdates is 1 - see Update\REMOVAL.md, which is also the exit plan. It is here at
+         all because Center's OWN self-updater was deleted on purpose (dropper shape); this is a
+         deliberate reversal, so it defaults to the old behaviour and comes out in three steps. -->
+    <PackageReference Include="Velopack" Version="1.2.0" />
     <!-- No package needed for Shared\Data\ClawHardwareId.cs's registry access: the private repo's
          Shared.csproj targets netstandard2.0 and has to reference Microsoft.Win32.Registry, but
          net10.0-windows ships it in the framework (adding it back produces NU1510). -->

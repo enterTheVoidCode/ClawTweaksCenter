@@ -10,7 +10,17 @@ namespace ClawTweaksCenter
     {
         protected override void OnStartup(StartupEventArgs e)
         {
+            // FIRST, ahead of everything including the uninstall branches: this is Velopack's
+            // entry-point hook, and its own Update.exe calls back into this binary expecting it
+            // to run before anything else does. On a Center that Velopack did not install there
+            // is no callback and it returns immediately, which is why it is unconditional while
+            // the feature itself is off by default.
+            //
+            // ⚠️ This one line and the PackageReference are the ONLY places outside
+            // Update\ that know the updater exists. Update\REMOVAL.md is the exit plan.
+            Update.VelopackUpdates.Bootstrap(e.Args);
             base.OnStartup(e);
+
 
             // BEFORE the uninstall branch and before any window: every builder that draws text asks
             // Loc for it, so the language has to be resolved while nothing has been drawn yet.

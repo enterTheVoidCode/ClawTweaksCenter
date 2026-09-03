@@ -80,19 +80,80 @@ namespace ClawTweaksCenter.Core
         /// <summary>Full path of the INSTALLED Center exe - what an external full-screen launcher
         /// (AnyFSE) has to be pointed at. Deliberately not the running exe: a portable copy sitting in
         /// Downloads is not a path anyone should configure another program against.</summary>
-        public static string InstalledExe => InstalledExePath;
+        public static string InstalledExe =>
+            VelopackStableExePath() ?? InstalledExePath;
+
+        // ---- Velopack layout awareness ----------------------------------------------------------
+        //
+        // Center can be installed two ways: the classic copy-self into %LOCALAPPDATA%\Programs, and a
+        // Velopack installation at %LOCALAPPDATA%\<packId>\{current, packages, Update.exe}. Both count
+        // as "installed" everywhere below.
+        //
+        // These are PLAIN FILE CHECKS on purpose: nothing here calls into the Velopack package. The
+        // updater lives in Update\ and is meant to come out in three steps (Update\REMOVAL.md); if
+        // this file needed it, deleting that folder would break Center's startup gate instead of just
+        // removing a feature. The layout is a fact on disk, so a fact on disk is what gets read.
+
+        /// <summary>The Velopack root when the running exe sits in one - the folder holding
+        /// <c>current\</c> and <c>Update.exe</c> - otherwise null.</summary>
+        private static string VelopackRootOfRunningExe()
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
+                if (string.IsNullOrEmpty(dir)) return null;
+
+                if (!string.Equals(Path.GetFileName(dir.TrimEnd('\\')), "current",
+                                   StringComparison.OrdinalIgnoreCase))
+                    return null;
+
+                string root = Path.GetDirectoryName(dir.TrimEnd('\\'));
+                if (string.IsNullOrEmpty(root)) return null;
+
+                // Update.exe is the load-bearing half. "current" alone is a folder name anyone could
+                // have, and being wrong here means Center skips its install gate somewhere that is
+                // not an installation at all.
+                return File.Exists(Path.Combine(root, "Update.exe")) ? root : null;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>The path an external launcher should be pointed at for a Velopack install, or
+        /// null. Deliberately the STUB beside Update.exe rather than the exe inside <c>current\</c>:
+        /// the stub keeps its path across updates, the versioned content directory need not.</summary>
+        private static string VelopackStableExePath()
+        {
+            string root = VelopackRootOfRunningExe();
+            if (root == null) return null;
+            string stub = Path.Combine(root, ExeName);
+            return File.Exists(stub) ? stub : Path.Combine(root, "current", ExeName);
+        }
+
+        /// <summary>True when this process is running out of a Velopack installation.</summary>
+        public static bool IsRunningFromVelopackInstall() => VelopackRootOfRunningExe() != null;
 
         private static string UninstallRegistryKey =>
             $@"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\{UninstallKeyName}";
 
-        /// <summary>True when the currently running exe already lives in <see cref="InstallDir"/>.</summary>
+        /// <summary>
+        /// True when the running exe is where an INSTALLED Center belongs - either the classic
+        /// <see cref="InstallDir"/> or a Velopack installation.
+        ///
+        /// WARNING: this is the gate that decides whether Center starts normally or shows the
+        /// install-self window. Without the Velopack arm, a Center that Velopack installed concludes
+        /// it is NOT installed, offers to install itself, and copies a SECOND copy into the classic
+        /// location - measured on 2026-09-03, and the reason this arm exists at all.
+        /// </summary>
         public static bool IsRunningFromInstallDir()
         {
             string current = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
-            return string.Equals(
-                current?.TrimEnd('\\'),
-                InstallDir.TrimEnd('\\'),
-                StringComparison.OrdinalIgnoreCase);
+            if (string.Equals(
+                    current?.TrimEnd('\\'),
+                    InstallDir.TrimEnd('\\'),
+                    StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            return IsRunningFromVelopackInstall();
         }
 
         /// <summary>True when a previous run already installed Center to <see cref="InstallDir"/>,

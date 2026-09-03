@@ -1,0 +1,10 @@
+{
+  "_comment": "Which Center versions may install themselves without asking. Read by ClawTweaksCenter/Update/UpdateManifest.cs. NOT the same file as setup-manifest.json in the ClawTweaks repo, which governs which APP builds Center offers.",
+  "_essentialVersions": "TARGET versions, spelled exactly as the release spells them. A version that is not listed is a normal update: offered, never forced. Exact matches only - a range would be a promise about versions that do not exist yet, and this list decides whether to restart somebody's app.",
+  "_silentUpdatesEnabled": "The remote off switch. Set false to stop every client at its next check without shipping anything - the local switch is no use in the case this exists for, because the machines that would need stopping are the ones nobody is sitting at.",
+  "_failsClosed": "Unreachable, unparsable or an unknown schemaVersion all mean NO silent update. This is the opposite of setup-manifest.json, which fails open on purpose.",
+
+  "schemaVersion": 1,
+  "silentUpdatesEnabled": false,
+  "essentialVersions": []
+}
