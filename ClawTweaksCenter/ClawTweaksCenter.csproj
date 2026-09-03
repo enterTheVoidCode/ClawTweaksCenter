@@ -22,7 +22,7 @@
     <Authors>ClawTweaks</Authors>
     <Copyright>Copyright (c) ClawTweaks</Copyright>
     <Description>ClawTweaks Center - installer and control panel for ClawTweaks on the MSI Claw.</Description>
-    <Version>0.2.8.21</Version>
+    <Version>0.2.8.23</Version>
     <!-- Distributed filename carries the version + "Setup" suffix (e.g. CTW_Center_0.1.0.2_Setup.exe)
          so a user can tell builds apart in their Downloads folder. This is ONLY the distributed
          filename — the INSTALLED copy in Program Files always keeps the fixed name

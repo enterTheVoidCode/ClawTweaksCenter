@@ -182,12 +182,35 @@ namespace ClawTweaksCenter
         /// </summary>
         private void ToggleLibraryFromSignal()
         {
+            // ⚠️ IsActive DELIBERATELY LEFT OUT, and it used to be in here.
+            //
+            // The press arrives over a pipe from the helper, so nothing about it moves the
+            // foreground - and Windows hands the foreground out grudgingly. A Center that was
+            // plainly on screen showing the library would routinely answer IsActive == false, the
+            // test read "not showing", and the press re-raised the window instead of putting it
+            // away. From the outside that is a toggle that only closes on some presses.
+            //
+            // Reported 2026-09-02 for this button and, in the same session, for the Quick Settings
+            // panel, which had the identical test for the identical reason. Whether the window is
+            // ON SCREEN is the question; who owns the keyboard is not.
             bool showingLibrary = IsVisible
                                   && WindowState != WindowState.Minimized
-                                  && IsActive
                                   && _view == View.Library;
 
-            if (showingLibrary) { Close(); return; }
+            // HIDE, never Close(). Decided by the user 2026-09-02: "wenn ein button center aus
+            // toggled dann soll es immer im hintergrund weiterlaufen und nicht geschlossen werden."
+            //
+            // Close() ran the Closing handler, which exits outright when "Run in background" is off -
+            // and that is the DEFAULT on a fresh install. So the second press of a bound button
+            // terminated Center, and the third had to pay a cold start of a self-contained build.
+            // A toggle whose off-half destroys the thing it toggles is not a toggle.
+            //
+            // ⚠️ The old comment justified Close() as avoiding "an invisible, unreachable process for
+            // anyone who has Run in background off". That worry does not apply here: this window was
+            // put away by a HARDWARE BUTTON, and the same button brings it straight back. Reachable
+            // is exactly what it is - which is not true of the X in the title bar, so the Closing
+            // handler keeps its own behaviour untouched.
+            if (showingLibrary) { Hide(); return; }
 
             BringToFront();
             if (_view != View.Library) OpenLibrary();
