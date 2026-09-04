@@ -67,13 +67,26 @@ namespace ClawTweaksCenter.Update
         /// </summary>
         public static async Task<PendingUpdate> RunAsync(bool mayApplyNow)
         {
+            // Asked FIRST, and only to keep the log quiet: with the feature off there is nothing to
+            // report, and a line per start on every machine that never turned it on is noise.
+            // CheckAsync checks this again - that is the switch that counts, and it is read fresh.
+            if (!VelopackUpdates.Enabled) return null;
+
             try
             {
                 var info = await VelopackUpdates.CheckAsync().ConfigureAwait(false);
-                if (info == null) return null;
 
-                string version = info.TargetFullRelease?.Version?.ToString();
-                if (string.IsNullOrWhiteSpace(version)) return null;
+                string version = info?.TargetFullRelease?.Version?.ToString();
+                if (string.IsNullOrWhiteSpace(version))
+                {
+                    // ⚠️ The uneventful case has to say so. Measured 2026-09-04: a healthy start with
+                    // nothing newer wrote NOT ONE LINE, which is indistinguishable from a check that
+                    // never ran - the exact failure class this project has paid for repeatedly (see
+                    // helper-logs-at-info-not-debug). One line per start, and only while the feature
+                    // is on.
+                    VelopackUpdates.Note("checked - nothing newer than this build");
+                    return null;
+                }
 
                 bool essential = await VelopackUpdates.ShouldUpdateSilently(info).ConfigureAwait(false);
                 var pending = new PendingUpdate { Version = version, Essential = essential, Info = info };
