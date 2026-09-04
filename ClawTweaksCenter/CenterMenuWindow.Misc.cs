@@ -633,6 +633,23 @@ namespace ClawTweaksCenter
             MiscStore.Save(entries);
             _library.ReplaceMisc(MiscSource.Build());
             StartArtFetch();
+
+            // AND THEN THE SAME RESCAN THE Y BUTTON RUNS. Reported 2026-09-04: after adopting exe
+            // files the covers went missing and only came back on a manual refresh.
+            //
+            // ReplaceMisc is a shortcut around the scan, and every step the scan takes that it does
+            // not is a way for the two to disagree - two were found missing the same day (see its own
+            // comment). Rather than keep a second copy of the scan's work in step by hand, the
+            // shortcut now paints the new entries immediately and a real scan follows to make the
+            // result IDENTICAL to the manual refresh by construction, not by resemblance.
+            //
+            // ⚠️ The order matters and is already right: ReplaceMisc has set _miscOverride by the time
+            // the scan lands, so the round in flight cannot resurrect the pre-edit snapshot.
+            //
+            // Affordable because of WHEN it happens: adopting, renaming or removing an app is an
+            // explicit, rare action the user has just confirmed - not something on a timer.
+            _libraryScanned = false;
+            _ = ScanLibraryAsync();
         }
         #endregion
 

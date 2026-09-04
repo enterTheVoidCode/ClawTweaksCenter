@@ -268,7 +268,17 @@ namespace ClawTweaksCenter.Library
             foreach (var g in Games) if (g.Store != GameStore.Misc) rebuilt.Add(g);
             if (misc != null) rebuilt.AddRange(misc);
 
+            // 🔴 THE SAME FOUR STEPS THE SCAN RUNS, IN THE SAME ORDER. Two of them were missing here
+            // (2026-09-04): ArtOverrideStore and FavoritesStore. That is a real divergence between the
+            // two ways this list gets built - a hand-picked cover and a pinned favourite were applied
+            // by a full scan and silently not by an add/rename/remove.
+            //
+            // ⚠️ ORDER IS LOAD-BEARING, and it is why the override comes second: ResolveLocalArt only
+            // fills an ArtPath that is still null, so a manual pick has to be written AFTER it to win.
+            // Reversed, the local art would take the slot and the override would find nothing to do.
             GameArt.ResolveLocalArt(rebuilt);
+            ArtOverrideStore.ApplyTo(rebuilt);
+            FavoritesStore.ApplyTo(rebuilt);
             History.ApplyTo(rebuilt);
             rebuilt.Sort((a, b) => string.Compare(a.Title, b.Title, StringComparison.CurrentCultureIgnoreCase));
             Games = rebuilt;

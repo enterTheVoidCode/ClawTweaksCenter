@@ -898,5 +898,24 @@
         //   failed=<0|1>   the mount gave up; the consumer must stop waiting immediately
         // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
         ControllerReadyState,           // string - "virtual=..;ready=..;failed=.."
+
+        // The helper's answer to a "TrayAppList" request (Center's Bibliothek-Schnellmenue, left
+        // column). JSON array, one element per tray-capable process currently running - built from
+        // HKCU\Control Panel\NotifyIconSettings cross-referenced against Process.GetProcesses(),
+        // confirmed to work identically on the desktop AND under true fullscreen exclusive
+        // (Doku/PLAN_SystemTray_Access.md) - explorer's UI tree does not exist under FSE at all, so
+        // this deliberately never touches it.
+        //   [{ "Exe":"RTSS.exe", "Pid":13688, "Name":"RivaTuner Statistics Server",
+        //      "ExePath":"C:\\...\\RTSS.exe", "CanOpen":true, "CanClose":true, "Reason":null }, ...]
+        // CanOpen/CanClose are false together with a non-null Reason when the window-resolution step
+        // (EnumWindows by PID, same mechanism as the close probe) found zero or more than one
+        // candidate window - the row still appears, greyed out, rather than being silently dropped or
+        // left clickable-but-inert (decision recorded in the plan doc, 2026-09-03).
+        //
+        // Requested via Extra["TrayAppList"]; acted on via Extra["TrayAppOpen"]/["TrayAppClose"] with
+        // an int Pid, fire-and-forget like PowerAction - the pid came from a list request seconds
+        // earlier, so it is never stale by the time the user presses a button on it.
+        // APPEND-ONLY: Function is serialised by ordinal - new members go at the END.
+        TrayAppList,                    // string - JSON array, see above
     }
 }

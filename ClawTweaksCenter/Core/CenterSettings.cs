@@ -172,6 +172,24 @@ namespace ClawTweaksCenter.Core
             set => WriteBool("ImmersiveMode", value);
         }
 
+        /// <summary>One column MORE THAN THE DEFAULT in the library grid, covers scaled down to match.
+        ///
+        /// Relative, never an absolute count: the column number is DERIVED from the window width
+        /// (MeasureGridMetrics), so "7" would only be true on the window size it was written for.
+        /// On the Claw's panel the default lands on 6 and this makes it 7.
+        ///
+        /// Off by default. The default itself became one step denser on 2026-09-04 after the user saw
+        /// it on device - so "off" today is what "on" was yesterday, and this switch now goes one
+        /// further still.
+        ///
+        /// The reel (Recent) is unaffected by construction: it takes its size from the HEIGHT and sets
+        /// its own column count, so it never reaches this.</summary>
+        public static bool DenseLibraryGrid
+        {
+            get => ReadBool("DenseLibraryGrid", false);
+            set => WriteBool("DenseLibraryGrid", value);
+        }
+
         public static bool LibraryInfoSeen
         {
             get => ReadBool("LibraryInfoSeen", false);

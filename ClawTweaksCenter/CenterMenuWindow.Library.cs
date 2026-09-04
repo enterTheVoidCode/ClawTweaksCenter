@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -178,6 +179,35 @@ namespace ClawTweaksCenter
         /// like a press that worked.</summary>
         private string _exitPromptNote;
 
+        // ── Three columns, 2026-09-03 ──────────────────────────────────────────────────────────────
+        // Left = tray apps (Systems/TrayApps.cs on the helper), middle = the rows above (unchanged,
+        // which is why they keep their original field names), right = curated Windows tools. Full
+        // build in CenterMenuWindow.QuickMenu.cs.
+        //
+        // Left/Right MOVE BETWEEN COLUMNS, Up/Down move WITHIN one - so each column needs its own
+        // index and its own row list, rather than the one pair the middle column already had. Each
+        // column also remembers its own index across a Left/Right switch, so leaving and returning to
+        // a column does not reset where the user was in it.
+        private const int ExitPromptColumnTray = 0;
+        private const int ExitPromptColumnCenter = 1;
+        private const int ExitPromptColumnTools = 2;
+        private int _exitPromptColumn = ExitPromptColumnCenter;
+
+        private int _exitPromptTrayIndex;
+        private readonly List<Border> _exitPromptTrayRows = new List<Border>();
+        private readonly List<Action> _exitPromptTrayActions = new List<Action>();
+
+        // Index-aligned with the two lists above: what X does for the same row A would Open. Every
+        // navigable tray row currently has both (CanOpen and CanClose come from the helper coupled -
+        // see TrayApps.ResolveWindow), so this is never sparser than _exitPromptTrayActions, but it
+        // stays a separate list rather than a tuple so the day they DO diverge is a one-line change
+        // here instead of a new field threaded through every caller.
+        private readonly List<Action> _exitPromptTrayCloseActions = new List<Action>();
+
+        private int _exitPromptToolsIndex;
+        private readonly List<Border> _exitPromptToolsRows = new List<Border>();
+        private readonly List<Action> _exitPromptToolsActions = new List<Action>();
+
         /// <summary>True while one of the launch screens is up. Everything that navigates the grid
         /// checks this - the launch screens own the whole library area while they are on it.</summary>
         private bool LaunchOverlayOpen => _launchPrompt != LaunchPrompt.None || _exitPromptOpen || _infoOpen;
@@ -217,6 +247,23 @@ namespace ClawTweaksCenter
             // named on every other screen.
             if (ShellHeader != null)
                 ShellHeader.Visibility = inLibrary ? Visibility.Collapsed : Visibility.Visible;
+
+            // 🔴 A LAUNCH PROMPT OWNS THE WHOLE SCREEN. The tab strip is navigation for a grid the
+            // user is no longer looking at: while "Start X?" is up, LB/RB do nothing and the tabs are
+            // just a row of names behind the question. Reported on device 2026-09-04 as exactly that -
+            // tabs above and the right-stick hint below, both still there behind the prompt.
+            //
+            // Collapsed, not dimmed. The immersive path dims because its chrome comes BACK on the next
+            // press; this one does not, and a greyed row that never lights up reads as broken.
+            //
+            // ⚠️ Deliberately NOT LibraryOverlayOwnsScreen, which also covers settings and the game
+            // menu. Those two are lists the user navigates INSIDE the library, and the tab they came
+            // from is context worth keeping on screen. Only the launch prompt replaces the screen.
+            if (inLibrary && LaunchPromptOwnsScreen)
+            {
+                TabStrip.Visibility = Visibility.Collapsed;
+                return;
+            }
 
             TabStrip.Visibility = Visibility.Visible;
             TabStrip.Margin = new Thickness(inLibrary ? LibOuterMargin : 24, inLibrary ? 10 : 0, 24, 0);
@@ -576,9 +623,20 @@ namespace ClawTweaksCenter
 
             if (count == null) return text;
 
+            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            row.Children.Add(text);
+            row.Children.Add(BuildCountBadge(count.Value, fontSize));
+            return row;
+        }
+
+        /// <summary>The grey disc holding a count. Split out of BuildChipContent so the icon-only tab
+        /// chips (BuildGroupChipContent) show the SAME badge - two hand-written copies of a rounded
+        /// pill drift apart the first time one of them is adjusted.</summary>
+        private static Border BuildCountBadge(int count, double fontSize)
+        {
             var number = new TextBlock
             {
-                Text = count.Value.ToString(),
+                Text = count.ToString(),
                 FontSize = fontSize - 3,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Subtle,
@@ -591,7 +649,7 @@ namespace ClawTweaksCenter
             // badge that clips its own contents at 100+ items is the version of this that only breaks
             // on the tabs that matter.
             double size = fontSize + 6;
-            var badge = new Border
+            return new Border
             {
                 Child = number,
                 MinWidth = size,
@@ -605,11 +663,6 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(7, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
             };
-
-            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            row.Children.Add(text);
-            row.Children.Add(badge);
-            return row;
         }
 
         private static readonly Brush BadgeFill = Freeze(new SolidColorBrush(Color.FromArgb(0x26, 0xFF, 0xFF, 0xFF)));
@@ -636,6 +689,90 @@ namespace ClawTweaksCenter
             }
         }
 
+        /// <summary>
+        /// A tab chip: the group's icon always, its NAME only while it is the active tab.
+        ///
+        /// The strip did not fit. With ten labels spelled out, "Not Installed" sat off the right-hand
+        /// edge and was only reachable by tabbing all the way across - reported on device 2026-09-04,
+        /// and the tab a user needs least often is not the one that should be hardest to reach. An
+        /// icon is about a quarter of the width of its name, so the whole strip fits at once and the
+        /// name is still there for the one tab whose name is in question.
+        ///
+        /// The icon is the store's REAL logo when the launcher is installed (see Library/StoreIcons.cs
+        /// for why it is extracted rather than shipped), a Segoe glyph otherwise.
+        ///
+        /// ⚠️ The count badge stays on every tab, active or not. It is the one thing that cannot be
+        /// inferred from an icon, and it is why the strip is glanced at in the first place.
+        /// </summary>
+        // 20, while the fallback glyphs stay at font size 16. Not an inconsistency: a glyph is drawn
+        // inside a font's em box with its own padding, so it covers noticeably less of its nominal
+        // size than a bitmap does. Matching the NUMBERS made the picture icons look smaller than the
+        // font ones, which is how it was reported on 2026-09-04.
+        private const double TabIconSize = 20;
+
+        private static UIElement BuildGroupChipContent(LibraryGroup g, int? count, bool active)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+
+            // Three sources, in order of how well they identify the tab: the store's own logo, a
+            // drawn vector where no logo exists but a font glyph would collide with another tab
+            // (ROMs), and the shared glyph set last.
+            var vector = Library.StoreIcons.VectorFor(g, active ? UiHelpers.Text : UiHelpers.Subtle, TabIconSize);
+            var logo = vector == null ? Library.StoreIcons.For(g) : null;
+
+            if (vector != null)
+            {
+                row.Children.Add(vector);
+            }
+            else if (logo != null)
+            {
+                row.Children.Add(new Image
+                {
+                    Source = logo,
+                    Width = TabIconSize,
+                    Height = TabIconSize,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    // The extracted icon is 32x32 drawn at 16; without this it is visibly mushy on a
+                    // strip where it is the only thing identifying the tab.
+                    SnapsToDevicePixels = true,
+                    Opacity = active ? 1.0 : 0.75,
+                });
+            }
+            else
+            {
+                row.Children.Add(new TextBlock
+                {
+                    Text = Library.StoreIcons.GlyphFor(g),
+                    FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                    FontSize = 16,
+                    Foreground = active ? UiHelpers.Text : UiHelpers.Subtle,
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+            }
+
+            if (active)
+            {
+                row.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T(GameLibrary.GroupLabel(g)),
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = UiHelpers.Text,
+                    Margin = new Thickness(7, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+            }
+
+            if (count != null)
+            {
+                var badge = BuildCountBadge(count.Value, 14);
+                badge.Margin = new Thickness(active ? 6 : 5, 0, 0, 0);
+                row.Children.Add(badge);
+            }
+
+            return row;
+        }
+
         private UIElement BuildGroupChip(LibraryGroup g)
         {
             bool active = g == _libraryGroup;
@@ -644,8 +781,7 @@ namespace ClawTweaksCenter
 
             var chip = new Border
             {
-                Child = BuildChipContent(Core.Loc.T(GameLibrary.GroupLabel(g)),
-                                         _libraryScanned && !ImmersiveCountsHidden ? count : (int?)null, active, 14),
+                Child = BuildGroupChipContent(g, _libraryScanned && !ImmersiveCountsHidden ? count : (int?)null, active),
                 Padding = new Thickness(10, 4, 10, 4),
                 Margin = new Thickness(0, 0, 6, 0),
                 CornerRadius = new CornerRadius(13),
@@ -1390,6 +1526,24 @@ namespace ClawTweaksCenter
             double usable = Math.Max(200, avail - 2 * LibOuterMargin);
 
             _libColumns = (int)Math.Round((usable + LibTileGap) / (LibGridTileWidth + LibTileGap));
+
+            // COLUMNS ADDED, not a second target tile width. The width below is derived from the
+            // column count, so adding a column here scales the covers down on its own - narrower AND
+            // shorter, because the height comes from LibCoverAspect. A second width constant would be
+            // a number that has to be kept in step with LibGridTileWidth by hand, and it would only be
+            // right on the window size it was picked for.
+            //
+            // ONE IS NOW THE DEFAULT (user, 2026-09-04, after seeing it on device): what LibGridTileWidth
+            // alone produces was too sparse, so the +1 that used to be the option is now the baseline
+            // and the option goes one further. On this panel that reads as 5 -> 6 -> 7, but the
+            // arithmetic stays relative, so a different window still gets a sensible pair.
+            //
+            // ⚠️ Deliberately NOT done by dropping LibGridTileWidth to ~158. That constant is also the
+            // seed for _libTileWidth and _libDecodeWidth before the first measurement, and retuning a
+            // shared constant to move one derived number is how two things that looked unrelated end
+            // up drifting.
+            _libColumns += Core.CenterSettings.DenseLibraryGrid ? 2 : 1;
+
             if (_libColumns < 2) _libColumns = 2;
             if (_libColumns > 12) _libColumns = 12;
 
@@ -2006,6 +2160,19 @@ namespace ClawTweaksCenter
         private bool LibraryOverlayOwnsScreen =>
             _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen || LaunchOverlayOpen;
 
+        /// <summary>True while a full-screen prompt has replaced the library: a launch/install prompt,
+        /// or the quick menu.
+        ///
+        /// Still narrower than <see cref="LibraryOverlayOwnsScreen"/>: settings and the game menu are
+        /// navigated INSIDE the library and keep their tab as useful context. These two replace the
+        /// screen outright.
+        ///
+        /// ⚠️ The quick menu was excluded when this was written and that was wrong - reported the same
+        /// day it shipped. Its three columns fill the screen exactly the way a launch prompt does, so
+        /// the tabs and the stick hint behind it are the same distraction; "it has its own columns to
+        /// look at" was an argument for hiding the rest, not for keeping it.</summary>
+        private bool LaunchPromptOwnsScreen => _launchPrompt != LaunchPrompt.None || _exitPromptOpen;
+
         /// <summary>
         /// The footer and its stand-in hint only. Cheap, and called from every library action-bar
         /// refresh - which is what makes an overlay opening or closing bring the footer with it,
@@ -2056,7 +2223,11 @@ namespace ClawTweaksCenter
                 else
                     ImmersiveHint.Text = jump ?? click ?? string.Empty;
 
-                ImmersiveHint.Visibility = ImmersiveHint.Text.Length > 0
+                // Gone entirely while a launch prompt is up, whatever it would otherwise say. Both of
+                // its two lines describe the right stick's effect ON THE SHELF, and the shelf is not
+                // what is on screen - "right jumps to the end" under a "Start X?" question is an
+                // instruction for a list the user cannot see. Same report as the tab strip above.
+                ImmersiveHint.Visibility = ImmersiveHint.Text.Length > 0 && !LaunchPromptOwnsScreen
                     ? Visibility.Visible
                     : Visibility.Collapsed;
                 // As low as it can go in a GRID, higher in the reel.
@@ -2100,11 +2271,12 @@ namespace ClawTweaksCenter
         private const int SettingsStartWithClawTweaksRow = 4;
         private const int SettingsRunInBackgroundRow = 5;
         private const int SettingsStartSteamRow = 6;
+        private const int SettingsDenseGridRow = 7;
 
         /// <summary>The key row, and it is ALWAYS the last one: it holds a text box, so it spans both
         /// columns and sits on its own line below the pairs. The navigation maths below derives the
         /// pair count from this, so adding a switch above it needs no other change.</summary>
-        private const int SettingsKeyRow = 7;
+        private const int SettingsKeyRow = 8;
 
         private const int SettingsColumns = 2;
 
@@ -2165,6 +2337,8 @@ namespace ClawTweaksCenter
                 Core.CenterSettings.RunInBackground, null));
             pairs.Children.Add(BuildSettingRow(SettingsStartSteamRow, "Start Steam with the library",
                 Core.CenterSettings.StartSteamWithLibrary, null));
+            pairs.Children.Add(BuildSettingRow(SettingsDenseGridRow, "Denser grid",
+                Core.CenterSettings.DenseLibraryGrid, null));
             stack.Children.Add(pairs);
 
             var keyRow = BuildSettingRow(SettingsKeyRow, "SteamGridDB key", null, null);
@@ -2354,6 +2528,13 @@ namespace ClawTweaksCenter
                     break;
                 case SettingsLaunchBehaviorRow:
                     Core.CenterSettings.LaunchBehavior = NextLaunchBehavior(Core.CenterSettings.LaunchBehavior);
+                    break;
+                case SettingsDenseGridRow:
+                    Core.CenterSettings.DenseLibraryGrid = !Core.CenterSettings.DenseLibraryGrid;
+                    // No repaint here, deliberately - same as Square ROM art, which changes the tiles
+                    // in the same way. CloseSettings already calls RenderLibrary, and that is when
+                    // MeasureGridMetrics re-runs. Rendering from HERE would paint the library over the
+                    // settings screen the user is still standing on.
                     break;
                 case SettingsStartWithClawTweaksRow:
                     Core.CenterSettings.StartCenterWithClawTweaks = !Core.CenterSettings.StartCenterWithClawTweaks;
@@ -3557,7 +3738,7 @@ namespace ClawTweaksCenter
 
             var path = new TextBox
             {
-                Text = Core.SelfInstaller.InstalledExe,
+                Text = AnyFsePath,
                 IsReadOnly = true,
                 FontSize = 13,
                 Padding = new Thickness(8, 5, 8, 5),
@@ -3580,12 +3761,19 @@ namespace ClawTweaksCenter
             return row;
         }
 
-        /// <summary>Puts the installed Center path on the clipboard. Wrapped because the clipboard is
-        /// a shared OS resource - another process holding it open makes Clipboard.SetText throw, and
-        /// a failed copy must not take the library down with it.</summary>
+        /// <summary>The FOLDER Center is installed in, not the exe inside it - AnyFSE's own path
+        /// field does not accept a path down to the exe itself (reported 2026-09-03: it silently
+        /// refused "...\ClawTweaksCenter\CTW_Center.exe"). Derived from <see
+        /// cref="Core.SelfInstaller.InstalledExe"/>, which already resolves classic vs. Velopack -
+        /// stripping the filename here keeps that one source of truth instead of duplicating it.</summary>
+        private static string AnyFsePath => System.IO.Path.GetDirectoryName(Core.SelfInstaller.InstalledExe);
+
+        /// <summary>Puts the installed Center folder on the clipboard. Wrapped because the clipboard
+        /// is a shared OS resource - another process holding it open makes Clipboard.SetText throw,
+        /// and a failed copy must not take the library down with it.</summary>
         private void CopyAnyFsePath()
         {
-            try { Clipboard.SetText(Core.SelfInstaller.InstalledExe); }
+            try { Clipboard.SetText(AnyFsePath); }
             catch (Exception ex) { Core.InstallLog.Write("Copying the Center path failed: " + ex.Message); }
         }
         #endregion
@@ -3595,10 +3783,16 @@ namespace ClawTweaksCenter
         {
             if (LaunchOverlayOpen || _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen) return;
             _exitPromptOpen = true;
+            _exitPromptColumn = ExitPromptColumnCenter;
             _exitPromptIndex = 0;
             _exitPromptNote = null;
             RenderExitPrompt();
             RefreshActionBar();
+
+            // Fire-and-forget: the tray column starts empty ("Loading...") and fills in when the
+            // helper answers, a beat or two later - fine for a menu the user just opened rather than
+            // something on a hot path. See CenterMenuWindow.QuickMenu.cs.
+            _ = RequestTrayAppsAsync();
         }
 
         private void CloseExitPrompt()
@@ -3606,6 +3800,10 @@ namespace ClawTweaksCenter
             _exitPromptOpen = false;
             _exitPromptRows.Clear();
             _exitPromptActions.Clear();
+            _exitPromptTrayRows.Clear();
+            _exitPromptTrayActions.Clear(); _exitPromptTrayCloseActions.Clear();
+            _exitPromptToolsRows.Clear();
+            _exitPromptToolsActions.Clear();
             RenderLibrary();
             RefreshActionBar();
         }
@@ -3616,6 +3814,10 @@ namespace ClawTweaksCenter
             LibraryRoot.RowDefinitions.Clear();
             _exitPromptRows.Clear();
             _exitPromptActions.Clear();
+            _exitPromptTrayRows.Clear();
+            _exitPromptTrayActions.Clear(); _exitPromptTrayCloseActions.Clear();
+            _exitPromptToolsRows.Clear();
+            _exitPromptToolsActions.Clear();
 
             var stack = new StackPanel
             {
@@ -3625,7 +3827,7 @@ namespace ClawTweaksCenter
             };
             stack.Children.Add(new TextBlock
             {
-                Text = Core.Loc.T("Leave the library"),
+                Text = Core.Loc.T("Library quick menu"),
                 FontSize = 26,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
@@ -3654,7 +3856,9 @@ namespace ClawTweaksCenter
                     () => { _exitPromptOpen = false; Close(); });
 
             AddExitPromptRow(stack, "\uE80F", "Center start screen", "Leave the library open.",
-                () => { _exitPromptOpen = false; _exitPromptRows.Clear(); _exitPromptActions.Clear(); GoHome(); });
+                () => { _exitPromptOpen = false; _exitPromptRows.Clear(); _exitPromptActions.Clear();
+                        _exitPromptTrayRows.Clear(); _exitPromptTrayActions.Clear(); _exitPromptTrayCloseActions.Clear();
+                        _exitPromptToolsRows.Clear(); _exitPromptToolsActions.Clear(); GoHome(); });
 
             if (!Core.CenterSettings.RunInBackground)
                 AddExitPromptRow(stack, "\uE711", "Close Center", "Ends Center completely.",
@@ -3689,13 +3893,36 @@ namespace ClawTweaksCenter
                 Child = power,
                 Background = UiHelpers.Card,
                 CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(6),
+                // Padding 6 -> 12 and the width down from 520: with a sidebar on each side the centre
+                // column ran off the right-hand edge, and the card sat tighter than the rows in it
+                // (user, 2026-09-04). Narrower is free here - the rows are icon + two short lines, so
+                // the width was never carrying anything.
+                Padding = new Thickness(6, 12, 6, 12),
                 Margin = new Thickness(0, 6, 0, 0),
-                MinWidth = 520,
+                MinWidth = ExitPromptCentreWidth,
                 HorizontalAlignment = HorizontalAlignment.Center,
             });
 
-            LibraryRoot.Children.Add(stack);
+            // Three columns: tray apps (left) and curated Windows tools (right) flank the buttons
+            // above, unchanged in the middle. Fixed side widths rather than equal thirds - these are
+            // sidebars for a list of icon+text rows, not a peer of the button stack's own width.
+            var columns = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch };
+            columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
+            columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
+
+            var trayColumn = BuildTrayColumn();
+            Grid.SetColumn(trayColumn, 0);
+            columns.Children.Add(trayColumn);
+
+            Grid.SetColumn(stack, 1);
+            columns.Children.Add(stack);
+
+            var toolsColumn = BuildToolsColumn();
+            Grid.SetColumn(toolsColumn, 2);
+            columns.Children.Add(toolsColumn);
+
+            LibraryRoot.Children.Add(columns);
             ApplyExitPromptSelection();
         }
 
@@ -3788,19 +4015,48 @@ namespace ClawTweaksCenter
             if (_exitPromptOpen) RenderExitPrompt();
         }
 
-        /// <summary>One selectable row. <paramref name="inCard"/> drops its own background and most
-        /// of its margin, because inside the power card the CARD is the surface - a second card
-        /// colour on every row would draw four boxes inside a box and undo the grouping.</summary>
-        private Border ExitPromptRow(int index, string glyph, string title, string subtitle, bool inCard = false)
+        /// <summary>
+        /// The visual a selectable row is built from - icon, title, subtitle, card styling. Split out
+        /// of <see cref="ExitPromptRow"/> so the tray-apps and quick-tools columns
+        /// (CenterMenuWindow.QuickMenu.cs) can share the exact same look without sharing that method's
+        /// click-wiring, which is hardwired to the middle column's own index and action list.
+        ///
+        /// <paramref name="inCard"/> drops its own background and most of its margin, because inside
+        /// the power card the CARD is the surface - a second card colour on every row would draw four
+        /// boxes inside a box and undo the grouping. <paramref name="dim"/> is the "present but not
+        /// reachable right now" row - greyed rather than absent, because a control that silently is
+        /// not there reads as a bug and one this project has already paid for once.
+        ///
+        /// <paramref name="compact"/> is the SIDE-column form (tray apps, quick tools). It is not just
+        /// "the same row, smaller": it drops the card fill entirely, so the two side lists read as
+        /// lists while the middle column keeps reading as the buttons it is. The middle column holds
+        /// the consequential actions - shut down, hibernate, leave the library - and it earns the
+        /// visual weight; a shortcut to Task Manager does not. Requested on device, 2026-09-04, after
+        /// three identical-looking columns made the middle one stop standing out at all.
+        /// </summary>
+        // What the middle column of the quick menu is allowed to be wide. It used to be 520 and was
+        // reported cut off on the right once the two sidebars flanked it - and the rows in it are an
+        // icon plus two short lines, so the width was never doing any work.
+        private const double ExitPromptCentreWidth = 430;
+
+        private static Border BuildRowVisual(
+            string glyph, string title, string subtitle, bool inCard, bool dim = false, bool compact = false)
         {
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            text.Children.Add(new TextBlock { Text = Core.Loc.T(title), FontSize = 18, Foreground = UiHelpers.Text });
+            text.Children.Add(new TextBlock
+            {
+                Text = Core.Loc.T(title),
+                FontSize = compact ? 14 : 18,
+                Foreground = UiHelpers.Text,
+                TextTrimming = TextTrimming.CharacterEllipsis,
+            });
             text.Children.Add(new TextBlock
             {
                 Text = Core.Loc.T(subtitle),
-                FontSize = 13,
+                FontSize = compact ? 11 : 13,
                 Foreground = UiHelpers.Subtle,
-                Margin = new Thickness(0, 2, 0, 0),
+                Margin = new Thickness(0, compact ? 1 : 2, 0, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis,
             });
             Grid.SetColumn(text, 1);
 
@@ -3808,69 +4064,154 @@ namespace ClawTweaksCenter
             {
                 Text = glyph,
                 FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
-                FontSize = 20,
-                Foreground = UiHelpers.Text,
+                FontSize = compact ? 15 : 20,
+                Foreground = UiHelpers.Subtle,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             };
+            if (!compact) icon.Foreground = UiHelpers.Text;
 
             var grid = new Grid();
             // 48, not 34: the glyph is drawn at 20pt and centred, so a 34-wide column left barely
             // three pixels between it and the text. The gap belongs to the COLUMN rather than to a
             // margin on the text, so the two lines of the label still start at the same x whatever
             // width the glyph happens to have.
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(48) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(compact ? 30 : 48) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.Children.Add(icon);
             grid.Children.Add(text);
 
-            var row = new Border
+            return new Border
             {
                 Child = grid,
-                Background = inCard ? Brushes.Transparent : UiHelpers.Card,
-                CornerRadius = new CornerRadius(inCard ? 7 : 10),
-                Padding = new Thickness(16, inCard ? 9 : 12, 16, inCard ? 9 : 12),
-                Margin = new Thickness(0, 0, 0, inCard ? 0 : 10),
+                Background = (inCard || compact) ? Brushes.Transparent : UiHelpers.Card,
+                CornerRadius = new CornerRadius(inCard || compact ? 7 : 10),
+                Padding = compact
+                    ? new Thickness(8, 7, 8, 7)
+                    : new Thickness(16, inCard ? 9 : 12, 16, inCard ? 9 : 12),
+                Margin = new Thickness(0, 0, 0, compact ? 2 : (inCard ? 0 : 10)),
                 BorderThickness = new Thickness(2),
                 BorderBrush = Brushes.Transparent,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                Tag = index,
+                Cursor = dim ? System.Windows.Input.Cursors.Arrow : System.Windows.Input.Cursors.Hand,
+                Opacity = dim ? 0.45 : 1.0,
                 // The card carries the width for its own rows; setting it here too would fight the
-                // card's padding and push the rows past its rounded edge.
-                MinWidth = inCard ? 0 : 520,
+                // card's padding and push the rows past its rounded edge. A side column is sized by
+                // its own grid column, so it wants no minimum either.
+                MinWidth = (inCard || compact) ? 0 : ExitPromptCentreWidth,
             };
+        }
+
+        /// <summary>One selectable row in the MIDDLE column's own list/index/click wiring.</summary>
+        private Border ExitPromptRow(int index, string glyph, string title, string subtitle, bool inCard = false)
+        {
+            var row = BuildRowVisual(glyph, title, subtitle, inCard);
+            row.Tag = index;
             int captured = index;
-            row.MouseLeftButtonUp += (_, __) => { _exitPromptIndex = captured; ActivateExitPromptRow(); };
+            row.MouseLeftButtonUp += (_, __) =>
+            {
+                _exitPromptColumn = ExitPromptColumnCenter;
+                _exitPromptIndex = captured;
+                ActivateExitPromptSelection();
+            };
             _exitPromptRows.Add(row);
             return row;
         }
 
+        /// <summary>The rows and index for whichever column currently has focus. One switch instead
+        /// of three near-identical copies of every method below - see the field block above for why
+        /// each column needs its own list and index in the first place.</summary>
+        private (List<Border> rows, List<Action> actions, int index) ActiveExitPromptColumn() => _exitPromptColumn switch
+        {
+            ExitPromptColumnTray => (_exitPromptTrayRows, _exitPromptTrayActions, _exitPromptTrayIndex),
+            ExitPromptColumnTools => (_exitPromptToolsRows, _exitPromptToolsActions, _exitPromptToolsIndex),
+            _ => (_exitPromptRows, _exitPromptActions, _exitPromptIndex),
+        };
+
+        /// <summary>Highlights the selected row in the ACTIVE column only - the other two keep no
+        /// highlighted row, so there is never a moment with two accent borders on screen at once.</summary>
         private void ApplyExitPromptSelection()
         {
-            foreach (var row in _exitPromptRows)
-                row.BorderBrush = row.Tag is int i && i == _exitPromptIndex ? UiHelpers.Accent : Brushes.Transparent;
+            var (activeRows, _, activeIndex) = ActiveExitPromptColumn();
+            Border selected = null;
+            foreach (var rows in new[] { _exitPromptRows, _exitPromptTrayRows, _exitPromptToolsRows })
+            {
+                bool isActive = rows == activeRows;
+                foreach (var row in rows)
+                {
+                    bool on = isActive && row.Tag is int i && i == activeIndex;
+                    row.BorderBrush = on ? UiHelpers.Accent : Brushes.Transparent;
+                    if (on) selected = row;
+                }
+            }
+
+            // 🔴 THE SCROLLER DOES NOT FOLLOW THE PAD ON ITS OWN. Reported 2026-09-04: the side lists
+            // could only be scrolled with mouse or touch. Nothing was broken about the navigation -
+            // the highlight really did move onto row seven - it just moved BELOW the visible area of a
+            // height-capped ScrollViewer, and a highlight nobody can see is indistinguishable from a
+            // press that did nothing.
+            //
+            // A ScrollViewer scrolls itself for KEYBOARD FOCUS. These rows are Borders that are never
+            // focused - selection here is our own index plus a border brush - so that mechanism never
+            // had anything to react to. BringIntoView is the same request made explicitly.
+            //
+            // Called from the one place that changes the selection, so every route in (pad, mouse,
+            // column switch, a rebuild after the list refreshes) gets it without its own line.
+            selected?.BringIntoView();
         }
 
+        /// <summary>Up/Down move within the active column; Left/Right switch column, one at a time, and
+        /// refuse to land on a column with nothing in it yet (the tray column while it is still
+        /// loading) rather than moving the ring onto emptiness.</summary>
         private void MoveExitPromptSelection(PadButton dir)
         {
-            if (_exitPromptRows.Count == 0) return;
-            int next = _exitPromptIndex + (dir == PadButton.Down ? 1 : dir == PadButton.Up ? -1 : 0);
-            if (next < 0 || next >= _exitPromptRows.Count || next == _exitPromptIndex) return;
-            _exitPromptIndex = next;
+            if (dir == PadButton.Left || dir == PadButton.Right)
+            {
+                int nextColumn = _exitPromptColumn + (dir == PadButton.Right ? 1 : -1);
+                if (nextColumn < ExitPromptColumnTray || nextColumn > ExitPromptColumnTools) return;
+
+                var candidateRows = nextColumn switch
+                {
+                    ExitPromptColumnTray => _exitPromptTrayRows,
+                    ExitPromptColumnTools => _exitPromptToolsRows,
+                    _ => _exitPromptRows,
+                };
+                if (candidateRows.Count == 0) return;
+
+                _exitPromptColumn = nextColumn;
+                ApplyExitPromptSelection();
+                return;
+            }
+
+            var (rows, _, index) = ActiveExitPromptColumn();
+            if (rows.Count == 0) return;
+            int next = index + (dir == PadButton.Down ? 1 : dir == PadButton.Up ? -1 : 0);
+            if (next < 0 || next >= rows.Count || next == index) return;
+            SetActiveColumnIndex(next);
             ApplyExitPromptSelection();
         }
 
-        /// <summary>Runs whatever the selected row was built with. The bounds check is the whole
-        /// safety net: an index that no longer has a row behind it now does NOTHING, where the old
-        /// switch fell through to its default and shut Center down.
-        ///
-        /// Row 0 uses Close(), not Hide(): the Closing handler already knows what closing means on
-        /// this machine, and with Run in background off it exits instead - the honest answer when
-        /// there is no tray to minimize into.</summary>
-        private void ActivateExitPromptRow()
+        private void SetActiveColumnIndex(int index)
         {
-            if (_exitPromptIndex < 0 || _exitPromptIndex >= _exitPromptActions.Count) return;
-            _exitPromptActions[_exitPromptIndex]();
+            switch (_exitPromptColumn)
+            {
+                case ExitPromptColumnTray: _exitPromptTrayIndex = index; break;
+                case ExitPromptColumnTools: _exitPromptToolsIndex = index; break;
+                default: _exitPromptIndex = index; break;
+            }
+        }
+
+        /// <summary>Runs whatever the selected row in the ACTIVE column was built with. The bounds
+        /// check is the whole safety net: an index that no longer has a row behind it now does
+        /// NOTHING, where the old switch fell through to its default and shut Center down.
+        ///
+        /// Row 0 of the middle column uses Close(), not Hide(): the Closing handler already knows
+        /// what closing means on this machine, and with Run in background off it exits instead - the
+        /// honest answer when there is no tray to minimize into.</summary>
+        private void ActivateExitPromptSelection()
+        {
+            var (_, actions, index) = ActiveExitPromptColumn();
+            if (index < 0 || index >= actions.Count) return;
+            actions[index]();
         }
         #endregion
 
@@ -3892,6 +4233,14 @@ namespace ClawTweaksCenter
             // screen at all, and doing it afterwards would show one frame of the old state.
             ApplyFooterVisibility();
 
+            // The tab strip rides the SAME funnel, deliberately. Its visibility now depends on the
+            // launch prompt, and every one of the five places that opens or closes that prompt already
+            // calls the action bar - so hanging it here is the difference between one rule and five
+            // hand-maintained call sites that a sixth transition would silently miss. That mistake has
+            // its own entry in CLAUDE.md (UpdateCpuStateLocks, which had two callers and was wrong
+            // everywhere else). RefreshTabStrip calls nothing back, so there is no cycle.
+            RefreshTabStrip();
+
             if (_infoOpen)
             {
                 AddAction(PadButton.A, "Open SteamGridDB", true,
@@ -3905,7 +4254,22 @@ namespace ClawTweaksCenter
 
             if (_exitPromptOpen)
             {
-                AddAction(PadButton.A, "Select", true, ActivateExitPromptRow);
+                string confirmLabel = _exitPromptColumn == ExitPromptColumnTray ? "Open"
+                    : _exitPromptColumn == ExitPromptColumnTools ? "Launch"
+                    : "Select";
+                AddAction(PadButton.A, confirmLabel, true, ActivateExitPromptSelection);
+
+                // X only makes sense on the tray column, and only while a real row is selected there -
+                // the close action list is index-aligned with the open one, built together in
+                // CenterMenuWindow.QuickMenu.cs.
+                if (_exitPromptColumn == ExitPromptColumnTray
+                    && _exitPromptTrayIndex >= 0 && _exitPromptTrayIndex < _exitPromptTrayCloseActions.Count
+                    && _exitPromptTrayCloseActions[_exitPromptTrayIndex] != null)
+                {
+                    int capturedIndex = _exitPromptTrayIndex;
+                    AddAction(PadButton.X, "Close", true, () => _exitPromptTrayCloseActions[capturedIndex]());
+                }
+
                 AddAction(PadButton.B, "Back to library", true, CloseExitPrompt);
                 return;
             }
