@@ -14,9 +14,15 @@ Everything is off already unless somebody set these. Both are `HKCU\Software\Cla
 | value | type | meaning | default |
 |---|---|---|---|
 | `VelopackUpdates` | DWORD | the master switch | **absent = off** |
-| `VelopackSilentUpdates` | DWORD | may an update apply itself | **absent = off** |
+| `VelopackSilentUpdates` | DWORD | may an update apply itself | **absent = ON since 2026-09-04** - an opt-out, see below |
 | `VelopackFeedOverride` | String | read releases from a local folder instead of GitHub | absent |
 | `VelopackManifestOverride` | String | read the manifest from a local path or URL | absent |
+
+WARNING: `VelopackSilentUpdates` flipped from opt-in to opt-out on 2026-09-04. As a second
+default-off switch inside a default-off feature it meant "the feature is on" did not make an
+essential update install itself - on every machine where nobody had set a second value, which is all
+of them. The two switches that matter for machines nobody is sitting at are the REMOTE ones in
+`update-manifest.json`, and both still fail closed.
 
 `Enabled` is read **fresh on every call**, never cached — an emergency switch that needs a restart is
 half a switch.
@@ -61,6 +67,13 @@ Three steps, and nothing else in the tree knows this exists:
    ```csharp
    Update.VelopackUpdates.Bootstrap();
    ```
+4. **Added 2026-09-04, when the updater was actually wired up:** in `CenterMenuWindow`, remove the
+   `_velopackUpdate` / `_velopackApplying` fields, the `CheckForVelopackUpdateAsync` and
+   `ActivateCenterUpdateCard` methods, and put the three references back the way they were - the
+   `_ = CheckForVelopackUpdateAsync();` line in the startup block, the `|| _velopackUpdate != null`
+   in `CenterUpdateOffered`, and `case -1:` in `ActivateHomeTile` (it called
+   `OpenCenterDownloadPage()`). `BuildCenterUpdateCard` then loses its `pending` branch and goes
+   back to the download-page card, which is the behaviour every non-Velopack install has anyway.
 
 Then `dotnet build`. If it compiles, the removal is complete — that is the point of keeping the
 settings accessors inside `VelopackUpdates` instead of in `CenterSettings`, where they would have
@@ -75,9 +88,12 @@ deleting them is not worth a migration step; Center's uninstall drops the whole
 - **No install, no shortcuts, no ARP entry.** `SelfInstaller` still owns installation. A second
   uninstall owner is how the guided leave screen gets lost — Windows Settings → Uninstall has to
   land there, not in an immediate deletion.
-- **No automatic check on startup.** `Bootstrap()` only runs Velopack's own entry-point hook, which
-  is a no-op on a Center that Velopack did not install. Nothing calls `CheckAsync` yet; wiring that
-  to a screen is the next decision, not a leftover.
+- ~~**No automatic check on startup.**~~ **NO LONGER TRUE - wired 2026-09-04.**
+  `CenterMenuWindow` now runs `UpdateFlow.RunAsync` once per start, next to `SetupVersionCheck`. It
+  is still a no-op on a Center that Velopack did not install (`CheckAsync` returns null there), and
+  still off unless `VelopackUpdates` is 1. What changed is the policy above it: an update the
+  manifest marks **essential** now applies itself and restarts, and the card on Home is the fallback
+  for when that fails. See `Doku/PLAN_Velopack_AutoUpdate_Rollout.md` in the private repo.
 - **No elevation.** See the note in the plan: Center never asks for administrator rights, and that
   is an on-device-verified property, not an accident.
 

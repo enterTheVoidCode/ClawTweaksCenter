@@ -5,6 +5,6 @@
   "_failsClosed": "Unreachable, unparsable or an unknown schemaVersion all mean NO silent update. This is the opposite of setup-manifest.json, which fails open on purpose.",
 
   "schemaVersion": 1,
-  "silentUpdatesEnabled": false,
+  "silentUpdatesEnabled": true,
   "essentialVersions": []
 }

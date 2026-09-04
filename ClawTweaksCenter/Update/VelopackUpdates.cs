@@ -63,10 +63,21 @@ namespace ClawTweaksCenter.Update
         /// Allows a silent update to actually apply itself. Separate from <see cref="Enabled"/> on
         /// purpose: checking for updates and installing one without being asked are different
         /// promises, and somebody may want the first without the second.
+        ///
+        /// ── ⚠️ AN OPT-OUT, not an opt-in - changed 2026-09-04 ───────────────────────────────────
+        /// It used to default to 0, which made it a SECOND off switch inside a feature whose master
+        /// switch is already off by default. The consequence was that "the feature is on" did not
+        /// mean the feature was on: an update marked essential would sit and wait on every fresh
+        /// machine - precisely the case the marking exists for.
+        ///
+        /// Absent now means allowed; an explicit 0 still turns it off. Nothing about the safety
+        /// story weakens, because the two switches that matter in the case this is for - machines
+        /// nobody is sitting at - are REMOTE and both still fail closed: silentUpdatesEnabled in the
+        /// manifest, and the exact-match essentialVersions list. Reverting is this one default.
         /// </summary>
         public static bool SilentUpdatesAllowed
         {
-            get => ReadDword("VelopackSilentUpdates", 0) == 1;
+            get => ReadDword("VelopackSilentUpdates", 1) == 1;
             set => WriteDword("VelopackSilentUpdates", value ? 1 : 0);
         }
 
@@ -364,6 +375,12 @@ namespace ClawTweaksCenter.Update
         /// from one that was never switched on, and this project has paid for that confusion in
         /// several other subsystems already.
         /// </summary>
+        /// <summary>The same line, writable from the rest of this folder. <see cref="UpdateFlow"/>
+        /// records DECISIONS ("offered on the card only", "auto-apply returned instead of
+        /// restarting"), and those belong in the same file as the mechanism's own lines - reading
+        /// two logs to reconstruct one sequence is how the order of events gets guessed.</summary>
+        internal static void Note(string message) => Log(message);
+
         private static void Log(string message)
         {
             try

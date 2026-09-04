@@ -69,6 +69,11 @@ namespace ClawTweaksCenter
         private Version _installedVersion;
         private bool _installedVersionChecked;
         private SetupVersionCheck.Result _setupVersionCheck;
+        // A newer Center that this installation can actually install ITSELF. Null on every classic
+        // install — Velopack only updates a folder it created, so CheckAsync answers "nothing" there
+        // and the old download-page card is all that is left. See Update\UpdateFlow.
+        private Update.UpdateFlow.PendingUpdate _velopackUpdate;
+        private bool _velopackApplying;
         private WindowsChannelDetect.Result _windowsChannel;
         private int _selectedIndex = -1;
         // Controller cursor over the Home tiles (0=Browse, 1=Onboarding, 2=Maintenance). -1 is the
@@ -296,6 +301,12 @@ namespace ClawTweaksCenter
                 var windowsChannelTask = Task.Run(() => WindowsChannelDetect.Detect());
                 RenderDeviceBanner(await deviceTask);
                 await sourcesTask;
+
+                // Center updating ITSELF. Deliberately NOT awaited alongside the tasks above: it
+                // goes to the network and may end the process outright (an essential update applies
+                // and restarts), and neither of those may sit in front of the first frame. It draws
+                // Home again when it lands.
+                _ = CheckForVelopackUpdateAsync();
 
                 _setupVersionCheck = await setupVersionTask;
                 _windowsChannel = await windowsChannelTask;
@@ -727,7 +738,7 @@ namespace ClawTweaksCenter
         {
             switch (_homeSelectedIndex)
             {
-                case -1: OpenCenterDownloadPage(); break;
+                case -1: ActivateCenterUpdateCard(); break;
                 case HomeLibraryIndex: OpenLibrary(); break;
                 case HomeBrowseIndex: OpenBrowse(); break;
                 case HomeMaintenanceIndex: OpenMaintenance(); break;
@@ -777,9 +788,68 @@ namespace ClawTweaksCenter
 
         private const int HomeMaxIndex = HomeLeaveIndex;
 
-        /// <summary>True when the manifest advertises a newer Center than the one running. See
-        /// SetupVersionCheck.IsUpdateOffered.</summary>
-        private bool CenterUpdateOffered => _setupVersionCheck?.IsUpdateOffered == true;
+        /// <summary>True when a newer Center is offered — either as a notice from setup-manifest.json
+        /// (SetupVersionCheck.IsUpdateOffered) or as something this installation can install itself
+        /// (Update\UpdateFlow). Either one puts the card on Home and makes -1 a valid cursor
+        /// position.</summary>
+        private bool CenterUpdateOffered =>
+            _setupVersionCheck?.IsUpdateOffered == true || _velopackUpdate != null;
+
+        /// <summary>
+        /// Asks whether this Center can update itself, and lets it do so when the update is marked
+        /// essential.
+        ///
+        /// <para>The three "started into a screen" flags are what decides whether an essential
+        /// update may apply RIGHT NOW. Restarting underneath the leave screen would abort an
+        /// offboarding halfway — it hands the fan curve back to the firmware, resets the charge
+        /// limit and re-enables MSI Center M, and half of that is worse than none of it. The update
+        /// is still found in those cases; it just waits on the card.</para>
+        ///
+        /// <para>⚠️ On success this never comes back: the process restarts into the new version. So
+        /// everything after the await runs only in the cases where there IS something to draw.</para>
+        /// </summary>
+        private async Task CheckForVelopackUpdateAsync()
+        {
+            bool mayApplyNow = !_startLeaveOnLoad && !_startOnboardingOnLoad && !_startInstallDoneOnLoad;
+
+            var pending = await Update.UpdateFlow.RunAsync(mayApplyNow).ConfigureAwait(false);
+            if (pending == null) return;
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                _velopackUpdate = pending;
+                // Only Home carries the card. Redrawing another view from here would throw away
+                // whatever the user is in the middle of, for a card they cannot see anyway.
+                if (_view == View.Home && !_confirming && !_busy) RenderCurrentView();
+            });
+        }
+
+        /// <summary>
+        /// The card's action, for both the button and A on the controller.
+        ///
+        /// <para>Applying is the whole point on a Velopack installation: the mechanism is right
+        /// there and works, so sending the user to a download page would be a detour around it.
+        /// Everywhere else there is no pending update and this stays exactly what it was.</para>
+        ///
+        /// <para>The busy latch is not politeness. Two overlapping downloads into the same packages
+        /// folder is not a state Velopack is built for, and A repeats readily on a gamepad.</para>
+        /// </summary>
+        private async void ActivateCenterUpdateCard()
+        {
+            var pending = _velopackUpdate;
+            if (pending == null) { OpenCenterDownloadPage(); return; }
+            if (_velopackApplying) return;
+
+            _velopackApplying = true;
+            if (_view == View.Home) RenderCurrentView();   // the button reads "Installing…" from here on
+
+            // Returns only on failure — see UpdateFlow.
+            await Update.UpdateFlow.ApplyAsync(pending);
+
+            _velopackApplying = false;
+            pending.AutoApplyFailed = true;                // the card now has to say why nothing happened
+            if (_view == View.Home) RenderCurrentView();
+        }
 
         /// <summary>
         /// Jumps to the library the moment it is known whether that is even possible - fires exactly
@@ -1258,33 +1328,55 @@ namespace ClawTweaksCenter
         private Border BuildCenterUpdateCard()
         {
             var check = _setupVersionCheck;
+            var pending = _velopackUpdate;
             bool selected = _homeSelectedIndex == -1;
+
+            // ⚠️ check CAN be null while pending is not: the two answers come from different repos
+            // over different requests, and the Velopack one can land while the other never does.
+            // The running version therefore comes from the assembly, which is always there.
+            string running = (check?.RunningVersion
+                ?? System.Reflection.Assembly.GetExecutingAssembly().GetName().Version)?.ToString();
+            string offered = pending != null ? pending.Version : check?.LatestVersion?.ToString();
 
             var stack = new StackPanel();
             stack.Children.Add(new TextBlock
             {
-                Text = $"ClawTweaks Center update available: {check.LatestVersion}",
+                Text = $"ClawTweaks Center update available: {offered}",
                 FontSize = 19, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Text,
             });
             stack.Children.Add(new TextBlock
             {
-                Text = $"You're running {check.RunningVersion}. Download the new Setup file and run it — " +
-                       "it installs over this one, and no administrator rights are needed.",
+                Text = pending != null
+                    ? $"You're running {running}. Install it here — Center restarts when it's done."
+                    : $"You're running {running}. Download the new Setup file and run it — " +
+                      "it installs over this one, and no administrator rights are needed.",
                 FontSize = 14, Foreground = UiHelpers.Subtle,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
             });
 
+            // The fallback the whole essential path hangs on: an update that was supposed to install
+            // itself and did not must SAY so. A card that looks like every other update offer would
+            // hide the one thing that went wrong.
+            if (pending?.AutoApplyFailed == true)
+                stack.Children.Add(new TextBlock
+                {
+                    Text = "The update could not install itself. Try the button below.",
+                    FontSize = 14, Foreground = UiHelpers.Warn,
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
+                });
+
             var button = new Button
             {
-                Content = "Open download page",
+                Content = pending == null ? "Open download page"
+                        : _velopackApplying ? "Installing…" : "Install update now",
                 Style = (Style)Application.Current.Resources["SetupButton"],
-                IsEnabled = !_busy,
-                Opacity = !_busy ? 1.0 : 0.4,
+                IsEnabled = !_busy && !_velopackApplying,
+                Opacity = !_busy && !_velopackApplying ? 1.0 : 0.4,
                 MinWidth = 190,
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Margin = new Thickness(0, 12, 0, 0),
             };
-            button.Click += (_, __) => OpenCenterDownloadPage();
+            button.Click += (_, __) => ActivateCenterUpdateCard();
             stack.Children.Add(button);
 
             var updatePad = new Thickness(20, 18, 20, 18);
