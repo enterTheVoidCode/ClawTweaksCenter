@@ -136,7 +136,22 @@ namespace ClawTweaksCenter
         /// </summary>
         private static readonly TimeSpan LaunchStartingWindow = TimeSpan.FromSeconds(60);
 
-        private DateTime _launchStartedAt;
+        /// <summary>
+        /// Whether the running screen is still in its first minute. A LATCH, not a second reading of
+        /// the clock, and that is the whole fix for "the countdown often does not switch".
+        ///
+        /// It used to be computed as `UtcNow - _launchStartedAt &lt; LaunchStartingWindow`, while the
+        /// timer that triggers the redraw runs for exactly LaunchStartingWindow. Two clocks, one
+        /// boundary: a DispatcherTimer fires at OR AFTER its interval as measured by its own timer,
+        /// and the ~15.6 ms system tick means the elapsed time on the wall clock can still read a
+        /// hair UNDER a minute when it does. Then the redraw painted "is starting" a second time -
+        /// and the timer is one-shot, so nothing ever came back to correct it. The screen sat on
+        /// "starting" for as long as the game ran, intermittently, with no way to tell the two
+        /// outcomes apart from the outside.
+        ///
+        /// With a latch there is only one authority: the timer flips this, the screen reads it.
+        /// </summary>
+        private bool _launchStarting;
 
         /// <summary>Whether the launch just gone had to start Steam - see
         /// GameLibrary.LastLaunchStartedSteam. Copied at launch time rather than read at render
@@ -148,8 +163,7 @@ namespace ClawTweaksCenter
         /// game that is left running is never.</summary>
         private DispatcherTimer _launchStartingTimer;
 
-        private bool LaunchStartingPhase =>
-            _launchStartedAt != default(DateTime) && DateTime.UtcNow - _launchStartedAt < LaunchStartingWindow;
+        private bool LaunchStartingPhase => _launchStarting;
 
         /// <summary>
         /// B in the library asks instead of acting.
@@ -2734,7 +2748,7 @@ namespace ClawTweaksCenter
 
             if (started)
             {
-                _launchStartedAt = DateTime.UtcNow;
+                _launchStarting = true;
                 _launchSteamColdStart = GameLibrary.LastLaunchStartedSteam;
                 StartLaunchStartingTimer();
             }
@@ -2795,6 +2809,11 @@ namespace ClawTweaksCenter
             {
                 _launchStartingTimer?.Stop();
                 _launchStartingTimer = null;
+
+                // The latch drops FIRST, before any guard can return. It is the state; the redraw
+                // below is only how the state reaches the screen.
+                _launchStarting = false;
+
                 // Only if this screen is still the thing on it. The user can have pressed B, hidden
                 // Center or started something else in the meantime.
                 if (_launchPrompt != LaunchPrompt.Running || _optiWikiOpen) return;
@@ -2808,7 +2827,7 @@ namespace ClawTweaksCenter
         {
             _launchStartingTimer?.Stop();
             _launchStartingTimer = null;
-            _launchStartedAt = default(DateTime);
+            _launchStarting = false;
             _launchSteamColdStart = false;
             _launchPrompt = LaunchPrompt.None;
             _launchTarget = null;
@@ -4308,6 +4327,17 @@ namespace ClawTweaksCenter
                         // three modes read differently enough that one word would be a lie in two of
                         // them: "Hide" over an app that exits is not hiding.
                         AddAction(PadButton.A, HideLabel(), true, HideAfterLaunch);
+
+                        // B ALWAYS LEAVES THE SCREEN, and this was the one state without it (user,
+                        // 2026-09-04). The running screen is not a dead end - the game keeps running
+                        // either way - so the only thing its absence achieved was that B, the button
+                        // that means "back" on every other screen in Center, did nothing here while
+                        // the bar advertised closing or minimizing Center instead.
+                        //
+                        // With LaunchBehavior.StayOpen A does the same thing, and that is fine: two
+                        // buttons agreeing is not a bug, and hiding B in that one mode would make the
+                        // way out of this screen depend on a setting.
+                        AddAction(PadButton.B, "Back to library", true, ClearLaunchOverlay);
                         AddLaunchOptiActions();
                         break;
                     default:
