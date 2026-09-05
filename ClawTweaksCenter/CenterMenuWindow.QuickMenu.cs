@@ -145,7 +145,8 @@ namespace ClawTweaksCenter
                 {
                     bool enabled = app.CanOpen;
                     string subtitle = enabled ? app.Exe : Core.Loc.T(app.Reason ?? "");
-                    var row = BuildRowVisual(TrayGlyph, app.Name, subtitle, inCard: false, dim: !enabled, compact: true);
+                    var row = BuildRowVisual(TrayGlyph, app.Name, subtitle, inCard: false, dim: !enabled, compact: true,
+                                             centerText: true);
 
                     if (enabled)
                     {
@@ -298,7 +299,7 @@ namespace ClawTweaksCenter
 
             foreach (var tool in QuickTools)
             {
-                var row = BuildRowVisual(ToolGlyph, tool.NameKey, null, inCard: false, compact: true);
+                var row = BuildRowVisual(ToolGlyph, tool.NameKey, null, inCard: false, compact: true, centerText: true);
                 int index = _exitPromptToolsRows.Count;
                 row.Tag = index;
                 string capturedTarget = tool.Target;
