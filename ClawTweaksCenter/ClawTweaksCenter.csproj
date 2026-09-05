@@ -26,7 +26,7 @@
          else ("it must be a 3-part SemVer2 compliant version string"), measured 2026-09-03. It has to
          stay in step with the packVersion the feed is built with, or Center shows the user one
          number while deciding on another. -->
-    <Version>0.2.19</Version>
+    <Version>0.2.20</Version>
     <!-- Distributed filename carries the version + "Setup" suffix (e.g. CTW_Center_0.1.0.2_Setup.exe)
          so a user can tell builds apart in their Downloads folder. This is ONLY the distributed
          filename — the INSTALLED copy in Program Files always keeps the fixed name
