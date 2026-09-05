@@ -403,6 +403,11 @@ namespace ClawTweaksCenter
             {
                 if (_view == View.Library && !_confirming && !_busy)
                 {
+                    // In the tab editor the shoulders MOVE the selected tab instead of switching
+                    // tabs. It is the one screen that is about the strip rather than in it, and the
+                    // shoulders are the gesture that already means "along the strip" on this pad.
+                    if (_tabEditorOpen) { MoveTabInOrder(b == PadButton.LB ? -1 : 1); return; }
+
                     CycleLibraryGroup(b == PadButton.LB ? -1 : 1);
                     NoteTabChange();
                 }

@@ -100,9 +100,13 @@ namespace ClawTweaksCenter
         // one three-part row (user, 2026-09-04).
         private const double SideColumnTopOffset = 64;
 
-        // Six rows, then scroll. Six is what the curated tools column holds exactly, so the two
-        // columns end on the same line instead of one running past the other - and the tray list on a
-        // busy machine is otherwise long enough to run off the bottom of an eight-inch panel.
+        // Six rows, then scroll. Six is what the curated tools column holds exactly, and the tray list
+        // on a busy machine is otherwise long enough to run off the bottom of an eight-inch panel.
+        //
+        // The two columns no longer end on the same line, and that is the cost of the gear fix
+        // (2026-09-05): a tools row has one line where a tray row has two, so it is genuinely
+        // shorter. Rows that pretend to a height they do not need is what put the gear above its
+        // own label in the first place - see BuildRowVisual.
         private const int SideColumnMaxRows = 6;
 
         // 58, not 50. This is the height the scroller is capped at PER ROW, and 50 was an estimate
@@ -114,7 +118,7 @@ namespace ClawTweaksCenter
         // cap; too small silently cuts the last row in half, which is what happened here.
         private const double SideColumnRowHeight = 58;
 
-        /// <summary>The left column. Every row that resolved a window (CanOpen/CanClose from the
+        /// <summary>The RIGHT column (it moved there on 2026-09-05). Every row that resolved a window (CanOpen/CanClose from the
         /// helper) is fully interactive; every row that did not is drawn dim, with the helper's own
         /// reason as its subtitle, and is skipped by navigation entirely - see BuildRowVisual's own
         /// doc comment for why "there but unreachable" beats either extreme.</summary>
@@ -163,7 +167,7 @@ namespace ClawTweaksCenter
                 }
             }
 
-            return WrapSideColumn("System tray / Processes", panel, new Thickness(0, SideColumnTopOffset, 16, 0));
+            return WrapSideColumn("System tray / Processes", panel, new Thickness(16, SideColumnTopOffset, 0, 0));
         }
 
         /// <summary>A side column: its heading, then a height-capped scroller holding the rows.
@@ -247,7 +251,7 @@ namespace ClawTweaksCenter
             TextWrapping = TextWrapping.Wrap,
         };
 
-        // ── The right column: curated Windows tools ─────────────────────────────────────────────
+        // ── The left column: curated Windows tools ─────────────────────────────────────────────
         //
         // Curated, not enumerated - there is no registry key listing "the tools a handheld user
         // might want mid-game" the way NotifyIconSettings lists tray apps. Launched directly by
@@ -288,7 +292,7 @@ namespace ClawTweaksCenter
                 panel.Children.Add(row);
             }
 
-            return WrapSideColumn("Windows tools", panel, new Thickness(16, SideColumnTopOffset, 0, 0));
+            return WrapSideColumn("Windows tools", panel, new Thickness(0, SideColumnTopOffset, 16, 0));
         }
 
         /// <summary>UseShellExecute, not a direct exe launch - it is what resolves ".msc" to mmc.exe

@@ -190,6 +190,20 @@ namespace ClawTweaksCenter.Core
             set => WriteBool("DenseLibraryGrid", value);
         }
 
+        /// <summary>
+        /// The library tab strip, as the user arranged it: order and which tabs are hidden, in ONE
+        /// line. See <see cref="Library.LibraryTabs"/> for the format and for why it is one value
+        /// rather than an order plus a hidden list.
+        ///
+        /// Empty by default, which means "every tab, in declaration order" - so an installation that
+        /// never opens the editor behaves exactly as it did before this setting existed.
+        /// </summary>
+        public static string LibraryTabs
+        {
+            get => ReadString("LibraryTabs", string.Empty);
+            set => WriteString("LibraryTabs", value ?? string.Empty);
+        }
+
         public static bool LibraryInfoSeen
         {
             get => ReadBool("LibraryInfoSeen", false);

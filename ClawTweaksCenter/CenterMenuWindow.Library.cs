@@ -202,9 +202,15 @@ namespace ClawTweaksCenter
         // index and its own row list, rather than the one pair the middle column already had. Each
         // column also remembers its own index across a Left/Right switch, so leaving and returning to
         // a column does not reset where the user was in it.
-        private const int ExitPromptColumnTray = 0;
+        // The NUMBER is the position on screen, left to right, and that is all Left/Right knows -
+        // so swapping the two side columns is these two constants plus the Grid.SetColumn calls in
+        // RenderExitPrompt, and nothing else. Tools moved left and the tray right on 2026-09-05.
+        private const int ExitPromptColumnTools = 0;
         private const int ExitPromptColumnCenter = 1;
-        private const int ExitPromptColumnTools = 2;
+        private const int ExitPromptColumnTray = 2;
+
+        private const int ExitPromptColumnFirst = 0;
+        private const int ExitPromptColumnLast = 2;
         private int _exitPromptColumn = ExitPromptColumnCenter;
 
         private int _exitPromptTrayIndex;
@@ -290,7 +296,7 @@ namespace ClawTweaksCenter
                 // which is where they are on the pad.
                 var chips = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
                 _activeGroupChip = null;
-                foreach (LibraryGroup g in Enum.GetValues(typeof(LibraryGroup)))
+                foreach (LibraryGroup g in Library.LibraryTabs.Visible())
                 {
                     // EVERY tab is drawn, including the ones with nothing behind them - dimmed
                     // rather than absent (see GroupHasContent). Four of them used to disappear
@@ -1627,6 +1633,7 @@ namespace ClawTweaksCenter
         #region Navigation
         private void MoveLibrarySelection(PadButton dir)
         {
+            if (_tabEditorOpen) { MoveTabEditorSelection(dir); return; }
             if (_settingsOpen) { MoveSettingsSelection(dir); return; }
             if (MiscOverlayOpen) { MoveMiscSelection(dir); return; }
             if (GameMenuOverlayOpen) { MoveGameMenuSelection(dir); return; }
@@ -1779,7 +1786,10 @@ namespace ClawTweaksCenter
             // them, which made a visible tab unreachable from the pad - the exact trap this project
             // has paid for before with controls that could be seen and not focused. A dimmed tab
             // costs one shoulder press and answers a question; an unreachable one answers nothing.
-            var values = new List<LibraryGroup>((LibraryGroup[])Enum.GetValues(typeof(LibraryGroup)));
+            // The SAME list the strip draws (Library/LibraryTabs.cs). Walking the enum here while the
+            // strip walks the user's order is how a hidden tab stays reachable from the shoulders and
+            // a visible one stops being - two lists over one set, disagreeing in silence.
+            var values = Library.LibraryTabs.Visible();
             if (values.Count == 0) return;
 
             int i = values.IndexOf(_libraryGroup) + delta;
@@ -2287,12 +2297,19 @@ namespace ClawTweaksCenter
         private const int SettingsStartSteamRow = 6;
         private const int SettingsDenseGridRow = 7;
 
-        /// <summary>The key row, and it is ALWAYS the last one: it holds a text box, so it spans both
-        /// columns and sits on its own line below the pairs. The navigation maths below derives the
-        /// pair count from this, so adding a switch above it needs no other change.</summary>
-        private const int SettingsKeyRow = 8;
+        /// <summary>Opens the tab editor rather than toggling anything - the only row up here that
+        /// leads somewhere instead of changing a value in place.</summary>
+        private const int SettingsTabsRow = 8;
 
-        private const int SettingsColumns = 2;
+        /// <summary>The key row, and it is ALWAYS the last one: it holds a text box, so it spans the
+        /// full width and sits on its own line below the pairs. The navigation maths below derives the
+        /// pair count from this, so adding a switch above it needs no other change.</summary>
+        private const int SettingsKeyRow = 9;
+
+        // THREE, not two (user, 2026-09-05). Nine switches in two columns ran past the bottom of an
+        // eight-inch panel again - the same reason this went from one column to two - and the rows are
+        // a short label plus a switch, so the width was never carrying anything.
+        private const int SettingsColumns = 3;
 
         private void OpenLibrarySettings()
         {
@@ -2323,7 +2340,7 @@ namespace ClawTweaksCenter
             {
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 940,
+                MaxWidth = 1320,
             };
             stack.Children.Add(new TextBlock
             {
@@ -2334,8 +2351,8 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 0, 0, 16),
             });
 
-            // Two columns, because six stacked rows ran off the bottom of an eight-inch panel and the
-            // key row - the one people are sent here for - was the one below the fold.
+            // Columns, because stacked rows ran off the bottom of an eight-inch panel and the key row
+            // - the one people are sent here for - was the one below the fold.
             var pairs = new UniformGrid { Columns = SettingsColumns };
             pairs.Children.Add(BuildSettingRow(SettingsStartInLibraryRow, "Start in the library",
                 Core.CenterSettings.OpenLibraryAtStartup, null));
@@ -2353,6 +2370,7 @@ namespace ClawTweaksCenter
                 Core.CenterSettings.StartSteamWithLibrary, null));
             pairs.Children.Add(BuildSettingRow(SettingsDenseGridRow, "Denser grid",
                 Core.CenterSettings.DenseLibraryGrid, null));
+            pairs.Children.Add(BuildSettingRow(SettingsTabsRow, "Library tabs", null, TabsSummary()));
             stack.Children.Add(pairs);
 
             var keyRow = BuildSettingRow(SettingsKeyRow, "SteamGridDB key", null, null);
@@ -2566,6 +2584,9 @@ namespace ClawTweaksCenter
                     // works from the second visit onwards looks like one that did not work.
                     if (Core.CenterSettings.StartSteamWithLibrary) PrewarmSteamInBackground();
                     break;
+                case SettingsTabsRow:
+                    OpenTabEditor();
+                    return;
                 case SettingsKeyRow:
                     _artKeyBox?.Focus();
                     _artKeyBox?.SelectAll();
@@ -2574,6 +2595,200 @@ namespace ClawTweaksCenter
             RenderLibrarySettings();
             RefreshActionBar();
         }
+
+        /// <summary>What the settings row says without opening the editor: how much of the strip is
+        /// left. "All tabs shown" rather than "10 of 10" - the count only means something once one is
+        /// missing.</summary>
+        private static string TabsSummary()
+        {
+            int all = Library.LibraryTabs.Ordered().Count;
+            int shown = Library.LibraryTabs.Visible().Count;
+            // "3 / 10" rather than "3 of 10": a sentence fragment split around a number translates
+            // badly in four languages, and the strip's own count badges already read this way.
+            return shown >= all ? Core.Loc.T("All tabs shown") : shown + " / " + all;
+        }
+
+        #region Tab editor
+        // The tab strip, arranged by hand: order and visibility. It lives INSIDE the settings screen
+        // rather than beside it - _tabEditorOpen implies _settingsOpen, so every guard that already
+        // keeps the library still while settings are up covers this too, without a second flag having
+        // to be added to nine call sites.
+        //
+        // Changes are written the moment they are made, not on the way out: this screen is left with
+        // the Back button and there is no "cancel" anywhere else in the library, so an unsaved buffer
+        // would be the one place where backing out loses work.
+        private bool _tabEditorOpen;
+        private int _tabEditorIndex;
+        private List<LibraryGroup> _tabEditorOrder = new List<LibraryGroup>();
+        private readonly HashSet<LibraryGroup> _tabEditorHidden = new HashSet<LibraryGroup>();
+        private readonly List<Border> _tabEditorRows = new List<Border>();
+
+        private void OpenTabEditor()
+        {
+            _tabEditorOpen = true;
+            _tabEditorIndex = 0;
+            _tabEditorOrder = Library.LibraryTabs.Ordered();
+            _tabEditorHidden.Clear();
+            foreach (var g in _tabEditorOrder)
+                if (Library.LibraryTabs.IsHidden(g)) _tabEditorHidden.Add(g);
+
+            RenderTabEditor();
+            RefreshActionBar();
+        }
+
+        /// <summary>
+        /// Back to the settings screen the editor was opened from.
+        ///
+        /// The current tab is moved if it was the one just hidden: leaving _libraryGroup pointing at a
+        /// tab that is no longer drawn would show its games under a strip with nothing highlighted,
+        /// which reads as a library that lost track of itself.
+        /// </summary>
+        private void CloseTabEditor()
+        {
+            _tabEditorOpen = false;
+            _tabEditorRows.Clear();
+
+            var visible = Library.LibraryTabs.Visible();
+            if (!visible.Contains(_libraryGroup))
+            {
+                _libraryGroup = visible[0];
+                _romSystem = null;
+                _libSelectedIndex = 0;
+            }
+
+            RenderLibrarySettings();
+            RefreshActionBar();
+        }
+
+        private void RenderTabEditor()
+        {
+            LibraryRoot.Children.Clear();
+            LibraryRoot.RowDefinitions.Clear();
+            _tabEditorRows.Clear();
+
+            var stack = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                MaxWidth = 620,
+            };
+            stack.Children.Add(new TextBlock
+            {
+                Text = Core.Loc.T("Library tabs"),
+                FontSize = 26,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = UiHelpers.Text,
+                Margin = new Thickness(0, 0, 0, 6),
+            });
+
+            // The shoulders are the only gesture on this screen with no footer chip of its own, so
+            // they are named here. Two short lines rather than one long one - each says one thing.
+            stack.Children.Add(TabEditorHint("Move a tab with LB and RB."));
+            stack.Children.Add(TabEditorHint("Hide a tab with A."));
+
+            var list = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
+            for (int i = 0; i < _tabEditorOrder.Count; i++)
+            {
+                var g = _tabEditorOrder[i];
+                bool hidden = _tabEditorHidden.Contains(g);
+                var row = BuildRowVisual(
+                    Library.StoreIcons.GlyphFor(g),
+                    GameLibrary.GroupLabel(g),
+                    hidden ? "Hidden" : "Shown",
+                    inCard: false,
+                    dim: hidden);
+                row.Tag = i;
+                int captured = i;
+                row.MouseLeftButtonUp += (_, __) => { _tabEditorIndex = captured; ToggleTabVisibility(); };
+                _tabEditorRows.Add(row);
+                list.Children.Add(row);
+            }
+
+            // The list is as long as the enum and the enum grows - capped and scrolled rather than
+            // running off the bottom, the same shape the quick menu's side columns already use.
+            stack.Children.Add(new ScrollViewer
+            {
+                Content = list,
+                MaxHeight = 560,
+                VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+                HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
+            });
+
+            LibraryRoot.Children.Add(stack);
+            ApplyTabEditorSelection();
+        }
+
+        private static UIElement TabEditorHint(string text) => new TextBlock
+        {
+            Text = Core.Loc.T(text),
+            FontSize = 14,
+            Foreground = UiHelpers.Subtle,
+            TextWrapping = TextWrapping.Wrap,
+            Margin = new Thickness(0, 0, 0, 2),
+        };
+
+        private void ApplyTabEditorSelection()
+        {
+            Border selected = null;
+            foreach (var row in _tabEditorRows)
+            {
+                bool on = row.Tag is int i && i == _tabEditorIndex;
+                row.BorderBrush = on ? UiHelpers.Accent : Brushes.Transparent;
+                if (on) selected = row;
+            }
+            // Same reason as the quick menu's side columns: these rows are never keyboard-focused, so
+            // the scroller has nothing to follow on its own and the highlight would walk out of sight.
+            selected?.BringIntoView();
+        }
+
+        private void MoveTabEditorSelection(PadButton dir)
+        {
+            if (_tabEditorRows.Count == 0) return;
+            int next = _tabEditorIndex + (dir == PadButton.Down ? 1 : dir == PadButton.Up ? -1 : 0);
+            if (next < 0 || next >= _tabEditorRows.Count || next == _tabEditorIndex) return;
+            _tabEditorIndex = next;
+            ApplyTabEditorSelection();
+        }
+
+        /// <summary>
+        /// Hides or shows the selected tab.
+        ///
+        /// THE LAST VISIBLE TAB CANNOT BE HIDDEN. A strip with nothing in it is a library with no way
+        /// back to its own games, and the only way out of it would be the registry.
+        /// </summary>
+        private void ToggleTabVisibility()
+        {
+            if (_tabEditorIndex < 0 || _tabEditorIndex >= _tabEditorOrder.Count) return;
+            var g = _tabEditorOrder[_tabEditorIndex];
+
+            if (_tabEditorHidden.Contains(g)) _tabEditorHidden.Remove(g);
+            else if (_tabEditorHidden.Count + 1 < _tabEditorOrder.Count) _tabEditorHidden.Add(g);
+            else return;
+
+            Library.LibraryTabs.Save(_tabEditorOrder, _tabEditorHidden);
+            RenderTabEditor();
+            RefreshActionBar();
+        }
+
+        /// <summary>Moves the selected tab one place, and moves the CURSOR with it - the alternative
+        /// is a highlight that stays put while the row under it changes, which reads as the press
+        /// having moved the wrong tab.</summary>
+        private void MoveTabInOrder(int delta)
+        {
+            int from = _tabEditorIndex;
+            int to = from + delta;
+            if (from < 0 || from >= _tabEditorOrder.Count) return;
+            if (to < 0 || to >= _tabEditorOrder.Count) return;
+
+            var g = _tabEditorOrder[from];
+            _tabEditorOrder.RemoveAt(from);
+            _tabEditorOrder.Insert(to, g);
+            _tabEditorIndex = to;
+
+            Library.LibraryTabs.Save(_tabEditorOrder, _tabEditorHidden);
+            RenderTabEditor();
+        }
+        #endregion
 
         private static string LaunchBehaviorLabel(Core.LaunchBehavior behavior)
         {
@@ -3922,7 +4137,7 @@ namespace ClawTweaksCenter
                 HorizontalAlignment = HorizontalAlignment.Center,
             });
 
-            // Three columns: tray apps (left) and curated Windows tools (right) flank the buttons
+            // Three columns: curated Windows tools (left) and tray apps (right) flank the buttons
             // above, unchanged in the middle. Fixed side widths rather than equal thirds - these are
             // sidebars for a list of icon+text rows, not a peer of the button stack's own width.
             var columns = new Grid { HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch };
@@ -3930,16 +4145,16 @@ namespace ClawTweaksCenter
             columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(300) });
 
-            var trayColumn = BuildTrayColumn();
-            Grid.SetColumn(trayColumn, 0);
-            columns.Children.Add(trayColumn);
+            var toolsColumn = BuildToolsColumn();
+            Grid.SetColumn(toolsColumn, ExitPromptColumnTools);
+            columns.Children.Add(toolsColumn);
 
-            Grid.SetColumn(stack, 1);
+            Grid.SetColumn(stack, ExitPromptColumnCenter);
             columns.Children.Add(stack);
 
-            var toolsColumn = BuildToolsColumn();
-            Grid.SetColumn(toolsColumn, 2);
-            columns.Children.Add(toolsColumn);
+            var trayColumn = BuildTrayColumn();
+            Grid.SetColumn(trayColumn, ExitPromptColumnTray);
+            columns.Children.Add(trayColumn);
 
             LibraryRoot.Children.Add(columns);
             ApplyExitPromptSelection();
@@ -4069,14 +4284,20 @@ namespace ClawTweaksCenter
                 Foreground = UiHelpers.Text,
                 TextTrimming = TextTrimming.CharacterEllipsis,
             });
-            text.Children.Add(new TextBlock
-            {
-                Text = Core.Loc.T(subtitle),
-                FontSize = compact ? 11 : 13,
-                Foreground = UiHelpers.Subtle,
-                Margin = new Thickness(0, compact ? 1 : 2, 0, 0),
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            });
+            // NO EMPTY SECOND LINE. A TextBlock with no text still measures one line high, so a row
+            // built without a subtitle - the whole Windows tools column - was two lines tall with only
+            // the first one drawn. Both halves are centred in the row, so the title sat in the upper
+            // half while the icon sat in the middle, and the gear looked a couple of pixels above its
+            // own label (user, 2026-09-05). Leaving the element out is what makes the two line up.
+            if (!string.IsNullOrEmpty(subtitle))
+                text.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T(subtitle),
+                    FontSize = compact ? 11 : 13,
+                    Foreground = UiHelpers.Subtle,
+                    Margin = new Thickness(0, compact ? 1 : 2, 0, 0),
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                });
             Grid.SetColumn(text, 1);
 
             var icon = new TextBlock
@@ -4186,7 +4407,7 @@ namespace ClawTweaksCenter
             if (dir == PadButton.Left || dir == PadButton.Right)
             {
                 int nextColumn = _exitPromptColumn + (dir == PadButton.Right ? 1 : -1);
-                if (nextColumn < ExitPromptColumnTray || nextColumn > ExitPromptColumnTools) return;
+                if (nextColumn < ExitPromptColumnFirst || nextColumn > ExitPromptColumnLast) return;
 
                 var candidateRows = nextColumn switch
                 {
@@ -4347,9 +4568,19 @@ namespace ClawTweaksCenter
                 return;
             }
 
+            if (_tabEditorOpen)
+            {
+                bool hidden = _tabEditorIndex >= 0 && _tabEditorIndex < _tabEditorOrder.Count
+                              && _tabEditorHidden.Contains(_tabEditorOrder[_tabEditorIndex]);
+                AddAction(PadButton.A, hidden ? "Show" : "Hide", true, ToggleTabVisibility);
+                AddAction(PadButton.B, "Back", true, CloseTabEditor);
+                return;
+            }
+
             if (_settingsOpen)
             {
                 string label = _settingsIndex == SettingsKeyRow ? "Edit"
+                    : _settingsIndex == SettingsTabsRow ? "Open"
                     : _settingsIndex == SettingsLaunchBehaviorRow ? "Cycle"
                     : "Toggle";
                 AddAction(PadButton.A, label, true, ActivateSetting);
