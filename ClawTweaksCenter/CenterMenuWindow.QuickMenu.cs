@@ -118,6 +118,11 @@ namespace ClawTweaksCenter
         // cap; too small silently cuts the last row in half, which is what happened here.
         private const double SideColumnRowHeight = 58;
 
+        // How far each card stands off the screen edge it sits against. The two columns used to start
+        // at x=0 and end at the right-hand edge, which read as two lists glued to the bezel rather
+        // than as two panels on a screen (user, 2026-09-05).
+        private const double SideColumnEdgeGap = 24;
+
         /// <summary>The RIGHT column (it moved there on 2026-09-05). Every row that resolved a window (CanOpen/CanClose from the
         /// helper) is fully interactive; every row that did not is drawn dim, with the helper's own
         /// reason as its subtitle, and is skipped by navigation entirely - see BuildRowVisual's own
@@ -167,17 +172,24 @@ namespace ClawTweaksCenter
                 }
             }
 
-            return WrapSideColumn("System tray / Processes", panel, new Thickness(16, SideColumnTopOffset, 0, 0));
+            return WrapSideColumn("System tray / Processes", panel, new Thickness(12, SideColumnTopOffset, SideColumnEdgeGap, 16));
         }
 
-        /// <summary>A side column: its heading, then a height-capped scroller holding the rows.
+        /// <summary>A side column: its heading, then a height-capped scroller holding the rows,
+        /// the pair inside a card.
         ///
         /// The heading sits OUTSIDE the scroller on purpose - inside, it scrolls away on the first
-        /// press and the column loses its label exactly when the user is furthest into it.
+        /// press and the column loses its label exactly when the user is furthest into it. It stays
+        /// INSIDE the card, though: the card is what says "these rows belong together", and a title
+        /// floating above it would belong to nothing.
+        ///
+        /// ⚠️ The card does NOT make the rows cards again. They were given a transparent
+        /// background on 2026-09-04 so the two side lists read as lists next to the middle column's
+        /// buttons; a fill per row inside a filled card is the box-inside-a-box that removed.
         /// </summary>
         private static UIElement WrapSideColumn(string headingKey, UIElement rows, Thickness margin)
         {
-            var outer = new StackPanel { Margin = margin };
+            var outer = new StackPanel();
             outer.Children.Add(SidebarHeading(headingKey));
             outer.Children.Add(new ScrollViewer
             {
@@ -186,7 +198,16 @@ namespace ClawTweaksCenter
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
             });
-            return outer;
+
+            return new Border
+            {
+                Child = outer,
+                Background = UiHelpers.Card,
+                CornerRadius = new CornerRadius(10),
+                Padding = new Thickness(10, 10, 10, 12),
+                Margin = margin,
+                VerticalAlignment = VerticalAlignment.Top,
+            };
         }
 
         private void SendTrayAppOpen(TrayAppEntry app)
@@ -292,7 +313,7 @@ namespace ClawTweaksCenter
                 panel.Children.Add(row);
             }
 
-            return WrapSideColumn("Windows tools", panel, new Thickness(0, SideColumnTopOffset, 16, 0));
+            return WrapSideColumn("Windows tools", panel, new Thickness(SideColumnEdgeGap, SideColumnTopOffset, 12, 16));
         }
 
         /// <summary>UseShellExecute, not a direct exe launch - it is what resolves ".msc" to mmc.exe

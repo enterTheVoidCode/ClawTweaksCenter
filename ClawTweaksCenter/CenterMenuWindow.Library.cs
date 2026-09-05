@@ -951,6 +951,7 @@ namespace ClawTweaksCenter
                 RefreshTabStrip();
 
                 StartArtFetch();
+                WarmCoverCacheInBackground(ct);
 
                 // The log harvest only refines the ordering of a library that is already usable, so
                 // it runs after the view is up rather than in front of it. It is also what fills the
@@ -2247,11 +2248,17 @@ namespace ClawTweaksCenter
                 else
                     ImmersiveHint.Text = jump ?? click ?? string.Empty;
 
-                // Gone entirely while a launch prompt is up, whatever it would otherwise say. Both of
-                // its two lines describe the right stick's effect ON THE SHELF, and the shelf is not
-                // what is on screen - "right jumps to the end" under a "Start X?" question is an
-                // instruction for a list the user cannot see. Same report as the tab strip above.
-                ImmersiveHint.Visibility = ImmersiveHint.Text.Length > 0 && !LaunchPromptOwnsScreen
+                // Gone entirely while ANY overlay owns the screen, whatever it would otherwise say.
+                // Both of its lines describe the right stick's effect ON THE SHELF, and the shelf is
+                // not what is on screen - "right jumps to the end" under a "Start X?" question, or
+                // over the library settings, is an instruction for a list the user cannot see.
+                //
+                // LibraryOverlayOwnsScreen rather than LaunchPromptOwnsScreen, and the condition is
+                // taken from OnRightStickFlick on purpose: that method refuses the flick in exactly
+                // these four states, so this is the set where the hint describes a gesture that does
+                // nothing. It was still up over the settings screen and the tab editor until
+                // 2026-09-05.
+                ImmersiveHint.Visibility = ImmersiveHint.Text.Length > 0 && !LibraryOverlayOwnsScreen
                     ? Visibility.Visible
                     : Visibility.Collapsed;
                 // As low as it can go in a GRID, higher in the reel.
@@ -2358,7 +2365,7 @@ namespace ClawTweaksCenter
                 Core.CenterSettings.OpenLibraryAtStartup, null));
             pairs.Children.Add(BuildSettingRow(SettingsSquareRomArtRow, "Square ROM art",
                 _squareRomArt, null));
-            pairs.Children.Add(BuildSettingRow(SettingsImmersiveRow, "Immersive mode",
+            pairs.Children.Add(BuildSettingRow(SettingsImmersiveRow, "Recent immersive",
                 Core.CenterSettings.ImmersiveMode, null));
             pairs.Children.Add(BuildSettingRow(SettingsLaunchBehaviorRow, "After starting a game",
                 null, LaunchBehaviorLabel(Core.CenterSettings.LaunchBehavior)));
@@ -2660,43 +2667,59 @@ namespace ClawTweaksCenter
             RefreshActionBar();
         }
 
+        /// <summary>Two, because ten rows in one column pushed the heading off the top of an
+        /// eight-inch panel - reported the day the editor shipped. The navigation below derives from
+        /// this the same way the settings grid derives from SettingsColumns.</summary>
+        private const int TabEditorColumns = 2;
+
         private void RenderTabEditor()
         {
             LibraryRoot.Children.Clear();
             LibraryRoot.RowDefinitions.Clear();
             _tabEditorRows.Clear();
 
-            var stack = new StackPanel
+            // HEADING BESIDE THE LIST, NOT ABOVE IT. Stacked, it was the first thing to be pushed off
+            // the screen by a list that is as long as the enum - so the one element that says what
+            // this screen is was the one that disappeared. Beside it, the list can grow without ever
+            // reaching it. The hints ride along with it for the same reason.
+            var columns = new Grid { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
+            columns.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var heading = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 24, 0) };
+            heading.Children.Add(new TextBlock
             {
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 620,
-            };
-            stack.Children.Add(new TextBlock
-            {
-                Text = Core.Loc.T("Library tabs"),
-                FontSize = 26,
+                Text = Core.Loc.T("Tab visibility & order"),
+                FontSize = 22,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
-                Margin = new Thickness(0, 0, 0, 6),
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 10),
             });
 
             // The shoulders are the only gesture on this screen with no footer chip of its own, so
             // they are named here. Two short lines rather than one long one - each says one thing.
-            stack.Children.Add(TabEditorHint("Move a tab with LB and RB."));
-            stack.Children.Add(TabEditorHint("Hide a tab with A."));
+            heading.Children.Add(TabEditorHint("Move a tab with LB and RB."));
+            heading.Children.Add(TabEditorHint("Hide a tab with A."));
+            Grid.SetColumn(heading, 0);
+            columns.Children.Add(heading);
 
-            var list = new StackPanel { Margin = new Thickness(0, 12, 0, 0) };
+            var list = new UniformGrid { Columns = TabEditorColumns };
             for (int i = 0; i < _tabEditorOrder.Count; i++)
             {
                 var g = _tabEditorOrder[i];
                 bool hidden = _tabEditorHidden.Contains(g);
+                // compact: the side-column form - smaller text, smaller glyph, no card fill. Ten of
+                // these fit where ten full-size rows did not, which is the whole point of the change.
                 var row = BuildRowVisual(
                     Library.StoreIcons.GlyphFor(g),
                     GameLibrary.GroupLabel(g),
                     hidden ? "Hidden" : "Shown",
                     inCard: false,
-                    dim: hidden);
+                    dim: hidden,
+                    compact: true);
+                row.Margin = new Thickness(0, 0, 8, 6);
+                row.MinWidth = 180;
                 row.Tag = i;
                 int captured = i;
                 row.MouseLeftButtonUp += (_, __) => { _tabEditorIndex = captured; ToggleTabVisibility(); };
@@ -2704,17 +2727,19 @@ namespace ClawTweaksCenter
                 list.Children.Add(row);
             }
 
-            // The list is as long as the enum and the enum grows - capped and scrolled rather than
-            // running off the bottom, the same shape the quick menu's side columns already use.
-            stack.Children.Add(new ScrollViewer
+            // Still capped and scrolled: the enum grows, and a list that runs off the bottom edge is
+            // what this layout exists to avoid. Two columns just move the ceiling a long way up.
+            var scroller = new ScrollViewer
             {
                 Content = list,
-                MaxHeight = 560,
+                MaxHeight = 620,
                 VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                 HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled,
-            });
+            };
+            Grid.SetColumn(scroller, 1);
+            columns.Children.Add(scroller);
 
-            LibraryRoot.Children.Add(stack);
+            LibraryRoot.Children.Add(columns);
             ApplyTabEditorSelection();
         }
 
@@ -2741,11 +2766,39 @@ namespace ClawTweaksCenter
             selected?.BringIntoView();
         }
 
+        /// <summary>Up and down step a whole row, left and right one cell - the grid the rows are
+        /// laid out in, rather than the flat order underneath it. LB/RB keep moving the tab itself,
+        /// so the two gestures cannot be confused for one another.</summary>
         private void MoveTabEditorSelection(PadButton dir)
         {
-            if (_tabEditorRows.Count == 0) return;
-            int next = _tabEditorIndex + (dir == PadButton.Down ? 1 : dir == PadButton.Up ? -1 : 0);
-            if (next < 0 || next >= _tabEditorRows.Count || next == _tabEditorIndex) return;
+            int count = _tabEditorRows.Count;
+            if (count == 0) return;
+
+            int next = _tabEditorIndex;
+            switch (dir)
+            {
+                case PadButton.Left:
+                    if (_tabEditorIndex % TabEditorColumns == 0) return;
+                    next = _tabEditorIndex - 1;
+                    break;
+                case PadButton.Right:
+                    if (_tabEditorIndex % TabEditorColumns == TabEditorColumns - 1) return;
+                    next = _tabEditorIndex + 1;
+                    break;
+                case PadButton.Up:
+                    if (_tabEditorIndex < TabEditorColumns) return;
+                    next = _tabEditorIndex - TabEditorColumns;
+                    break;
+                case PadButton.Down:
+                    next = _tabEditorIndex + TabEditorColumns;
+                    // An odd count leaves the bottom row half empty; stepping onto the last row that
+                    // EXISTS beats refusing the press over a cell that is not drawn.
+                    if (next >= count) next = count - 1;
+                    break;
+                default: return;
+            }
+
+            if (next < 0 || next >= count || next == _tabEditorIndex) return;
             _tabEditorIndex = next;
             ApplyTabEditorSelection();
         }
@@ -2849,6 +2902,68 @@ namespace ClawTweaksCenter
         /// Downloads the covers nothing local could supply. Runs behind the finished library, one
         /// request at a time, and redraws as pictures arrive.
         /// </summary>
+        /// <summary>
+        /// Decodes every cover into GameArt's cache as soon as the scan is done, instead of waiting
+        /// for a tile to come into view and ask for it.
+        ///
+        /// WHY IT IS WORTH DOING UP FRONT. The reel virtualises, so moving one place to the right
+        /// realises a host that has never decoded its picture - and the user meets that on the FIRST
+        /// press after the library appears, which is where it was reported (2026-09-05). There is
+        /// nothing to save by being lazy here: the library is up long before the virtual controller
+        /// has finished mounting, so this window is time the user is spending waiting anyway.
+        ///
+        /// At the decode width the tiles ACTUALLY USE, read on the UI thread before leaving it. A
+        /// warm-up at the wrong width fills the cache with entries nothing will ever ask for - the
+        /// key is "width|path" - so it would cost the memory and save nothing.
+        ///
+        /// Recent first, then everything else. Recent is the tab the library opens on, so its covers
+        /// are the ones somebody is about to walk through; the rest ride along behind them.
+        ///
+        /// GameArt.LoadAsync caps itself at four concurrent decodes and hands back the SAME task for
+        /// a path already in flight, so this cannot fight the tiles that are decoding at the same
+        /// time - it joins them.
+        ///
+        /// ⚠️ This warms DECODED BITMAPS, nothing else. If a stall survives it, the remaining
+        /// suspect is WPF realising containers (tile plus its VisualBrush reflection), which no cache
+        /// can answer - that would be a change to how the reel is built, not to what it has ready.
+        /// </summary>
+        private void WarmCoverCacheInBackground(CancellationToken ct)
+        {
+            int decodeWidth = _libDecodeWidth;
+            if (decodeWidth <= 0) return;
+
+            var paths = new List<string>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var g in _library.ForGroup(LibraryGroup.Recent))
+                if (!string.IsNullOrEmpty(g.ArtPath) && seen.Add(g.ArtPath)) paths.Add(g.ArtPath);
+            foreach (var g in _library.Games)
+                if (!string.IsNullOrEmpty(g.ArtPath) && seen.Add(g.ArtPath)) paths.Add(g.ArtPath);
+
+            if (paths.Count == 0) return;
+
+            _ = System.Threading.Tasks.Task.Run(async () =>
+            {
+                var clock = System.Diagnostics.Stopwatch.StartNew();
+                int done = 0;
+                try
+                {
+                    foreach (string path in paths)
+                    {
+                        if (ct.IsCancellationRequested) return;
+                        if (await Library.GameArt.LoadAsync(path, decodeWidth).ConfigureAwait(false) != null) done++;
+                    }
+                }
+                catch (OperationCanceledException) { return; }
+                catch (Exception ex) { Core.InstallLog.Write("Cover warm-up failed: " + ex.Message); return; }
+
+                // One line, at the end. It is the only way to answer "was it still warming when it
+                // stuttered?" from a report, and the answer decides whether the next look belongs
+                // here or in how the reel builds its containers.
+                Core.InstallLog.Write(
+                    $"Cover warm-up: {done}/{paths.Count} decoded at {decodeWidth}px in {clock.ElapsedMilliseconds} ms");
+            }, ct);
+        }
+
         private void StartArtFetch()
         {
             if (!Library.SteamGridDb.HasKey || !_libraryScanned) return;
@@ -4280,7 +4395,7 @@ namespace ClawTweaksCenter
             text.Children.Add(new TextBlock
             {
                 Text = Core.Loc.T(title),
-                FontSize = compact ? 14 : 18,
+                FontSize = compact ? 13 : 18,
                 Foreground = UiHelpers.Text,
                 TextTrimming = TextTrimming.CharacterEllipsis,
             });
@@ -4293,7 +4408,7 @@ namespace ClawTweaksCenter
                 text.Children.Add(new TextBlock
                 {
                     Text = Core.Loc.T(subtitle),
-                    FontSize = compact ? 11 : 13,
+                    FontSize = compact ? 10 : 13,
                     Foreground = UiHelpers.Subtle,
                     Margin = new Thickness(0, compact ? 1 : 2, 0, 0),
                     TextTrimming = TextTrimming.CharacterEllipsis,
@@ -4304,7 +4419,7 @@ namespace ClawTweaksCenter
             {
                 Text = glyph,
                 FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
-                FontSize = compact ? 15 : 20,
+                FontSize = compact ? 14 : 20,
                 Foreground = UiHelpers.Subtle,
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
@@ -4316,7 +4431,7 @@ namespace ClawTweaksCenter
             // three pixels between it and the text. The gap belongs to the COLUMN rather than to a
             // margin on the text, so the two lines of the label still start at the same x whatever
             // width the glyph happens to have.
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(compact ? 30 : 48) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(compact ? 26 : 48) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.Children.Add(icon);
             grid.Children.Add(text);
@@ -4327,7 +4442,7 @@ namespace ClawTweaksCenter
                 Background = (inCard || compact) ? Brushes.Transparent : UiHelpers.Card,
                 CornerRadius = new CornerRadius(inCard || compact ? 7 : 10),
                 Padding = compact
-                    ? new Thickness(8, 7, 8, 7)
+                    ? new Thickness(8, 5, 8, 5)
                     : new Thickness(16, inCard ? 9 : 12, 16, inCard ? 9 : 12),
                 Margin = new Thickness(0, 0, 0, compact ? 2 : (inCard ? 0 : 10)),
                 BorderThickness = new Thickness(2),
