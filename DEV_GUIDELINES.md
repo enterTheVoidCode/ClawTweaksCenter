@@ -316,6 +316,25 @@ Battle.net has the same question already answered, and answered differently: the
 there at all, only "finished or not", because that is all `.patch.result` says. See
 `Library/OtherStores.cs`.
 
+## ✅ Erledigt: im Schnellmenue ist nur die UEBERSCHRIFT zentriert
+
+**Falsch in `a6e38dc` "Centre the quick menu's labels" (2026-09-05), am selben Tag
+zurueckgenommen.** Gefragt war die grosse **Ueberschrift**; zentriert wurden stattdessen die
+Beschriftungen in allen drei Spalten - in den beiden Seitenlisten und der Mitte also genau das
+Gegenteil.
+
+**Der Stand jetzt:**
+
+| | Ausrichtung |
+|---|---|
+| "Library quick menu" (26 pt) | **zentriert** |
+| `SidebarHeading` ueber den beiden Seitenspalten | zentriert (war es schon vorher) |
+| **jede Zeile** - Tray-Apps, Windows-Tools, die Aktionen in der Mitte | **links** |
+
+**Warum die Zeilen links bleiben:** eine Liste, die jemand von oben nach unten liest, scannt an
+einer geraden linken Kante. Der `centerText`-Parameter an `BuildRowVisual` ist wieder weg - wer ihn
+erneut braucht, hat vermutlich dieselbe Verwechslung vor sich.
+
 ## Layout
 
 | Path | What lives there |

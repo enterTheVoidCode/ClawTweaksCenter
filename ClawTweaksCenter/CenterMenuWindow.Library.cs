@@ -4174,12 +4174,17 @@ namespace ClawTweaksCenter
                 VerticalAlignment = VerticalAlignment.Center,
                 MaxWidth = 720,
             };
+            // Centred, and ONLY this. The rows below keep their straight left edge: a list read top
+            // to bottom scans along one, and centring them was asked for and taken back on
+            // 2026-09-05 - what was meant was the heading over the column, not its contents.
             stack.Children.Add(new TextBlock
             {
                 Text = Core.Loc.T("Library quick menu"),
                 FontSize = 26,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextAlignment = TextAlignment.Center,
                 Margin = new Thickness(0, 0, 0, 16),
             });
 
@@ -4388,25 +4393,15 @@ namespace ClawTweaksCenter
         // icon plus two short lines, so the width was never doing any work.
         private const double ExitPromptCentreWidth = 430;
 
-        /// <param name="centerText">Centres the label instead of starting it at the icon.
-        /// The quick menu asks for it (user, 2026-09-05); the tab editor and the library's own rows
-        /// do not, because a list somebody reads top to bottom is easier to scan on a straight left
-        /// edge.</param>
         private static Border BuildRowVisual(
-            string glyph, string title, string subtitle, bool inCard, bool dim = false, bool compact = false,
-            bool centerText = false)
+            string glyph, string title, string subtitle, bool inCard, bool dim = false, bool compact = false)
         {
-            var text = new StackPanel
-            {
-                VerticalAlignment = VerticalAlignment.Center,
-                HorizontalAlignment = centerText ? HorizontalAlignment.Center : HorizontalAlignment.Stretch,
-            };
+            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             text.Children.Add(new TextBlock
             {
                 Text = Core.Loc.T(title),
                 FontSize = compact ? 13 : 18,
                 Foreground = UiHelpers.Text,
-                TextAlignment = centerText ? TextAlignment.Center : TextAlignment.Left,
                 TextTrimming = TextTrimming.CharacterEllipsis,
             });
             // NO EMPTY SECOND LINE. A TextBlock with no text still measures one line high, so a row
@@ -4421,7 +4416,6 @@ namespace ClawTweaksCenter
                     FontSize = compact ? 10 : 13,
                     Foreground = UiHelpers.Subtle,
                     Margin = new Thickness(0, compact ? 1 : 2, 0, 0),
-                    TextAlignment = centerText ? TextAlignment.Center : TextAlignment.Left,
                     TextTrimming = TextTrimming.CharacterEllipsis,
                 });
             Grid.SetColumn(text, 1);
@@ -4470,8 +4464,7 @@ namespace ClawTweaksCenter
         /// <summary>One selectable row in the MIDDLE column's own list/index/click wiring.</summary>
         private Border ExitPromptRow(int index, string glyph, string title, string subtitle, bool inCard = false)
         {
-            // centerText: these rows ARE the quick menu's middle column.
-            var row = BuildRowVisual(glyph, title, subtitle, inCard, centerText: true);
+            var row = BuildRowVisual(glyph, title, subtitle, inCard);
             row.Tag = index;
             int captured = index;
             row.MouseLeftButtonUp += (_, __) =>
