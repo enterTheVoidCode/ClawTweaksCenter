@@ -106,6 +106,37 @@ namespace ClawTweaksCenter.Core
         }
 
         /// <summary>
+        /// Onboarding has not been shown yet on this machine.
+        ///
+        /// WRITTEN BY THE INSTALLER, cleared here once onboarding is actually on screen. Like
+        /// StartCenterWithClawTweaks above, this registry value is a contract between two programs
+        /// in two repos, so the name must not change on one side alone.
+        ///
+        /// ── WHY A STATE AND NOT AN ARGUMENT ──────────────────────────────────────────────────
+        /// The installer used to hand onboarding over as `--onboarding`, on a post-restart RunOnce.
+        /// That only works if the process it starts is the FIRST Center of the session, and it is
+        /// not: measured 2026-09-07, the Center that came up after the restart carried
+        ///
+        ///     "…\ClawTweaksCenter\current\CTW_Center.exe"      - no arguments at all
+        ///
+        /// because AnyFSE had already launched it as the full-screen home app. The RunOnce copy then
+        /// met the single-instance gate, where --onboarding signals CommandShowHome, and onboarding
+        /// was never shown. Nothing failed; it just did not happen.
+        ///
+        /// An argument is an instruction to ONE process, and on a machine with a shell launcher we
+        /// do not get to decide which process that is. A state is read by whichever Center starts.
+        ///
+        /// ⚠️ CLEARED WHEN SHOWN, not when finished - see CenterMenuWindow. Clearing it on
+        /// completion would re-open onboarding on every start until the user walks it to the end,
+        /// which is a worse failure than missing it once.
+        /// </summary>
+        public static bool OnboardingPending
+        {
+            get => ReadBool("OnboardingPending", false);
+            set => WriteBool("OnboardingPending", value);
+        }
+
+        /// <summary>
         /// What Center does once a game has been started.
         ///
         /// Both of the non-closing options are safe, which is worth writing down because the launch

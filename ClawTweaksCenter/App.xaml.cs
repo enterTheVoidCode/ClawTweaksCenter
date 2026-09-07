@@ -164,7 +164,12 @@ namespace ClawTweaksCenter
             // Like --home it has to WIN over the remembered "start in the library" preference, for
             // the same reason: a destination that quietly becomes a different destination is not a
             // destination.
-            bool startOnboarding = Array.Exists(e.Args, a => a.Equals("--onboarding", StringComparison.OrdinalIgnoreCase));
+            // The argument still counts - it is what the classic setup exe passes to the copy it
+            // installs, and what a direct hand-off uses when no restart was needed. The STATE is the
+            // half that survives a machine where something else starts Center first; see
+            // CenterSettings.OnboardingPending for the measurement behind it.
+            bool startOnboarding = Array.Exists(e.Args, a => a.Equals("--onboarding", StringComparison.OrdinalIgnoreCase))
+                                   || CenterSettings.OnboardingPending;
 
             // --background starts resident and INVISIBLE: no window, just the tray icon and the wake
             // pipe, so the first press of that button hits a process that is already warm. Honoured

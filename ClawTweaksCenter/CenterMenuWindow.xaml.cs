@@ -320,7 +320,17 @@ namespace ClawTweaksCenter
                 // started this process to show.
                 if (_startLeaveOnLoad) OpenLeave();
                 else if (_startInstallDoneOnLoad) OpenInstallDone();
-                else if (_startOnboardingOnLoad) OpenOnboarding();
+                else if (_startOnboardingOnLoad)
+                {
+                    OpenOnboarding();
+
+                    // HERE, and not in App.OnStartup where the flag is read. A second launch against
+                    // a running Center reads the flag too, then signals the live instance and exits
+                    // without ever opening this window - clearing it there would consume onboarding
+                    // for a process that never showed it. This line only runs when the screen is
+                    // really up.
+                    CenterSettings.OnboardingPending = false;
+                }
 
                 // --library. Deliberately AFTER the installed-version check above: the tab does not
                 // exist until that answers, so jumping straight there on startup would land on a tab
