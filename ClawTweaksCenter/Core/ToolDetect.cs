@@ -119,18 +119,24 @@ namespace ClawTweaksCenter.Core
             {
                 if (!ServiceKeyExists(svc)) continue;
 
-                // Registered driver, but is it a version we can actually drive? See UsbipVersionStatus.
-                string tooNew = UnsupportedUsbipVersion();
-                if (tooNew != null)
+                // Registered driver, but is it a version we can actually drive? See UnsupportedUsbipVersion.
+                string wrong = UnsupportedUsbipVersion();
+                if (wrong != null)
                     return new ToolStatus
                     {
                         Name = "usbip",
                         Installed = false,
-                        Detail = $"UNSUPPORTED VERSION: usbip {tooNew} is installed, ClawTweaks needs " +
-                                 $"{MaxSupportedUsbipVersion}. From {MinBrokenUsbipVersion} on, the " +
-                                 "virtual controller shows up TWICE and games see every input doubled. " +
-                                 $"Uninstall usbip, install {MaxSupportedUsbipVersion} from the link on " +
-                                 "this page, and reboot.",
+                        // Two sides, two consequences, and they must not be described with one
+                        // sentence: too old CRASHES the machine, too new is merely unverified.
+                        Detail = UsbipIsTooOld(wrong)
+                            ? $"UNSUPPORTED VERSION: usbip {wrong} is installed, ClawTweaks needs " +
+                              $"{SupportedUsbipVersion}. Older versions crash the device with a blue " +
+                              "screen while the virtual controller is running, so ClawTweaks will not " +
+                              "start it. Run the ClawTweaks setup, or install " +
+                              $"{SupportedUsbipVersion} from the link on this page, and reboot."
+                            : $"UNSUPPORTED VERSION: usbip {wrong} is installed, ClawTweaks needs " +
+                              $"{SupportedUsbipVersion}. Uninstall usbip, install " +
+                              $"{SupportedUsbipVersion} from the link on this page, and reboot.",
                     };
 
                 return Ok("usbip", $"UDE driver service '{svc}' registered");
@@ -273,35 +279,56 @@ namespace ClawTweaksCenter.Core
         private const int ERROR_ACCESS_DENIED = 5;
 
         #region helpers
-        /// <summary>Newest usbip-win2 our bundled libviiper can drive.</summary>
-        public const string MaxSupportedUsbipVersion = "0.9.7.7";
+        /// <summary>
+        /// The ONE usbip-win2 version ClawTweaks runs on. Min and max are the same number on purpose —
+        /// the Inno setup pins it identically, and this is the value it installs.
+        /// </summary>
+        public const string SupportedUsbipVersion = "0.9.8.0";
 
-        /// <summary>First usbip-win2 that breaks it — see <see cref="UnsupportedUsbipVersion"/>.</summary>
-        public const string MinBrokenUsbipVersion = "0.9.7.8";
+        /// <summary>Kept for anything that still reads it. Same number: there is one supported version.</summary>
+        public const string MaxSupportedUsbipVersion = SupportedUsbipVersion;
+
+        /// <summary>First usbip-win2 we have not verified — see <see cref="UnsupportedUsbipVersion"/>.</summary>
+        public const string MinBrokenUsbipVersion = "0.9.8.1";
 
         /// <summary>
-        /// Returns the installed usbip version string when it is NEWER than we support, otherwise null.
+        /// Returns the installed usbip version string when it is one we do NOT run on — too old or too
+        /// new — otherwise null.
         ///
-        /// WHY A VERSION GATE AT ALL. Our bundled libviiper (VIIPER v0.6.x) attaches the virtual pad
-        /// through the vhci PLUGIN_HARDWARE IOCTL. usbip-win2 0.9.7.8 grew that struct by 16 bytes, so
-        /// libviiper's attach fails there and falls back to spawning `usbip attach` out of process,
-        /// fire-and-forget. ClawTweaks attaches too, and when the stray child finally lands — measured
-        /// 23 SECONDS later, mid-game, on 2026-07-30 — Windows has TWO virtual Xbox pads mirroring the
-        /// same input. On 0.9.7.7 libviiper's own attach succeeds, so only ONE attach path exists.
-        /// HandheldCompanion pins the identical version for the identical reason.
+        /// ⚠️ TWO-SIDED SINCE 2026-09-08, AND THE OLD SIDE IS THE DANGEROUS ONE. This used to be
+        /// "newer than 0.9.7.7 is bad", which made 0.9.8.0 — the version ClawTweaks' own setup
+        /// installs — report as UNSUPPORTED and told the user to go back to 0.9.7.7. That is not a
+        /// stale string: 0.9.7.7 BUGCHECKS the machine with DPC_WATCHDOG_VIOLATION (0x133) whenever the
+        /// virtual pad is mounted (two minidumps with byte-identical stacks, upstream usbip-win2 issue
+        /// #172, fixed in 0.9.8.0). Center was actively instructing users to downgrade into a crash.
+        ///
+        /// WHY A GATE AT ALL, in both directions:
+        ///   too old — the bugcheck above. 0.9.7.8 additionally never mounted our pad and carries a
+        ///             memory-corruption bug upstream names; it is skipped rather than supported.
+        ///   too new — unverified. Every usbip release so far has changed the vhci IOCTL struct at
+        ///             least once, and our CLI route is what carries the mount on 0.9.8.0 (measured
+        ///             on-device 2026-09-07: "Attached" in 45 ms, not "AlreadyAttached").
         ///
         /// FAILS OPEN, like every other version gate in this app: if the version cannot be read or
-        /// parsed we say nothing and let the install count. Locking someone out of onboarding over an
-        /// unreadable version string would be worse than the doubled pad.
+        /// parsed we say nothing and let the install count. Locking someone out over an unreadable
+        /// version string is the more expensive mistake — and the HELPER checks again at the moment it
+        /// would actually mount, which is the check that protects the machine.
         /// </summary>
         private static string UnsupportedUsbipVersion()
         {
             string raw = ReadUsbipVersion();
             if (string.IsNullOrWhiteSpace(raw)) return null;
             if (!Version.TryParse(raw.Trim(), out var found)) return null;
-            if (!Version.TryParse(MaxSupportedUsbipVersion, out var max)) return null;
-            return found > max ? raw.Trim() : null;
+            if (!Version.TryParse(SupportedUsbipVersion, out var want)) return null;
+            return found == want ? null : raw.Trim();
         }
+
+        /// <summary>True when the installed usbip is OLDER than the one we support — the crashing
+        /// side. Only meaningful when <see cref="UnsupportedUsbipVersion"/> returned something.</summary>
+        private static bool UsbipIsTooOld(string raw) =>
+            Version.TryParse(raw, out var found) &&
+            Version.TryParse(SupportedUsbipVersion, out var want) &&
+            found < want;
 
         /// <summary>
         /// usbip's version, from the CLI binary's file version first (it is the artefact that actually

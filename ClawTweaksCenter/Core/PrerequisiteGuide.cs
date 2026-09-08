@@ -68,24 +68,28 @@ namespace ClawTweaksCenter.Core
         {
             Name = "usbip",
             Why = "Provides the virtual controller itself (the VIIPER backend).",
-            // PINNED to 0.9.7.7 ON PURPOSE — do NOT change this back to /releases/latest.
+            // PINNED to 0.9.8.0 ON PURPOSE — do NOT change this to /releases/latest, and do NOT put it
+            // back to 0.9.7.7.
             //
-            // Our bundled libviiper (VIIPER v0.6.x, built 2026-05-19) talks to the vhci driver through
-            // the PLUGIN_HARDWARE IOCTL. usbip-win2 0.9.7.8 GREW that struct by 16 bytes, so on 0.9.7.8
-            // libviiper's own attach fails and falls back to spawning `usbip attach` out of process —
-            // fire-and-forget, unbounded. ClawTweaks then attaches too, and when the stray child finally
-            // lands (measured: 23 SECONDS later, mid-game) Windows has TWO virtual Xbox pads mirroring
-            // the same input. Confirmed on-device 2026-07-30 via `usbip port` + PnP arrival timestamps.
+            // ⚠️ IT POINTED AT 0.9.7.7 UNTIL 2026-09-08, AND THAT WAS A CRASH. 0.9.7.7 bugchecks the
+            // machine with DPC_WATCHDOG_VIOLATION (0x133) whenever the virtual pad is mounted: two
+            // minidumps with byte-identical stacks (ntoskrnl spin <- Wdf01000 WdfSpinLockAcquire <-
+            // udecx <- usbip2_ude), upstream usbip-win2 issue #172, where the maintainer names
+            // device_ctx::send_lock — a WDFSPINLOCK taken at DISPATCH_LEVEL — and fixes it in 0.9.8.0.
+            // The reporter's setup is ours: a VIIPER virtual pad over localhost loopback. Not
+            // Claw-specific, and not our bug.
             //
-            // 0.9.7.7 is the last version whose ABI matches our libviiper: there libviiper's own attach
-            // succeeds, so exactly ONE attach path exists and the duplicate cannot occur. This is also
-            // what HandheldCompanion ships — their installer pins the identical asset
-            // (NewUSBipVersion "0.9.7.7") and their Targets/Viiper/LibViiper.cs uses the same v0.6.x
-            // C ABI we do. Neither project has moved to VIIPER v0.7.0, which is a full ABI redesign.
+            // The block that used to stand here argued 0.9.7.7 from a DIFFERENT problem: 0.9.7.8 grew
+            // the PLUGIN_HARDWARE struct, libviiper's own attach failed, and a stray out-of-process
+            // `usbip attach` landed 23 seconds later giving two pads (measured 2026-07-30). That
+            // finding is still true and is why 0.9.7.8 is SKIPPED rather than supported — upstream
+            // also names a memory-corruption bug in it that only 0.9.8.0 fixes.
             //
-            // This link pointing at /releases/latest is precisely how a Claw ended up on 0.9.7.8 on
-            // 2026-07-30. Revisit only together with a libviiper upgrade, never on its own.
-            PageUrl = "https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.7.7",
+            // What makes 0.9.8.0 usable is UsbipClient's CLI route, not libviiper: on 0.9.8.0 the
+            // struct grew again (serial[] plus wsk_events) so libviiper's IOCTL fails, and our CLI
+            // fallback carries the mount. Verified on-device 2026-09-07 — "Attached" in 45 ms, not
+            // "AlreadyAttached", 450 ms total, three hours with a single attach and no bugcheck.
+            PageUrl = "https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.8.0",
             // The release page offers exactly two assets and lists them ALPHABETICALLY, which puts
             // arm64 ABOVE x64 — so the first download link on the page is the wrong one for the Claw.
             // Picking it fails LATE and confusingly: the installer runs, copies every file, and only
@@ -103,10 +107,10 @@ namespace ClawTweaksCenter.Core
             // an error, made worse by ToolDetect then accepting its 'usbipd' service as proof; both
             // fixed.) Since the winget hints are gone from this screen altogether, nothing here can
             // point at the wrong package any more.
-            WhatToGet = "Take USBip-0.9.7.7-x64.exe from this page. The link opens version 0.9.7.7 " +
+            WhatToGet = "Take USBip-0.9.8.0-x64.exe from this page. The link opens version 0.9.8.0 " +
                         "deliberately — it is the version ClawTweaks supports.",
-            Warning = "Do not download the ARM version, and do not take a newer usbip release: " +
-                      "0.9.7.8 makes the virtual controller show up twice.",
+            Warning = "Do not download the ARM version, and do not take an older usbip release: " +
+                      "below 0.9.8.0 the device blue-screens while the virtual controller runs.",
             NeedsReboot = true,
         };
 

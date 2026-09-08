@@ -233,6 +233,94 @@ That only holds while the grid stays gap-free, which is why `HomeFaqIndex` and `
 properties keyed off `LibraryAvailable` rather than constants: without ClawTweaks the two library
 tiles are absent, and fixed numbers would leave dead cursor positions where they used to be.
 
+## ⛔ Center does not install itself on a double-click any more (2026-09-08)
+
+There are exactly **two** ways Center is allowed to arrive on a machine:
+
+| | |
+|---|---|
+| **The ClawTweaks setup** (Inno) | first install and every upgrade |
+| **Velopack** | Center updating itself in place |
+
+A bare `CTW_Center.exe` downloaded from this repo's releases is a **build, not an installer**, and the
+release notes have to say so. Running one now lands on a screen that says the same thing and offers
+one action: open the ClawTweaks release page.
+
+### The gate is `--resume-install`, and it is not a new mechanism
+
+`App.OnStartup` → gate #0 → `!SelfInstaller.IsRunningFromInstallDir()`:
+
+```
+--resume-install present  ->  Install / Update / AlreadyInstalled   (the old behaviour)
+otherwise                 ->  NotForInstall                          (the new screen)
+```
+
+The Inno setup has **always** run the bundled Center exe as
+`<setup> --resume-install [--onboarding]`, and `InstallCenterWindow` has always read that argument as
+"the user already acted, install without asking again". All that changed is that it is now the *only*
+way in.
+
+⚠️ **Velopack never passes through this gate at all.** It installs into its own root
+(`%LOCALAPPDATA%\ClawTweaksCenter\{current, Update.exe}`), and `IsRunningFromInstallDir` already
+returns true for that layout — the Velopack arm in `SelfInstaller` predates this change and is what
+makes the whole thing a no-op for the updater. `Update.exe` never launches Center *to install it*;
+it replaces the folder and starts the stub.
+
+⚠️ **It is a don't-do-this-by-accident gate, not a security boundary.** Anyone who types the switch
+gets the old behaviour — which is exactly what a developer testing a portable build out of
+`PortableExe\` needs: `CTW_Center.exe --resume-install`.
+
+### Three things that go wrong if this is touched carelessly
+
+1. **Removing the `--resume-install` arm breaks the classic (non-Velopack) installer.**
+   `Build-Installer.ps1` without `-CenterVelopack` bundles `CTW_Center_<ver>_Setup.exe` and relies on
+   it self-installing *and* starting Center. That build is the rollback path for "Velopack turned out
+   to be a mistake" and has to keep working.
+2. **`NotForInstall` must never reach `StartInstall`.** The autoStart branch checks for it explicitly,
+   on top of the action bar not offering the chip — an install that happens on a screen which says it
+   will not install is worse than no gate at all.
+3. **The URL is printed on the screen, not only behind the chip.** `PrerequisiteGuide.OpenPage`
+   swallows a failed browser launch by design; without the visible URL a machine with no usable
+   default browser would show a chip that does nothing and no way to find out where to go.
+
+## 🔴 The usbip version gate is TWO-SIDED, and it used to point the wrong way (2026-09-08)
+
+`ToolDetect` had `MaxSupportedUsbipVersion = "0.9.7.7"` and a one-sided test:
+
+```csharp
+return found > max ? raw.Trim() : null;   // 0.9.8.0 > 0.9.7.7  =>  "UNSUPPORTED"
+```
+
+The ClawTweaks setup installs **0.9.8.0**. So Center reported the version its own installer had just
+put there as unsupported, and the card told the user to *uninstall it and install 0.9.7.7 from the
+link on this page*. That link is not a stale string: **0.9.7.7 bugchecks the machine** with
+DPC_WATCHDOG_VIOLATION (0x133) whenever the virtual pad is mounted — two minidumps with
+byte-identical stacks, upstream usbip-win2 issue #172, fixed in 0.9.8.0. Center was instructing
+people to downgrade into a crash, on every machine, right after installation.
+
+**Now:** `SupportedUsbipVersion = "0.9.8.0"`, and anything that is not exactly that version counts as
+not installed. `UsbipIsTooOld` splits the message, because the two sides are not the same problem —
+too old **crashes the device**, too new is merely unverified. One sentence for both would be either
+scaremongering or an understatement.
+
+### Three things to know before touching this
+
+1. **This status is a GATE, not a display.** `Installed = false` makes `ShowMissingPrerequisites`
+   abort the ClawTweaks build install that was in progress. That is deliberate: a user on 0.9.7.7
+   should not be able to install a build until usbip is updated.
+2. **The helper checks again**, in `UsbipClient.IsSupportedVersion`, at the moment it would mount the
+   pad — and that is the check that actually prevents the bugcheck. Center's copy is the one that
+   stops a *download*; the helper's is the one that stops a *crash*. The setup can be skipped (usbip
+   already "installed", a hand rollback, a rollback build), so neither alone is enough.
+3. **It fails OPEN on an unreadable version**, like every other version gate here. Locking a working
+   machine out over a version string we could not parse is the more expensive mistake.
+
+⚠️ **This screen is now a DIAGNOSIS screen, not an install guide.** The five onboarding steps carry
+no tools step, `ToolsPhase` belongs to the deliberately-disabled `MainWindow`, and the ClawTweaks
+Inno setup installs the tools. The prerequisites card therefore only appears when something is
+genuinely missing or wrong — which is exactly why its text has to be right: it is read only in the
+failure case.
+
 ## Uninstalling: the order is the feature
 
 `CenterMenuWindow.Leave.cs` + `Core/LeaveRunner.cs`. Reached from the Home tile and from Windows
