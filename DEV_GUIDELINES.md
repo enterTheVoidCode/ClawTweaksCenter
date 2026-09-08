@@ -308,10 +308,10 @@ scaremongering or an understatement.
 1. **This status is a GATE, not a display.** `Installed = false` makes `ShowMissingPrerequisites`
    abort the ClawTweaks build install that was in progress. That is deliberate: a user on 0.9.7.7
    should not be able to install a build until usbip is updated.
-2. **The helper checks again**, in `UsbipClient.IsSupportedVersion`, at the moment it would mount the
-   pad — and that is the check that actually prevents the bugcheck. Center's copy is the one that
-   stops a *download*; the helper's is the one that stops a *crash*. The setup can be skipped (usbip
-   already "installed", a hand rollback, a rollback build), so neither alone is enough.
+2. **The helper checks again at the moment it would mount the pad**, and that is the check which
+   actually prevents the bugcheck. Center's copy is the one that stops a *download*; the helper's is
+   the one that stops a *crash*. The setup can be skipped (usbip already "installed", a hand
+   rollback, a rollback build), so neither alone is enough.
 3. **It fails OPEN on an unreadable version**, like every other version gate here. Locking a working
    machine out over a version string we could not parse is the more expensive mistake.
 
