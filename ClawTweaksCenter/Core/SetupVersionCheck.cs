@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Net.Http;
 using System.Reflection;
 using System.Text.Json;
@@ -142,8 +142,13 @@ namespace ClawTweaksCenter.Core
             el.TryGetProperty(prop, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() : null;
 
         /// <summary>The project's releases page — the last-resort destination, and the reason a user can
-        /// never be told "there is an update" without being told where to get it.</summary>
-        private const string ReleasesPageUrl = "https://github.com/enterTheVoidCode/ClawTweaks/releases";
+        /// never be told "there is an update" without being told where to get it.
+        ///
+        /// PUBLIC because it is now also the answer on the other screen that has to send someone
+        /// somewhere: InstallCenterWindow, when a downloaded Center exe is run and cannot install
+        /// itself. Two screens naming the same destination must not be able to name two different
+        /// ones.</summary>
+        public const string ReleasesPageUrl = "https://github.com/enterTheVoidCode/ClawTweaks/releases";
 
         /// <summary>
         /// The manifest is fetched over the network, so its URL is untrusted input — and we are about to

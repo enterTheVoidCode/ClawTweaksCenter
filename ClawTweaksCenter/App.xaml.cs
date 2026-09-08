@@ -102,6 +102,30 @@ namespace ClawTweaksCenter
             // rest of the app itself.
             if (!SelfInstaller.IsRunningFromInstallDir())
             {
+                // ⚠️ CENTER NO LONGER INSTALLS ITSELF ON A DOUBLE-CLICK (user, 2026-09-08).
+                //
+                // Center is installed by the ClawTweaks setup and updated by Velopack. A bare exe
+                // downloaded from the Center repo is a BUILD, not an installer, and its releases say
+                // so - so running one lands on the "get the setup" screen instead of quietly adding a
+                // third way for Center to arrive on a machine.
+                //
+                // ResumeArg is what keeps the classic (non-Velopack) installer working, and it is not
+                // a new mechanism: the Inno setup has always run the bundled Center exe as
+                // `<setup> --resume-install [--onboarding]`, and this window has always read that as
+                // "the user already acted, install without asking again". It is now also the ONLY way
+                // in. Velopack never comes through here at all - it installs into its own root, so
+                // IsRunningFromInstallDir is already true by the time this line runs.
+                //
+                // It is a don't-do-this-by-accident gate, not a security boundary. Anyone who types
+                // the switch gets the old behaviour, which is exactly what a developer testing a
+                // portable build out of PortableExe\ needs.
+                bool installerDriven = Array.Exists(e.Args, a => a == InstallCenterWindow.ResumeArg);
+                if (!installerDriven)
+                {
+                    ShowForeground(new InstallCenterWindow(InstallCenterMode.NotForInstall));
+                    return;
+                }
+
                 var installedVersion = SelfInstaller.GetInstalledVersion();
                 var runningVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
 
@@ -119,7 +143,7 @@ namespace ClawTweaksCenter
                 // explicit click (see InstallCenterWindow.ResumeArg / ElevationGate) — the user already
                 // acted once and already granted the UAC prompt, so this proceeds straight into the
                 // install instead of making them click Install/Update a second time for no extra signal.
-                bool autoStart = Array.Exists(e.Args, a => a == InstallCenterWindow.ResumeArg);
+                bool autoStart = installerDriven;
 
                 // --onboarding given to the SETUP exe is meant for the copy that ends up installed,
                 // not for this one - this process exits as soon as the install hands over. Passing it

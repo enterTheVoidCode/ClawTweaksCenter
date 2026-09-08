@@ -8,7 +8,12 @@ using ClawTweaksCenter.Ui;
 
 namespace ClawTweaksCenter
 {
-    public enum InstallCenterMode { Install, Update, AlreadyInstalled }
+    /// <summary>
+    /// NotForInstall is the one a user reaches by double-clicking a downloaded Center exe. The other
+    /// three are only reachable from the ClawTweaks setup, which passes
+    /// <see cref="InstallCenterWindow.ResumeArg"/> - see the gate in App.OnStartup.
+    /// </summary>
+    public enum InstallCenterMode { Install, Update, AlreadyInstalled, NotForInstall }
 
     /// <summary>
     /// Gate shown before anything else when the running exe is not yet installed to
@@ -62,7 +67,7 @@ namespace ClawTweaksCenter
             // Nothing is going to be installed on these two screens, so an install option would be a
             // control that does nothing. Hidden rather than disabled: a greyed-out tick still reads as
             // a promise about what the next click will do.
-            if (mode == InstallCenterMode.AlreadyInstalled)
+            if (mode == InstallCenterMode.AlreadyInstalled || mode == InstallCenterMode.NotForInstall)
                 DesktopShortcutOption.Visibility = Visibility.Collapsed;
 
             // Title is context-sensitive (default "Install ClawTweaks Center" from XAML). The sub-heading
@@ -79,6 +84,17 @@ namespace ClawTweaksCenter
                     // an update leaves the desktop exactly as the user left it, and someone who does
                     // want the icon is one press away.
                     DesktopShortcutOption.IsChecked = false;
+                    break;
+                case InstallCenterMode.NotForInstall:
+                    TitleText.Text = Core.Loc.T("This file does not install ClawTweaks Center");
+                    TitleIcon.Text = ((char)0xE896).ToString(); // Segoe Fluent "Download"
+                    StatusText.Visibility = Visibility.Visible;
+                    // The URL is on the second line on purpose. OpenPage swallows a failed browser
+                    // launch by design, so without it a machine with no default browser would show a
+                    // chip that does nothing and no way to find out where to go.
+                    StatusText.Text =
+                        Core.Loc.T("Download the ClawTweaks setup and run that instead.") + Environment.NewLine + Environment.NewLine +
+                        Core.SetupVersionCheck.ReleasesPageUrl;
                     break;
                 case InstallCenterMode.AlreadyInstalled:
                     TitleText.Text = Core.Loc.T("ClawTweaks Center is already installed");
@@ -109,7 +125,8 @@ namespace ClawTweaksCenter
                 _nav = new XInputNavigator(this);
                 _nav.ButtonPressed += b => Dispatcher.Invoke(() =>
                 {
-                    if (b == PadButton.A && _mode != InstallCenterMode.AlreadyInstalled && !_legacyBlocking) StartInstall();
+                    if (b == PadButton.A && _mode == InstallCenterMode.NotForInstall) OpenReleasePage();
+                    else if (b == PadButton.A && _mode != InstallCenterMode.AlreadyInstalled && !_legacyBlocking) StartInstall();
                     else if (b == PadButton.X && DesktopShortcutOption.Visibility == Visibility.Visible && !_installing) ToggleDesktopOption();
                     else if (b == PadButton.Y && _legacyBlocking) RecheckLegacy();
                     else if (b == PadButton.B) Application.Current.Shutdown();
@@ -121,7 +138,8 @@ namespace ClawTweaksCenter
                 // proceed straight into the install instead of landing back on this same screen waiting
                 // for a second click. Never applies while blocked on the old install — that gate exists
                 // precisely to stop an install from happening automatically.
-                if (autoStart && _mode != InstallCenterMode.AlreadyInstalled && !_legacyBlocking) StartInstall();
+                if (autoStart && _mode != InstallCenterMode.AlreadyInstalled
+                              && _mode != InstallCenterMode.NotForInstall && !_legacyBlocking) StartInstall();
             };
             Closed += (_, __) => _nav?.Dispose();
 
@@ -195,6 +213,12 @@ namespace ClawTweaksCenter
                 // Re-check are the only options, matching what the status text tells the user.
                 ActionBar.Children.Add(ActionBarBuilder.BuildChip(PadButton.Y, "Re-check", true, RecheckLegacy));
             }
+            else if (_mode == InstallCenterMode.NotForInstall)
+            {
+                // The only action on this screen, and it is a destination rather than an install.
+                ActionBar.Children.Add(ActionBarBuilder.BuildChip(
+                    PadButton.A, "Open release page", true, OpenReleasePage));
+            }
             // AlreadyInstalled deliberately offers NO shortcut to launch the app from here — the
             // point is to teach the user that Center is a real installed Windows app now, opened via
             // the Start Menu or the Game Bar widget, not by re-running a downloaded Setup file.
@@ -214,6 +238,15 @@ namespace ClawTweaksCenter
             // Always available, even mid-install-attempt — the user must never be stuck on this
             // screen with no way out.
             ActionBar.Children.Add(ActionBarBuilder.BuildChip(PadButton.B, "Exit", true, () => Application.Current.Shutdown()));
+        }
+
+        /// <summary>Sends the user to the releases page. Never throws (OpenPage swallows it) and the
+        /// URL is on screen regardless, so a machine with no usable default browser still shows where
+        /// to go rather than a chip that silently does nothing.</summary>
+        private void OpenReleasePage()
+        {
+            Core.PrerequisiteGuide.OpenPage(Core.SetupVersionCheck.ReleasesPageUrl,
+                                            msg => Core.InstallLog.Write(msg));
         }
 
         /// <summary>
