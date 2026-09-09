@@ -31,6 +31,13 @@ namespace ClawTweaksCenter
             ArtPicker,
             /// <summary>Name box for a Misc entry. Not offered for anything else - see RenameRow.</summary>
             Rename,
+            /// <summary>A grid of the user's OWN pictures, from the folder they named. Used for a
+            /// cover here and for the window background from Library settings - see
+            /// CenterMenuWindow.UserArt.cs.</summary>
+            UserArt,
+            /// <summary>Naming that folder, offered the first time anyone reaches for their own
+            /// pictures so the feature does not start with a trip to the settings screen.</summary>
+            UserArtFolder,
         }
 
         // Fixed column count for the art picker grid - unlike the library's own grid it does not need
@@ -107,6 +114,7 @@ namespace ClawTweaksCenter
             _gameMenuTarget = null;
             _gameMenuRows.Clear();
             ResetArtPickerState();
+            ResetUserArtState();
             RenderLibrary();
             // Favoriting can have just created or emptied the tab, and choosing art can have just
             // filled in the picture the tab strip's own chip drawing does not read from anywhere else
@@ -142,6 +150,11 @@ namespace ClawTweaksCenter
                 // only thing on the screen, and a text field that throws away what was typed when
                 // you leave it is the shape people lose work to.
                 SaveRename();
+                return;
+            }
+            if (_gameMenuOverlay == GameMenuOverlay.UserArt || _gameMenuOverlay == GameMenuOverlay.UserArtFolder)
+            {
+                UserArtBack();
                 return;
             }
             if (_gameMenuOverlay == GameMenuOverlay.ArtPicker)
@@ -185,12 +198,19 @@ namespace ClawTweaksCenter
             // on the has-results path, so a "searching"/"nothing found" render would otherwise leave
             // the previous, now-detached ScrollViewer here for the next scroll call to talk to.
             _artPickerScroller = null;
+            // Same rule as the picker's own tiles above: these lists hold elements that are about to
+            // be detached, and a stale entry in them is a cursor pointing at something off-screen.
+            _userArtTiles.Clear();
+            _userArtFolderRows.Clear();
+            _userArtScroller = null;
 
             switch (_gameMenuOverlay)
             {
                 case GameMenuOverlay.Menu: RenderGameMenuMenu(); break;
                 case GameMenuOverlay.ArtPicker: RenderArtPicker(); break;
                 case GameMenuOverlay.Rename: RenderRename(); break;
+                case GameMenuOverlay.UserArt: RenderUserArtGrid(); break;
+                case GameMenuOverlay.UserArtFolder: RenderUserArtFolder(); break;
             }
         }
 
@@ -230,6 +250,28 @@ namespace ClawTweaksCenter
                 hasKey ? "Search SteamGridDB for a different cover" : "Set a SteamGridDB key in Settings first",
                 UiHelpers.Text, "Choose cover",
                 () => { if (Library.SteamGridDb.HasKey) OpenArtPicker(); }));
+
+            // A FOLDER glyph, not a photo: the SteamGridDB row directly above already draws the
+            // photo (U+E91B), and two rows with the same icon are two rows nobody can tell apart at
+            // a glance. Kept as an escape rather than the literal character the older rows carry -
+            // a private-use character is invisible in every diff and survives no encoding change.
+            // Own pictures, and NOT gated on the SteamGridDB key: this is the route that works for
+            // somebody who never signed up for anything. It is listed under the SteamGridDB row
+            // because that one finds a cover without any preparation, and this one asks for a folder
+            // first - the cheaper offer goes first.
+            bool hasFolder = Library.UserImageLibrary.HasFolder;
+            stack.Children.Add(GameMenuRow("\uE8B7", "Use one of your own images\u2026",
+                hasFolder ? Library.UserImageLibrary.Folder : "Pick the folder your pictures are in",
+                UiHelpers.Text, "Own image",
+                () => OpenUserArtPicker(UserArtPurpose.Cover)));
+
+            // Greyed rather than hidden when there is nothing to undo - the same shape as the two
+            // rows below, and it keeps the row count steady as the cursor moves across games.
+            bool hasOwnCover = ArtOverrideStore.Has(game);
+            stack.Children.Add(GameMenuRow("\uE7A7", "Reset cover",
+                hasOwnCover ? "Back to the cover Center finds itself" : "No picked cover on this game",
+                hasOwnCover ? UiHelpers.Text : UiHelpers.Subtle, "Reset",
+                ResetPickedCover));
 
             // Renaming and removing apply only to entries the USER added by hand. A Steam or Xbox
             // game comes from a scan: a new name would be overwritten by the next one and a deleted
@@ -329,6 +371,8 @@ namespace ClawTweaksCenter
         private void MoveGameMenuSelection(PadButton dir)
         {
             if (_gameMenuOverlay == GameMenuOverlay.ArtPicker) { MoveArtPickerSelection(dir); return; }
+            if (_gameMenuOverlay == GameMenuOverlay.UserArt) { MoveUserArtSelection(dir); return; }
+            if (_gameMenuOverlay == GameMenuOverlay.UserArtFolder) { MoveUserArtFolderSelection(dir); return; }
             if (_gameMenuRows.Count == 0) return;
 
             int next = _gameMenuIndex + (dir == PadButton.Down ? 1 : dir == PadButton.Up ? -1 : 0);
@@ -375,6 +419,28 @@ namespace ClawTweaksCenter
             CloseGameMenuOverlay();
         }
         #endregion
+
+        /// <summary>
+        /// Drops a hand-picked cover and lets the normal art path fill the tile in again.
+        ///
+        /// THREE STEPS, AND ALL THREE ARE NEEDED. Clear takes the override out of the index and off
+        /// the object; ResolveLocalArt puts back whatever is already on disk (Steam's capsule,
+        /// Playnite's download); StartArtFetch is what lets SteamGridDB fill in a game that has
+        /// neither. Stopping after the first would leave the tile as a coloured plate until the next
+        /// full rescan, which reads as the reset having deleted the picture rather than the pick.
+        /// </summary>
+        private void ResetPickedCover()
+        {
+            var target = _gameMenuTarget;
+            if (target == null || !ArtOverrideStore.Has(target)) return;
+
+            ArtOverrideStore.Clear(target);
+            GameArt.ResolveLocalArt(new[] { target });
+            StartArtFetch();
+
+            RenderGameMenuOverlay();
+            RefreshActionBar();
+        }
 
         #region Rename
         private void OpenRename()
@@ -817,6 +883,9 @@ namespace ClawTweaksCenter
         #region Footer
         private bool RefreshGameMenuActionBar()
         {
+            // The two picker screens keep their footer in their own file, next to the state it reads.
+            if (RefreshUserArtActionBar()) return true;
+
             switch (_gameMenuOverlay)
             {
                 case GameMenuOverlay.Menu:

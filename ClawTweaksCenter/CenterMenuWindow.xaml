@@ -19,6 +19,44 @@
             <RowDefinition Height="Auto" />   <!-- footer action bar -->
         </Grid.RowDefinitions>
 
+        <!-- The user's own background picture, and the scrim that keeps text on top of it readable.
+             FIRST CHILDREN AND RowSpan over the whole shell: WPF paints in document order, so
+             anything declared here sits behind every other element without a single ZIndex.
+             Collapsed until CenterMenuWindow.UserArt.cs has a picture to put in - an empty Image is
+             invisible, but a scrim over nothing would dim the window for no reason.
+             Stretch is UniformToFill (crop, not distort) - see ApplyBackgroundImage. -->
+        <Image x:Name="BackgroundImage" Grid.Row="0" Grid.RowSpan="4"
+               Stretch="UniformToFill" Visibility="Collapsed"
+               IsHitTestVisible="False" Focusable="False"
+               RenderOptions.BitmapScalingMode="HighQuality" />
+        <Border x:Name="BackgroundScrim" Grid.Row="0" Grid.RowSpan="4"
+                Background="{StaticResource BgBrush}" Opacity="0.65"
+                Visibility="Collapsed" IsHitTestVisible="False" Focusable="False" />
+
+        <!-- The same picture again, blurred, and shown ONLY behind the footer.
+             Same geometry as the sharp one (RowSpan over everything, UniformToFill) so the two are
+             pixel-aligned - a second Image sized to the footer strip alone would show a different
+             part of the picture and break at the seam. The OpacityMask is what confines it, and its
+             gradient stops are recomputed from the footer's real height in ApplyBackgroundImage.
+             BitmapCache because a blur over a 1920px image is not something to recompute per frame. -->
+        <Image x:Name="BackgroundBlur" Grid.Row="0" Grid.RowSpan="4"
+               Stretch="UniformToFill" Visibility="Collapsed"
+               IsHitTestVisible="False" Focusable="False"
+               RenderOptions.BitmapScalingMode="LowQuality">
+            <Image.Effect>
+                <BlurEffect Radius="18" KernelType="Gaussian" RenderingBias="Performance" />
+            </Image.Effect>
+            <Image.CacheMode>
+                <BitmapCache EnableClearType="False" SnapsToDevicePixels="False" />
+            </Image.CacheMode>
+            <Image.OpacityMask>
+                <LinearGradientBrush x:Name="BackgroundBlurMask" StartPoint="0,0" EndPoint="0,1">
+                    <GradientStop x:Name="BlurMaskTop" Offset="0.86" Color="#00000000" />
+                    <GradientStop x:Name="BlurMaskBottom" Offset="0.86" Color="#FF000000" />
+                </LinearGradientBrush>
+            </Image.OpacityMask>
+        </Image>
+
         <!-- Header: brand left, device banner right. The two columns are re-laid-out in code
              (UpdateShellLayout) below the narrow breakpoint, where side by side leaves neither
              enough room — hence the names on both children. -->
@@ -92,11 +130,31 @@
                    Foreground="{StaticResource SubtleTextBrush}"
                    Text="Click the right stick to show the button hints" />
 
+        <!-- Three cells, and the outer two are NOT part of the action bar: battery and clock are
+             facts about the machine, the chips are what the buttons do right now. In immersive mode
+             the chips go and these two stay - see ApplyFooterVisibility. -->
         <Border x:Name="FooterBar" Grid.Row="3" Background="{StaticResource FooterBrush}"
                 BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,1,0,0">
-            <WrapPanel x:Name="ActionBar" Orientation="Horizontal"
-                       HorizontalAlignment="Center" VerticalAlignment="Center"
-                       Margin="12,4,12,4" />
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <TextBlock x:Name="FooterBattery" Grid.Column="0"
+                           VerticalAlignment="Center" Margin="16,0,8,0"
+                           FontSize="12" Foreground="{StaticResource SubtleTextBrush}"
+                           Visibility="Collapsed" />
+
+                <WrapPanel x:Name="ActionBar" Grid.Column="1" Orientation="Horizontal"
+                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                           Margin="12,4,12,4" />
+
+                <TextBlock x:Name="FooterClock" Grid.Column="2"
+                           VerticalAlignment="Center" Margin="8,0,16,0"
+                           FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+            </Grid>
         </Border>
     </Grid>
 </Window>

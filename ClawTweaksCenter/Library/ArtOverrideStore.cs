@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
@@ -65,6 +65,33 @@ namespace ClawTweaksCenter.Library
             lock (IndexLock) Index[game.FavoriteKey] = downloadedPath;
             Save();
             game.ArtPath = downloadedPath;
+        }
+
+        /// <summary>True when this game carries a hand-picked cover, so the menu can say whether
+        /// there is anything to reset rather than offering a button that does nothing.</summary>
+        public static bool Has(GameEntry game)
+        {
+            if (game == null) return false;
+            lock (IndexLock) return Index.ContainsKey(game.FavoriteKey);
+        }
+
+        /// <summary>
+        /// Drops the hand-picked cover for one game and clears the path off the object, so the next
+        /// art pass can fill it in from Steam, Playnite or SteamGridDB again.
+        ///
+        /// The COPIED FILE IS LEFT ALONE. It sits in the art cache with a name nothing else uses, and
+        /// deleting it would be the one irreversible half of a button whose whole promise is "put it
+        /// back the way it was" - the same picture may still be the override of another entry that
+        /// was set from the same file.
+        /// </summary>
+        public static void Clear(GameEntry game)
+        {
+            if (game == null) return;
+            bool removed;
+            lock (IndexLock) removed = Index.Remove(game.FavoriteKey);
+            if (!removed) return;
+            Save();
+            game.ArtPath = null;
         }
 
         /// <summary>

@@ -203,6 +203,119 @@ The startup jump no longer waits on the version check either. That check still r
 header chip, the update banner, Browse's tags and the uninstall screen's gating — it just no longer
 decides whether there is a library to open.
 
+## Your own pictures: covers and the window background (2026-09-09)
+
+The user names **one folder** and everything under it becomes a grid of tiles — a cover for a game,
+or the background of the whole window. `Library/UserImageLibrary.cs` finds the files,
+`CenterMenuWindow.UserArt.cs` is the two screens.
+
+**A folder, not a file dialog, and that is the whole design.** Center is driven with a gamepad,
+usually as the full screen experience: the Windows file dialog is a mouse surface. Misc's "browse
+for an exe" gets away with it because a portable tool in no list has no other route; choosing art is
+something people do again and again, and a mouse-only step in that loop is a step that does not get
+taken. The folder is named **once** — from Library settings, or the first time somebody reaches for
+their own cover — and after that it is the same D-pad grid the SteamGridDB picker already uses.
+Downloads, Desktop and Pictures are offered as suggestions; **Browse… is last on that screen on
+purpose**, as the answer for the folder nothing can guess.
+
+**Sub-folders are included**, six levels deep, newest file first, capped at 400. Newest first is not
+cosmetic: the reason to open this right after saving a cover in a browser is the file you just
+saved.
+
+### Four things that will break if they are changed without knowing why
+
+1. **The picker is two more `GameMenuOverlay` states, not a new top-level overlay.** The library
+   routes rendering, D-pad movement, the action bar and B through `GameMenuOverlayOpen` at eight
+   separate call sites. A ninth kind of overlay has to be added to every one of them, and the one
+   that gets missed is a screen the pad walks straight past.
+2. **Opening it from Library settings PARKS `_settingsOpen`.** The settings screen wins those same
+   routing checks (`MoveSelection` tests it first), so leaving it set gives the picker a screen it
+   cannot steer. `UserArtBack` puts it back.
+3. **Picked pictures are COPIED into the art cache** (`custom_*`, `background_*`), never referenced
+   where they were found. What somebody picked out of Downloads is a file they will delete, and a
+   cover that vanishes months later reads as Center losing it.
+4. **A cover pick goes into `ArtOverrideStore`** — the same index the SteamGridDB picker writes. A
+   second store would be a second opinion about which picture a tile should draw. `Reset cover` in
+   the game menu clears it and then calls `ResolveLocalArt` **and** `StartArtFetch`, because clearing
+   alone leaves a coloured plate until the next full rescan.
+
+⚠️ **The old background file IS deleted when a new one is chosen, and a cover override's file is
+NOT.** Exactly one setting points at the background; several games can share one picked picture.
+
+### The background: cropped, and dimmed by a fixed amount
+
+Both decided by the user on 2026-09-09.
+
+- **`UniformToFill` — crop, never stretch.** Stretching fits every picture exactly and distorts
+  every one that is not 16:10, and a distorted face does not read as "my picture does not fit", it
+  reads as Center rendering it wrong.
+- **A fixed scrim at 0.65, not a slider.** Every label and chip in Center is drawn for a dark flat
+  background; a bright screenshot behind the footer makes the button hints unreadable. One value
+  that always works beats a setting that lets someone make the app illegible and not know why.
+
+The `Image` and the scrim are the **first two children** of the shell grid with `Grid.RowSpan="4"` —
+WPF paints in document order, so that puts them behind everything without a single `ZIndex`. Both
+stay `Collapsed` until there is a picture: a scrim over nothing would dim the window for no reason.
+`ApplyBackgroundImage` runs in the constructor, before the first render, because painting it later
+is a visible flash of the flat colour. It decodes at a fixed 1920 — `ActualWidth` is still 0 that
+early, and a background decoded to nothing never appears.
+
+## The footer carries two things that are not buttons (2026-09-09)
+
+Battery on the left, clock on the right, chips in the middle — `CenterMenuWindow.FooterStatus.cs`.
+
+**The battery comes from the HELPER, on request.** It already reads it, already resolves the runtime
+Windows-first (the source MSI's own OSD uses, and the reason it works on a Claw 8 EX where the
+battery exposes no rate sensor), and already publishes it as the QuickMetrics bundle the widget
+draws. A second reader in Center would be a second answer to the same question.
+
+⚠️ **A request, not the push next door.** `PushQuickMetrics` rides a 1 Hz timer that only runs while
+the WIDGET's Quick Metrics row is switched on — a footer riding that stream would go blank because
+of a setting in another program. The helper answers the Extra key **`GetPowerStatus`** with the same
+JSON, built by the same method. It replies on `Function.QuickMetrics` rather than a new Function
+value: same payload, and `Function` is ordinal, so not adding a member is one fewer thing to keep in
+step across the two repositories.
+
+**Every ten seconds, and that is a ceiling** (user, 2026-09-09). A charge percentage moves a few
+times an hour, and the round trip costs a sensor read on the very battery being measured. The clock
+rides the same timer — it shows h:mm, so being up to ten seconds late across a minute is invisible,
+and a second timer to be exactly on time is not worth having. One request in flight at a time.
+
+⚠️ **A missed answer leaves the last reading up.** The helper restarts on every ClawTweaks update;
+blanking on that would make a working footer flicker. It clears only when the pipe is really down.
+
+### Immersive mode hides the CHIPS, not the bar
+
+`ApplyFooterVisibility` collapsed the whole `FooterBar` until today, which would take the clock and
+the battery with it — and those two are exactly what somebody still wants from across the room when
+the hints are down. Now `ActionBar` collapses and `ApplyFooterChrome` drops the background and the
+hairline, so what is left reads as text over the shelf rather than as a band.
+
+⚠️ **`ApplyFooterChrome` is ONE writer that reads BOTH facts every time** — is there a background
+picture, are the chips hidden. The two arrive from opposite directions (settings vs. immersive
+mode), and a chrome each of them half-owns is how a footer ends up transparent with a hairline under
+it depending on which happened last.
+
+### The background reaches the footer as a blurred copy
+
+A second `Image`, same source, same geometry (`RowSpan` over everything, `UniformToFill`) so the two
+are pixel-aligned — a copy sized to the footer strip alone would show a different part of the
+picture and break at the seam. An `OpacityMask` with both gradient stops on the same offset confines
+it to the strip; `RefreshFooterBlurMask` recomputes that offset from the footer's real height, which
+is why it is wired to the window's `SizeChanged` **and** the bar's own. `BitmapCache`, because a
+blur over a 1920px image is not something to recompute per frame.
+
+### Two more switches, and one chip that went away
+
+- **Recent reflections** (`CenterSettings.RecentReflections`, on by default) — the mirrored covers
+  under the reel. Off gives the covers the height the mirror was using: `MeasureReelMetrics` divides
+  by `1 + fraction` only when they are on.
+- **B has no chip on the shelf** any more (Recent, the stores, ROMs) — it still opens the exit
+  prompt, bound the way the ROM-system triggers are, without a footer chip. Every SUB-screen keeps
+  its chip, because there B means something specific to that screen.
+- **German "Rescan" is now "Neu laden"**, not "Neu suchen": the button re-reads what is already
+  there.
+
 ## The FAQ, and the two rules its entries have to keep
 
 `CenterMenuWindow.Faq.cs`. Eight questions, collapsed until pressed, one statement per line. The

@@ -1589,7 +1589,9 @@ namespace ClawTweaksCenter
             availH -= 112;
             if (availH < 120) availH = 120;
 
-            double tileH = (availH - 12) / (1 + LibReflectionFraction);
+            // Without the mirror the tile gets the whole row: dividing by 1.38 anyway would leave
+            // a third of the strip empty under covers that are needlessly small.
+            double tileH = (availH - 12) / (1 + (LibReflectionsOn ? LibReflectionFraction : 0));
             if (tileH > LibReelMaxTileHeight) tileH = LibReelMaxTileHeight;
             if (tileH < LibReelMinTileHeight) tileH = LibReelMinTileHeight;
 
@@ -1616,6 +1618,11 @@ namespace ClawTweaksCenter
         internal double LibTileGapValue => LibTileGap;
         internal double LibOuterMarginValue => LibOuterMargin;
         internal double LibReflectionFractionValue => LibReflectionFraction;
+
+        /// <summary>Read live rather than cached in a field: the switch is flipped on a screen that
+        /// re-renders the library on the way out, so there is no moment where a cache would be right
+        /// and this would not.</summary>
+        internal bool LibReflectionsOn => Core.CenterSettings.RecentReflections;
         internal int LibDecodeWidth => _libDecodeWidth;
         internal int LibSelectedIndex => _libSelectedIndex;
 
@@ -2162,16 +2169,17 @@ namespace ClawTweaksCenter
             //     _view = View.Home;   // only afterwards
             //
             // so _view still reads Library while this executes, ApplyFooterVisibility recomputes
-            // footerHidden as true, and the footer is collapsed on the way OUT. Nothing outside the
-            // library ever writes FooterBar.Visibility again - the single assignment lives in
-            // ApplyFooterVisibility and both of its callers are library paths - so it stayed hidden
+            // footerHidden as true, the CHIPS are collapsed on the way OUT. Nothing outside the
+            // library ever writes ActionBar.Visibility again - the single assignment lives in
+            // ApplyFooterVisibility and both of its callers are library paths - so they stayed hidden
             // on Home, on Maintenance and on the ClawTweaks update screen, next to a hint telling a
             // mouse user on an external display to click the right stick.
             //
             // Restoring here rather than reordering those two callers is deliberate: the ordering is
             // not this method's to enforce, and the next screen that leaves the library would have
             // to remember it.
-            if (FooterBar != null) FooterBar.Visibility = Visibility.Visible;
+            if (ActionBar != null) ActionBar.Visibility = Visibility.Visible;
+            ApplyFooterChrome();
             if (ImmersiveHint != null) ImmersiveHint.Visibility = Visibility.Collapsed;
         }
 
@@ -2216,7 +2224,13 @@ namespace ClawTweaksCenter
             // which is more distracting than either of the two states it was moving between.
             bool footerHidden = ImmersiveActive && !_footerRevealed && !LibraryOverlayOwnsScreen;
 
-            if (FooterBar != null) FooterBar.Visibility = footerHidden ? Visibility.Collapsed : Visibility.Visible;
+            // ⚠️ THE CHIPS GO, THE BAR STAYS (user, 2026-09-09). The clock and the battery live in
+            // the footer's outer two cells and are the two things worth keeping when the hints are
+            // down - so collapsing the whole bar, which is what this did until today, would take
+            // them with it. ApplyFooterChrome then drops the background and the hairline, so what
+            // is left reads as text over the shelf rather than as a band.
+            if (ActionBar != null) ActionBar.Visibility = footerHidden ? Visibility.Collapsed : Visibility.Visible;
+            ApplyFooterChrome();
             if (ImmersiveHint != null)
             {
                 // Set here rather than left to the XAML: it is the one piece of text in the shell
@@ -2304,14 +2318,27 @@ namespace ClawTweaksCenter
         private const int SettingsStartSteamRow = 6;
         private const int SettingsDenseGridRow = 7;
 
+        /// <summary>The mirrored covers under the Recent reel. A switch because it is a matter of
+        /// taste that costs a VisualBrush per tile - see BuildReflection.</summary>
+        private const int SettingsReflectionsRow = 10;
+
+        /// <summary>The folder of the user's own pictures. Opens the same chooser the game menu
+        /// shows the first time somebody picks their own cover, so there is one screen that names
+        /// this folder rather than two ways of saying it.</summary>
+        private const int SettingsUserImagesRow = 8;
+
+        /// <summary>The window background. Opens the picture grid, or the folder chooser first when
+        /// no folder has been named yet.</summary>
+        private const int SettingsBackgroundRow = 9;
+
         /// <summary>Opens the tab editor rather than toggling anything - the only row up here that
         /// leads somewhere instead of changing a value in place.</summary>
-        private const int SettingsTabsRow = 8;
+        private const int SettingsTabsRow = 11;
 
         /// <summary>The key row, and it is ALWAYS the last one: it holds a text box, so it spans the
         /// full width and sits on its own line below the pairs. The navigation maths below derives the
         /// pair count from this, so adding a switch above it needs no other change.</summary>
-        private const int SettingsKeyRow = 9;
+        private const int SettingsKeyRow = 12;
 
         // THREE, not two (user, 2026-09-05). Nine switches in two columns ran past the bottom of an
         // eight-inch panel again - the same reason this went from one column to two - and the rows are
@@ -2377,6 +2404,10 @@ namespace ClawTweaksCenter
                 Core.CenterSettings.StartSteamWithLibrary, null));
             pairs.Children.Add(BuildSettingRow(SettingsDenseGridRow, "Denser grid",
                 Core.CenterSettings.DenseLibraryGrid, null));
+            pairs.Children.Add(BuildSettingRow(SettingsUserImagesRow, "Your images", null, UserImagesSummary()));
+            pairs.Children.Add(BuildSettingRow(SettingsBackgroundRow, "Center background", null, BackgroundSummary()));
+            pairs.Children.Add(BuildSettingRow(SettingsReflectionsRow, "Recent reflections",
+                Core.CenterSettings.RecentReflections, null));
             pairs.Children.Add(BuildSettingRow(SettingsTabsRow, "Library tabs", null, TabsSummary()));
             stack.Children.Add(pairs);
 
@@ -2591,6 +2622,19 @@ namespace ClawTweaksCenter
                     // works from the second visit onwards looks like one that did not work.
                     if (Core.CenterSettings.StartSteamWithLibrary) PrewarmSteamInBackground();
                     break;
+                case SettingsUserImagesRow:
+                    // Straight to the chooser rather than a text box: the three suggested folders
+                    // cover nearly everyone, and the chooser's own Browse row handles the rest.
+                    OpenUserArtPicker(UserArtPurpose.Cover, folderOnly: true);
+                    return;
+                case SettingsBackgroundRow:
+                    OpenUserArtPicker(UserArtPurpose.Background);
+                    return;
+                case SettingsReflectionsRow:
+                    Core.CenterSettings.RecentReflections = !Core.CenterSettings.RecentReflections;
+                    // No repaint from here - same as Square ROM art and Denser grid next to it.
+                    // CloseSettings re-renders the library, and that is when the reel re-measures.
+                    break;
                 case SettingsTabsRow:
                     OpenTabEditor();
                     return;
@@ -2602,6 +2646,29 @@ namespace ClawTweaksCenter
             RenderLibrarySettings();
             RefreshActionBar();
         }
+
+        /// <summary>
+        /// The picture folder as one short line: its NAME, not the whole path.
+        ///
+        /// The row is a third of the settings grid wide, and a full path is the one string guaranteed
+        /// not to fit - it would be ellipsised down to the drive letter, which says nothing. The full
+        /// path is printed on the chooser screen, where there is a line to put it on.
+        /// </summary>
+        private static string UserImagesSummary()
+        {
+            string folder = Library.UserImageLibrary.Folder;
+            if (string.IsNullOrWhiteSpace(folder)) return Core.Loc.T("Not set");
+            if (!Library.UserImageLibrary.HasFolder) return Core.Loc.T("Folder is gone");
+            try
+            {
+                string name = System.IO.Path.GetFileName(folder.TrimEnd(System.IO.Path.DirectorySeparatorChar));
+                return string.IsNullOrEmpty(name) ? folder : name;
+            }
+            catch { return folder; }
+        }
+
+        private static string BackgroundSummary()
+            => string.IsNullOrEmpty(Core.CenterSettings.BackgroundImagePath) ? Core.Loc.T("None") : Core.Loc.T("Set");
 
         /// <summary>What the settings row says without opening the editor: how much of the strip is
         /// left. "All tabs shown" rather than "10 of 10" - the count only means something once one is
@@ -4701,6 +4768,8 @@ namespace ClawTweaksCenter
             {
                 string label = _settingsIndex == SettingsKeyRow ? "Edit"
                     : _settingsIndex == SettingsTabsRow ? "Open"
+                    : _settingsIndex == SettingsUserImagesRow ? "Choose"
+                    : _settingsIndex == SettingsBackgroundRow ? "Choose"
                     : _settingsIndex == SettingsLaunchBehaviorRow ? "Cycle"
                     : "Toggle";
                 AddAction(PadButton.A, label, true, ActivateSetting);
@@ -4747,7 +4816,16 @@ namespace ClawTweaksCenter
             }
 
             AddAction(PadButton.View, "Settings", true, OpenLibrarySettings);
-            AddAction(PadButton.B, "Back", true, OpenExitPrompt);
+
+            // B STILL WORKS, IT JUST HAS NO CHIP (user, 2026-09-09). On the shelf - Recent, the
+            // stores, ROMs - it opens the exit prompt, which is not something anyone needs told:
+            // "back" is the one button whose meaning is the same everywhere, and the chip was
+            // spending footer width on it in the only place where the footer is busiest. Every
+            // SUB-screen keeps its chip, because there B means something specific to that screen
+            // (leave the picker, discard the draft, close the menu) and those differ.
+            //
+            // Bound without a chip, the same way the ROM-system triggers below are.
+            _liveActions[PadButton.B] = OpenExitPrompt;
 
             // The triggers move between ROM SYSTEMS - the shoulders own the tabs now. Bound WITHOUT
             // a footer chip: both are labelled in the strip they belong to, which is where someone
@@ -5245,7 +5323,8 @@ namespace ClawTweaksCenter
 
             var stack = new StackPanel { Orientation = Orientation.Vertical };
             stack.Children.Add(_tile);
-            stack.Children.Add(LibraryTile.BuildReflection(_tile, w, h * _owner.LibReflectionFractionValue));
+            if (_owner.LibReflectionsOn)
+                stack.Children.Add(LibraryTile.BuildReflection(_tile, w, h * _owner.LibReflectionFractionValue));
 
             Child = stack;
             // Centred within the stretched row: the cover and its mirror are one object standing on

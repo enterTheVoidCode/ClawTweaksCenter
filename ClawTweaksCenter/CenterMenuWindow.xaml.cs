@@ -175,6 +175,11 @@ namespace ClawTweaksCenter
             // ModernWindow.Apply — see WindowMode.Attach for why the ordering is not cosmetic.
             WindowMode.Attach(this);
 
+            // Before anything else is rendered: the background is the one thing that must already be
+            // there on the first frame. Painting it later is a visible flash of the flat colour.
+            ApplyBackgroundImage();
+            ApplyFooterChrome();
+
             _onboarding.StepsChanged += () => Dispatcher.Invoke(() =>
             {
                 if (_view == View.Onboarding && !_confirming && !_busy) RenderOnboarding();
@@ -185,7 +190,14 @@ namespace ClawTweaksCenter
                 if (_view == View.Leave) RenderLeave();
             });
 
-            SizeChanged += (_, __) => { UpdateShellLayout(); OnLibrarySizeChanged(); };
+            SizeChanged += (_, __) => { UpdateShellLayout(); OnLibrarySizeChanged(); RefreshFooterBlurMask(); };
+            // The footer changes height when the chips wrap, and the blur mask is a fraction of the
+            // WINDOW height - so the bar's own layout has to move it too, not just the window's.
+            if (FooterBar != null) FooterBar.SizeChanged += (_, __) => RefreshFooterBlurMask();
+
+            // The clock and the battery, from here on. Started after the window is built and before
+            // anything is rendered, so the first frame already carries them.
+            StartFooterStatus();
 
             SetupVersionLabel.Text = "CTW Center v" + (Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "?");
             RenderDeviceBanner(null);

@@ -77,6 +77,48 @@ namespace ClawTweaksCenter.Core
         }
 
         /// <summary>
+        /// Draw the mirrored covers under the Recent reel.
+        ///
+        /// ON by default - it is what makes Recent read as a shelf rather than a row - but it is a
+        /// VisualBrush per tile and squarely a matter of taste, and both are reasons for a switch
+        /// rather than a constant. Turning it off gives the covers the height the mirror was using.
+        /// </summary>
+        public static bool RecentReflections
+        {
+            get => ReadBool("RecentReflections", true);
+            set => WriteBool("RecentReflections", value);
+        }
+
+        /// <summary>
+        /// A folder of the user's own pictures, used as a source of cover art and of the Center
+        /// background. Empty until they name one.
+        ///
+        /// ONE FOLDER, NAMED ONCE, AND READ RECURSIVELY. Center is a gamepad surface: a Windows file
+        /// dialog is a mouse, and asking for one every time somebody wants a different cover is the
+        /// part that would not get used. A standing folder turns it into a grid of pictures the
+        /// D-pad already walks. See Library/UserImageLibrary.cs.
+        /// </summary>
+        public static string UserImageFolder
+        {
+            get => ReadString("UserImageFolder", string.Empty);
+            set => WriteString("UserImageFolder", value ?? string.Empty);
+        }
+
+        /// <summary>
+        /// A picture drawn behind the whole Center window, or empty for the flat background.
+        ///
+        /// It holds a path INSIDE Center's own art cache, never the file the user picked: the picture
+        /// is copied there when it is chosen, so emptying Downloads later cannot take the background
+        /// away. A path that no longer exists is treated as "no background" rather than drawn as a
+        /// blank - see CenterMenuWindow.UserArt.cs.
+        /// </summary>
+        public static string BackgroundImagePath
+        {
+            get => ReadString("BackgroundImagePath", string.Empty);
+            set => WriteString("BackgroundImagePath", value ?? string.Empty);
+        }
+
+        /// <summary>
         /// Open straight into the game library instead of the start screen.
         ///
         /// Off by default: Center is an installer and control panel first, and someone who has just
