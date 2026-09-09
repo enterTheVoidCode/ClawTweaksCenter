@@ -46,8 +46,24 @@ namespace ClawTweaksCenter
         /// next attempt is ten seconds away.</summary>
         private static readonly TimeSpan PowerStatusTimeout = TimeSpan.FromSeconds(3);
 
+        /// <summary>
+        /// How often a DISCONNECTED footer tries to reach the helper.
+        ///
+        /// Longer than the poll on purpose. Center's pipe client is not connected by default - every
+        /// other caller (the power actions, the tray column, onboarding, leave, maintenance) connects
+        /// for itself when it needs the helper, and this one has to as well. A connect attempt costs
+        /// up to four seconds of liveness verification, so on a machine with no helper at all a
+        /// 10-second retry would spend most of its life in a connect that cannot succeed.
+        /// </summary>
+        private static readonly TimeSpan PipeRetryInterval = TimeSpan.FromSeconds(30);
+
+        /// <summary>One attempt, then wait. Long enough for the client's own liveness check (it needs
+        /// a status push back within 4 s before it calls a bind "live").</summary>
+        private static readonly TimeSpan PipeConnectTimeout = TimeSpan.FromSeconds(5);
+
         private DispatcherTimer _footerStatusTimer;
         private bool _powerStatusInFlight;
+        private DateTime _lastPipeAttemptUtc = DateTime.MinValue;
 
         private void StartFooterStatus()
         {
@@ -83,36 +99,65 @@ namespace ClawTweaksCenter
         /// </summary>
         private void RequestPowerStatus()
         {
-            if (FooterBattery == null) return;
-
-            if (_helperPipe == null || !_helperPipe.IsConnected)
+            if (FooterBattery == null || _helperPipe == null)
             {
-                FooterBattery.Visibility = Visibility.Collapsed;
+                if (FooterBattery != null) FooterBattery.Visibility = Visibility.Collapsed;
                 return;
             }
 
             // One in flight at a time. The timeout is shorter than the interval, so this can only
             // ever catch a genuinely slow answer - but a queue of overlapping requests against a
-            // helper that is busy is how a diagnostic turns into load.
+            // helper that is busy is how a diagnostic turns into load. A connect attempt counts as
+            // in flight too: it can take seconds, and two of them at once is two pipes.
             if (_powerStatusInFlight) return;
             _powerStatusInFlight = true;
 
             _ = RequestPowerStatusAsync();
         }
 
+        /// <summary>
+        /// Connects if needed, then asks.
+        ///
+        /// ⚠️ THE CONNECT IS THE PART THAT WAS MISSING (measured 2026-09-09). Center's shared
+        /// HelperPipeClient starts DISCONNECTED and stays that way: every other user of it - the
+        /// power actions, the tray column, onboarding, leave, maintenance - calls ConnectAsync for
+        /// itself first. This one only tested IsConnected, so it drew a battery exactly when some
+        /// other screen had happened to open the pipe, and nothing the rest of the time. The helper
+        /// was answering correctly the whole time (probed over the Quick Settings pipe: batteryLevel
+        /// 87, timeRemaining 19502) - nobody was asking.
+        ///
+        /// One connect, not one per tick: the client re-establishes itself after a drop
+        /// (_keepConnected), so the only case that needs a retry here is a helper that was not there
+        /// at all - and that one gets the slow interval.
+        /// </summary>
         private async System.Threading.Tasks.Task RequestPowerStatusAsync()
         {
-            string json = null;
             try
             {
-                json = await _helperPipe.RequestWithResultAsync("GetPowerStatus", true, Function.QuickMetrics, PowerStatusTimeout)
-                                        .ConfigureAwait(true);
+                if (!_helperPipe.IsConnected)
+                {
+                    if (DateTime.UtcNow - _lastPipeAttemptUtc < PipeRetryInterval)
+                    {
+                        FooterBattery.Visibility = Visibility.Collapsed;
+                        return;
+                    }
+                    _lastPipeAttemptUtc = DateTime.UtcNow;
+
+                    bool connected = await _helperPipe.ConnectAsync(PipeConnectTimeout).ConfigureAwait(true);
+                    if (!connected)
+                    {
+                        // No helper is a lasting state, and an empty slot is the honest answer to it.
+                        FooterBattery.Visibility = Visibility.Collapsed;
+                        return;
+                    }
+                }
+
+                string json = await _helperPipe.RequestWithResultAsync("GetPowerStatus", true, Function.QuickMetrics, PowerStatusTimeout)
+                                               .ConfigureAwait(true);
+                if (json != null) ApplyPowerStatus(json);
             }
             catch (Exception ex) { Core.InstallLog.Write("[Footer] power status request failed: " + ex.Message); }
             finally { _powerStatusInFlight = false; }
-
-            if (json == null) return;
-            ApplyPowerStatus(json);
         }
 
         /// <summary>

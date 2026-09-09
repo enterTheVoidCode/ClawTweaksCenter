@@ -284,6 +284,43 @@ and a second timer to be exactly on time is not worth having. One request in fli
 ⚠️ **A missed answer leaves the last reading up.** The helper restarts on every ClawTweaks update;
 blanking on that would make a working footer flicker. It clears only when the pipe is really down.
 
+### 🔴 The pipe client starts DISCONNECTED — every user of it connects for itself
+
+**Measured 2026-09-09, and it is the reason the battery was blank.** `_helperPipe` is one shared
+`HelperPipeClient`, and it is **not** connected when Center starts. Every other caller opens it when
+it needs it: the power actions, the tray column, onboarding, leave, maintenance — each calls
+`ConnectAsync` first. The footer only tested `IsConnected`, so it drew a battery exactly when some
+other screen happened to have the pipe open (right after an install, for instance) and nothing at
+all the rest of the time.
+
+**The helper was answering the whole time.** Probed over the free Quick Settings pipe while the
+footer showed nothing:
+
+```
+{"batteryLevel":87,"timeRemaining":19502,"isCharging":false, …}
+```
+
+So: `RequestPowerStatusAsync` now connects when needed. **One attempt per 30 s while disconnected**,
+not one per tick — a connect costs up to 4 s of liveness verification, and the client re-establishes
+itself after a drop on its own (`_keepConnected`), so the only case that needs retrying here is a
+machine with no helper at all.
+
+⚠️ **`IsConnected == false` is not "no helper".** It is the default state of this object. Anything
+new that reads from the helper has to connect, or it will work only by coincidence — and the
+coincidence is another screen having been open, which is exactly the kind of bug that reads as
+"sometimes it shows, sometimes it doesn't".
+
+### 🟡 The helper's metrics JSON is not valid JSON on a German system — NOT fixed
+
+Same probe, same line: `"batteryDrain":9,4` — a decimal comma, from `{value:F1}` formatted with the
+current culture. It affects the three `F1` fields (`batteryDrain`, `cpuWattage`, `gpuWattage`); every
+`F0` field is safe, which is why the battery percentage works and why nobody noticed.
+
+**Both sides would have to change together, and that is why it was left alone:** the widget parses
+with `Regex (-?\d+\.?\d*)` plus `double.TryParse` on the **current** culture. Today it reads
+`9,4` as `9` — a lost decimal. If the helper started writing `9.4` while the widget still parsed
+with the German culture, it would read **94**. Fixing the producer alone makes it worse.
+
 ### Immersive mode hides the CHIPS, not the bar
 
 `ApplyFooterVisibility` collapsed the whole `FooterBar` until today, which would take the clock and
