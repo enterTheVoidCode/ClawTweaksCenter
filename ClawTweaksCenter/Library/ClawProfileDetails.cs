@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Xml.Linq;
 
 namespace ClawTweaksCenter.Library
@@ -62,7 +61,7 @@ namespace ClawTweaksCenter.Library
             catch { return d; }
             if (root == null) return d;
 
-            bool plugged = OnMains();
+            bool plugged = Core.PowerLine.OnMains();
             var p = new Reader(root, plugged);
 
             BuildPerformance(p, d.Performance);
@@ -389,32 +388,6 @@ namespace ClawTweaksCenter.Library
                 if (string.Equals(s, "false", StringComparison.OrdinalIgnoreCase)) return false;
                 return null;
             }
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct SystemPowerStatus
-        {
-            public byte ACLineStatus;
-            public byte BatteryFlag;
-            public byte BatteryLifePercent;
-            public byte SystemStatusFlag;
-            public int BatteryLifeTime;
-            public int BatteryFullLifeTime;
-        }
-
-        [DllImport("kernel32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        private static extern bool GetSystemPowerStatus(out SystemPowerStatus status);
-
-        /// <summary>
-        /// True while the device is on mains. 1 means plugged; 0 means battery; 255 means Windows does
-        /// not know, and that is answered with FALSE on purpose - unplugged is this product's primary
-        /// state, so an unknown power source shows the values a handheld actually runs on.
-        /// </summary>
-        private static bool OnMains()
-        {
-            try { return GetSystemPowerStatus(out var s) && s.ACLineStatus == 1; }
-            catch { return false; }
         }
     }
 }

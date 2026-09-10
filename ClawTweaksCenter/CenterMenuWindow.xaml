@@ -143,7 +143,7 @@
                 </Grid.ColumnDefinitions>
 
                 <TextBlock x:Name="FooterBattery" Grid.Column="0"
-                           VerticalAlignment="Center" Margin="16,0,8,0"
+                           VerticalAlignment="Center" Margin="28,0,8,0"
                            FontSize="12" Foreground="{StaticResource SubtleTextBrush}"
                            Visibility="Collapsed" />
 
@@ -152,7 +152,7 @@
                            Margin="12,4,12,4" />
 
                 <TextBlock x:Name="FooterClock" Grid.Column="2"
-                           VerticalAlignment="Center" Margin="8,0,16,0"
+                           VerticalAlignment="Center" Margin="8,0,28,0"
                            FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
             </Grid>
         </Border>

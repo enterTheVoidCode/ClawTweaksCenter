@@ -187,23 +187,35 @@ namespace ClawTweaksCenter
             string percent = ((int)Math.Round(level)).ToString(CultureInfo.CurrentCulture) + "%";
             double seconds = charging ? toFull : remaining;
 
+            // Same shape as the widget's own tile: h:mm, seconds in, so the two surfaces agree to
+            // the minute rather than looking like two different measurements. Null when there is no
+            // estimate - a "--:--" next to a real percentage reads as a broken readout.
+            string clock = seconds > 0
+                ? ((int)(seconds / 3600)).ToString(CultureInfo.CurrentCulture)
+                  + ":" + ((int)((seconds % 3600) / 60)).ToString("D2", CultureInfo.CurrentCulture)
+                : null;
+
             string text;
-            if (seconds > 0)
+            if (charging)
             {
-                // Same shape as the widget's own tile: h:mm, seconds in, so the two surfaces agree
-                // to the minute rather than looking like two different measurements.
-                string clock = ((int)(seconds / 3600)).ToString(CultureInfo.CurrentCulture)
-                               + ":" + ((int)((seconds % 3600) / 60)).ToString("D2", CultureInfo.CurrentCulture);
-                text = charging
-                    ? Core.Loc.F("{0} · {1} to full", percent, clock)
-                    : Core.Loc.F("{0} · {1} left", percent, clock);
+                text = clock != null
+                    ? Core.Loc.F("{0} · charging · {1} h", percent, clock)
+                    : Core.Loc.F("{0} · charging", percent);
+            }
+            else if (Core.PowerLine.OnMains())
+            {
+                // Plugged in and taking nothing. Two different reasons, and the line says which:
+                // a full battery, or a charge limit holding it below full - which ClawTweaks itself
+                // sets, so "fully charged" at 80% would be a sentence this very product made false.
+                text = level >= 99
+                    ? Core.Loc.F("{0} · AC power · fully charged", percent)
+                    : Core.Loc.F("{0} · AC power · not charging", percent);
             }
             else
             {
-                // The percentage on its own, and the charging state as a word rather than a time
-                // nobody has. "--:--" next to a real percentage reads as a broken readout; the fact
-                // that it is charging is the useful half and it is known.
-                text = charging ? Core.Loc.F("{0} · charging", percent) : percent;
+                text = clock != null
+                    ? Core.Loc.F("{0} · discharging · {1} h", percent, clock)
+                    : Core.Loc.F("{0} · discharging", percent);
             }
 
             FooterBattery.Text = text;
