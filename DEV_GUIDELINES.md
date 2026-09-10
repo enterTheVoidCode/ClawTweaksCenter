@@ -353,6 +353,38 @@ blur over a 1920px image is not something to recompute per frame.
 - **German "Rescan" is now "Neu laden"**, not "Neu suchen": the button re-reads what is already
   there.
 
+## Steam achievements (2026-09-09)
+
+**The whole thing is written up in `Doku/STEAM_Achievements.md`** - where Steam keeps it, what was
+measured, what was left out on purpose, and the Steamworks-SDK route for friend presence. Start
+there. What follows is only the part that gets broken by accident.
+
+Confirmed on the device on 2026-09-10: the numbers and the lists are right, and the only thing
+left open is how it looks. Center reads Steam's own binary caches under `<Steam>\appcache\stats`: a **schema** blob per game
+(localised names, descriptions, icon hashes) and a **per-user** blob whose `data` word is a bitfield
+of unlocked achievements, with an `AchievementTimes` map beside it for the dates. No account, no API
+key, no network for any number - only the icons come off the CDN.
+
+**There is ONE primary source and it is those blobs.** `achievement_progress.json` next door is
+Steam's own pre-computed summary and is used ONLY for games with no schema on disk. It is staler and
+covers fewer games, and having the library line and the game menu answer "how far along is this?"
+from two different files is the failure this project has paid for more than once.
+
+WARNING: **`SteamPlaytime.ActiveAccountId()` is now shared.** The achievements reader needs the same
+account id that sits in the middle of `UserGameStats_<accountId>_<appid>.bin`. Two copies of "which
+Steam account" is how a machine ends up showing one user's hours next to another user's
+achievements - if that resolution ever changes, it changes in one place.
+
+WARNING: **The parse is lazy, cached per game, and the library refresh only DROPS the cache.** It
+does not read every game: that would mean opening two binary blobs for each of several hundred
+entries on a pass that has to stay responsive. Anything that wants an eager pass needs to move it
+off the refresh thread first.
+
+**Icons: `GameArt.LoadRemoteAsync`, never `LoadAsync`.** An http source handed to
+`BitmapImage.UriSource` downloads asynchronously and then makes `Freeze` throw - the same trap that
+once left the art picker showing a grid of grey tiles. Every row draws a card behind the icon, so
+offline costs a picture and never a line of text.
+
 ## The FAQ, and the two rules its entries have to keep
 
 `CenterMenuWindow.Faq.cs`. Eight questions, collapsed until pressed, one statement per line. The

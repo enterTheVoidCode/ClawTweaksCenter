@@ -159,38 +159,62 @@ namespace ClawTweaksCenter.Library
         }
 
         /// <summary>
-        /// The active Steam account's localconfig.vdf.
+        /// WHICH STEAM ACCOUNT CENTER READS - the folder name under &lt;Steam&gt;\userdata, which is
+        /// also the account id Steam puts in the middle of UserGameStats_&lt;accountId&gt;_&lt;appid&gt;.bin.
         ///
         /// ActiveUser is the right answer and is NOT always available: it is 0 whenever Steam is not
         /// running, which on a handheld is most of the time Center is open. So it is used when it is
         /// there, and otherwise the newest userdata folder wins - on a machine with one account those
         /// are the same folder anyway, and on a shared machine the newest is the one being used.
+        ///
+        /// Public because SteamAchievements needs the same answer, and two copies of "which account"
+        /// is how a machine ends up showing one user's hours next to another user's achievements.
         /// </summary>
+        public static string ActiveAccountId()
+        {
+            try
+            {
+                string steam = SteamSource.SteamPath();
+                if (steam == null) return null;
+
+                string userdata = Path.Combine(steam, "userdata");
+                if (!Directory.Exists(userdata)) return null;
+
+                // The registry value only counts if the folder it names is really there: a signed-in
+                // account whose data has been wiped would otherwise beat a folder that has data.
+                string active = ActiveUserId();
+                if (active != null &&
+                    File.Exists(Path.Combine(userdata, active, "config", "localconfig.vdf")))
+                    return active;
+
+                string best = null;
+                DateTime bestTime = DateTime.MinValue;
+                foreach (string dir in Directory.GetDirectories(userdata))
+                {
+                    string cfg = Path.Combine(dir, "config", "localconfig.vdf");
+                    if (!File.Exists(cfg)) continue;
+
+                    DateTime t = File.GetLastWriteTimeUtc(cfg);
+                    if (t > bestTime) { bestTime = t; best = Path.GetFileName(dir); }
+                }
+                return best;
+            }
+            catch { return null; }
+        }
+
+        /// <summary>The active account's localconfig.vdf.</summary>
         private static string LocalConfigPath()
         {
             string steam = SteamSource.SteamPath();
-            if (steam == null) return null;
+            string id = ActiveAccountId();
+            if (steam == null || id == null) return null;
 
-            string userdata = Path.Combine(steam, "userdata");
-            if (!Directory.Exists(userdata)) return null;
-
-            string active = ActiveUserFolder(userdata);
-            if (active != null) return active;
-
-            string best = null;
-            DateTime bestTime = DateTime.MinValue;
-            foreach (string dir in Directory.GetDirectories(userdata))
-            {
-                string cfg = Path.Combine(dir, "config", "localconfig.vdf");
-                if (!File.Exists(cfg)) continue;
-
-                DateTime t = File.GetLastWriteTimeUtc(cfg);
-                if (t > bestTime) { bestTime = t; best = cfg; }
-            }
-            return best;
+            string cfg = Path.Combine(steam, "userdata", id, "config", "localconfig.vdf");
+            return File.Exists(cfg) ? cfg : null;
         }
 
-        private static string ActiveUserFolder(string userdata)
+        /// <summary>The signed-in account id, or null when Steam is not running.</summary>
+        private static string ActiveUserId()
         {
             try
             {
@@ -202,9 +226,7 @@ namespace ClawTweaksCenter.Library
                     int id = Convert.ToInt32(raw);
                     if (id == 0) return null;          // Steam is not running - not an error
 
-                    string cfg = Path.Combine(userdata, id.ToString(CultureInfo.InvariantCulture),
-                                              "config", "localconfig.vdf");
-                    return File.Exists(cfg) ? cfg : null;
+                    return id.ToString(CultureInfo.InvariantCulture);
                 }
             }
             catch { return null; }

@@ -144,6 +144,12 @@ namespace ClawTweaksCenter.Library
                 // and Steam rewrites localconfig.vdf when a game exits.
                 SteamPlaytime.Refresh();
                 ClawProfiles.Refresh();
+                // Achievements are NOT read per game here, only re-pointed: the per-game parse is
+                // lazy and cached, because a full pass would mean opening two binary blobs for every
+                // one of several hundred games on a refresh that also has to stay responsive. What
+                // this call does is drop the cache, so an achievement unlocked since the last round
+                // shows up - the same reason the two lines above run per round rather than once.
+                SteamAchievements.Refresh();
                 foreach (var g in all)
                 {
                     if (g.Store == GameStore.Steam)

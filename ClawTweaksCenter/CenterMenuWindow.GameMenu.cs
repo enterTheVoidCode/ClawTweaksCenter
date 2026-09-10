@@ -38,6 +38,9 @@ namespace ClawTweaksCenter
             /// <summary>Naming that folder, offered the first time anyone reaches for their own
             /// pictures so the feature does not start with a trip to the settings screen.</summary>
             UserArtFolder,
+            /// <summary>Every Steam achievement the user has unlocked in this game, newest first -
+            /// see CenterMenuWindow.Achievements.cs.</summary>
+            Achievements,
         }
 
         // Fixed column count for the art picker grid - unlike the library's own grid it does not need
@@ -115,6 +118,7 @@ namespace ClawTweaksCenter
             _gameMenuRows.Clear();
             ResetArtPickerState();
             ResetUserArtState();
+            ResetAchievementState();
             RenderLibrary();
             // Favoriting can have just created or emptied the tab, and choosing art can have just
             // filled in the picture the tab strip's own chip drawing does not read from anywhere else
@@ -155,6 +159,14 @@ namespace ClawTweaksCenter
             if (_gameMenuOverlay == GameMenuOverlay.UserArt || _gameMenuOverlay == GameMenuOverlay.UserArtFolder)
             {
                 UserArtBack();
+                return;
+            }
+            if (_gameMenuOverlay == GameMenuOverlay.Achievements)
+            {
+                ResetAchievementState();
+                _gameMenuOverlay = GameMenuOverlay.Menu;
+                RenderGameMenuOverlay();
+                RefreshActionBar();
                 return;
             }
             if (_gameMenuOverlay == GameMenuOverlay.ArtPicker)
@@ -203,6 +215,8 @@ namespace ClawTweaksCenter
             _userArtTiles.Clear();
             _userArtFolderRows.Clear();
             _userArtScroller = null;
+            _achievementRows.Clear();
+            _achievementScroller = null;
 
             switch (_gameMenuOverlay)
             {
@@ -211,6 +225,7 @@ namespace ClawTweaksCenter
                 case GameMenuOverlay.Rename: RenderRename(); break;
                 case GameMenuOverlay.UserArt: RenderUserArtGrid(); break;
                 case GameMenuOverlay.UserArtFolder: RenderUserArtFolder(); break;
+                case GameMenuOverlay.Achievements: RenderAchievements(); break;
             }
         }
 
@@ -233,6 +248,14 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 0, 0, 16),
             });
 
+            // WITHOUT BEING ASKED, above the rows: how far along this game is and the last few
+            // unlocked. It is the one thing on this menu that is about having PLAYED the game rather
+            // than about managing the entry, so it reads as a status line over a list of actions
+            // rather than as another action. Returns null - and adds nothing - for a game with no
+            // achievements at all.
+            var achPanel = BuildRecentAchievementsPanel(game);
+            if (achPanel != null) stack.Children.Add(achPanel);
+
             _gameMenuActions.Clear();
 
             bool isFav = game?.IsFavorite == true;
@@ -244,6 +267,26 @@ namespace ClawTweaksCenter
                 isFav ? UiHelpers.Ok : UiHelpers.Text,
                 isFav ? "Unfavorite" : "Favorite",
                 () => { FavoritesStore.Toggle(_gameMenuTarget); RenderGameMenuOverlay(); RefreshActionBar(); }));
+
+            // SECOND, not first: Favorite has been row one since this menu existed and moving it
+            // would retrain everyone for nothing. It sits ABOVE the three cover-art rows because
+            // those are all about how the entry looks, and this one is not.
+            //
+            // Always present and greyed when there is nothing to open, which is this menu's own rule
+            // (see Rename and Remove below): hiding it would move every row underneath as the cursor
+            // crossed from a Steam game to an Xbox one, so the menu would change height while the
+            // shelf behind it scrolled.
+            int unlockedCount = Library.SteamAchievements.UnlockedFor(game).Count;
+            bool canOpenAchievements = unlockedCount > 0;
+            string achSubtitle;
+            if (canOpenAchievements) achSubtitle = null;
+            else if (game?.Store != GameStore.Steam) achSubtitle = "Steam games only";
+            else achSubtitle = "Nothing unlocked yet.";
+
+            stack.Children.Add(GameMenuRow("\uEB95", "All achievements…",
+                achSubtitle,
+                canOpenAchievements ? UiHelpers.Text : UiHelpers.Subtle, "View",
+                () => { if (canOpenAchievements) OpenAchievements(); }));
 
             bool hasKey = Library.SteamGridDb.HasKey;
             stack.Children.Add(GameMenuRow("", "Choose cover art…",
@@ -373,6 +416,7 @@ namespace ClawTweaksCenter
             if (_gameMenuOverlay == GameMenuOverlay.ArtPicker) { MoveArtPickerSelection(dir); return; }
             if (_gameMenuOverlay == GameMenuOverlay.UserArt) { MoveUserArtSelection(dir); return; }
             if (_gameMenuOverlay == GameMenuOverlay.UserArtFolder) { MoveUserArtFolderSelection(dir); return; }
+            if (_gameMenuOverlay == GameMenuOverlay.Achievements) { MoveAchievementSelection(dir); return; }
             if (_gameMenuRows.Count == 0) return;
 
             int next = _gameMenuIndex + (dir == PadButton.Down ? 1 : dir == PadButton.Up ? -1 : 0);
@@ -907,6 +951,13 @@ namespace ClawTweaksCenter
                 case GameMenuOverlay.Rename:
                     AddAction(PadButton.A, "Edit name", true, () => { _renameBox?.Focus(); _renameBox?.SelectAll(); });
                     AddAction(PadButton.B, "Save", true, GameMenuBack);
+                    return true;
+
+                case GameMenuOverlay.Achievements:
+                    // NO A. There is nothing to activate on this screen - it is a list to read, and
+                    // the D-pad scrolls it. An A that does nothing is worse than an A that is not
+                    // offered, which is the same reason the disabled-control rule exists elsewhere.
+                    AddAction(PadButton.B, "Back", true, GameMenuBack);
                     return true;
 
                 default:

@@ -1366,6 +1366,16 @@ namespace ClawTweaksCenter
                 parts.Add(Core.Loc.T("Last played") + " " +
                           g.LastPlayed.Value.ToString("d MMM yyyy", System.Globalization.CultureInfo.CurrentCulture));
 
+            // Achievements last, after the date, because it is the one figure here that is about the
+            // PLAYING rather than about the file - store, size and dates describe the installation.
+            //
+            // Left out entirely for a game with no achievements, same rule as every other part of
+            // this line: "0%" on a game that never had any is a claim about the player, and it is
+            // the wrong one. See SteamAchievements for why 0 and 100 are reserved.
+            var ach = Library.SteamAchievements.SummaryFor(g);
+            if (ach != null && ach.Total > 0)
+                parts.Add(Core.Loc.F("{0}% achievements", ach.Percent));
+
             _libSubline.Text = string.Join("  ·  ", parts);
         }
 
