@@ -273,6 +273,22 @@ None of these is broken. All of them are choices that were made without a device
 Four changes, all on the user's instruction after running 0.2.34 on the device. Three of them close
 items §9 had already listed as worth asking about.
 
+### 10.0 Status: built and installed, layout NOT seen yet
+
+Shipped as **0.2.36** and installed on the development Claw the same day, over the existing Velopack
+install. **Nobody has looked at the result.** §9's device confirmation covers 0.2.34, which is the
+layout this round replaces — so the numbers, the parse and the icons stay proven, and everything
+below about where things sit is compiled and reasoned rather than seen.
+
+The four things worth checking first, in the order they would fail:
+
+1. the launch screen with the block present — the cover drops to 34 % of the height for it, and the
+   row at the bottom is the thing that goes off-screen if that is still not enough,
+2. down and up between Play and the row, and the footer label changing with it,
+3. B out of the list landing back on the launch screen rather than in the library,
+4. a game with no rarity on disk — the common case — ending its rows after the description with no
+   gap where a figure would have been.
+
 ### 10.1 Out of the game menu, onto the launch screen
 
 The block used to sit **above the rows in the Start-button menu**. It is now under the cover on the

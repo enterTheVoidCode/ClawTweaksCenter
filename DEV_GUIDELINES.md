@@ -65,6 +65,48 @@ is exactly what makes it dangerous: Center installs itself by copying a single f
 the apphost dies before `Main`. `SelfInstaller.IsSelfContainedSingleFile` refuses to install one, but
 do not hand one out either.
 
+### Getting a build onto a machine — ask how Center is installed there first
+
+`dotnet publish` leaves a portable `CTW_Center_<ver>_Setup.exe`. **Whether that file is the right
+way in depends entirely on how Center already lives on the target**, and getting it wrong does not
+fail — it succeeds twice.
+
+| Already installed as | Install a new build with |
+|---|---|
+| classic (per-user, `%LOCALAPPDATA%\Programs\ClawTweaks Center`) | `CTW_Center_<ver>_Setup.exe --resume-install` |
+| **Velopack** (`%LOCALAPPDATA%\ClawTweaksCenter`, ARP entry owned by `Update.exe`) | `Build-Velopack.ps1`, then `ClawTweaksCenter-win-Setup.exe --silent` |
+
+🔴 **THE CLASSIC ROUTE ON A VELOPACK MACHINE GIVES YOU TWO CENTERS.** It installs into
+`Programs\ClawTweaks Center` and writes its own HKCU uninstall entry beside the one `Update.exe`
+owns. Nothing errors; from then on which Center the helper starts is decided by whichever uninstall
+key wins, and that is the exact state the 2026-09-07 migration existed to clear up.
+
+**How to tell them apart in one command** — the uninstall string names the owner:
+
+```powershell
+Get-ChildItem 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall' | ForEach-Object {
+    $p = Get-ItemProperty $_.PSPath
+    if ($p.DisplayName -like '*ClawTweaks*') { '{0} | {1} | {2}' -f $p.DisplayName, $p.DisplayVersion, $p.UninstallString }
+}
+```
+
+`Update.exe --uninstall` means Velopack. A quoted `CTW_Center.exe --uninstall` means classic.
+
+⚠️ **`--resume-install` is not a convenience switch.** A double-clicked exe has landed on a screen
+pointing at the releases page since 2026-09-08; that argument is the gate that turns the same file
+back into an installer. See "Center does not install itself on a double-click any more" below.
+
+⚠️ **The Velopack setup does not start Center, and it wants the running one gone.** Close it
+(`CloseMainWindow`, then force if it is still there), install, then start
+`%LOCALAPPDATA%\ClawTweaksCenter\CTW_Center.exe` — the stub, which is what the shortcuts and AnyFSE
+point at. Starting it from an ELEVATED shell hands Center an elevated token by inheritance and
+breaks its single-instance pipe; see [[center-started-elevated-by-helper]].
+
+⚠️ **`Build-Velopack.ps1` builds a delta against whatever is already in the feed folder**, so the
+folder is reused on purpose and a cleaned one silently produces full-only releases. It also refuses a
+version already in the feed unless `-Replace` is given — which is why the version bump is not
+optional here either.
+
 ## Three design rules that are not up for casual change
 
 **Center never asks for administrator rights.** Not rarely — never. It installs per-user, and the
