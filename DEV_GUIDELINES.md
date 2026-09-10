@@ -660,3 +660,52 @@ erneut braucht, hat vermutlich dieselbe Verwechslung vor sich.
 
 Center is used on a handheld. **Anything you add has to be reachable with the D-pad and the A
 button**, not just with a mouse.
+
+## 🔴 Two halves of one list have to be LAID OUT the same way, not merely padded the same (2026-09-10)
+
+Reported on the library quick menu: the power rows (Sleep / Hibernate / Shut down / Restart) did not
+line up with **Center start screen** and **Close Center** above them. Their icons were clipped to
+slivers and every label started an icon column too far left.
+
+It reads as a padding fault and it is not one. Both the power CARD and the free-standing rows carry
+`MinWidth = ExitPromptCentreWidth`. As soon as the two sidebars are up, the middle column is
+**narrower than that** - and then a stretched child pins its left edge to the column and overflows
+to the right, while a **centred** one overflows by half on each side. The card was centred. It
+therefore sat half the overflow further left than the rows above it, and clipped its own contents.
+
+**Fixed by stretching the card like the rows above it.** In the same pass the horizontal padding was
+reduced to one number: the card pads nothing sideways, every row pads itself with
+`ExitPromptRowPadding`.
+
+⚠️ **A first attempt changed only the padding arithmetic** - the card kept 6 and the rows
+inside subtracted it. Arithmetically identical, and it did not settle the report, because the offset
+was never in the padding. Two numbers that have to be kept in step to produce one alignment are a
+worse way of saying "these are the same" than using the same number.
+
+⚠️ **The glyphs were checked before the geometry was touched.** `\uE708`, `\uE74E`,
+`\uE7E8` and `\uE777` render correctly in the shipped Segoe Fluent Icons (moon, disk, power,
+restart arrow) - so "the icon is broken" was ruled out and only the layout was left. Rendering a
+codepoint block to a PNG and looking at it is the two-minute check; a cmap query only says the
+codepoint exists, not which icon sits there.
+
+## The footer battery says what the machine is doing (2026-09-10)
+
+| state | line |
+|---|---|
+| charging | `87% · charging · 1:15 h` |
+| discharging | `87% · discharging · 2:30 h` |
+| plugged in, full | `100% · AC power · fully charged` |
+| plugged in, below full | `80% · AC power · not charging` |
+
+The last row is not what was asked for and is deliberate: **ClawTweaks itself sets charge limits**,
+so "fully charged" at 80% would be a sentence this very product made false. The threshold is 99%.
+
+⚠️ **The AC line is the one fact on that screen that does not come from the helper.** Its
+metrics bundle carries the charge, the runtime and "is it charging" - and no AC line at all. Without
+it, "plugged in and full" and "on battery with no runtime estimate" are the same absence of
+information, and the first is the normal state of a handheld in its dock. `Core.PowerLine.OnMains()`
+asks Windows directly. That is not a second answer to a question the helper already answers.
+
+⚠️ **It lives in `Core/PowerLine.cs` because there were TWO copies.** The profile detail
+page already had this P/Invoke and the footer was about to grow an identical one. Unknown (255) and
+a failed call both read as "not on AC" - unplugged is this product's primary state.

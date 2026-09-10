@@ -4431,14 +4431,27 @@ namespace ClawTweaksCenter
                 Child = power,
                 Background = UiHelpers.Card,
                 CornerRadius = new CornerRadius(10),
-                // Padding 6 -> 12 and the width down from 520: with a sidebar on each side the centre
-                // column ran off the right-hand edge, and the card sat tighter than the rows in it
-                // (user, 2026-09-04). Narrower is free here - the rows are icon + two short lines, so
-                // the width was never carrying anything.
-                Padding = new Thickness(6, 12, 6, 12),
+                // NO HORIZONTAL PADDING. Every row pads itself, in a card or not - see
+                // ExitPromptRowPadding. Anything the card added here would be an extra offset on
+                // half the list, and the two halves would start at different x.
+                Padding = new Thickness(0, 12, 0, 12),
                 Margin = new Thickness(0, 6, 0, 0),
                 MinWidth = ExitPromptCentreWidth,
-                HorizontalAlignment = HorizontalAlignment.Center,
+
+                // ⚠️ STRETCHED, NOT CENTRED, AND THAT IS THE WHOLE ALIGNMENT FIX (user, 2026-09-10:
+                // "the power rows are not like Center start screen and Close Center").
+                //
+                // Both this card and the free-standing rows carry MinWidth = ExitPromptCentreWidth.
+                // When the middle column is NARROWER than that - which it is as soon as the two
+                // sidebars are up - a stretched child pins its left edge to the column and overflows
+                // to the right, while a CENTRED one overflows by half on each side. So the card sat
+                // half the overflow further left than the rows above it, its own left edge clipped
+                // the icons inside it to slivers, and every label in it started an icon column too
+                // far left.
+                //
+                // It read as a padding fault and it never was one: a first attempt at the padding
+                // arithmetic changed the gap by six units and left this untouched. The two halves of
+                // one list have to be laid out the same way, not merely padded the same way.
             });
 
             // Three columns: curated Windows tools (left) and tray apps (right) flank the buttons
@@ -4577,6 +4590,25 @@ namespace ClawTweaksCenter
         // icon plus two short lines, so the width was never doing any work.
         private const double ExitPromptCentreWidth = 430;
 
+        /// <summary>
+        /// The left/right padding of EVERY row in the middle column, in a card or not.
+        ///
+        /// ⚠️ ONE NUMBER, AND THE CARD ADDS NOTHING TO IT. The power rows sit inside a card and
+        /// the rows above them do not, so anything the card pads horizontally is an offset that
+        /// applies to half the list - and the two halves then start at different x. That is what
+        /// was reported on 2026-09-10.
+        ///
+        /// The first attempt kept the card at 6 and had the rows inside subtract it. Arithmetically
+        /// identical, and it did NOT settle the report - so it is gone. Two numbers that must be
+        /// kept in step to produce one alignment is a worse way to say "they are the same" than
+        /// using the same number, and it hides the moment a third caller gets it wrong.
+        ///
+        /// Vertical padding still differs (9 in the card, 12 outside): the card rows are a tight
+        /// group of four and the free-standing ones are separated by their own margins. That is a
+        /// deliberate difference and not the one anybody sees along the left edge.
+        /// </summary>
+        private const double ExitPromptRowPadding = 16;
+
         private static Border BuildRowVisual(
             string glyph, string title, string subtitle, bool inCard, bool dim = false, bool compact = false)
         {
@@ -4632,7 +4664,8 @@ namespace ClawTweaksCenter
                 CornerRadius = new CornerRadius(inCard || compact ? 7 : 10),
                 Padding = compact
                     ? new Thickness(8, 5, 8, 5)
-                    : new Thickness(16, inCard ? 9 : 12, 16, inCard ? 9 : 12),
+                    : new Thickness(ExitPromptRowPadding, inCard ? 9 : 12,
+                                    ExitPromptRowPadding, inCard ? 9 : 12),
                 Margin = new Thickness(0, 0, 0, compact ? 2 : (inCard ? 0 : 10)),
                 BorderThickness = new Thickness(2),
                 BorderBrush = Brushes.Transparent,
