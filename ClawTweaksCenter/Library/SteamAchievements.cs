@@ -22,6 +22,24 @@ namespace ClawTweaksCenter.Library
         /// records and only the bitfield is authoritative.</summary>
         public DateTime? UnlockedAt;
         public bool Hidden;
+
+        /// <summary>
+        /// How many players worldwide have this one, as a percentage. Null when Steam has not
+        /// written it to this disk - which is the common case, see the rarity note on
+        /// <see cref="SteamAchievements"/>.
+        ///
+        /// NULL IS NOT ZERO. A rare achievement really can sit below 1 %, so "no figure" and "almost
+        /// nobody" have to stay apart: one draws nothing, the other draws a number.
+        /// </summary>
+        public double? GlobalPercent;
+
+        /// <summary>
+        /// A counted achievement's progress, e.g. 1 of 2 spool fragments. Both zero when this one is
+        /// not counted or Steam has not written the figures - the pair only means anything when
+        /// <see cref="ProgressMax"/> is above zero.
+        /// </summary>
+        public float Progress;
+        public float ProgressMax;
     }
 
     /// <summary>How far along one game is.</summary>
@@ -197,6 +215,43 @@ namespace ClawTweaksCenter.Library
                        .ToList();
         }
 
+        /// <summary>
+        /// Everything this game has: unlocked newest first, then the ones still to go.
+        ///
+        /// THE LOCKED ONES COST NOTHING EXTRA. The schema blob carries every achievement in the game
+        /// with its name, its description, its spoiler flag and a second, grey icon for exactly this
+        /// state - <see cref="UnlockedFor"/> was simply filtering them out. There is no second file
+        /// and no request behind them.
+        ///
+        /// The locked half keeps SCHEMA ORDER rather than being sorted. That order is the developer's
+        /// own, which on most games is roughly the order they are meant to be earned - and the two
+        /// orderings that suggest themselves instead each answer a different question than this
+        /// screen asks.
+        ///
+        /// Returns an empty list when there is no schema on disk, same as UnlockedFor: the row that
+        /// opens this screen is greyed on that answer, so an empty screen is never reachable.
+        /// </summary>
+        public static List<AchievementEntry> AllFor(GameEntry g)
+        {
+            var list = ModelFor(AppIdOf(g));
+            if (list == null) return new List<AchievementEntry>();
+
+            var ordered = list.Where(e => e.Unlocked)
+                              .OrderByDescending(e => e.UnlockedAt ?? DateTime.MinValue)
+                              .ToList();
+            ordered.AddRange(list.Where(e => !e.Unlocked));
+            return ordered;
+        }
+
+        /// <summary>True when this game has a schema on disk, so the detail screen has something to
+        /// show. NOT "has unlocked something" - a game where nothing is unlocked yet still has a full
+        /// list of what there is to go after, which is the more useful screen of the two.</summary>
+        public static bool HasDetail(GameEntry g)
+        {
+            var list = ModelFor(AppIdOf(g));
+            return list != null && list.Count > 0;
+        }
+
         /// <summary>The most recent few, for the panel on the game menu.</summary>
         public static List<AchievementEntry> RecentFor(GameEntry g, int count)
         {
@@ -341,7 +396,105 @@ namespace ClawTweaksCenter.Library
                 }
             }
 
-            return result.Count > 0 ? result : null;
+            if (result.Count == 0) return null;
+
+            StampRarity(appId, result);
+            return result;
+        }
+
+        /// <summary>
+        /// Adds "how many players have this" and, where Steam counts one, the progress bar's figures.
+        ///
+        /// A SEPARATE FILE AND A MUCH THINNER ONE. The schema blob knows nothing about other people,
+        /// so this is the only local answer - and it is a partial one: measured on this machine, 153
+        /// of 422 games have the file at all, and only 3 of those 153 carry every achievement. The
+        /// rest hold the handful Steam's own page happens to show (the last few unlocked, the next
+        /// few to go), because the file is written when the STEAM UI RENDERS THAT PAGE rather than
+        /// when a game syncs.
+        ///
+        /// So a missing figure is the normal case, not a fault, and every caller has to draw nothing
+        /// rather than a zero. The complete answer exists only over the network
+        /// (ISteamUserStats/GetGlobalAchievementPercentagesForApp, no key needed) and is deliberately
+        /// not fetched: this class answers from disk, and the icons are the only thing that leaves
+        /// the machine.
+        ///
+        /// Spot-checked against that API for one game: 52 of 52 names present, and the four
+        /// percentages the local file also carried matched to the decimal.
+        /// </summary>
+        private static void StampRarity(string appId, List<AchievementEntry> entries)
+        {
+            try
+            {
+                string steam = SteamSource.SteamPath();
+                if (steam == null || _accountId == null) return;
+
+                string path = Path.Combine(steam, "userdata", _accountId, "config", "librarycache",
+                                           appId + ".json");
+                if (!File.Exists(path)) return;
+
+                using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                using var doc = System.Text.Json.JsonDocument.Parse(fs);
+                if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Array) return;
+
+                // Same shape as achievement_progress.json one folder up: an ARRAY OF
+                // [sectionName, {...}] PAIRS rather than an object with named members.
+                var byId = new Dictionary<string, System.Text.Json.JsonElement>(StringComparer.Ordinal);
+                foreach (var pair in doc.RootElement.EnumerateArray())
+                {
+                    if (pair.ValueKind != System.Text.Json.JsonValueKind.Array || pair.GetArrayLength() < 2) continue;
+                    if (pair[0].ValueKind != System.Text.Json.JsonValueKind.String) continue;
+                    if (!string.Equals(pair[0].GetString(), "achievements", StringComparison.Ordinal)) continue;
+                    if (!pair[1].TryGetProperty("data", out var data)) continue;
+
+                    // Three lists, and all three are needed: Steam splits them by state, so reading
+                    // only one would give rarity to half a screen and leave the other half blank for
+                    // no reason the reader could see.
+                    foreach (string listName in new[] { "vecHighlight", "vecUnachieved", "vecAchievedHidden" })
+                    {
+                        if (!data.TryGetProperty(listName, out var arr)) continue;
+                        if (arr.ValueKind != System.Text.Json.JsonValueKind.Array) continue;
+                        foreach (var item in arr.EnumerateArray())
+                        {
+                            if (!item.TryGetProperty("strID", out var idEl)) continue;
+                            string id = idEl.GetString();
+                            if (!string.IsNullOrEmpty(id)) byId[id] = item;
+                        }
+                    }
+                }
+                if (byId.Count == 0) return;
+
+                foreach (var e in entries)
+                {
+                    if (string.IsNullOrEmpty(e.Id) || !byId.TryGetValue(e.Id, out var item)) continue;
+
+                    if (item.TryGetProperty("flAchieved", out var pct) &&
+                        pct.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    {
+                        double v = pct.GetDouble();
+                        // 0 IS DROPPED. The file writes 0 both for "nobody has it" and for "this
+                        // number was never filled in", and only one of those is worth a line.
+                        if (v > 0 && v <= 100) e.GlobalPercent = v;
+                    }
+
+                    if (item.TryGetProperty("flMaxProgress", out var max) &&
+                        max.ValueKind == System.Text.Json.JsonValueKind.Number)
+                    {
+                        float m = (float)max.GetDouble();
+                        if (m > 0)
+                        {
+                            e.ProgressMax = m;
+                            if (item.TryGetProperty("flCurrentProgress", out var cur) &&
+                                cur.ValueKind == System.Text.Json.JsonValueKind.Number)
+                                e.Progress = (float)cur.GetDouble();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Never fatal: rarity is an extra line on a screen that works without it.
+                Core.InstallLog.Write("[Achievements] rarity for " + appId + " failed: " + ex.Message);
+            }
         }
 
         /// <summary>

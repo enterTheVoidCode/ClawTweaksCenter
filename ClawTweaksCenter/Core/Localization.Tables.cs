@@ -200,6 +200,7 @@ namespace ClawTweaksCenter.Core
             ["Hardware controller confirmed."] = "Hardware-Controller best\u00E4tigt.",
             ["Helps set the most important ClawTweaks settings."] = "Hilft bei den wichtigsten ClawTweaks-Einstellungen.",
             ["Hidden"] = "Ausgeblendet",
+            ["Hidden until you unlock it."] = "Verborgen, bis du sie freischaltest.",
             ["Hide"] = "Ausblenden",
             ["Hide a tab with A."] = "Blende einen Tab mit A aus.",
             ["HidHide and usbip install kernel drivers. Reboot the device once after installing them, then run this setup again."] = "HidHide und usbip installieren Kerneltreiber. Nach der Installation das Ger\u00E4t einmal neu starten und dieses Setup erneut ausf\u00FChren.",
@@ -263,6 +264,7 @@ namespace ClawTweaksCenter.Core
             ["Show"] = "Einblenden",
             ["Shown"] = "Sichtbar",
             ["Steam games only"] = "Nur bei Steam-Spielen",
+            ["Steam has no list for this game"] = "Steam hat keine Liste f\u00FCr dieses Spiel",
             ["System tray / Processes"] = "Systemtray/Prozesse",
             ["This file does not install ClawTweaks Center"] = "Diese Datei installiert ClawTweaks Center nicht",
             ["Use as background"] = "Als Hintergrund",
@@ -610,7 +612,7 @@ namespace ClawTweaksCenter.Core
             ["{0} is running"] = "{0} l\u00E4uft",
             ["{0} is starting"] = "{0} startet",
             ["{0} of {1} unlocked"] = "{0} von {1} freigeschaltet",
-            ["{0}% achievements"] = "{0}% Errungenschaften",
+            ["{0}% of players"] = "{0}% der Spieler",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -786,6 +788,7 @@ namespace ClawTweaksCenter.Core
             ["Hardware controller confirmed."] = "Manette mat\u00E9rielle confirm\u00E9e.",
             ["Helps set the most important ClawTweaks settings."] = "Aide \u00E0 r\u00E9gler l'essentiel de ClawTweaks.",
             ["Hidden"] = "Masqu\u00E9",
+            ["Hidden until you unlock it."] = "Cach\u00E9 jusqu'\u00E0 ce que vous le d\u00E9bloquiez.",
             ["Hide"] = "Masquer",
             ["Hide a tab with A."] = "Masquez un onglet avec A.",
             ["HidHide and usbip install kernel drivers. Reboot the device once after installing them, then run this setup again."] = "HidHide et usbip installent des pilotes noyau. Red\u00E9marrez l'appareil une fois apr\u00E8s les avoir install\u00E9s, puis relancez ce setup.",
@@ -847,6 +850,7 @@ namespace ClawTweaksCenter.Core
             ["Show"] = "Afficher",
             ["Shown"] = "Affich\u00E9",
             ["Steam games only"] = "Jeux Steam uniquement",
+            ["Steam has no list for this game"] = "Steam n'a pas de liste pour ce jeu",
             ["System tray / Processes"] = "Zone de notification/Processus",
             ["This file does not install ClawTweaks Center"] = "Ce fichier n'installe pas ClawTweaks Center",
             ["Use as background"] = "Comme fond",
@@ -1194,7 +1198,7 @@ namespace ClawTweaksCenter.Core
             ["{0} is running"] = "{0} est en cours",
             ["{0} is starting"] = "{0} d\u00E9marre",
             ["{0} of {1} unlocked"] = "{0} sur {1} d\u00E9bloqu\u00E9s",
-            ["{0}% achievements"] = "{0}% de succ\u00E8s",
+            ["{0}% of players"] = "{0}% des joueurs",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -1370,6 +1374,7 @@ namespace ClawTweaksCenter.Core
             ["Hardware controller confirmed."] = "\uD558\uB4DC\uC6E8\uC5B4 \uCEE8\uD2B8\uB864\uB7EC\uB97C \uD655\uC778\uD588\uC2B5\uB2C8\uB2E4.",
             ["Helps set the most important ClawTweaks settings."] = "\uAC00\uC7A5 \uC911\uC694\uD55C ClawTweaks \uC124\uC815\uC744 \uB3C4\uC640\uC90D\uB2C8\uB2E4.",
             ["Hidden"] = "\uC228\uAE40",
+            ["Hidden until you unlock it."] = "\uB2EC\uC131\uD560 \uB54C\uAE4C\uC9C0 \uC228\uACA8\uC9D0.",
             ["Hide"] = "\uC228\uAE30\uAE30",
             ["Hide a tab with A."] = "A\uB85C \uD0ED\uC744 \uC228\uAE30\uC138\uC694.",
             ["HidHide and usbip install kernel drivers. Reboot the device once after installing them, then run this setup again."] = "HidHide\uC640 usbip\uC740 \uCEE4\uB110 \uB4DC\uB77C\uC774\uBC84\uB97C \uC124\uCE58\uD569\uB2C8\uB2E4. \uC124\uCE58 \uD6C4 \uC7A5\uCE58\uB97C \uD55C \uBC88 \uC7AC\uBD80\uD305\uD55C \uB2E4\uC74C \uC774 \uC124\uCE58\uB97C \uB2E4\uC2DC \uC2E4\uD589\uD558\uC138\uC694.",
@@ -1431,6 +1436,7 @@ namespace ClawTweaksCenter.Core
             ["Show"] = "\uD45C\uC2DC",
             ["Shown"] = "\uD45C\uC2DC",
             ["Steam games only"] = "Steam \uAC8C\uC784\uB9CC \uD574\uB2F9",
+            ["Steam has no list for this game"] = "Steam\uC5D0 \uC774 \uAC8C\uC784 \uBAA9\uB85D\uC774 \uC5C6\uC74C",
             ["System tray / Processes"] = "\uC2DC\uC2A4\uD15C \uD2B8\uB808\uC774/\uD504\uB85C\uC138\uC2A4",
             ["This file does not install ClawTweaks Center"] = "\uC774 \uD30C\uC77C\uC740 ClawTweaks Center\uB97C \uC124\uCE58\uD558\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4",
             ["Use as background"] = "\uBC30\uACBD\uC73C\uB85C \uC0AC\uC6A9",
@@ -1781,7 +1787,7 @@ namespace ClawTweaksCenter.Core
             ["{0} is running"] = "{0} \uC2E4\uD589 \uC911",
             ["{0} is starting"] = "{0} \uC2DC\uC791 \uC911",
             ["{0} of {1} unlocked"] = "{1}\uAC1C \uC911 {0}\uAC1C \uB2EC\uC131",
-            ["{0}% achievements"] = "\uB3C4\uC804 \uACFC\uC81C {0}%",
+            ["{0}% of players"] = "\uD50C\uB808\uC774\uC5B4 {0}%",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -1957,6 +1963,7 @@ namespace ClawTweaksCenter.Core
             ["Hardware controller confirmed."] = "Mando f\u00EDsico confirmado.",
             ["Helps set the most important ClawTweaks settings."] = "Ayuda con los ajustes clave de ClawTweaks.",
             ["Hidden"] = "Oculta",
+            ["Hidden until you unlock it."] = "Oculto hasta que lo desbloquees.",
             ["Hide"] = "Ocultar",
             ["Hide a tab with A."] = "Oculta una pesta\u00F1a con A.",
             ["HidHide and usbip install kernel drivers. Reboot the device once after installing them, then run this setup again."] = "HidHide y usbip instalan controladores de n\u00FAcleo. Reinicia el dispositivo una vez tras instalarlos y vuelve a ejecutar este setup.",
@@ -2018,6 +2025,7 @@ namespace ClawTweaksCenter.Core
             ["Show"] = "Mostrar",
             ["Shown"] = "Visible",
             ["Steam games only"] = "Solo para juegos de Steam",
+            ["Steam has no list for this game"] = "Steam no tiene lista para este juego",
             ["System tray / Processes"] = "Bandeja del sistema/Procesos",
             ["This file does not install ClawTweaks Center"] = "Este archivo no instala ClawTweaks Center",
             ["Use as background"] = "Como fondo",
@@ -2367,7 +2375,7 @@ namespace ClawTweaksCenter.Core
             ["{0} is running"] = "{0} est\u00E1 en marcha",
             ["{0} is starting"] = "{0} se est\u00E1 iniciando",
             ["{0} of {1} unlocked"] = "{0} de {1} desbloqueados",
-            ["{0}% achievements"] = "{0}% de logros",
+            ["{0}% of players"] = "{0}% de jugadores",
         };
 
     }

@@ -11,11 +11,14 @@ achievement schema on disk). Where something is a guess, it says so.
 
 ## 1. What is on screen
 
+**Moved on 2026-09-10** on the user's call — see §10 for what was there before and why it changed.
+
 | Where | What |
 |---|---|
-| Library, in the line under the title | `Steam · 47 h · 62 GB · Last played 3 Sep 2026 · **19% achievements**` |
-| Game menu (Start button), above the rows | `Achievements 11 / 57 · 19 %` plus the **last three unlocked**, with icon and date |
-| Game menu → *All achievements…* | Every unlocked achievement, **newest first**, icon, description, date and time |
+| Library, in the line under the title | `Steam · 47 h · 62 GB · Last played 3 Sep 2026 · **19%**` |
+| Launch screen (the one A opens), under the cover | `Achievements 11 / 57 · 19 %`, the **last two unlocked**, and a row into the list |
+| Game menu (Start button) | the row *All achievements…* — **and nothing above the rows** |
+| Either row | Every achievement: **unlocked newest first, then the ones still to go** |
 
 The percentage is left out entirely for a game that has no achievements. `0%` on a game that never
 had any is a claim about the player, and it is the wrong one — the same rule the rest of that line
@@ -265,6 +268,129 @@ None of these is broken. All of them are choices that were made without a device
 
 ---
 
+## 10. The 2026-09-10 round: where it sits, and two more figures
+
+Four changes, all on the user's instruction after running 0.2.34 on the device. Three of them close
+items §9 had already listed as worth asking about.
+
+### 10.1 Out of the game menu, onto the launch screen
+
+The block used to sit **above the rows in the Start-button menu**. It is now under the cover on the
+**launch screen** — the one that asks *Start X?* before A launches it.
+
+**The objection is one the menu could not answer.** Every other thing on that menu is an *action on
+the entry*: favourite it, give it a cover, rename it, remove it. A three-line status block over them
+pushed the list halfway down the screen for a game nobody opened that menu to read about. The launch
+screen is the opposite case — somebody is standing in front of it deciding whether to play, and "you
+are three away from the end" is exactly the thing that decides it.
+
+**Two, not three.** That screen already carries the key art, the cover, a headline and up to three
+OptiScaler badges. The third line was the one that had to go, and the row underneath is what it
+became.
+
+**The row in the game menu stays.** It is an action, so it belongs there; only the status block left.
+
+### 10.2 The launch screen now has exactly one focusable element
+
+⚠️ **That screen had no focus at all, on purpose.** It asks one question with two answers, A and B,
+and the standing rule was that anything the stick could land on turns that into a navigation problem.
+The achievements row is a deliberate exception, and the reasoning it has to keep clearing:
+
+- **there was no button left that anyone would find.** A is Play, B is Cancel, X is the OptiScaler
+  wiki and Y is OptiClick. Start and Select are free, and both already mean something else one screen
+  away — a way in on either is a way in nobody discovers.
+- **it sits BELOW the whole question**, not between its two answers.
+- **the focus starts on Play every single time.** Every path that opens or re-opens a launch prompt
+  resets it (`_launchFocus`), so a two-press decision is still two presses for anyone who never
+  touches the stick. A screen whose default answer depends on what was on it last time eventually
+  launches a game somebody was only reading about.
+
+Down moves onto the row, up moves back, and **the footer label follows the focus** — "Play" over a
+highlighted achievements row would be the footer contradicting the screen.
+
+⚠️ **The cover is sized around the block, not independently of it.** There is no ScrollViewer on
+this screen, so a cover taking its usual 46 % of the height would push the row off a short window.
+With the block present the cover drops to 34 % and caps at 320 px instead of 420. **An unreachable
+row is worse than a smaller picture** — and it would be unreachable *silently*.
+
+⚠️ **The list opens with the launch prompt LEFT STANDING.** Clearing it would drop the target, the
+cover and the cold-start timer, and B would have to rebuild the screen from the library. Both
+overlays are open at once instead, and B knows which way to go back (`_achievementsFromLaunch`).
+
+That made one existing ordering load-bearing: **`RefreshGameMenuActionBar()` now runs BEFORE the
+launch branch** in `RefreshLibraryActionBar`. `RenderLibrary` and `MoveLibrarySelection` have always
+asked in that order; the action bar was the one funnel asking in the other, and it would have
+labelled A "Play" over a screen with no Play on it.
+
+### 10.3 Locked achievements — free, and they were being thrown away
+
+§9 listed "locked achievements are parsed but not shown at all" as an open item. It was more literal
+than it sounded: `Build()` has always read every achievement in the game, and picks Steam's second,
+**grey** icon (`icon_gray`) for a locked one. `UnlockedFor()` was simply filtering them out.
+
+`AllFor()` returns unlocked newest-first, then the rest. **No second file, no request, no new
+parsing.**
+
+- **Locked rows are the same row, dimmed** — grey text, icon at 55 % — rather than a different
+  shape. That is what keeps a list of eighty scannable when a third of it is still to go.
+- **The locked half keeps schema order**, which is the developer's own and on most games roughly the
+  order they are meant to be earned. Sorting it by rarity was considered and not done: that answers a
+  different question than this screen asks.
+- ⚠️ **A spoiler stays a spoiler while it is locked.** Steam flags these itself and hides their
+  text on its own pages. The **name is kept** — Steam keeps it too — and the description is replaced
+  with one italic line. Showing it would turn a list somebody opened to see what is left into the one
+  thing they were being kept from.
+
+**Consequence for both rows: they are live on "there is a list", not on "something is unlocked".**
+A game where nothing has been earned yet is exactly where the list is worth opening, and the old test
+greyed the row precisely there.
+
+### 10.4 Rarity — how many players have it — and progress
+
+**Yes, and it is on disk.** `userdata\<id>\config\librarycache\<appid>.json` carries `flAchieved`
+per achievement: the percentage of all players who have it. The same file carries `flCurrentProgress`
+/ `flMaxProgress` for a counted achievement ("1 / 2 spool fragments"), which is shown on locked rows.
+
+🔴 **IT IS A PARTIAL ANSWER, AND THAT IS THE ONLY THING WORTH KNOWING ABOUT IT.** Measured here:
+
+| | |
+|---|---|
+| Games with an achievement schema | **422** |
+| Games with this file at all | **153** |
+| Of those, files carrying EVERY achievement | **3** |
+
+The file is written when the **Steam UI renders that game's page**, not when a game syncs — the same
+property that makes `achievement_progress.json` the fallback rather than the source (§2). So most
+games have rarity for a handful of achievements and many have it for none.
+
+**Every caller therefore draws nothing rather than a zero.** A row simply ends after its description.
+There is no dash and no placeholder: "—" there would read as *nobody has this* rather than as *Steam
+never told us*, and a genuinely rare achievement really does sit below 1 %.
+
+**One decimal, trailing zero dropped.** Whole numbers turn every hard achievement in the game into
+"0 %", which is the one figure somebody scanning for the rare ones is looking for — 0.4 and 0.04 are
+a different afternoon. Common ones lose nothing: 90 stays 90.
+
+#### ⛔ What Steam does NOT have, at all
+
+**Absolute player counts.** Not in any file, not from any API. "How many people got it" exists only
+as a percentage. Anybody asked for a headcount has to be told there isn't one.
+
+#### The complete answer exists, over the network, and is deliberately not used
+
+`https://api.steampowered.com/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/?gameid=<appid>`
+— **public, no API key**. Spot-checked against Hollow Knight Silksong on 2026-09-10: **52 of 52**
+names, and the four percentages the local file also carried matched to the decimal, so the two are
+the same data at different coverage.
+
+It is not called, on the user's decision (*"erstmal nur lokal"*). This class answers from disk and
+the icons are the only thing that leaves the machine — that sentence is the first line of this
+document, and a complete rarity column is not worth spending it. If it is ever wanted, the shape is
+already obvious: fetch once per game when the full list is opened, cache to disk, keep the local file
+as the offline answer.
+
+---
+
 ## Files
 
 | File | Role |
@@ -272,7 +398,7 @@ None of these is broken. All of them are choices that were made without a device
 | `Library/SteamAchievements.cs` | the reader, the binary KV parser, the model and the cache |
 | `Library/SteamPlaytime.cs` | now exposes `ActiveAccountId()` — one owner for "which account" |
 | `Library/GameLibrary.cs` | drops the achievement cache on each refresh round |
-| `CenterMenuWindow.Achievements.cs` | the panel and the full list |
+| `CenterMenuWindow.Achievements.cs` | the launch-screen block, the row, and the full list |
 | `CenterMenuWindow.GameMenu.cs` | the overlay state, the row, navigation and the footer |
-| `CenterMenuWindow.Library.cs` | the percentage in the selected-title line |
-| `Core/Localization.Tables.cs` | seven strings × four languages |
+| `CenterMenuWindow.Library.cs` | the percentage in the selected-title line, and the launch screen's one focus |
+| `Core/Localization.Tables.cs` | nine strings × four languages |

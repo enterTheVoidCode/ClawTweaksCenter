@@ -163,6 +163,10 @@ namespace ClawTweaksCenter
             }
             if (_gameMenuOverlay == GameMenuOverlay.Achievements)
             {
+                // Straight back to the launch screen when that is where A came from - it is still
+                // standing behind this one, prompt and target intact.
+                if (_achievementsFromLaunch) { CloseAchievementsToLaunch(); return; }
+
                 ResetAchievementState();
                 _gameMenuOverlay = GameMenuOverlay.Menu;
                 RenderGameMenuOverlay();
@@ -248,14 +252,12 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 0, 0, 16),
             });
 
-            // WITHOUT BEING ASKED, above the rows: how far along this game is and the last few
-            // unlocked. It is the one thing on this menu that is about having PLAYED the game rather
-            // than about managing the entry, so it reads as a status line over a list of actions
-            // rather than as another action. Returns null - and adds nothing - for a game with no
-            // achievements at all.
-            var achPanel = BuildRecentAchievementsPanel(game);
-            if (achPanel != null) stack.Children.Add(achPanel);
-
+            // NO ACHIEVEMENT PANEL ABOVE THE ROWS (user, 2026-09-10). It used to sit here, and the
+            // objection is one this menu can answer for itself: every other thing on this screen is
+            // an ACTION on the entry, and a status block over them made the list start halfway down
+            // the screen for a game nobody opened this menu to read about. The recent ones moved to
+            // the launch screen, which is where somebody is actually thinking about playing; the row
+            // below is all that stays.
             _gameMenuActions.Clear();
 
             bool isFav = game?.IsFavorite == true;
@@ -276,17 +278,20 @@ namespace ClawTweaksCenter
             // (see Rename and Remove below): hiding it would move every row underneath as the cursor
             // crossed from a Steam game to an Xbox one, so the menu would change height while the
             // shelf behind it scrolled.
-            int unlockedCount = Library.SteamAchievements.UnlockedFor(game).Count;
-            bool canOpenAchievements = unlockedCount > 0;
+            // LIVE ON "THERE IS A LIST", not on "something is unlocked". Since the screen behind it
+            // shows the locked ones too, a game where nothing has been earned yet is exactly the case
+            // where the list is worth opening - it is the only place that says what there is to go
+            // after. The old test greyed the row precisely there.
+            bool canOpenAchievements = Library.SteamAchievements.HasDetail(game);
             string achSubtitle;
             if (canOpenAchievements) achSubtitle = null;
             else if (game?.Store != GameStore.Steam) achSubtitle = "Steam games only";
-            else achSubtitle = "Nothing unlocked yet.";
+            else achSubtitle = "Steam has no list for this game";
 
             stack.Children.Add(GameMenuRow("\uEB95", "All achievements…",
                 achSubtitle,
                 canOpenAchievements ? UiHelpers.Text : UiHelpers.Subtle, "View",
-                () => { if (canOpenAchievements) OpenAchievements(); }));
+                () => { if (canOpenAchievements) OpenAchievements(_gameMenuTarget, false); }));
 
             bool hasKey = Library.SteamGridDb.HasKey;
             stack.Children.Add(GameMenuRow("", "Choose cover art…",

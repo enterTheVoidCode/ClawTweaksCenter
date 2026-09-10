@@ -1369,12 +1369,17 @@ namespace ClawTweaksCenter
             // Achievements last, after the date, because it is the one figure here that is about the
             // PLAYING rather than about the file - store, size and dates describe the installation.
             //
+            // THE WORD IS GONE, THE FIGURE STAYS (user, 2026-09-10). It was "19% achievements" and it
+            // was the longest part of a line that already carries four, on the one screen where the
+            // title beside it is competing for the same room. A bare percentage after a date is the
+            // only percentage this line can mean.
+            //
             // Left out entirely for a game with no achievements, same rule as every other part of
             // this line: "0%" on a game that never had any is a claim about the player, and it is
             // the wrong one. See SteamAchievements for why 0 and 100 are reserved.
             var ach = Library.SteamAchievements.SummaryFor(g);
             if (ach != null && ach.Total > 0)
-                parts.Add(Core.Loc.F("{0}% achievements", ach.Percent));
+                parts.Add(ach.Percent.ToString(System.Globalization.CultureInfo.CurrentCulture) + "%");
 
             _libSubline.Text = string.Join("  ·  ", parts);
         }
@@ -1659,7 +1664,9 @@ namespace ClawTweaksCenter
             // empty tab too, and a menu whose cursor cannot move is a menu with one usable answer.
             if (_exitPromptOpen) { MoveExitPromptSelection(dir); return; }
             if (_libraryGames.Count == 0) return;
-            if (LaunchOverlayOpen) return;  // a launch screen owns the library
+            // A launch screen owns the library - and since 2026-09-10 it has one row of its own to
+            // move between, so this hands over rather than swallowing the press.
+            if (LaunchOverlayOpen) { MoveLaunchSelection(dir); return; }
 
             int next = _libSelectedIndex;
             switch (dir)
@@ -3093,6 +3100,7 @@ namespace ClawTweaksCenter
             if (game == null || LaunchOverlayOpen) return;
 
             _launchTarget = game;
+            _launchFocus = LaunchFocusPlay;
             _launchPrompt = game.Installed ? LaunchPrompt.Confirm : LaunchPrompt.ConfirmInstall;
             RenderLaunchOverlay();
             RefreshActionBar();
@@ -3237,6 +3245,7 @@ namespace ClawTweaksCenter
             _launchStarting = false;
             _launchSteamColdStart = false;
             _launchPrompt = LaunchPrompt.None;
+            _launchFocus = LaunchFocusPlay;
             _launchTarget = null;
             _optiWikiOpen = false;
             _optiWikiScroller = null;
@@ -3303,6 +3312,72 @@ namespace ClawTweaksCenter
             restoreTimer.Start();
         }
 
+        #region The one thing on the launch screen that takes focus
+        private const int LaunchFocusPlay = 0;
+        private const int LaunchFocusAchievements = 1;
+
+        /// <summary>
+        /// Which of the two the A button is currently about.
+        ///
+        /// ⚠️ THIS SCREEN USED TO HAVE NO FOCUS AT ALL, on purpose - it asked one question with two
+        /// answers, and anything the stick could land on turned that into navigation. The
+        /// achievements row is the deliberate exception (user, 2026-09-10): the way into the list had
+        /// to be something you move ONTO, because A and B here already mean Play and Cancel and there
+        /// was no third button left that anyone would find.
+        ///
+        /// It always starts on Play, and every path that opens or re-opens a launch prompt resets it:
+        /// a screen whose default answer depends on what was on it last time is a screen that
+        /// eventually launches a game somebody was only reading about.
+        /// </summary>
+        private int _launchFocus;
+
+        /// <summary>Down and up between Play and the achievements row. Left and right do nothing -
+        /// there is nothing beside either of them, and on a launch screen a stray direction that
+        /// moves the answer is worse than one that is ignored.</summary>
+        private void MoveLaunchSelection(PadButton dir)
+        {
+            if (_launchPrompt != LaunchPrompt.Confirm || !LaunchAchievementsRowLive) return;
+
+            int next = dir == PadButton.Down ? LaunchFocusAchievements
+                     : dir == PadButton.Up ? LaunchFocusPlay
+                     : _launchFocus;
+            if (next == _launchFocus) return;
+
+            _launchFocus = next;
+            ApplyLaunchFocusVisuals();
+            RefreshActionBar();
+        }
+
+        /// <summary>
+        /// Draws the selection border on the achievements row, or takes it off again.
+        ///
+        /// The cover is NOT given a border when Play has the focus. It is the only other thing here,
+        /// it is enormous, and outlining it would read as "this picture is selected" rather than as
+        /// "A starts the game" - which the footer says in words already. The row is the one element
+        /// that needs to say it is reachable, because nothing else about it does.
+        /// </summary>
+        private void ApplyLaunchFocusVisuals()
+        {
+            if (_launchAchRow == null) return;
+            if (!LaunchAchievementsRowLive) { _launchFocus = LaunchFocusPlay; return; }
+
+            _launchAchRow.BorderBrush = _launchFocus == LaunchFocusAchievements
+                ? UiHelpers.Accent
+                : Brushes.Transparent;
+        }
+
+        /// <summary>A on the launch screen, sent wherever the focus is.</summary>
+        private void ActivateLaunchSelection()
+        {
+            if (_launchFocus == LaunchFocusAchievements && LaunchAchievementsRowLive)
+            {
+                OpenAchievements(_launchTarget, true);
+                return;
+            }
+            ConfirmLaunch();
+        }
+        #endregion
+
         /// <summary>
         /// The launch screen: the game's own key art behind it, its cover in front, the question on
         /// top of both.
@@ -3319,6 +3394,7 @@ namespace ClawTweaksCenter
         /// is drawn on an eight-inch handheld and in a desktop window, and a 420 px cover that fits
         /// one of them pushes the question off the other.
         /// </summary>
+
         /// <summary>
         /// X and Y on the launch screen, when the game has anything behind them.
         ///
@@ -3326,6 +3402,12 @@ namespace ClawTweaksCenter
         /// answers, and A/B are those two answers everywhere in Center. Putting focusable buttons
         /// between them would turn a two-press decision into a navigation problem on a device that
         /// navigates with a thumbstick.
+        ///
+        /// ⚠️ NARROWED ON 2026-09-10, not revoked: the achievements row under the cover IS focusable,
+        /// on the user's call. It is one row, it sits BELOW the whole question rather than between
+        /// its two answers, and the focus starts on Play every time - so the two-press decision is
+        /// still two presses for anyone who never touches the stick. That is the bar a second
+        /// focusable element would have to clear as well.
         ///
         /// OptiClick needs BOTH halves to be true: this game has an OptiClick route, and this machine
         /// has OptiClick. Offering it without the second is a button that can only fail.
@@ -3407,8 +3489,21 @@ namespace ClawTweaksCenter
             host.Children.Add(new Rectangle { Fill = LaunchScrimGradient });
 
             // Layer 4 - the content.
+            //
+            // The achievements block is built FIRST, before the cover is sized, because it is the
+            // thing that decides how much height is left. There is no ScrollViewer on this screen -
+            // it asks a question and everything on it has to be visible at once - so a cover taking
+            // its usual 46 % would push the row at the bottom of that block off a short window, and
+            // an unreachable row is worse than a smaller picture.
+            _launchAchRow = null;
+            UIElement achBlock = _launchPrompt == LaunchPrompt.Confirm && game != null
+                ? BuildLaunchAchievementsBlock(game)
+                : null;
+
             double available = LibraryRoot.ActualHeight > 0 ? LibraryRoot.ActualHeight : 700;
-            double coverHeight = Math.Max(200, Math.Min(420, available * 0.46));
+            double coverShare = achBlock != null ? 0.34 : 0.46;
+            double coverCap = achBlock != null ? 320 : 420;
+            double coverHeight = Math.Max(200, Math.Min(coverCap, available * coverShare));
 
             var stack = new StackPanel
             {
@@ -3530,6 +3625,15 @@ namespace ClawTweaksCenter
                 stack.Children.Add(steamNote);
             }
 
+            // Under the cover: how far along, the last two unlocked, and a row into the full list.
+            //
+            // ONLY ON THE CONFIRM SCREEN, which is why it was built conditionally above. On the
+            // install screen the game is not here to have been played, and the running screen is a
+            // state the user passes through - a block with a row nobody is going to navigate to.
+            // Confirm is the one moment somebody is deciding, and the moment "you are three away
+            // from the end" is worth knowing.
+            if (achBlock != null) stack.Children.Add(achBlock);
+
             // Layer 5 - the two profile panels, one either side of the cover.
             //
             // THREE COLUMNS, star / auto / star. The centre column takes exactly the width the cover
@@ -3557,6 +3661,8 @@ namespace ClawTweaksCenter
 
             host.Children.Add(sides);
             LibraryRoot.Children.Add(host);
+
+            ApplyLaunchFocusVisuals();
 
             if (game != null)
             {
@@ -3990,6 +4096,7 @@ namespace ClawTweaksCenter
         private void CancelPendingClose()
         {
             _launchPrompt = LaunchPrompt.None;
+            _launchFocus = LaunchFocusPlay;
             _launchTarget = null;
             _optiWikiOpen = false;
             _optiWikiScroller = null;
@@ -4718,12 +4825,23 @@ namespace ClawTweaksCenter
                 return;
             }
 
+            // ⚠️ BEFORE THE LAUNCH BRANCH, and that ordering is now load-bearing. The achievement
+            // list can be opened FROM the launch screen, which leaves both overlays open at once -
+            // and the launch branch would then label A "Play" over a screen that has no Play on it.
+            // RenderLibrary and MoveLibrarySelection have always asked in this order; this was the
+            // one funnel that asked in the other.
+            if (RefreshGameMenuActionBar()) return;
+
             if (LaunchOverlayOpen)
             {
                 switch (_launchPrompt)
                 {
                     case LaunchPrompt.Confirm:
-                        AddAction(PadButton.A, "Play", true, ConfirmLaunch);
+                        // The label follows the focus, because A does. "Play" over a highlighted
+                        // achievements row would be the footer contradicting the screen.
+                        bool onAch = _launchFocus == LaunchFocusAchievements && LaunchAchievementsRowLive;
+                        AddAction(PadButton.A, onAch ? "All achievements…" : "Play", true,
+                                  ActivateLaunchSelection);
                         AddAction(PadButton.B, "Cancel", true, ClearLaunchOverlay);
                         AddLaunchOptiActions();
                         break;
@@ -4788,7 +4906,6 @@ namespace ClawTweaksCenter
             }
 
             if (RefreshMiscActionBar()) return;
-            if (RefreshGameMenuActionBar()) return;
 
             // "Play" would be a lie in the one tab where nothing can be played.
             bool notInstalled = _libraryGroup == LibraryGroup.NotInstalled;
