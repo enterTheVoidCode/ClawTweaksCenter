@@ -216,10 +216,20 @@ namespace ClawTweaksCenter
                 // compiler between the two halves; a word added here that the other side does not
                 // know is exactly the silent-failure shape this project has already paid for. Home
                 // carries the Onboarding tile, so the degraded answer is still the right screen one
-                // click away - and the case barely arises, because the post-reboot launch has no
-                // running instance to signal in the first place.
+                // click away.
+                //
+                // ⚠️ "The case barely arises" was wrong once Center became a full screen home app.
+                // Measured 2026-09-11: Windows started Center at logon, that instance opened
+                // onboarding and cleared OnboardingPending, and 28 s later the installer's RunOnce
+                // (`--resume-install --onboarding`) arrived here and sent "home" - GoHome() replaced
+                // the onboarding screen it had come to open.
+                //
+                // So "home" goes out only while the flag is STILL set. A cleared flag means the
+                // running instance has already put onboarding on screen (the flag is cleared at
+                // exactly that moment, see CenterMenuWindow), and this launch only has to raise it.
+                bool onboardingNotShownYet = startOnboarding && CenterSettings.OnboardingPending;
                 bool delivered = Core.CenterInstanceSignal.SignalRunningInstance(
-                    startHome || startOnboarding ? Core.CenterInstanceSignal.CommandShowHome :
+                    startHome || onboardingNotShownYet ? Core.CenterInstanceSignal.CommandShowHome :
                     toggleLibrary ? Core.CenterInstanceSignal.CommandToggleLibrary :
                     startLibrary ? Core.CenterInstanceSignal.CommandShowLibrary :
                     Core.CenterInstanceSignal.CommandShow);
