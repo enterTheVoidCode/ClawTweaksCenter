@@ -115,10 +115,23 @@ namespace ClawTweaksCenter.Core
                 // absent value simply leaves MinimumAppVersion null, which the picker reads as "no
                 // floor". That fail-open is the whole safety story for this feature — a typo in the
                 // manifest must never be able to make every build in the list uninstallable.
-                if (Version.TryParse(GetString(root, "minimumClawTweaksVersion") ?? "", out var minApp))
+                //
+                // TWO KEYS, ONE PER CENTER GENERATION. Centers before 0.2.39 know only
+                // minimumClawTweaksVersion, and during the move to the Inno setup that key is raised
+                // ABOVE the transition release so old Centers cannot install it. This Center reads
+                // the ...V2 pair instead, so the same manifest can lock the old generation out while
+                // leaving this one alone. When the V2 key is present it wins outright - even when it
+                // does not parse, which then means "no floor" rather than falling back to the old
+                // key, because the old key is exactly the value that would block everything here.
+                // Without a V2 key the old one applies, so a manifest that never adopts V2 keeps its
+                // previous meaning.
+                bool haveV2 = root.TryGetProperty("minimumClawTweaksVersionV2", out _);
+                string minAppKey = haveV2 ? "minimumClawTweaksVersionV2" : "minimumClawTweaksVersion";
+                string msgKey = haveV2 ? "clawTweaksVersionMessageV2" : "clawTweaksVersionMessage";
+                if (Version.TryParse(GetString(root, minAppKey) ?? "", out var minApp))
                 {
                     result.MinimumAppVersion = minApp;
-                    result.AppVersionMessage = GetString(root, "clawTweaksVersionMessage")
+                    result.AppVersionMessage = GetString(root, msgKey)
                         ?? $"Outdated version — install {minApp} or newer";
                 }
 

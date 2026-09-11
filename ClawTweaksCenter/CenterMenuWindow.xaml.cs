@@ -1075,6 +1075,9 @@ namespace ClawTweaksCenter
         private BuildSource FindNewestGithubUpdate()
         {
             if (_installedVersion == null) return null;
+            // No banner while downloads are locked (see RenderSetupRequired): it would lead straight
+            // to the setup screen instead of the build it names.
+            if (!HelperControl.HelperRunning()) return null;
 
             BuildSource best = null; Version bestVer = null;
             foreach (var b in (_releases ?? Enumerable.Empty<BuildSource>()).Concat(_testBuilds ?? Enumerable.Empty<BuildSource>()))
@@ -1524,6 +1527,8 @@ namespace ClawTweaksCenter
         #region Build list rendering + grid navigation
         private void RenderBrowse()
         {
+            if (!HelperControl.HelperRunning()) { RenderSetupRequired(); return; }
+
             BeginContent(centred: false);
             _rowElements.Clear();
             // "Release" and "build" are developer words. The three channels are named for what
@@ -1535,6 +1540,43 @@ namespace ClawTweaksCenter
                        UiHelpers.Warn, _testBuilds, _testBuildsError);
             AddSection("Experimental versions (nightly)", "The newest changes, least tested",
                        UiHelpers.Error, _nightlies, _nightliesError);
+        }
+
+        /// <summary>
+        /// Takes Browse's place while the helper is not running: no build list, only the way to the
+        /// Inno setup.
+        ///
+        /// WHY THE HELPER AND NOT THE CERTIFICATE. Center downloads nothing but the widget .msix now
+        /// (see BuildDownloader), and Windows installs that only on a machine that trusts our
+        /// certificate. A running helper proves a complete install - package, certificate, scheduled
+        /// task - so it answers the certificate question without Center reading the machine store.
+        /// A Center installed without the setup (no certificate, no helper) lands here on its own.
+        /// (Doku/PLAN_User_Version_Transition_Velopack.md §7.4 in the app repo.)
+        ///
+        /// A PROCESS CHECK, not the pipe. A helper that runs but has not given Center its pipe slot yet
+        /// still proves the install; the pipe only matters for the install hand-off afterwards.
+        ///
+        /// The link is the app repo's releases page, never the manifest's latestSetupPage: that field
+        /// is what old Centers follow, and it may point elsewhere during the transition. The setup
+        /// always lives on the app repo.
+        /// </summary>
+        private void RenderSetupRequired()
+        {
+            BeginContent(centred: false);
+            _rowElements.Clear();
+            ContentHost.Children.Add(UiHelpers.Title("ClawTweaks is not running"));
+            ContentHost.Children.Add(UiHelpers.Body("Install ClawTweaks with the Setup to get versions here."));
+
+            var open = new Button
+            {
+                Content = Core.Loc.T("Get the Setup"),
+                Style = (Style)Application.Current.Resources["SetupButton"],
+                MinWidth = 250,
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Margin = new Thickness(0, 14, 0, 0),
+            };
+            open.Click += (_, __) => PrerequisiteGuide.OpenPage(Core.SetupVersionCheck.ReleasesPageUrl);
+            ContentHost.Children.Add(open);
         }
 
         /// <summary>
@@ -2133,6 +2175,18 @@ namespace ClawTweaksCenter
                 return;
             }
 
+            // Downloads locked (see RenderSetupRequired): Ⓐ is the screen's one button, so the setup
+            // link is reachable from the pad, and Ⓨ lets someone who just started the helper get back
+            // to the list without leaving the screen.
+            if (!HelperControl.HelperRunning())
+            {
+                AddAction(PadButton.A, "Get the Setup", true,
+                    () => PrerequisiteGuide.OpenPage(Core.SetupVersionCheck.ReleasesPageUrl));
+                AddAction(PadButton.Y, "Refresh", true, () => _ = RefreshSourcesAsync());
+                AddAction(PadButton.B, "Back", true, GoHome);
+                return;
+            }
+
             AddAction(PadButton.A, "Install this version", _flat.Count > 0, () =>
             {
                 if (_selectedIndex >= 0 && _selectedIndex < _flat.Count) ShowConfirm(_flat[_selectedIndex]);
@@ -2204,6 +2258,9 @@ namespace ClawTweaksCenter
         private void ShowConfirm(BuildSource build)
         {
             if (_busy || build == null) return;
+            // Same gate as Browse (see RenderSetupRequired): a list fetched while the helper ran must
+            // not stay installable after it stopped.
+            if (!HelperControl.HelperRunning()) { RenderCurrentView(); RefreshActionBar(); return; }
             _pendingBuild = build;
             _confirming = true;
 
@@ -2811,9 +2868,9 @@ namespace ClawTweaksCenter
 
             try
             {
-                // Re-check from a hand-off screen: the bytes are already unpacked on disk. Re-downloading
-                // them would be pure waste and is what the first version did — the user installs one
-                // driver, presses re-check, and sits through the whole ZIP again.
+                // Re-check from a hand-off screen: the package is already on disk. Re-downloading it
+                // would be pure waste and is what the first version did — the user installs one
+                // driver, presses re-check, and sits through the whole download again.
                 bool haveStaged = reuseStaged
                     && _stagedRoot != null
                     && ReferenceEquals(_stagedBuild, build)
@@ -2826,8 +2883,9 @@ namespace ClawTweaksCenter
                 }
                 else
                 {
-                    bool certTrusted = await Task.Run(() => CertInstaller.IsKnownCertAlreadyTrusted());
-                    string staged = await BuildDownloader.DownloadAndStageAsync(build, certTrusted, Log, progress);
+                    // No certificate check first: only the .msix is ever downloaded, and this screen is
+                    // only reachable while the helper runs, which proves the certificate is trusted.
+                    string staged = await BuildDownloader.DownloadAndStageAsync(build, Log, progress);
                     SetupContext.AssetRoot = staged;
                     _stagedRoot = staged;
                     _stagedBuild = build;

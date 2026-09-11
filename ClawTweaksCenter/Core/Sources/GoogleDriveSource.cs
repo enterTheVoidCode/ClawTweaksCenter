@@ -11,8 +11,12 @@ namespace ClawTweaksCenter.Core.Sources
     /// <summary>
     /// Lists the last few nightlies from the shared "Nightlys" Google Drive folder (public,
     /// "anyone with the link") via the Drive API v3, using an API key — no OAuth/login needed since
-    /// the folder is publicly readable. Only full installer ZIPs are uploaded there (no separate
-    /// msix), so every nightly always goes through <see cref="BuildDownloader"/>'s full-zip path.
+    /// the folder is publicly readable.
+    ///
+    /// Only widget packages named XboxGamingBarPackage_&lt;ver&gt;_x64.msix are listed. The installer
+    /// ZIPs older nightlies were uploaded as are no longer recognised: this Center installs only an
+    /// MSIX, and only while the helper runs (which proves the certificate is trusted), so a ZIP has
+    /// nothing left to offer here.
     /// </summary>
     public static class GoogleDriveSource
     {
@@ -40,7 +44,7 @@ namespace ClawTweaksCenter.Core.Sources
         // Expect GitHub secret scanning to flag this line. That alert is anticipated.
         private const string ApiKey = "AIzaSyCnOwAdpy8Z3CFkCp0nNz2SovHyuBPFD2o";
 
-        private static readonly Regex VersionRegex = new Regex(@"ClawTweaks_([\d.]+)_Installer\.zip", RegexOptions.IgnoreCase);
+        private static readonly Regex VersionRegex = new Regex(@"^XboxGamingBarPackage_([\d.]+)_x64\.msix$", RegexOptions.IgnoreCase);
 
         public static async Task<List<BuildSource>> FetchAsync()
         {
@@ -68,25 +72,25 @@ namespace ClawTweaksCenter.Core.Sources
                 string id = f.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
                 string name = f.TryGetProperty("name", out var nameEl) ? nameEl.GetString() : null;
                 if (id == null || name == null) continue;
-                if (!name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase)) continue;
+
+                // The name IS the filter: anything that is not a widget package - an old installer
+                // ZIP, a stray upload - is not a nightly this Center can install.
+                var m = VersionRegex.Match(name);
+                if (!m.Success) continue;
 
                 DateTime when = f.TryGetProperty("modifiedTime", out var mt) && DateTime.TryParse(mt.GetString(), out var d)
                     ? d : DateTime.MinValue;
                 long? size = f.TryGetProperty("size", out var sz) && sz.ValueKind == JsonValueKind.String &&
                              long.TryParse(sz.GetString(), out var sizeVal) ? sizeVal : (long?)null;
 
-                var m = VersionRegex.Match(name);
-                string version = m.Success ? m.Groups[1].Value : name;
-
                 result.Add(new BuildSource
                 {
                     Origin = "Nightly",
-                    Version = version,
+                    Version = m.Groups[1].Value,
                     Title = name,
                     When = when,
                     SizeBytes = size,
-                    ZipUrl = $"https://www.googleapis.com/drive/v3/files/{id}?alt=media&key={apiKey}",
-                    MsixUrl = null,
+                    MsixUrl = $"https://www.googleapis.com/drive/v3/files/{id}?alt=media&key={apiKey}",
                 });
             }
 

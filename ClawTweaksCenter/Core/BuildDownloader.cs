@@ -8,10 +8,8 @@ using ClawTweaksCenter.Core.Sources;
 namespace ClawTweaksCenter.Core
 {
     /// <summary>
-    /// Downloads a <see cref="BuildSource"/> picked in the Center menu and stages it into a folder
-    /// that <see cref="PackageInstaller"/>/<see cref="CertInstaller"/> can treat as
-    /// <see cref="SetupContext.AssetRoot"/> — either just the .msix (cert already trusted) or the
-    /// full installer ZIP, extracted flat (matches how Build-Setup.ps1 zips the release folder).
+    /// Downloads a <see cref="BuildSource"/> picked in the Center menu and stages its .msix into a
+    /// folder that <see cref="PackageInstaller"/> can treat as <see cref="SetupContext.AssetRoot"/>.
     /// </summary>
     public static class BuildDownloader
     {
@@ -63,43 +61,31 @@ namespace ClawTweaksCenter.Core
             }
         }
 
+        /// <summary>
+        /// Downloads the build's .msix and nothing else.
+        ///
+        /// There is no installer-ZIP path any more, deleted rather than kept as a fallback: the ZIP
+        /// carried the certificate and Install.ps1 for a machine that had neither, and that machine now
+        /// gets the Inno setup instead. Center only offers a download while the helper runs, and a
+        /// running helper proves a complete install - certificate included - so the package is all
+        /// that is ever needed here.
+        /// </summary>
         public static async Task<string> DownloadAndStageAsync(
-            BuildSource source, bool certAlreadyTrusted, Action<string> log = null, IProgress<int> progress = null)
+            BuildSource source, Action<string> log = null, IProgress<int> progress = null)
         {
+            if (string.IsNullOrEmpty(source.MsixUrl))
+                throw new IOException("This version has no package to download.");
+
             string safeVersion = string.Join("_", source.Version.Split(Path.GetInvalidFileNameChars()));
             string dir = Path.Combine(StagingRoot, safeVersion);
             if (Directory.Exists(dir)) Directory.Delete(dir, true);
             Directory.CreateDirectory(dir);
 
-            bool msixOnly = certAlreadyTrusted && source.MsixUrl != null;
-
-            if (msixOnly)
-            {
-                log?.Invoke($"Cert already trusted — downloading just the .msix ({source.Version})…");
-                string msixPath = Path.Combine(dir, "package.msix");
-                await DownloadFileAsync(source.MsixUrl, msixPath, progress);
-                log?.Invoke("Download complete.");
-                VerifyStagedPackage(dir, log);
-                return dir;
-            }
-
-            log?.Invoke($"Downloading installer ({source.Version})…");
-            string zipPath = Path.Combine(dir, "installer.zip");
-            await DownloadFileAsync(source.ZipUrl, zipPath, progress);
-            log?.Invoke("Extracting…");
-            try
-            {
-                ZipFile.ExtractToDirectory(zipPath, dir, overwriteFiles: true);
-            }
-            catch (InvalidDataException)
-            {
-                // A truncated archive normally trips here, because a ZIP's central directory sits at
-                // the very end of the file.
-                throw new IOException("The downloaded installer archive is damaged. " + IncompleteDownloadHint);
-            }
-            try { File.Delete(zipPath); } catch { }
+            log?.Invoke($"Downloading the package ({source.Version})…");
+            string msixPath = Path.Combine(dir, "package.msix");
+            await DownloadFileAsync(source.MsixUrl, msixPath, progress);
+            log?.Invoke("Download complete.");
             VerifyStagedPackage(dir, log);
-            log?.Invoke("Ready.");
             return dir;
         }
 
