@@ -427,6 +427,31 @@ off the refresh thread first.
 once left the art picker showing a grid of grey tiles. Every row draws a card behind the icon, so
 offline costs a picture and never a line of text.
 
+## Steam friends (2026-09-11)
+
+**Written up in `Doku/STEAM_Friends.md`.** The three things that break by accident:
+
+WARNING: **No app id, ever.** The friend list is read from `steamclient64.dll` in Steam's folder with
+no `SteamAppId` and no `steam_appid.txt`. With an app id Steam shows the user "playing" something to
+every friend for as long as Center runs. Without one the status stays "Online" (measured on the
+device, desktop client and phone app).
+
+WARNING: **The read is a child process (`--steam-friends`), never in Center itself.** Loaded into
+Center the DLL would stay locked for days and a moved vtable slot would crash Center. The argument is
+handled FIRST in `Program.Main`; anything added above it runs in every friends refresh.
+
+WARNING: **Center has its own `Main` because of this.** A `SplashScreen` build item makes WPF's
+generated entry point show the splash before our code sees the arguments - every refresh flashed it
+over the library. The splash is a plain Resource shown by `Program.Main`; do not turn it back.
+
+**The activity feed is Steam's own cache** - `userdata\<id>\config\librarycache\0.json`, protobuf
+entries in `usernews`. It is refreshed by Steam, not by us, and the refresh cadence is unmeasured:
+never present its newest entry as "now". Type numbers are Steam's `EUserNewsType` from `steamui\`.
+
+**RT opens the friends list on every shelf except ROMs and Misc.** ROMs keeps its systems on the
+triggers. The corner chip and the RT binding read the same `LibraryTabOffersFriends`; keep them one
+test.
+
 ## The FAQ, and the two rules its entries have to keep
 
 `CenterMenuWindow.Faq.cs`. Eight questions, collapsed until pressed, one statement per line. The

@@ -202,8 +202,9 @@ namespace ClawTweaksCenter.Library
             catch { return null; }
         }
 
-        /// <summary>The active account's localconfig.vdf.</summary>
-        private static string LocalConfigPath()
+        /// <summary>The active account's localconfig.vdf. Internal because SteamFriends reads the
+        /// avatar hashes from the same file, for the same account.</summary>
+        internal static string LocalConfigPath()
         {
             string steam = SteamSource.SteamPath();
             string id = ActiveAccountId();

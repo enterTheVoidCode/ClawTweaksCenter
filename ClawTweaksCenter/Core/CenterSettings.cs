@@ -277,12 +277,6 @@ namespace ClawTweaksCenter.Core
             set => WriteString("LibraryTabs", value ?? string.Empty);
         }
 
-        public static bool LibraryInfoSeen
-        {
-            get => ReadBool("LibraryInfoSeen", false);
-            set => WriteBool("LibraryInfoSeen", value);
-        }
-
         /// <summary>
         /// Start Steam, silently, when the library opens.
         ///

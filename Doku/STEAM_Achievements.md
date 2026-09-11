@@ -176,6 +176,11 @@ existing list, not new plumbing.
 
 ## 7. Friends and presence — measured, and it is not on disk
 
+> **BUILT 2026-09-11, see `Doku/STEAM_Friends.md`.** Neither route below: Center talks to
+> `steamclient64.dll` from Steam's own folder, **without an app id**, in a short child process. Measured
+> on the device: the user's status stays "Online" - the "playing" problem described below comes from
+> `SteamAPI_Init`'s app id, not from the client interface. What follows is the state before that.
+
 Asked for at the same time; **not built**, because the data is not there.
 
 `localconfig.vdf` holds a `friends` block: 79 friends with name, name history and avatar hash. That

@@ -70,6 +70,36 @@ namespace ClawTweaksCenter.Library
             return result;
         }
 
+        /// <summary>
+        /// Names for arbitrary appids, owned or not, read from the same appinfo cache.
+        ///
+        /// For the friends list: what a friend is playing arrives as a bare appid, and it is often a
+        /// game this account does not own. Steam's cache holds far more apps than the account owns,
+        /// so most of those still resolve. Not limited to type "game" - a friend in Wallpaper Engine
+        /// is in an application, and naming it is better than a number.
+        /// </summary>
+        public static Dictionary<int, string> NamesFor(IEnumerable<int> appIds)
+        {
+            var names = new Dictionary<int, string>();
+            try
+            {
+                var wanted = new HashSet<int>(appIds);
+                if (wanted.Count == 0) return names;
+
+                string steam = SteamSource.SteamPath();
+                if (steam == null) return names;
+
+                var found = new Dictionary<int, OwnedGame>();
+                ReadNames(Path.Combine(steam, "appcache", "appinfo.vdf"), wanted, found, gamesOnly: false);
+                foreach (var kv in found) names[kv.Key] = kv.Value.Name;
+            }
+            catch (Exception ex)
+            {
+                Core.InstallLog.Write("Steam app names read failed: " + ex.Message);
+            }
+            return names;
+        }
+
         // ── packageinfo.vdf ──────────────────────────────────────────────────────────────────────
 
         /// <summary>
@@ -128,7 +158,7 @@ namespace ClawTweaksCenter.Library
         /// index in its place, which is why the table has to be read first and why a v28 reader
         /// produces nonsense rather than an error on a v29 file.
         /// </summary>
-        private static void ReadNames(string path, HashSet<int> wanted, Dictionary<int, OwnedGame> into)
+        private static void ReadNames(string path, HashSet<int> wanted, Dictionary<int, OwnedGame> into, bool gamesOnly = true)
         {
             if (!File.Exists(path)) return;
 
@@ -190,7 +220,7 @@ namespace ClawTweaksCenter.Library
 
                     // GAMES ONLY. The same list carries demos, soundtracks, dedicated servers, tools
                     // and every redistributable Valve ships - roughly 1200 of the 2065 entries here.
-                    if (!string.Equals(type, "game", StringComparison.OrdinalIgnoreCase)) continue;
+                    if (gamesOnly && !string.Equals(type, "game", StringComparison.OrdinalIgnoreCase)) continue;
 
                     into[appId] = new OwnedGame { AppId = appId, Name = name };
                 }

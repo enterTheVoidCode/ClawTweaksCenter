@@ -26,7 +26,9 @@
          else ("it must be a 3-part SemVer2 compliant version string"), measured 2026-09-03. It has to
          stay in step with the packVersion the feed is built with, or Center shows the user one
          number while deciding on another. -->
-    <Version>0.2.41</Version>
+    <Version>0.2.45</Version>
+    <!-- Our own Main (Program.cs), not the one generated from App.xaml - see the splash note below. -->
+    <StartupObject>ClawTweaksCenter.Program</StartupObject>
     <!-- Distributed filename carries the version + "Setup" suffix (e.g. CTW_Center_0.1.0.2_Setup.exe)
          so a user can tell builds apart in their Downloads folder. This is ONLY the distributed
          filename — the INSTALLED copy in Program Files always keeps the fixed name
@@ -101,10 +103,14 @@
     <Resource Include="Assets\branding\ctw-handheld-16-10.png" />
     <!-- Loading spinner GIF — replaces the pulsing "…" Working badge everywhere it's used. -->
     <Resource Include="Assets\branding\loading-spinner.gif" />
-    <!-- Startup splash. The SplashScreen build action is what makes this EARLY: the generated entry
-         point shows the image before the App instance exists, so it appears while App.xaml's resource
-         dictionary is still being parsed and every window is still unbuilt. Showing a window of our
-         own instead would arrive far too late to be worth having.
+    <!-- Startup splash. Shown by Program.Main before the App instance exists, so it appears while
+         App.xaml's resource dictionary is still being parsed and every window is still unbuilt.
+         Showing a window of our own instead would arrive far too late to be worth having.
+
+         A plain Resource, NOT a SplashScreen build item (since 2026-09-11): that build item makes the
+         GENERATED entry point show the splash before any of our code can look at the arguments, and
+         the Steam friends reader starts a copy of Center every half minute - each one flashed the
+         splash over the library. See Program.cs.
 
          Measured on the dev machine (time from process start to the main window being visible):
          ~1.2 s warm, ~2.6 s on the first run after an update. Without this the user sees nothing at
@@ -113,7 +119,7 @@
 
          It closes itself once the first window appears — nothing to dispose, and nothing to do on the
          uninstall-callback path either, where no window ever opens and the process exits immediately. -->
-    <SplashScreen Include="Assets\branding\splash.png" />
+    <Resource Include="Assets\branding\splash.png" />
   </ItemGroup>
 
   <ItemGroup>

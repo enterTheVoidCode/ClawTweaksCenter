@@ -172,8 +172,8 @@ namespace ClawTweaksCenter
         /// accident - one stray press threw away the tab, the scroll position and the covers already
         /// decoded. The three answers here are the three things B could reasonably have meant.
         /// </summary>
-        /// <summary>The library's own info screen. Opened only by the user, from the info chip in the
-        /// tab strip - which pulses until they have done so once (CenterSettings.LibraryInfoSeen).</summary>
+        /// <summary>The library's own info screen. Opened only by the user, with X - the footer names
+        /// it on every shelf.</summary>
         private bool _infoOpen;
 
         private const string SteamGridDbUrl = "https://www.steamgriddb.com/";
@@ -230,7 +230,7 @@ namespace ClawTweaksCenter
 
         /// <summary>True while one of the launch screens is up. Everything that navigates the grid
         /// checks this - the launch screens own the whole library area while they are on it.</summary>
-        private bool LaunchOverlayOpen => _launchPrompt != LaunchPrompt.None || _exitPromptOpen || _infoOpen;
+        private bool LaunchOverlayOpen => _launchPrompt != LaunchPrompt.None || _exitPromptOpen || _infoOpen || _friendsOpen;
 
         // The background watcher for "restore Center once this game ends" (see GameRunTracker /
         // StartTrackingForRestore). Held so a second launch can cancel a stale watch instead of
@@ -320,13 +320,11 @@ namespace ClawTweaksCenter
                 // the row, which is a fixed place, while RB marks its end, which is not.
                 chips.Children.Add(BuildKeyCap("RB"));
 
-                // ONLY the info button docks here now. The right-stick readout used to sit beside
-                // it and has moved down to the selected-title row - see BuildSelectedTitle. Two
-                // things pushed it: the tabs are the row that grows (Favorites and Other Stores both
-                // appear when earned), and the readout is about the GAMES, which is what the row
-                // below it is about.
-                var rightEnd = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-                rightEnd.Children.Add(BuildInfoButton());
+                // The Steam friends count docks here (CenterMenuWindow.Friends.cs).
+                // The info button that used to sit here is gone (user, 2026-09-11): X opens the info
+                // on every shelf and the footer already says so. The right-stick readout moved down to
+                // the selected-title row earlier - see BuildSelectedTitle.
+                var rightEnd = BuildLibraryCorner();
 
                 _tabScroller = BuildEdgeFadedStrip(chips);
                 FillDock(TabStripPanel, BuildLibraryBrandAndLb(), rightEnd, _tabScroller);
@@ -456,96 +454,6 @@ namespace ClawTweaksCenter
             };
             if (onClick != null) border.MouseLeftButtonUp += (_, __) => onClick();
             return border;
-        }
-
-        /// <summary>
-        /// The info button: the X key cap and the info glyph inside ONE frame.
-        ///
-        /// Two separate outlines side by side read as two controls, and only one of them was
-        /// clickable - so the pair had to become a single object with a single border. It is also
-        /// what makes the promise legible: the button and the key that presses it are one thing.
-        ///
-        /// The divider between them is a hairline rather than a gap, because a gap inside a frame is
-        /// how two things end up looking like two things again.
-        /// </summary>
-        private UIElement BuildInfoButton()
-        {
-            // Never opened: the chip is accented and breathes, so it reads as "there is
-            // something here" instead of sitting in the same grey as every other hint in the
-            // strip. Once opened it drops back to grey for good - an attention cue that never
-            // stops is one the user learns to ignore.
-            bool unseen = !Core.CenterSettings.LibraryInfoSeen;
-            Brush ink = unseen ? UiHelpers.Accent : UiHelpers.Subtle;
-
-            var row = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            row.Children.Add(new TextBlock
-            {
-                Text = "X",
-                FontSize = 11,
-                FontWeight = FontWeights.Bold,
-                Foreground = ink,
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-            row.Children.Add(new Border
-            {
-                Width = 1,
-                Height = 12,
-                Background = ink,
-                Opacity = 0.4,
-                Margin = new Thickness(7, 0, 7, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-            row.Children.Add(new TextBlock
-            {
-                Text = "\uE946",
-                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
-                FontSize = 14,
-                Foreground = ink,
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-
-            var button = new Border
-            {
-                Child = row,
-                Background = UiHelpers.Card,
-                BorderBrush = ink,
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(11),
-                Padding = new Thickness(8, 2, 8, 2),
-                Margin = new Thickness(14, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                ToolTip = "About this library",
-            };
-            button.MouseLeftButtonUp += (_, __) => OpenLibraryInfo();
-
-            if (unseen) StartInfoPulse(button);
-            return button;
-        }
-
-        /// <summary>
-        /// The slow opacity pulse on the unseen info chip.
-        ///
-        /// Started on the element itself rather than through a Storyboard resource: the chip is
-        /// built fresh on every tab-strip refresh, and an animation attached to a throwaway element
-        /// dies with it. Nothing has to stop it - opening the info flips the flag, and the next
-        /// refresh builds a grey chip with no animation on it at all.
-        /// </summary>
-        private static void StartInfoPulse(UIElement target)
-        {
-            var pulse = new System.Windows.Media.Animation.DoubleAnimation
-            {
-                From = 1.0,
-                To = 0.45,
-                Duration = new Duration(TimeSpan.FromMilliseconds(900)),
-                AutoReverse = true,
-                RepeatBehavior = System.Windows.Media.Animation.RepeatBehavior.Forever,
-            };
-            target.BeginAnimation(UIElement.OpacityProperty, pulse);
         }
 
         /// <summary>
@@ -832,6 +740,7 @@ namespace ClawTweaksCenter
             RefreshActionBar();
             RefreshLibrarySilently();
             if (Core.CenterSettings.StartSteamWithLibrary) PrewarmSteamInBackground();
+            StartFriendsPolling();
 
             // Straight into the immersive look, no two-second grace: the footer is meant to be gone
             // in this mode, and showing it for two seconds on every entry is the flicker the mode is
@@ -867,6 +776,10 @@ namespace ClawTweaksCenter
         /// GoHome - the library is a tab, not a window, so leaving it is a visibility change.</summary>
         private void LeaveLibrary()
         {
+            StopFriendsPolling();
+            if (_friendsOpen) ClearFriendsColumns();
+            _friendsOpen = false;
+            _friendRows.Clear();
             StopImmersive();
             CancelPendingClose();
             if (LibraryRoot != null) LibraryRoot.Visibility = Visibility.Collapsed;
@@ -988,6 +901,7 @@ namespace ClawTweaksCenter
             // the user.
             if (MiscOverlayOpen) { RenderMiscOverlay(); return; }
             if (GameMenuOverlayOpen) { RenderGameMenuOverlay(); return; }
+            if (_friendsOpen) { RenderFriends(); return; }
 
             _liveRows.Clear();
             LibraryRoot.Children.Clear();
@@ -1663,6 +1577,8 @@ namespace ClawTweaksCenter
             // Before the empty-grid check below, not after: the exit prompt is reachable from an
             // empty tab too, and a menu whose cursor cannot move is a menu with one usable answer.
             if (_exitPromptOpen) { MoveExitPromptSelection(dir); return; }
+            // Before the empty-grid check too: the friends list has nothing to do with the games.
+            if (_friendsOpen) { MoveFriendSelection(dir); return; }
             if (_libraryGames.Count == 0) return;
             // A launch screen owns the library - and since 2026-09-10 it has one row of its own to
             // move between, so this hands over rather than swallowing the press.
@@ -1803,6 +1719,10 @@ namespace ClawTweaksCenter
             RenderLibrary();
             RefreshTabStrip();
             RefreshActionBar();
+
+            // The library may have opened on the ROM tab, where the friends poll does not run - so the
+            // first store tab would otherwise wait a full interval for its count.
+            if (_friends == null && LibraryTabOffersFriends) RequestFriends();
         }
 
         private void CycleLibraryGroup(int delta)
@@ -4110,9 +4030,10 @@ namespace ClawTweaksCenter
             if (_launchPrompt != LaunchPrompt.None || _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen) return;
             if (_infoOpen) return;
 
+            if (_friendsOpen) return;
+
             _exitPromptOpen = false;
             _infoOpen = true;
-            Core.CenterSettings.LibraryInfoSeen = true;
             RenderLibraryInfo();
             RefreshActionBar();
         }
@@ -4121,18 +4042,13 @@ namespace ClawTweaksCenter
         {
             _infoOpen = false;
             RenderLibrary();
-            // Rebuilds the info chip, which is how the pulse and the accent go away: opening the info
-            // set LibraryInfoSeen, but nothing on screen has re-read it yet.
             RefreshTabStrip();
             RefreshActionBar();
         }
 
-        // The info page used to open ITSELF on the first library visit. It does not any more: the
-        // first thing someone wants from a library is to see their games, not a page of text in front
-        // of them. What replaced it is the info chip in the tab strip - accented and pulsing until it
-        // has been opened once (see BuildInfoButton). Do not put the auto-open back without also
-        // removing the pulse; the flag they both hang off is the same one, so together they cancel
-        // each other out - the auto-open marks the page seen before the pulse is ever visible.
+        // The info page used to open ITSELF on the first library visit, and later a pulsing info chip
+        // in the tab strip pointed at it. Both are gone: the first thing someone wants from a library
+        // is their games, and X names the info in the footer of every shelf (user, 2026-09-11).
 
         private void RenderLibraryInfo()
         {
@@ -4829,6 +4745,12 @@ namespace ClawTweaksCenter
                 return;
             }
 
+            if (_friendsOpen)
+            {
+                AddFriendsActions();
+                return;
+            }
+
             if (_exitPromptOpen)
             {
                 string confirmLabel = _exitPromptColumn == ExitPromptColumnTray ? "Open"
@@ -4994,6 +4916,13 @@ namespace ClawTweaksCenter
             {
                 _liveActions[PadButton.LT] = () => CycleRomSystem(-1);
                 _liveActions[PadButton.RT] = () => CycleRomSystem(1);
+            }
+            else if (LibraryTabOffersFriends)
+            {
+                // Everywhere else RT opens the Steam friends list. Same form as the ROM systems above -
+                // labelled in the strip it belongs to, no footer chip - and bound only while the list
+                // can be read, matching whether its chip is drawn. LT is free here.
+                if (FriendsReadable) _liveActions[PadButton.RT] = OpenFriends;
             }
         }
         #endregion
