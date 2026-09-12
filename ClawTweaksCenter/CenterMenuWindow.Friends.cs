@@ -79,9 +79,16 @@ namespace ClawTweaksCenter
         private readonly List<Border> _feedRows = new List<Border>();
         private int _feedIndex;
 
-        /// <summary>The corner chip belongs on this tab.</summary>
+        /// <summary>
+        /// The corner chip belongs on this tab.
+        ///
+        /// Out of All and Not Installed as well since 2026-09-12 (user): those two are the long
+        /// shelves, the letter bar lives in their corner, and friends are what somebody looks for in
+        /// Recent and the store tabs. Two things cannot own one corner.
+        /// </summary>
         private bool LibraryTabOffersFriends =>
-            _libraryGroup != LibraryGroup.Roms && _libraryGroup != LibraryGroup.Misc;
+            _libraryGroup != LibraryGroup.Roms && _libraryGroup != LibraryGroup.Misc &&
+            _libraryGroup != LibraryGroup.All && _libraryGroup != LibraryGroup.NotInstalled;
 
         /// <summary>There is a list to show. An empty answer is NOT readable: see FriendsLoadingInterval.</summary>
         private bool FriendsReadable => _friends != null && _friends.Available && _friends.Friends.Count > 0;
@@ -184,6 +191,14 @@ namespace ClawTweaksCenter
         private UIElement BuildLibraryCorner()
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+
+            // THE LETTER BAR WINS THE CORNER. The two tabs it works in are All and Not Installed, and
+            // the friends chip is not offered on either - they are the shelves nobody browses to see
+            // who is online. So the two never actually compete; this order is what makes that a rule
+            // rather than a coincidence.
+            var letters = BuildLetterCorner();
+            if (letters != null) { row.Children.Add(letters); return row; }
+
             if (!LibraryTabOffersFriends) return row;
 
             if (FriendsReadable)

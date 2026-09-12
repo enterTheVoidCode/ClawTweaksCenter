@@ -77,6 +77,15 @@ namespace ClawTweaksCenter.Library
         public PlayHistory History { get; private set; } = new PlayHistory();
 
         /// <summary>
+        /// Whether the owned-but-not-installed games have been read yet.
+        ///
+        /// They are NOT part of a scan (user, 2026-09-12): 840 entries here, 294 ms of cache parsing
+        /// and the same number of covers through the warm-up, for one tab. False after every scan,
+        /// so a rescan drops them and the next visit to the tab reads them fresh.
+        /// </summary>
+        public bool NotInstalledLoaded { get; private set; }
+
+        /// <summary>
         /// Misc entries added or edited WHILE a scan is still landing.
         ///
         /// MiscSource takes its own snapshot of the file once, at the moment ScanAsync builds the
@@ -117,6 +126,10 @@ namespace ClawTweaksCenter.Library
             var all = new List<GameEntry>();
             var history = PlayHistory.Load();
             _miscOverride = null;
+            // A scan rebuilds Games from the sources, and the owned list is not one of them - so
+            // whatever was loaded before this scan is gone, and saying so is what makes the tab
+            // fetch it again instead of showing an empty shelf.
+            NotInstalledLoaded = false;
 
             var pending = sources.Select(async s =>
             {
@@ -314,6 +327,34 @@ namespace ClawTweaksCenter.Library
         public static bool IsOtherStore(GameStore store) =>
             store == GameStore.Ubisoft || store == GameStore.EA ||
             store == GameStore.BattleNet || store == GameStore.Gog;
+
+        /// <summary>
+        /// Reads the owned-but-not-installed games and adds them to the library. Once per scan; a
+        /// second call is free.
+        ///
+        /// Returns whether anything changed, so the caller only repaints when it did.
+        /// </summary>
+        public async Task<bool> LoadNotInstalledAsync(CancellationToken ct)
+        {
+            if (NotInstalledLoaded) return false;
+
+            var installed = Games;
+            var owned = await Task.Run(
+                () => SteamSource.ScanOwnedNotInstalled(installed, ct), ct).ConfigureAwait(false);
+
+            // Against the list we HANDED IN, not against the one that is there now: a rescan may have
+            // landed while the cache was being parsed, and merging into a library that has been
+            // rebuilt underneath us would put back entries it just dropped.
+            if (!ReferenceEquals(installed, Games)) return false;
+
+            NotInstalledLoaded = true;
+            if (owned.Count == 0) return false;
+
+            var merged = new List<GameEntry>(Games);
+            merged.AddRange(owned);
+            Games = merged;
+            return true;
+        }
 
         public IReadOnlyList<GameEntry> ForGroup(LibraryGroup group) => ForGroup(group, null);
 

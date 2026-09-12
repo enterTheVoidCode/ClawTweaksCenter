@@ -62,8 +62,19 @@ namespace ClawTweaksCenter
         private bool HasOtherStoreGames =>
             _libraryScanned && _library.ForGroup(LibraryGroup.OtherStores).Count > 0;
 
+        /// <summary>
+        /// Whether the Not Installed tab has anything behind it.
+        ///
+        /// Before the list is READ this cannot be counted, and counting it is exactly what was moved
+        /// off the startup path. So until then the question is the cheap one - is Steam on this
+        /// machine at all - the same shape as the ROM tab, which asks whether Playnite is installed
+        /// rather than how many ROMs it holds. A tab that hid itself until it was loaded could never
+        /// be opened, and opening it is what loads it.
+        /// </summary>
         private bool HasNotInstalledGames =>
-            _libraryScanned && _library.ForGroup(LibraryGroup.NotInstalled).Count > 0;
+            _libraryScanned && (_library.NotInstalledLoaded
+                ? _library.ForGroup(LibraryGroup.NotInstalled).Count > 0
+                : Library.SteamSource.IsPresent);
         // Second-level grouping, ROMs only. Null = every system, which is how the tab opens.
         private string _romSystem;
         // Square ROM tiles. Remembered across launches - it describes the user's collection, not a
@@ -83,6 +94,7 @@ namespace ClawTweaksCenter
         private int _libDecodeWidth = (int)LibGridTileWidth;
         private bool _libReelMode;
         private bool _libraryScanned;
+        private bool _notInstalledLoading;
 
         /// <summary>Whether a scan has EVER completed this session. The first one paints once at
         /// the end; every later one keeps painting as each store lands, because by then there is
@@ -712,12 +724,16 @@ namespace ClawTweaksCenter
         private UIElement BuildGroupChip(LibraryGroup g)
         {
             bool active = g == _libraryGroup;
-            int count = _libraryScanned ? _library.ForGroup(g).Count : 0;
+            // A count of zero for a list nobody has read yet is a lie the strip would tell every
+            // session. No number until it is known - the chip already draws without one while the
+            // scan is running.
+            bool counted = _libraryScanned && (g != LibraryGroup.NotInstalled || _library.NotInstalledLoaded);
+            int count = counted ? _library.ForGroup(g).Count : 0;
             bool hasContent = GroupHasContent(g);
 
             var chip = new Border
             {
-                Child = BuildGroupChipContent(g, _libraryScanned && !ImmersiveCountsHidden ? count : (int?)null, active),
+                Child = BuildGroupChipContent(g, counted && !ImmersiveCountsHidden ? count : (int?)null, active),
                 Padding = new Thickness(10, 4, 10, 4),
                 Margin = new Thickness(0, 0, 6, 0),
                 CornerRadius = new CornerRadius(13),
@@ -922,13 +938,19 @@ namespace ClawTweaksCenter
             LibraryRoot.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });  // selected title
             LibraryRoot.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
+            // HERE, not in SetLibraryGroup. A tab is reached by more than one route - the shoulders,
+            // a click, the tab editor closing onto a tab that is now the only visible one, and a scan
+            // finishing while the user already stands on it. This one runs on all of them, and it is
+            // cheap to call too often and wrong to miss once.
+            EnsureGroupLoaded(_libraryGroup);
+
             _libReelMode = _libraryGroup == LibraryGroup.Recent;
             // Square only in the ROM tab. Recent mixes ROMs and store games on one shelf, and two
             // different tile shapes side by side looks like a rendering fault rather than a setting.
             _libSquareTiles = _squareRomArt && _libraryGroup == LibraryGroup.Roms;
             _libGroupBreaks.Clear();
             _libraryGames = _libraryScanned
-                ? ArrangeForDisplay(_library.ForGroup(_libraryGroup, _romSystem))
+                ? ArrangeForDisplay(ApplyLetterFilter(_library.ForGroup(_libraryGroup, _romSystem)))
                 : (IReadOnlyList<GameEntry>)Array.Empty<GameEntry>();
 
             if (_libraryGroup == LibraryGroup.NotInstalled && _libraryScanned)
@@ -956,6 +978,10 @@ namespace ClawTweaksCenter
 
             UIElement body;
             if (_libraryScanning && !_libraryScanned) body = BuildLibraryMessage("Reading your stores…", working: true);
+            // Its own line rather than the empty state: "No Steam library found" would be a wrong
+            // answer to a question nobody has asked yet.
+            else if (_libraryGroup == LibraryGroup.NotInstalled && _libraryScanned && !_library.NotInstalledLoaded)
+                body = BuildLibraryMessage("Reading your Steam library…", working: true);
             else if (_libraryGames.Count == 0) body = BuildLibraryMessage(EmptyMessage(), working: false);
             else body = _libReelMode ? BuildReel() : BuildGrid();
 
@@ -1602,6 +1628,9 @@ namespace ClawTweaksCenter
             if (_exitPromptOpen) { MoveExitPromptSelection(dir); return; }
             // Before the empty-grid check too: the friends list has nothing to do with the games.
             if (_friendsOpen) { MoveFriendSelection(dir); return; }
+            // And before it as well: the letter bar is how an empty-looking shelf gets its games
+            // back, so it has to be steerable from one.
+            if (_letterBarOpen) { MoveLetterBar(dir); return; }
             if (_libraryGames.Count == 0) return;
             // A launch screen owns the library - and since 2026-09-10 it has one row of its own to
             // move between, so this hands over rather than swallowing the press.
@@ -1739,13 +1768,48 @@ namespace ClawTweaksCenter
             // 2600" from three tabs ago looks like a library that lost most of its games.
             _romSystem = null;
             _libSelectedIndex = 0;
+            CloseLetterBar(clearFilter: true);
             RenderLibrary();
             RefreshTabStrip();
             RefreshActionBar();
+            // The covers of the tab that is now open, and only those - see WarmCoverCacheInBackground.
+            WarmCoverCacheInBackground(CancellationToken.None);
 
             // The library may have opened on the ROM tab, where the friends poll does not run - so the
             // first store tab would otherwise wait a full interval for its count.
             if (_friends == null && LibraryTabOffersFriends) RequestFriends();
+        }
+
+        /// <summary>
+        /// Fetches what a tab needs but the scan did not read.
+        ///
+        /// Today that is the Not Installed tab alone. ROMs come out of Playnite's database, and that
+        /// same read produces the art index every other source borrows from - splitting it would
+        /// mean opening the database twice, which is more work than it saves.
+        /// </summary>
+        private void EnsureGroupLoaded(LibraryGroup group)
+        {
+            if (group != LibraryGroup.NotInstalled) return;
+            if (!_libraryScanned || _library.NotInstalledLoaded || _notInstalledLoading) return;
+
+            _notInstalledLoading = true;
+            _ = Task.Run(async () =>
+            {
+                bool changed = false;
+                try { changed = await _library.LoadNotInstalledAsync(CancellationToken.None).ConfigureAwait(false); }
+                catch (Exception ex) { Core.InstallLog.Write("Not-installed list failed: " + ex.Message); }
+
+                await Dispatcher.InvokeAsync(() =>
+                {
+                    _notInstalledLoading = false;
+                    // Repaint whatever tab the user is on now: the count in the strip changed either
+                    // way, and they may well have moved on during the read.
+                    RenderLibraryIfNoOverlay();
+                    RefreshTabStrip();
+                    if (changed && _libraryGroup == LibraryGroup.NotInstalled)
+                        WarmCoverCacheInBackground(CancellationToken.None);
+                });
+            });
         }
 
         private void CycleLibraryGroup(int delta)
@@ -2175,7 +2239,8 @@ namespace ClawTweaksCenter
         /// running through one of them is how a setting gets changed that nobody chose. The same
         /// reasoning as the right stick being left out of repeats entirely.
         /// </summary>
-        private bool ShelfTakesRepeats => _view == View.Library && !LibraryOverlayOwnsScreen;
+        private bool ShelfTakesRepeats =>
+            _view == View.Library && !LibraryOverlayOwnsScreen && !_letterBarOpen;
 
         /// <summary>
         /// The footer and its stand-in hint only. Cheap, and called from every library action-bar
@@ -3050,8 +3115,13 @@ namespace ClawTweaksCenter
         /// warm-up at the wrong width fills the cache with entries nothing will ever ask for - the
         /// key is "width|path" - so it would cost the memory and save nothing.
         ///
-        /// Recent first, then everything else. Recent is the tab the library opens on, so its covers
-        /// are the ones somebody is about to walk through; the rest ride along behind them.
+        /// RECENT PLUS THE OPEN TAB, not the whole library (user, 2026-09-12). Measured before the
+        /// change: 1052 covers, about eight seconds of decoding - and the first presses in Recent
+        /// landed inside that window, which is exactly where the stutter was reported. Most of those
+        /// covers belonged to 840 games that are not installed, on a tab that was not open.
+        ///
+        /// Called again on every tab change. A path already decoded comes straight back out of
+        /// GameArt's cache, so revisiting a tab costs nothing and the work follows the user.
         ///
         /// GameArt.LoadAsync caps itself at four concurrent decodes and hands back the SAME task for
         /// a path already in flight, so this cannot fight the tiles that are decoding at the same
@@ -3070,7 +3140,7 @@ namespace ClawTweaksCenter
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var g in _library.ForGroup(LibraryGroup.Recent))
                 if (!string.IsNullOrEmpty(g.ArtPath) && seen.Add(g.ArtPath)) paths.Add(g.ArtPath);
-            foreach (var g in _library.Games)
+            foreach (var g in _library.ForGroup(_libraryGroup, _romSystem))
                 if (!string.IsNullOrEmpty(g.ArtPath) && seen.Add(g.ArtPath)) paths.Add(g.ArtPath);
 
             if (paths.Count == 0) return;
@@ -5002,6 +5072,10 @@ namespace ClawTweaksCenter
 
             if (RefreshMiscActionBar()) return;
 
+            // The letter bar is a picker over the shelf: while it is up, A and B belong to it and
+            // nothing else on the shelf can be reached anyway.
+            if (_letterBarOpen) { AddLetterBarActions(); return; }
+
             // "Play" would be a lie in the one tab where nothing can be played.
             bool notInstalled = _libraryGroup == LibraryGroup.NotInstalled;
             AddAction(PadButton.A, notInstalled ? "Install" : "Play", SelectedGame != null, LaunchSelectedGame);
@@ -5030,11 +5104,24 @@ namespace ClawTweaksCenter
                 // The square-art switch used to sit here as an X chip. It moved into the settings
                 // screen: it is remembered across launches, and a footer is for what you do now, not
                 // for what you configure once.
-                AddAction(PadButton.Y, "Rescan", !_libraryScanning, () =>
+                //
+                // NO CHIP IN RECENT (user, 2026-09-12). Recent is the shelf people land on and look
+                // at, and a rescan is the one action there that is about the library rather than
+                // about a game. The BINDING stays - Y still rescans - the same way B and the ROM
+                // triggers work without a chip; what goes is a word in the busiest footer we have.
+                Action rescan = () =>
                 {
                     _libraryScanned = false;
                     _ = ScanLibraryAsync();
-                });
+                };
+                if (_libraryGroup == LibraryGroup.Recent)
+                {
+                    if (!_libraryScanning) _liveActions[PadButton.Y] = rescan;
+                }
+                else
+                {
+                    AddAction(PadButton.Y, "Rescan", !_libraryScanning, rescan);
+                }
             }
 
             AddAction(PadButton.View, "Settings", true, OpenLibrarySettings);
@@ -5064,6 +5151,11 @@ namespace ClawTweaksCenter
                 // can be read, matching whether its chip is drawn. LT is free here.
                 if (FriendsReadable) _liveActions[PadButton.RT] = OpenFriends;
             }
+
+            // LT opens the letter bar, in the two tabs long enough to want one. Bound without a chip
+            // like the triggers above, and named in the corner it takes over - which is the place
+            // somebody wondering about it is already looking.
+            if (LetterBarAvailable) _liveActions[PadButton.LT] = OpenLetterBar;
         }
         #endregion
     }

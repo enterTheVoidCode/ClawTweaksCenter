@@ -475,6 +475,62 @@ file is silence. Navigate and Back have a second SET each (`navigate_natural`), 
 settings; the default set is the one with no suffix, which is what keeps the loose-file override
 working.
 
+## What the library does NOT read at start (2026-09-12)
+
+**The measurement first, because it is the whole reason:** the user's own log said
+
+```
+Cover warm-up: 1052/1052 decoded at 280px in 7709 ms
+```
+
+Eight seconds of background decoding, starting the moment the library appeared - and the first
+presses in Recent landed inside it. 840 of those 1052 covers belonged to games that are not
+installed, on a tab that was not open.
+
+**Two changes, and they are separate:**
+
+1. **The owned-but-not-installed list is no longer part of a scan.** `SteamSource.ScanOwnedNotInstalled`
+   is called by `GameLibrary.LoadNotInstalledAsync`, which `RenderLibrary` triggers through
+   `EnsureGroupLoaded` when that tab is on screen. `SteamOwned.Read` is 294 ms of parsing a 6 MB
+   cache on top of the covers.
+2. **The cover warm-up covers Recent plus the OPEN tab**, not the whole library, and runs again on
+   every tab change. A decoded path comes back out of `GameArt`'s cache, so revisiting costs nothing.
+
+WARNING: **The Not Installed tab must stay VISIBLE while unloaded.** `HasNotInstalledGames` asks the
+cheap question - is Steam on this machine - until the list exists. A tab that hid itself until it was
+loaded could never be opened, and opening it is what loads it. Same shape as the ROM tab, which asks
+whether Playnite is installed rather than how many ROMs it holds.
+
+WARNING: **No COUNT in the chip until it is read.** A zero for an unread list is a lie the strip
+would tell in every session.
+
+WARNING: **`EnsureGroupLoaded` lives in `RenderLibrary`, not in `SetLibraryGroup`.** A tab is reached
+by the shoulders, by a click, by the tab editor closing onto it, and by a scan finishing while the
+user already stands there. It is cheap to call too often and wrong to miss once.
+
+⚠️ **ROMs are NOT deferred, and that was a decision.** `PlayniteSource` reads its LiteDB once and
+that same read builds the art index Steam, Epic and Xbox borrow covers from. Splitting the ROM
+entries out means opening the database twice - more work, not less. What ROMs did get is the
+warm-up change above.
+
+⚠️ **Downloads in progress were never in this list.** They come from manifests with
+`StateFlags != 4`, so they are in the normal scan and appear at once.
+
+## The letter bar (2026-09-12)
+
+LT in **All** and **Not Installed** opens a row of initials in the top right corner of the tab strip;
+Left/Right pick, A applies, B closes. `CenterMenuWindow.LetterBar.cs`.
+
+WARNING: **The friends chip is out of those two tabs now** (`LibraryTabOffersFriends`). Two things
+cannot own one corner, and friends are what somebody looks for in Recent and the store tabs.
+
+WARNING: **The keys are the initials that EXIST in the tab**, built from the UNFILTERED list -
+otherwise a filtered shelf offers exactly one letter, its own. Digits get their own chip, everything
+else shares `#`, and clearing the filter is the first chip rather than a B press.
+
+WARNING: **While it is open it owns the d-pad** (`MoveLibrarySelection` hands over before the
+empty-grid check) and it is excluded from the hold-to-repeat gate.
+
 ## A held direction repeats - on the shelves only (2026-09-12)
 
 `XInputNavigator.ButtonRepeated` raises a direction over and over while the D-pad or the left stick

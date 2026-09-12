@@ -58,8 +58,37 @@ namespace ClawTweaksCenter.Library
             return null;
         }
 
+        /// <summary>Steam is on this machine at all. Cheap - one registry value and a directory
+        /// check - so it can answer "should the Not Installed tab exist" without reading the 6 MB
+        /// app cache the tab's CONTENT needs.</summary>
+        public static bool IsPresent => SteamPath() != null;
+
         public Task<IReadOnlyList<GameEntry>> ScanAsync(CancellationToken ct)
             => Task.Run<IReadOnlyList<GameEntry>>(() => Scan(ct), ct);
+
+        /// <summary>
+        /// The owned-but-not-installed entries, read on demand rather than with the library.
+        ///
+        /// SPLIT OUT ON 2026-09-12 (user). SteamOwned.Read is 294 ms of parsing a 6 MB cache, and on
+        /// this machine it yields 840 entries - which then went through cover resolution and the
+        /// cover warm-up as well, for a tab most sessions never open. Measured cost of leaving them
+        /// in: 1052 covers warmed at start instead of ~210, about eight seconds of background decode
+        /// that the first presses in Recent were competing with.
+        /// </summary>
+        public static IReadOnlyList<GameEntry> ScanOwnedNotInstalled(IReadOnlyList<GameEntry> installed,
+                                                                    CancellationToken ct)
+        {
+            var games = new List<GameEntry>();
+            if (SteamPath() == null) return games;
+
+            // The existing entries decide what counts as "not installed", so they are handed in
+            // rather than re-scanned: a manifest is the better answer wherever there is one.
+            var seed = new List<GameEntry>(installed ?? Array.Empty<GameEntry>());
+            int before = seed.Count;
+            AddOwnedButNotInstalled(seed, ct);
+            for (int i = before; i < seed.Count; i++) games.Add(seed[i]);
+            return games;
+        }
 
         private static IReadOnlyList<GameEntry> Scan(CancellationToken ct)
         {
@@ -85,7 +114,8 @@ namespace ClawTweaksCenter.Library
                 }
             }
 
-            AddOwnedButNotInstalled(games, ct);
+            // NOT the owned-but-not-installed list. That is ScanOwnedNotInstalled below, and the
+            // library asks for it when somebody opens the tab it feeds - see GameLibrary.
             return games;
         }
 
