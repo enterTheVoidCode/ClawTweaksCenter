@@ -38,6 +38,22 @@ namespace ClawTweaksCenter.Navigation
         /// </summary>
         public event Action<PadButton> RightStickFlicked;
 
+        /// <summary>
+        /// A direction that is being HELD, raised over and over until it is let go: D-pad or left
+        /// stick, the two inputs that move a selection.
+        ///
+        /// Separate from <see cref="ButtonPressed"/> because the two are not interchangeable. A
+        /// press is a decision; a repeat is the same decision continuing, and a screen where that
+        /// would be wrong - a switch, a value, a confirmation - simply does not subscribe. The
+        /// library binds it for its shelves; everything else in Center ignores it and behaves
+        /// exactly as before.
+        ///
+        /// ⚠️ NOT the right stick. In the library that stick changes the sort order and the
+        /// grouping, and a held stick would cycle through them several times a second and land
+        /// wherever it was let go. It has no "further in the same direction" to offer.
+        /// </summary>
+        public event Action<PadButton> ButtonRepeated;
+
         private readonly Window _window;
         private readonly DispatcherTimer _timer;
         private ushort _prevButtons;
@@ -45,6 +61,23 @@ namespace ClawTweaksCenter.Navigation
         private ushort _prevRightStickDirBits;
         private ushort _prevTriggerBits;
         private const short StickDeadzone = 12000;
+
+        // AUTO-REPEAT for the four directions. The numbers are the usual key-repeat shape, and each
+        // of the three is answering a different complaint:
+        //   the delay    long enough that a single press never repeats by accident
+        //   the interval one step per ~150 ms, about as fast as a cover grid can be read
+        //   the sprint   a library is hundreds of tiles long, and holding down for five seconds to
+        //                cross it is what made this a request in the first place
+        // Rounded to the 40 ms tick, because that is the resolution this can actually have.
+        private static readonly TimeSpan RepeatDelay = TimeSpan.FromMilliseconds(400);
+        private static readonly TimeSpan RepeatInterval = TimeSpan.FromMilliseconds(160);
+        private static readonly TimeSpan RepeatSprintAfter = TimeSpan.FromMilliseconds(1600);
+        private static readonly TimeSpan RepeatSprintInterval = TimeSpan.FromMilliseconds(80);
+
+        private ushort _prevNavDirBits;
+        private readonly DateTime[] _navHeldSince = new DateTime[4];
+        private readonly DateTime[] _navLastRepeat = new DateTime[4];
+        private static readonly PadButton[] NavDirButtons = { PadButton.Up, PadButton.Down, PadButton.Left, PadButton.Right };
 
         // Analogue triggers turned into presses. XINPUT_GAMEPAD_TRIGGER_THRESHOLD is Microsoft's own
         // value for "this counts as pulled". Edge-triggered against _prevTriggerBits for the same
@@ -81,9 +114,9 @@ namespace ClawTweaksCenter.Navigation
 
         private void OnTick(object sender, EventArgs e)
         {
-            if (!_window.IsActive) { _prevButtons = 0; _prevStickDirBits = 0; _prevTriggerBits = 0; return; }
+            if (!_window.IsActive) { ForgetHeldInput(); return; }
             if (!TryPollCombined(out ushort buttons, out short lx, out short ly, out short rx, out short ry, out byte lt, out byte rt))
-            { _prevButtons = 0; _prevStickDirBits = 0; _prevTriggerBits = 0; return; }
+            { ForgetHeldInput(); return; }
 
             // Continuous scroll from D-Pad up/down or left-stick Y (fires every tick while held).
             double scroll = 0;
@@ -142,6 +175,11 @@ namespace ClawTweaksCenter.Navigation
             if ((triggerPressed & TriggerLeft) != 0) Raise(PadButton.LT);
             if ((triggerPressed & TriggerRight) != 0) Raise(PadButton.RT);
 
+            // Before the early-out below: a D-pad HELD sets no new bit, so "pressed == 0" is the
+            // normal state while a direction is being held down - which is the entire case this has
+            // to see.
+            TickDirectionRepeat((ushort)(buttons & 0x000F), stickDirBits);
+
             ushort pressed = (ushort)(buttons & ~_prevButtons);
             _prevButtons = buttons;
             if (pressed == 0) return;
@@ -163,6 +201,58 @@ namespace ClawTweaksCenter.Navigation
             if ((pressed & XINPUT_GAMEPAD_DPAD_DOWN) != 0) Raise(PadButton.Down);
             if ((pressed & XINPUT_GAMEPAD_DPAD_LEFT) != 0) Raise(PadButton.Left);
             if ((pressed & XINPUT_GAMEPAD_DPAD_RIGHT) != 0) Raise(PadButton.Right);
+        }
+
+        /// <summary>
+        /// The repeats for a held direction. D-pad and left stick are ONE input here - they mean the
+        /// same thing to every screen, and holding one while nudging the other should not restart
+        /// the clock.
+        ///
+        /// It only repeats; the first raise stays where it was, on the edge, so a screen that
+        /// ignores repeats keeps exactly the behaviour it had.
+        /// </summary>
+        private void TickDirectionRepeat(ushort dpadBits, ushort stickBits)
+        {
+            ushort dirBits = (ushort)(dpadBits | stickBits);
+            var now = DateTime.UtcNow;
+
+            for (int i = 0; i < NavDirButtons.Length; i++)
+            {
+                ushort mask = (ushort)(1 << i);   // Up, Down, Left, Right - the XInput D-pad order
+                bool held = (dirBits & mask) != 0;
+                if (!held) { _navHeldSince[i] = default; continue; }
+
+                if ((_prevNavDirBits & mask) == 0)
+                {
+                    // Freshly pushed: the edge raise has already gone out elsewhere this tick.
+                    _navHeldSince[i] = now;
+                    _navLastRepeat[i] = now;
+                    continue;
+                }
+
+                TimeSpan held_for = now - _navHeldSince[i];
+                if (held_for < RepeatDelay) continue;
+
+                TimeSpan interval = held_for >= RepeatSprintAfter ? RepeatSprintInterval : RepeatInterval;
+                if (now - _navLastRepeat[i] < interval) continue;
+
+                _navLastRepeat[i] = now;
+                ButtonRepeated?.Invoke(NavDirButtons[i]);
+            }
+
+            _prevNavDirBits = dirBits;
+        }
+
+        /// <summary>Everything held is released the moment we stop seeing the pad - the window lost
+        /// focus, or the controller went away. Without this a direction that was held at that moment
+        /// would still count as held when it comes back, and repeat immediately.</summary>
+        private void ForgetHeldInput()
+        {
+            _prevButtons = 0;
+            _prevStickDirBits = 0;
+            _prevTriggerBits = 0;
+            _prevNavDirBits = 0;
+            for (int i = 0; i < _navHeldSince.Length; i++) _navHeldSince[i] = default;
         }
 
         private void Raise(PadButton b) => ButtonPressed?.Invoke(b);

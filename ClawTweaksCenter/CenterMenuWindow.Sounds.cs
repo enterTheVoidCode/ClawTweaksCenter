@@ -46,17 +46,22 @@ namespace ClawTweaksCenter
         /// CenterMenuWindow.Tray.cs) - music would stop and start for no reason anyone could see. The
         /// running game is covered by the launch prompt instead: it stays on Running for as long as
         /// the game does, also when Center is left open behind it.
+        ///
+        /// WHEN THE WINDOW ITSELF GOES, THE MUSIC IS CUT, NOT FADED (user, 2026-09-12). Hidden to the
+        /// tray, minimised, or a game on screen: the thing the music belonged to is gone, and a fade
+        /// plays on over whatever took its place. A move inside Center - to Home, into a menu - still
+        /// fades, because there the music is being left rather than interrupted.
         /// </summary>
         private void UpdateLibraryMusic()
         {
-            bool play = Core.CenterSettings.BackgroundMusic
-                        && _view == View.Library
-                        && IsVisible
-                        && WindowState != WindowState.Minimized
-                        && _launchPrompt != LaunchPrompt.Running;
+            bool onScreen = IsVisible
+                            && WindowState != WindowState.Minimized
+                            && _launchPrompt != LaunchPrompt.Running;
+
+            bool play = Core.CenterSettings.BackgroundMusic && _view == View.Library && onScreen;
 
             if (play) _ = UiSounds.WarmAsync();
-            UiSounds.SetMusicPlaying(play);
+            UiSounds.SetMusicPlaying(play, immediate: !onScreen);
         }
     }
 }

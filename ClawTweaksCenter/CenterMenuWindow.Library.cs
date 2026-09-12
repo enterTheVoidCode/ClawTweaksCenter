@@ -45,6 +45,11 @@ namespace ClawTweaksCenter
 
         // The reel sizes itself from the height it is given, within these bounds, so the mirrored
         // cover always fits without a scrollbar appearing underneath it.
+        /// <summary>What the denser grid does to the Recent reel: a fifth off (user, 2026-09-12).
+        /// Not the same arithmetic as the grid, which gains columns - a reel is one row, so there is
+        /// nothing to add and the size is the only thing to move.</summary>
+        private const double LibDenseReelScale = 0.8;
+
         private const double LibReelMaxTileHeight = 300;
         private const double LibReelMinTileHeight = 150;
         private const double LibReflectionFraction = 0.38;
@@ -1529,6 +1534,16 @@ namespace ClawTweaksCenter
             // a third of the strip empty under covers that are needlessly small.
             double tileH = (availH - 12) / (1 + (LibReflectionsOn ? LibReflectionFraction : 0));
             if (tileH > LibReelMaxTileHeight) tileH = LibReelMaxTileHeight;
+
+            // The denser grid takes the reel with it (user, 2026-09-12). It is one setting about how
+            // much fits on screen, and leaving Recent at full size made the two tabs look like two
+            // different settings.
+            //
+            // AFTER the maximum, before the minimum: applied first, the clamp would hand the full
+            // height straight back on any window where the reel is already at its ceiling - which is
+            // most of them - and the setting would do nothing in Recent.
+            if (Core.CenterSettings.DenseLibraryGrid) tileH *= LibDenseReelScale;
+
             if (tileH < LibReelMinTileHeight) tileH = LibReelMinTileHeight;
 
             _libTileWidth = tileH / LibCoverAspect;
@@ -2152,6 +2167,17 @@ namespace ClawTweaksCenter
         private bool LaunchPromptOwnsScreen => _launchPrompt != LaunchPrompt.None || _exitPromptOpen;
 
         /// <summary>
+        /// Where a HELD direction keeps moving: the game shelves, Recent and every tab's grid
+        /// (user, 2026-09-12). Hundreds of tiles is too far to walk one press at a time.
+        ///
+        /// Nowhere else, and that is the point of having a gate at all. Settings, the tab editor,
+        /// the game menu, a launch prompt: each of those is a list of DECISIONS, and a held thumb
+        /// running through one of them is how a setting gets changed that nobody chose. The same
+        /// reasoning as the right stick being left out of repeats entirely.
+        /// </summary>
+        private bool ShelfTakesRepeats => _view == View.Library && !LibraryOverlayOwnsScreen;
+
+        /// <summary>
         /// The footer and its stand-in hint only. Cheap, and called from every library action-bar
         /// refresh - which is what makes an overlay opening or closing bring the footer with it,
         /// without each of the six of them having to remember to.
@@ -2249,36 +2275,51 @@ namespace ClawTweaksCenter
         private int _settingsIndex;
         private TextBox _artKeyBox;
         private TextBlock _artKeyStatus;
+        private TextBlock _settingsHint;
         private readonly List<Border> _settingsRows = new List<Border>();
 
         // Row indices as names, not magic numbers - the key row is the only one whose activation
         // (focus a text box, not toggle a value) and A-button label differ from the rest, and a
         // bare "3" scattered across three places is what breaks silently when a row is added above it.
+        //
+        // ⚠️ THE NUMBER IS THE PLACE ON SCREEN. The grid is filled in this order and the navigation
+        // below does its arithmetic on the index, so moving a row means moving its number AND its
+        // line in RenderLibrarySettings - never one of the two.
+        //
+        // FOUR BANDS OF THREE, one row of the grid each (user, 2026-09-12 - the screen had grown by
+        // accretion and read as a pile):
+        //   0-2   getting started: what comes up, and what comes up with it
+        //   3-5   while it is open: where Center goes, what a game start does, which tabs exist
+        //   6-8   the grid and the Recent reel
+        //   9-11  artwork: the shape of it, where your own pictures come from, the background
+        //   12    sound, on its own line above the key row - a sub-screen, not a switch
         private const int SettingsStartInLibraryRow = 0;
-        private const int SettingsSquareRomArtRow = 1;
-        private const int SettingsImmersiveRow = 2;
-        private const int SettingsLaunchBehaviorRow = 3;
-        private const int SettingsStartWithClawTweaksRow = 4;
-        private const int SettingsRunInBackgroundRow = 5;
-        private const int SettingsStartSteamRow = 6;
-        private const int SettingsDenseGridRow = 7;
+        private const int SettingsStartWithClawTweaksRow = 1;
+        private const int SettingsStartSteamRow = 2;
+        private const int SettingsRunInBackgroundRow = 3;
+        private const int SettingsLaunchBehaviorRow = 4;
+
+        /// <summary>Opens the tab editor rather than toggling anything - the first row here that
+        /// leads somewhere instead of changing a value in place.</summary>
+        private const int SettingsTabsRow = 5;
+
+        private const int SettingsDenseGridRow = 6;
+        private const int SettingsImmersiveRow = 7;
 
         /// <summary>The mirrored covers under the Recent reel. A switch because it is a matter of
         /// taste that costs a VisualBrush per tile - see BuildReflection.</summary>
-        private const int SettingsReflectionsRow = 10;
+        private const int SettingsReflectionsRow = 8;
+
+        private const int SettingsSquareRomArtRow = 9;
 
         /// <summary>The folder of the user's own pictures. Opens the same chooser the game menu
         /// shows the first time somebody picks their own cover, so there is one screen that names
         /// this folder rather than two ways of saying it.</summary>
-        private const int SettingsUserImagesRow = 8;
+        private const int SettingsUserImagesRow = 10;
 
         /// <summary>The window background. Opens the picture grid, or the folder chooser first when
         /// no folder has been named yet.</summary>
-        private const int SettingsBackgroundRow = 9;
-
-        /// <summary>Opens the tab editor rather than toggling anything - the only row up here that
-        /// leads somewhere instead of changing a value in place.</summary>
-        private const int SettingsTabsRow = 11;
+        private const int SettingsBackgroundRow = 11;
 
         /// <summary>Opens the sound settings (CenterMenuWindow.SoundSettings.cs) - one row here, so
         /// sounds, music and both volumes do not take four cells of a grid that already runs to the
@@ -2342,27 +2383,32 @@ namespace ClawTweaksCenter
             // Columns, because stacked rows ran off the bottom of an eight-inch panel and the key row
             // - the one people are sent here for - was the one below the fold.
             var pairs = new UniformGrid { Columns = SettingsColumns };
+            // IN THE ORDER OF THE CONSTANTS ABOVE. One band per grid row - see the comment there.
             pairs.Children.Add(BuildSettingRow(SettingsStartInLibraryRow, "Start in the library",
                 Core.CenterSettings.OpenLibraryAtStartup, null));
-            pairs.Children.Add(BuildSettingRow(SettingsSquareRomArtRow, "Square ROM art",
-                _squareRomArt, null));
-            pairs.Children.Add(BuildSettingRow(SettingsImmersiveRow, "Recent immersive",
-                Core.CenterSettings.ImmersiveMode, null));
-            pairs.Children.Add(BuildSettingRow(SettingsLaunchBehaviorRow, "After starting a game",
-                null, LaunchBehaviorLabel(Core.CenterSettings.LaunchBehavior)));
             pairs.Children.Add(BuildSettingRow(SettingsStartWithClawTweaksRow, "Start Center with ClawTweaks",
                 Core.CenterSettings.StartCenterWithClawTweaks, null));
-            pairs.Children.Add(BuildSettingRow(SettingsRunInBackgroundRow, "Run in background",
-                Core.CenterSettings.RunInBackground, null));
             pairs.Children.Add(BuildSettingRow(SettingsStartSteamRow, "Start Steam with the library",
                 Core.CenterSettings.StartSteamWithLibrary, null));
+
+            pairs.Children.Add(BuildSettingRow(SettingsRunInBackgroundRow, "Run in background",
+                Core.CenterSettings.RunInBackground, null));
+            pairs.Children.Add(BuildSettingRow(SettingsLaunchBehaviorRow, "After starting a game",
+                null, LaunchBehaviorLabel(Core.CenterSettings.LaunchBehavior)));
+            pairs.Children.Add(BuildSettingRow(SettingsTabsRow, "Library tabs", null, TabsSummary()));
+
             pairs.Children.Add(BuildSettingRow(SettingsDenseGridRow, "Denser grid",
                 Core.CenterSettings.DenseLibraryGrid, null));
-            pairs.Children.Add(BuildSettingRow(SettingsUserImagesRow, "Your images", null, UserImagesSummary()));
-            pairs.Children.Add(BuildSettingRow(SettingsBackgroundRow, "Center background", null, BackgroundSummary()));
+            pairs.Children.Add(BuildSettingRow(SettingsImmersiveRow, "Recent immersive",
+                Core.CenterSettings.ImmersiveMode, null));
             pairs.Children.Add(BuildSettingRow(SettingsReflectionsRow, "Recent reflections",
                 Core.CenterSettings.RecentReflections, null));
-            pairs.Children.Add(BuildSettingRow(SettingsTabsRow, "Library tabs", null, TabsSummary()));
+
+            pairs.Children.Add(BuildSettingRow(SettingsSquareRomArtRow, "Square ROM art",
+                _squareRomArt, null));
+            pairs.Children.Add(BuildSettingRow(SettingsUserImagesRow, "Your images", null, UserImagesSummary()));
+            pairs.Children.Add(BuildSettingRow(SettingsBackgroundRow, "Center background", null, BackgroundSummary()));
+
             pairs.Children.Add(BuildSettingRow(SettingsSoundRow, "Sound settings", null, null));
             stack.Children.Add(pairs);
 
@@ -2386,7 +2432,35 @@ namespace ClawTweaksCenter
                 TextWrapping = TextWrapping.Wrap,
             };
             keyStack.Children.Add(_artKeyStatus);
-            stack.Children.Add(keyRow);
+
+            // HALF THE WIDTH, on the left (user, 2026-09-12). It is still the last row and still its
+            // own line - it holds a text box, and a box shoulder to shoulder with a switch is a row
+            // that cannot be read at a glance - but across the full width it was the largest thing on
+            // a screen where it is the least used. Two star columns rather than a fixed width, so it
+            // stays half of whatever the grid above it measures.
+            var keyHolder = new Grid();
+            keyHolder.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            keyHolder.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(keyRow, 0);
+            keyHolder.Children.Add(keyRow);
+            stack.Children.Add(keyHolder);
+
+            // ONE LINE FOR THE SELECTED ROW, at the bottom (user, 2026-09-12). The rows are two or
+            // three words each - enough to find a setting again, not enough to say what it does the
+            // first time. Under the grid rather than inside the row: a row that grows a second line
+            // when the cursor lands on it moves every row beside it.
+            //
+            // The height is reserved whether or not there is anything to say, so walking the grid
+            // does not shift the screen underneath the cursor.
+            _settingsHint = new TextBlock
+            {
+                FontSize = 14,
+                Foreground = UiHelpers.Subtle,
+                TextWrapping = TextWrapping.Wrap,
+                MinHeight = 36,
+                Margin = new Thickness(0, 10, 0, 0),
+            };
+            stack.Children.Add(_settingsHint);
 
             LibraryRoot.Children.Add(stack);
             ApplySettingsSelection();
@@ -2484,6 +2558,37 @@ namespace ClawTweaksCenter
         {
             foreach (var row in _settingsRows)
                 row.BorderBrush = row.Tag is int i && i == _settingsIndex ? UiHelpers.Accent : Brushes.Transparent;
+
+            if (_settingsHint != null) _settingsHint.Text = Core.Loc.T(SettingDescription(_settingsIndex));
+        }
+
+        /// <summary>
+        /// What the selected setting does, in one line.
+        ///
+        /// WHAT IT DOES, not why it is good: "More covers per row" is checkable against the screen,
+        /// "a cleaner, more focused library" is not. Present tense, no second clause explaining the
+        /// first - the line is read while the thumb is already moving.
+        /// </summary>
+        private static string SettingDescription(int row)
+        {
+            switch (row)
+            {
+                case SettingsStartInLibraryRow: return "Center opens on the library, not on Home.";
+                case SettingsStartWithClawTweaksRow: return "ClawTweaks starts Center when it starts itself.";
+                case SettingsStartSteamRow: return "Opens Steam in the tray when you open the library.";
+                case SettingsRunInBackgroundRow: return "Closing the window leaves Center running in the tray.";
+                case SettingsLaunchBehaviorRow: return "What Center does with itself once a game runs.";
+                case SettingsTabsRow: return "Which tabs the library shows, and in which order.";
+                case SettingsDenseGridRow: return "More covers per row, and a smaller Recent reel.";
+                case SettingsImmersiveRow: return "Fades the tabs and the footer out on Recent while you idle.";
+                case SettingsReflectionsRow: return "Mirrors every cover in the Recent reel.";
+                case SettingsSquareRomArtRow: return "ROM covers are square instead of upright.";
+                case SettingsUserImagesRow: return "The folder your own covers and backgrounds come from.";
+                case SettingsBackgroundRow: return "The picture behind the library.";
+                case SettingsSoundRow: return "Interface sounds, music, and a volume for each.";
+                case SettingsKeyRow: return "Downloads covers for games that have none.";
+                default: return string.Empty;
+            }
         }
 
         /// <summary>
@@ -2736,9 +2841,13 @@ namespace ClawTweaksCenter
                 bool hidden = _tabEditorHidden.Contains(g);
                 // compact: the side-column form - smaller text, smaller glyph, no card fill. Ten of
                 // these fit where ten full-size rows did not, which is the whole point of the change.
+                // NUMBERED BY POSITION (user, 2026-09-12), hidden tabs included: LB and RB move a tab
+                // through the whole list, so the number has to count the same list they move through.
+                // It is the position, not an id - moving a tab renumbers everything below it, which
+                // is what makes the order readable without counting rows.
                 var row = BuildRowVisual(
                     Library.StoreIcons.GlyphFor(g),
-                    GameLibrary.GroupLabel(g),
+                    (i + 1) + ". " + GameLibrary.GroupLabel(g),
                     hidden ? "Hidden" : "Shown",
                     inCard: false,
                     dim: hidden,

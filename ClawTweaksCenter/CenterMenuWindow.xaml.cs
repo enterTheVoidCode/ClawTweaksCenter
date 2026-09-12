@@ -306,6 +306,11 @@ namespace ClawTweaksCenter
                 // two axes, and overloading a flick to do two things at once was the version of this
                 // that had a stray sort change in it every time.
                 _nav.RightStickFlicked += dir => Dispatcher.Invoke(() => OnRightStickFlick(dir));
+                // A HELD direction keeps moving the shelf - and only the shelf, see ShelfTakesRepeats.
+                _nav.ButtonRepeated += b => Dispatcher.Invoke(() =>
+                {
+                    if (ShelfTakesRepeats) Invoke(b);
+                });
                 _nav.Start();
 
                 var deviceTask = Task.Run(() => DeviceDetect.Detect());
@@ -452,10 +457,14 @@ namespace ClawTweaksCenter
             }
             if (b == PadButton.Up || b == PadButton.Down || b == PadButton.Left || b == PadButton.Right)
             {
+                // The same count as the action branch above, and for the same reason: left/right on
+                // a sound-set row PREVIEWS the set it just picked, and the generic click would land
+                // on top of the one sound the press exists to let you hear.
+                int soundsBefore = Audio.UiSounds.PlayCount;
                 MoveSelection(b);
                 // On every press, also against the edge of a list. MoveSelection does not report
                 // whether it moved, and forty screens would have to learn to say so first.
-                if (librarySounds) Audio.UiSounds.Play(Audio.UiSound.Navigate);
+                if (librarySounds && Audio.UiSounds.PlayCount == soundsBefore) Audio.UiSounds.Play(Audio.UiSound.Navigate);
             }
         }
 

@@ -471,7 +471,26 @@ the settings has to clear both.
 
 **A sound is a file, not code:** `navigate`, `confirm`, `back`, `launch`, `music*` in
 `Assets\sounds\` (embedded) or `%LOCALAPPDATA%\ClawTweaks\Center\sounds\` (loose, wins). A missing
-file is silence.
+file is silence. Navigate and Back have a second SET each (`navigate_natural`), picked in Sound
+settings; the default set is the one with no suffix, which is what keeps the loose-file override
+working.
+
+## A held direction repeats - on the shelves only (2026-09-12)
+
+`XInputNavigator.ButtonRepeated` raises a direction over and over while the D-pad or the left stick
+is held: 400 ms, then every 160 ms, then every 80 ms after 1.6 s. A library is hundreds of tiles
+long and was one press per tile.
+
+WARNING: **Only the game shelves subscribe** (`ShelfTakesRepeats` - the library view with no overlay
+over it). Settings, the tab editor, the game menu and every prompt are lists of DECISIONS, and a
+resting thumb running through one of them changes something nobody chose.
+
+WARNING: **The right stick is NOT in this.** In the library it changes the sort order and the
+grouping, so a held stick would cycle them several times a second and land wherever it was let go.
+It has no "further in the same direction" to offer.
+
+WARNING: **`ButtonPressed` is unchanged.** The first raise still comes from the edge; repeats are a
+separate event, so a screen that ignores them behaves exactly as it did before.
 
 ## The FAQ, and the two rules its entries have to keep
 

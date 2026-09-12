@@ -318,6 +318,26 @@ namespace ClawTweaksCenter.Core
         }
 
         /// <summary>
+        /// Which sound set the navigation sound uses, and the one for going back.
+        ///
+        /// STORED AS THE NAME, like Language and for the same reason: the list of sets is expected
+        /// to grow, and an ordinal moves silently when one is inserted. An unknown name reads as the
+        /// default set (UiSounds.Normalize), so a hand-edited value cannot turn a sound off.
+        /// </summary>
+        public static string NavigateSound
+        {
+            get => ReadString("NavigateSound", Audio.UiSounds.DefaultVariant);
+            set => WriteString("NavigateSound", value);
+        }
+
+        /// <summary>The set behind the B sound. See <see cref="NavigateSound"/>.</summary>
+        public static string BackSound
+        {
+            get => ReadString("BackSound", Audio.UiSounds.DefaultVariant);
+            set => WriteString("BackSound", value);
+        }
+
+        /// <summary>
         /// Music while the library is on screen. Off by default - music is something to switch on,
         /// not something to find playing.
         /// </summary>
@@ -328,18 +348,23 @@ namespace ClawTweaksCenter.Core
         }
 
         /// <summary>Loudness of the interface sounds, 0..100. Clamped on read, so a hand-edited value
-        /// cannot blow past full scale.</summary>
+        /// cannot blow past full scale.
+        ///
+        /// 48, a fifth below the 60 this shipped with (user, 2026-09-12). Off the round-number grid
+        /// on purpose - the volume rows snap to it, so the first press either way lands on 40 or 60
+        /// and nobody is stuck stepping 48 / 58 / 68.</summary>
         public static int EffectsVolume
         {
-            get => Math.Clamp(ReadInt("EffectsVolume", 60), 0, 100);
+            get => Math.Clamp(ReadInt("EffectsVolume", 48), 0, 100);
             set => WriteInt("EffectsVolume", Math.Clamp(value, 0, 100));
         }
 
         /// <summary>Loudness of the background music, 0..100. Lower than the effects by default: it
-        /// runs under everything for as long as the library is open.</summary>
+        /// runs under everything for as long as the library is open. 28, a fifth below the 35 this
+        /// shipped with (user, 2026-09-12).</summary>
         public static int MusicVolume
         {
-            get => Math.Clamp(ReadInt("MusicVolume", 35), 0, 100);
+            get => Math.Clamp(ReadInt("MusicVolume", 28), 0, 100);
             set => WriteInt("MusicVolume", Math.Clamp(value, 0, 100));
         }
 

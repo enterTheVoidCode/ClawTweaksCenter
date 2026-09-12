@@ -77,6 +77,80 @@ namespace ClawTweaksCenter.Audio
             set => Volatile.Write(ref _musicVolume, Math.Clamp(value, 0f, 1f));
         }
 
+        /// <summary>
+        /// The sound SETS. "glass" is what ships under the bare file name; every other set is that
+        /// name plus "_&lt;set&gt;" - so a loose navigate.ogg in the override folder still replaces
+        /// the default set, exactly the way it did before there were any sets.
+        ///
+        /// Only Navigate and Back have an alternative today (user, 2026-09-12). Confirm and Launch
+        /// are listed with one entry each rather than left out, so a second file for them is a line
+        /// in this table and nothing else.
+        /// </summary>
+        public const string DefaultVariant = "glass";
+
+        private static readonly Dictionary<UiSound, string[]> VariantsPerSound = new Dictionary<UiSound, string[]>
+        {
+            [UiSound.Navigate] = new[] { DefaultVariant, "natural" },
+            [UiSound.Back] = new[] { DefaultVariant, "natural" },
+            [UiSound.Confirm] = new[] { DefaultVariant },
+            [UiSound.Launch] = new[] { DefaultVariant },
+        };
+
+        /// <summary>
+        /// Per-file loudness, on top of the effects volume.
+        ///
+        /// One recording being quieter than the others is a property of THAT file, not of a setting
+        /// anyone should have to turn - and normalising it would mean re-encoding a sound we were
+        /// handed. Set by ear (user, 2026-09-12: the Natural set came out far too quiet beside the
+        /// Glass one).
+        ///
+        /// ⚠️ A gain above 1 can only be spent where there is headroom in the FILE. If a set ever
+        /// sounds harsh rather than louder, it is clipping and the answer is a quieter effects
+        /// volume or a better recording, not a bigger number here.
+        /// </summary>
+        private static readonly Dictionary<string, float> FileGain = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["navigate_natural"] = 1.8f,
+            ["back_natural"] = 1.3f,
+        };
+
+        private static string _navigateVariant = Normalize(UiSound.Navigate, Core.CenterSettings.NavigateSound);
+        private static string _backVariant = Normalize(UiSound.Back, Core.CenterSettings.BackSound);
+
+        public static string[] VariantsFor(UiSound sound)
+            => VariantsPerSound.TryGetValue(sound, out var v) ? v : new[] { DefaultVariant };
+
+        public static string VariantOf(UiSound sound) => sound == UiSound.Back
+            ? Volatile.Read(ref _backVariant)
+            : Volatile.Read(ref _navigateVariant);
+
+        /// <summary>Switches a sound to another set. Heard on the next press - every set is decoded
+        /// already, so there is nothing to load here.</summary>
+        public static void SetVariant(UiSound sound, string variant)
+        {
+            string value = Normalize(sound, variant);
+            if (sound == UiSound.Back) Volatile.Write(ref _backVariant, value);
+            else Volatile.Write(ref _navigateVariant, value);
+        }
+
+        /// <summary>An unknown set - hand-edited, or one we stopped shipping - reads as the default
+        /// rather than as silence.</summary>
+        private static string Normalize(UiSound sound, string variant)
+        {
+            if (string.IsNullOrWhiteSpace(variant)) return DefaultVariant;
+            foreach (string known in VariantsFor(sound))
+                if (string.Equals(known, variant, StringComparison.OrdinalIgnoreCase)) return known;
+            return DefaultVariant;
+        }
+
+        /// <summary>The file behind a set: the bare name for the default, name_set for the rest.</summary>
+        private static string FileNameFor(UiSound sound, string variant)
+        {
+            string baseName = sound.ToString().ToLowerInvariant();
+            return string.Equals(variant, DefaultVariant, StringComparison.OrdinalIgnoreCase)
+                ? baseName : baseName + "_" + variant.ToLowerInvariant();
+        }
+
         /// <summary>The same effect twice within this window plays once. A stick that crosses the
         /// deadzone on two axes in one tick raises two directions, and two identical clicks on top of
         /// each other only read as one louder, rougher click.</summary>
@@ -91,7 +165,9 @@ namespace ClawTweaksCenter.Audio
         private static readonly string[] Extensions = { ".ogg", ".wav", ".mp3" };
 
         private static readonly object Gate = new object();
-        private static readonly Dictionary<UiSound, float[]> Clips = new Dictionary<UiSound, float[]>();
+        // Keyed by FILE name, not by UiSound: every set is decoded once at start-up, so switching
+        // one is a different key rather than a load on the press that switched it.
+        private static readonly Dictionary<string, float[]> Clips = new Dictionary<string, float[]>(StringComparer.OrdinalIgnoreCase);
         private static readonly Dictionary<UiSound, DateTime> LastPlayed = new Dictionary<UiSound, DateTime>();
         private static readonly HashSet<string> LoggedOnce = new HashSet<string>(StringComparer.Ordinal);
 
@@ -147,26 +223,48 @@ namespace ClawTweaksCenter.Audio
 
                     // Not loaded yet (the warm-up is still running) or no file: silence. Waiting for
                     // the load here would stall the press that asked for it.
-                    if (!Clips.TryGetValue(sound, out var clip) || clip == null) return;
+                    //
+                    // A set with no file of its own falls back to the default set, so a half-filled
+                    // set is one sound short rather than silent on that press.
+                    string name = FileNameFor(sound, VariantOf(sound));
+                    if (!Clips.TryGetValue(name, out var clip) || clip == null)
+                    {
+                        name = FileNameFor(sound, DefaultVariant);
+                        if (!Clips.TryGetValue(name, out clip) || clip == null) return;
+                    }
                     if (!EnsureOutputLocked()) return;
 
-                    _mixer.AddMixerInput(new ClipProvider(clip, EffectsVolume));
+                    _mixer.AddMixerInput(new ClipProvider(clip, EffectsVolume * GainFor(name)));
                     ResumeLocked();
                 }
             }
             catch (Exception ex) { LogOnce("play", "[Sound] playing an effect failed: " + ex.Message); }
         }
 
-        /// <summary>Fades the music in or out. The track position is kept while it is faded out, so
-        /// coming back to the library carries on where it stopped.</summary>
-        public static void SetMusicPlaying(bool playing)
+        private static float GainFor(string fileName)
+            => FileGain.TryGetValue(fileName, out float g) ? g : 1f;
+
+        /// <summary>
+        /// Starts or stops the music. The track position is kept either way, so coming back to the
+        /// library carries on where it stopped.
+        ///
+        /// <paramref name="immediate"/> cuts instead of fading, for the cases where the window itself
+        /// is gone - hidden, minimised, or a game has the screen. Nearly a second of music over a
+        /// game that has already started reads as music that did not stop (user, 2026-09-12). Moving
+        /// around inside Center still fades.
+        /// </summary>
+        public static void SetMusicPlaying(bool playing, bool immediate = false)
         {
             try
             {
                 lock (Gate)
                 {
-                    if (_musicWanted == playing) return;
+                    // A cut still has to reach a fade that is already running: the wanted state is
+                    // false by then, and returning here would leave the tail playing.
+                    bool cutTheTail = immediate && !playing && _music != null && !_music.IsSilent;
+                    if (_musicWanted == playing && !cutTheTail) return;
                     _musicWanted = playing;
+                    if (!playing && immediate) { _music?.StopNow(); return; }
                     ApplyMusicLocked();
                 }
             }
@@ -306,14 +404,17 @@ namespace ClawTweaksCenter.Audio
             foreach (var f in ReadEmbedded()) files[f.Name] = f;
             foreach (var f in ReadOverrideFolder()) files[f.Name] = f;   // loose files win
 
-            var clips = new Dictionary<UiSound, float[]>();
+            // Every set of every effect, not only the one that is switched on: a set is a few
+            // kilobytes, and the press that switches it is the one moment a decode would be heard.
+            var clips = new Dictionary<string, float[]>(StringComparer.OrdinalIgnoreCase);
             foreach (UiSound sound in Enum.GetValues(typeof(UiSound)))
-            {
-                string name = sound.ToString().ToLowerInvariant();
-                if (!files.TryGetValue(name, out var file)) continue;
-                try { clips[sound] = Decode(file); }
-                catch (Exception ex) { LogOnce("decode:" + name, "[Sound] " + file.Origin + " could not be read: " + ex.Message); }
-            }
+                foreach (string variant in VariantsFor(sound))
+                {
+                    string name = FileNameFor(sound, variant);
+                    if (clips.ContainsKey(name) || !files.TryGetValue(name, out var file)) continue;
+                    try { clips[name] = Decode(file); }
+                    catch (Exception ex) { LogOnce("decode:" + name, "[Sound] " + file.Origin + " could not be read: " + ex.Message); }
+                }
 
             var music = files.Values
                 .Where(f => f.Name.StartsWith("music", StringComparison.OrdinalIgnoreCase))
@@ -327,7 +428,7 @@ namespace ClawTweaksCenter.Audio
             }
 
             Core.InstallLog.Write("[Sound] effects: "
-                + (clips.Count == 0 ? "none" : string.Join(", ", clips.Keys.Select(k => k.ToString().ToLowerInvariant())))
+                + (clips.Count == 0 ? "none" : string.Join(", ", clips.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase)))
                 + "; music tracks: " + music.Count);
         }
 
@@ -460,7 +561,9 @@ namespace ClawTweaksCenter.Audio
             public int Read(float[] buffer, int offset, int count)
             {
                 int n = Math.Min(count, _clip.Length - _position);
-                for (int i = 0; i < n; i++) buffer[offset + i] = _clip[_position + i] * _volume;
+                // Clamped, because a per-file gain above 1 can push a loud sample past full scale.
+                for (int i = 0; i < n; i++)
+                    buffer[offset + i] = Math.Clamp(_clip[_position + i] * _volume, -1f, 1f);
                 _position += n;
                 return n;
             }
@@ -499,6 +602,10 @@ namespace ClawTweaksCenter.Audio
 
             public void FadeIn() => _target = 1f;
             public void FadeOut() => _target = 0f;
+
+            /// <summary>Silent from the next buffer on. The track and its position are untouched, so
+            /// fading back in still carries on where it stopped.</summary>
+            public void StopNow() { _target = 0f; _gain = 0f; }
 
             public int Read(float[] buffer, int offset, int count)
             {
