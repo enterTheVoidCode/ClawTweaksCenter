@@ -199,6 +199,11 @@ namespace ClawTweaksCenter.Library
                 // Games while this loop runs, and handing it a list being sorted underneath it is the
                 // kind of race that shows up once a month and never in a test.
                 Games = new List<GameEntry>(all);
+                // EVERY ROUND, not just at the top of the scan. This list is rebuilt from the sources
+                // and the owned entries are not one of them, so a load that landed between two rounds
+                // has just been thrown away - and a flag left saying otherwise is a tab that stays
+                // empty and blames Steam for it.
+                NotInstalledLoaded = false;
                 if (onPartial != null && !ct.IsCancellationRequested) onPartial();
             }
         }
@@ -352,6 +357,25 @@ namespace ClawTweaksCenter.Library
 
             var merged = new List<GameEntry>(Games);
             merged.AddRange(owned);
+
+            // THE SAME MILL A SCAN ROUND RUNS, and it has to be: entries that skip it arrive with no
+            // cover, no playtime, no favourite flag and no play history. Reported the day this
+            // shipped as "the Not Installed tab has lost all its icons" - the covers were never
+            // resolved, because resolving them is a step of the scan and these no longer come from
+            // one. Every call here is idempotent; ResolveLocalArt skips an entry that already has
+            // its picture.
+            SteamPlaytime.Refresh();
+            foreach (var g in owned)
+            {
+                if (g.Store == GameStore.Steam) g.PlaytimeMinutes = SteamPlaytime.MinutesFor(g.Id);
+                g.Profiles = ClawProfiles.For(g);
+            }
+            GameArt.ResolveLocalArt(merged);
+            ArtOverrideStore.ApplyTo(merged);
+            FavoritesStore.ApplyTo(merged);
+            History.ApplyTo(merged);
+            merged.Sort((a, b) => string.Compare(a.Title, b.Title, StringComparison.CurrentCultureIgnoreCase));
+
             Games = merged;
             return true;
         }

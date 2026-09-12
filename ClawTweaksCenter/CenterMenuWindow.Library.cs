@@ -1791,6 +1791,10 @@ namespace ClawTweaksCenter
         {
             if (group != LibraryGroup.NotInstalled) return;
             if (!_libraryScanned || _library.NotInstalledLoaded || _notInstalledLoading) return;
+            // NOT WHILE A SCAN IS STILL LANDING. _libraryScanned turns true at the first partial
+            // paint, with sources still to come - and every one of those republishes Games and drops
+            // what was merged in here. Waiting costs nothing: the scan ends with a render.
+            if (_libraryScanning) return;
 
             _notInstalledLoading = true;
             _ = Task.Run(async () =>

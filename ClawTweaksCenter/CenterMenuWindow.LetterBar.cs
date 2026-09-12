@@ -197,7 +197,27 @@ namespace ClawTweaksCenter
             // LT, by the same rule that keeps the ROM triggers out of the footer.
             if (!_letterBarOpen)
             {
-                if (_letterFilter == null) return null;
+                // RESTING STATE, reported missing the day this shipped: with no letter chosen the
+                // corner was empty, so the only way to find out LT does anything was to press it.
+                // A magnifying glass rather than a word - the corner is narrow, and the row of
+                // letters it opens explains itself the moment it is open.
+                if (_letterFilter == null)
+                {
+                    if (!LetterBarAvailable || _libraryGames.Count == 0) return null;
+                    row.Children.Add(BuildKeyCap("LT"));
+                    row.Children.Add(new TextBlock
+                    {
+                        // Escape, not a literal: a private-use character is invisible in every diff.
+                        Text = "\uE721",
+                        FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                        FontSize = 15,
+                        Foreground = UiHelpers.Text,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(8, 0, 0, 0),
+                    });
+                    return row;
+                }
+
                 row.Children.Add(BuildKeyCap("LT"));
                 row.Children.Add(new Border { Width = 8 });
                 row.Children.Add(BuildLetterChip(_letterFilter, selected: true));
