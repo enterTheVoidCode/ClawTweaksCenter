@@ -6,5 +6,5 @@
 
   "schemaVersion": 1,
   "silentUpdatesEnabled": true,
-  "essentialVersions": ["0.2.37"]
+  "essentialVersions": ["0.2.37", "0.2.51"]
 }
