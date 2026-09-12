@@ -162,14 +162,14 @@ in the install log).
 
 ---
 
-## 5. TODO (user, 2026-09-11)
+## 5. Tab strip hidden on the friends screen (0.2.46, user 2026-09-11)
 
-- **Hide the tab strip while the friends screen is open.** The library tabs stay visible above the two
-  columns, and LB/RB are blocked there anyway (`LaunchOverlayOpen` includes `_friendsOpen`), so the
-  strip shows navigation that does not apply. The model is the launch prompt: `RefreshTabStrip`
-  collapses the strip while `LaunchPromptOwnsScreen` is true - adding `_friendsOpen` there is the
-  obvious form. Check that the corner count comes back when the screen closes (`CloseFriends` already
-  calls `RefreshTabStrip`).
+**Built, not seen on the device.** The library tabs stayed visible above the two columns while LB/RB
+were blocked there (`LaunchOverlayOpen` includes `_friendsOpen`). `RefreshTabStrip` now collapses the
+strip for `LaunchPromptOwnsScreen || _friendsOpen`; `OpenFriends` calls `RefreshTabStrip`, and
+`CloseFriends` already did, which brings the strip and the corner count back.
+
+To check on the device: the corner count is back after B.
 
 ## 6. State and history (for picking this up cold)
 
@@ -179,6 +179,7 @@ in the install log).
 | 0.2.43 | Big Picture removed; own `Program.Main` so the reader does not flash the splash | yes (installed with 0.2.44) |
 | 0.2.44 | Steam's activity feed from `0.json`, last-seen store, green/yellow colours, feed behind X | yes - activity visible, "0 of 0" while loading, feed felt bolted on |
 | 0.2.45 | two columns (friends / activity), loading spinner, X toggle removed | yes - "looks very good" |
+| 0.2.46 | tab strip hidden while the friends screen is open (same build as the library sounds) | not yet |
 
 Setups built for these runs: `ClawTweaksInstaller\Output\ClawTweaks_0.3.1.157` .. `0.3.1.160_Setup.exe`
 in the private repo, each with the Center version above (checked in the build log's `Center :` line).

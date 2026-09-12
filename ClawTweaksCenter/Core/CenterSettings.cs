@@ -305,6 +305,45 @@ namespace ClawTweaksCenter.Core
         }
 
         /// <summary>
+        /// Short sounds for navigating the library, confirming, going back and starting a game.
+        /// See Audio/UiSounds.cs.
+        ///
+        /// On by default: a pad interface is where a click per move is expected, and without sound
+        /// files it is silent anyway.
+        /// </summary>
+        public static bool InterfaceSounds
+        {
+            get => ReadBool("InterfaceSounds", true);
+            set => WriteBool("InterfaceSounds", value);
+        }
+
+        /// <summary>
+        /// Music while the library is on screen. Off by default - music is something to switch on,
+        /// not something to find playing.
+        /// </summary>
+        public static bool BackgroundMusic
+        {
+            get => ReadBool("BackgroundMusic", false);
+            set => WriteBool("BackgroundMusic", value);
+        }
+
+        /// <summary>Loudness of the interface sounds, 0..100. Clamped on read, so a hand-edited value
+        /// cannot blow past full scale.</summary>
+        public static int EffectsVolume
+        {
+            get => Math.Clamp(ReadInt("EffectsVolume", 60), 0, 100);
+            set => WriteInt("EffectsVolume", Math.Clamp(value, 0, 100));
+        }
+
+        /// <summary>Loudness of the background music, 0..100. Lower than the effects by default: it
+        /// runs under everything for as long as the library is open.</summary>
+        public static int MusicVolume
+        {
+            get => Math.Clamp(ReadInt("MusicVolume", 35), 0, 100);
+            set => WriteInt("MusicVolume", Math.Clamp(value, 0, 100));
+        }
+
+        /// <summary>
         /// The interface language, as the user chose it - including "follow the OS", which is the
         /// default and what a fresh installation runs on.
         ///

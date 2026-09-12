@@ -247,6 +247,7 @@ namespace ClawTweaksCenter
             };
 
             InitializeTray();
+            InitializeSounds();
             WireKeyboardFallbacks();
         }
 
@@ -421,6 +422,10 @@ namespace ClawTweaksCenter
                 return;
             }
 
+            // Read BEFORE the action runs: B out of the library changes the view, and its sound
+            // belongs to the screen the press was made on.
+            bool librarySounds = _view == View.Library;
+
             if (b == PadButton.LB || b == PadButton.RB)
             {
                 if (_view == View.Library && !_confirming && !_busy)
@@ -428,16 +433,30 @@ namespace ClawTweaksCenter
                     // In the tab editor the shoulders MOVE the selected tab instead of switching
                     // tabs. It is the one screen that is about the strip rather than in it, and the
                     // shoulders are the gesture that already means "along the strip" on this pad.
-                    if (_tabEditorOpen) { MoveTabInOrder(b == PadButton.LB ? -1 : 1); return; }
+                    if (_tabEditorOpen) { MoveTabInOrder(b == PadButton.LB ? -1 : 1); Audio.UiSounds.Play(Audio.UiSound.Navigate); return; }
 
                     CycleLibraryGroup(b == PadButton.LB ? -1 : 1);
                     NoteTabChange();
+                    Audio.UiSounds.Play(Audio.UiSound.Navigate);
                 }
                 return;
             }
-            if (_liveActions.TryGetValue(b, out var action)) { action(); return; }
+            if (_liveActions.TryGetValue(b, out var action))
+            {
+                // An action that picked its own sound (ConfirmLaunch plays Launch) raised the count;
+                // the button's generic sound would land on top of it.
+                int soundsBefore = Audio.UiSounds.PlayCount;
+                action();
+                if (librarySounds && Audio.UiSounds.PlayCount == soundsBefore) PlayButtonSound(b);
+                return;
+            }
             if (b == PadButton.Up || b == PadButton.Down || b == PadButton.Left || b == PadButton.Right)
+            {
                 MoveSelection(b);
+                // On every press, also against the edge of a list. MoveSelection does not report
+                // whether it moved, and forty screens would have to learn to say so first.
+                if (librarySounds) Audio.UiSounds.Play(Audio.UiSound.Navigate);
+            }
         }
 
         #region Device banner
@@ -2044,6 +2063,10 @@ namespace ClawTweaksCenter
 
             // The stick hint is not a button and has no place in the button order - it closes the row.
             if (_pendingHint != null) ActionBar.Children.Add(_pendingHint);
+
+            // Every screen change comes through here, which makes it the one place the music can
+            // follow the view without each screen having to remember it.
+            UpdateLibraryMusic();
         }
 
         private static int ChipRank(PadButton b)

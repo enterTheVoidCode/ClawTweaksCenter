@@ -264,6 +264,7 @@ namespace ClawTweaksCenter
             _friendSelectedId = 0;
             _feedIndex = 0;
             RenderLibrary();
+            RefreshTabStrip();
             RefreshActionBar();
 
             ApplyFriendsInterval();

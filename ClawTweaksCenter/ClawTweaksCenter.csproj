@@ -26,7 +26,7 @@
          else ("it must be a 3-part SemVer2 compliant version string"), measured 2026-09-03. It has to
          stay in step with the packVersion the feed is built with, or Center shows the user one
          number while deciding on another. -->
-    <Version>0.2.45</Version>
+    <Version>0.2.46</Version>
     <!-- Our own Main (Program.cs), not the one generated from App.xaml - see the splash note below. -->
     <StartupObject>ClawTweaksCenter.Program</StartupObject>
     <!-- Distributed filename carries the version + "Setup" suffix (e.g. CTW_Center_0.1.0.2_Setup.exe)
@@ -120,6 +120,10 @@
          It closes itself once the first window appears — nothing to dispose, and nothing to do on the
          uninstall-callback path either, where no window ever opens and the process exits immediately. -->
     <Resource Include="Assets\branding\splash.png" />
+    <!-- Library sounds and background music, looked up by base name (navigate, confirm, back, launch,
+         music*). The folder may be empty: a sound without a file is silence. Loose files in
+         %LOCALAPPDATA%\ClawTweaks\Center\sounds\ win over these - see Audio\UiSounds.cs. -->
+    <Resource Include="Assets\sounds\*.ogg;Assets\sounds\*.wav;Assets\sounds\*.mp3" />
   </ItemGroup>
 
   <ItemGroup>
@@ -157,6 +161,14 @@
          all because Center's OWN self-updater was deleted on purpose (dropper shape); this is a
          deliberate reversal, so it defaults to the old behaviour and comes out in three steps. -->
     <PackageReference Include="Velopack" Version="1.2.0" />
+    <!-- Library sounds and music (Audio\UiSounds.cs). MIT. WASAPI output, a mixer, and Ogg Vorbis
+         decoding - WPF's MediaPlayer reads no .ogg without an optional Windows extension and starts a
+         clip late enough to hear on a D-pad press.
+         PINNED TO 2.2.1 / 1.5.0: NAudio 3 rewrote ISampleProvider around Span<float> and deprecated
+         WasapiOut. Moving is a port, not a version bump. -->
+    <PackageReference Include="NAudio.Core" Version="2.2.1" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
+    <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
     <!-- No package needed for Shared\Data\ClawHardwareId.cs's registry access: the private repo's
          Shared.csproj targets netstandard2.0 and has to reference Microsoft.Win32.Registry, but
          net10.0-windows ships it in the framework (adding it back produces NU1510). -->

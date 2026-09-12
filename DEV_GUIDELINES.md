@@ -452,6 +452,27 @@ never present its newest entry as "now". Type numbers are Steam's `EUserNewsType
 triggers. The corner chip and the RT binding read the same `LibraryTabOffersFriends`; keep them one
 test.
 
+## Library sounds and music (2026-09-11)
+
+**Written up in `Doku/UI_Sounds.md`.** What breaks by accident:
+
+WARNING: **Sounds are chosen in `CenterMenuWindow.Invoke`, not in screen handlers.** An action that
+wants a different sound plays it itself; `UiSounds.PlayCount` is how Invoke knows to stay quiet.
+Adding `UiSounds.Play(Confirm)` inside a screen's A handler plays it twice.
+
+WARNING: **Music follows `UpdateLibraryMusic`, which runs from `RefreshActionBar`.** Do not gate it
+on `IsActive` - a Center on screen often reports inactive, and the music would stutter.
+
+WARNING: **NAudio is pinned to 2.2.1 (NAudio.Vorbis 1.5.0).** NAudio 3 is a different API.
+
+**The switches and volumes live in their own screen**, Library settings -> Sound settings
+(`CenterMenuWindow.SoundSettings.cs`). `_soundSettingsOpen` implies `_settingsOpen`; a new way out of
+the settings has to clear both.
+
+**A sound is a file, not code:** `navigate`, `confirm`, `back`, `launch`, `music*` in
+`Assets\sounds\` (embedded) or `%LOCALAPPDATA%\ClawTweaks\Center\sounds\` (loose, wins). A missing
+file is silence.
+
 ## The FAQ, and the two rules its entries have to keep
 
 `CenterMenuWindow.Faq.cs`. Eight questions, collapsed until pressed, one statement per line. The

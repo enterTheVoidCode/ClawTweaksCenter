@@ -279,7 +279,10 @@ namespace ClawTweaksCenter
             // ⚠️ Deliberately NOT LibraryOverlayOwnsScreen, which also covers settings and the game
             // menu. Those two are lists the user navigates INSIDE the library, and the tab they came
             // from is context worth keeping on screen. Only the launch prompt replaces the screen.
-            if (inLibrary && LaunchPromptOwnsScreen)
+            // The friends screen too (user, 2026-09-11): LB/RB are blocked there, so the strip showed
+            // navigation that does not apply, and the two columns replace the shelf as fully as a
+            // prompt does. CloseFriends calls RefreshTabStrip, which brings it back with its count.
+            if (inLibrary && (LaunchPromptOwnsScreen || _friendsOpen))
             {
                 TabStrip.Visibility = Visibility.Collapsed;
                 return;
@@ -741,6 +744,10 @@ namespace ClawTweaksCenter
             RefreshLibrarySilently();
             if (Core.CenterSettings.StartSteamWithLibrary) PrewarmSteamInBackground();
             StartFriendsPolling();
+
+            // Reads the sound files, off the UI thread. The audio device itself is opened by the
+            // first sound, so with both switches off this costs a few kilobytes of reading.
+            _ = Audio.UiSounds.WarmAsync();
 
             // Straight into the immersive look, no two-second grace: the footer is meant to be gone
             // in this mode, and showing it for two seconds on every entry is the flicker the mode is
@@ -1570,6 +1577,7 @@ namespace ClawTweaksCenter
         #region Navigation
         private void MoveLibrarySelection(PadButton dir)
         {
+            if (_soundSettingsOpen) { MoveSoundSettingsSelection(dir); return; }
             if (_tabEditorOpen) { MoveTabEditorSelection(dir); return; }
             if (_settingsOpen) { MoveSettingsSelection(dir); return; }
             if (MiscOverlayOpen) { MoveMiscSelection(dir); return; }
@@ -2272,10 +2280,15 @@ namespace ClawTweaksCenter
         /// leads somewhere instead of changing a value in place.</summary>
         private const int SettingsTabsRow = 11;
 
+        /// <summary>Opens the sound settings (CenterMenuWindow.SoundSettings.cs) - one row here, so
+        /// sounds, music and both volumes do not take four cells of a grid that already runs to the
+        /// bottom of the panel.</summary>
+        private const int SettingsSoundRow = 12;
+
         /// <summary>The key row, and it is ALWAYS the last one: it holds a text box, so it spans the
         /// full width and sits on its own line below the pairs. The navigation maths below derives the
         /// pair count from this, so adding a switch above it needs no other change.</summary>
-        private const int SettingsKeyRow = 12;
+        private const int SettingsKeyRow = 13;
 
         // THREE, not two (user, 2026-09-05). Nine switches in two columns ran past the bottom of an
         // eight-inch panel again - the same reason this went from one column to two - and the rows are
@@ -2285,6 +2298,7 @@ namespace ClawTweaksCenter
         private void OpenLibrarySettings()
         {
             _settingsOpen = true;
+            _soundSettingsOpen = false;
             _settingsIndex = 0;
             RenderLibrarySettings();
             RefreshActionBar();
@@ -2293,6 +2307,9 @@ namespace ClawTweaksCenter
         private void CloseLibrarySettings()
         {
             _settingsOpen = false;
+            // The sub-screen implies the screen: closed together, or the next settings visit would
+            // open straight into sound settings with the grid's rows missing.
+            _soundSettingsOpen = false;
             _artKeyBox = null;
             _artKeyStatus = null;
             _settingsRows.Clear();
@@ -2346,6 +2363,7 @@ namespace ClawTweaksCenter
             pairs.Children.Add(BuildSettingRow(SettingsReflectionsRow, "Recent reflections",
                 Core.CenterSettings.RecentReflections, null));
             pairs.Children.Add(BuildSettingRow(SettingsTabsRow, "Library tabs", null, TabsSummary()));
+            pairs.Children.Add(BuildSettingRow(SettingsSoundRow, "Sound settings", null, null));
             stack.Children.Add(pairs);
 
             var keyRow = BuildSettingRow(SettingsKeyRow, "SteamGridDB key", null, null);
@@ -2574,6 +2592,9 @@ namespace ClawTweaksCenter
                     break;
                 case SettingsTabsRow:
                     OpenTabEditor();
+                    return;
+                case SettingsSoundRow:
+                    OpenSoundSettings();
                     return;
                 case SettingsKeyRow:
                     _artKeyBox?.Focus();
@@ -3083,6 +3104,9 @@ namespace ClawTweaksCenter
 
             if (started)
             {
+                // Its own sound, and it replaces A's: Invoke sees the play count move and stays quiet.
+                // A launch that fails keeps the plain confirm sound.
+                Audio.UiSounds.Play(Audio.UiSound.Launch);
                 _launchStarting = true;
                 _launchSteamColdStart = GameLibrary.LastLaunchStartedSteam;
                 StartLaunchStartingTimer();
@@ -4838,6 +4862,12 @@ namespace ClawTweaksCenter
                 return;
             }
 
+            if (_soundSettingsOpen)
+            {
+                AddSoundSettingsActions();
+                return;
+            }
+
             if (_tabEditorOpen)
             {
                 bool hidden = _tabEditorIndex >= 0 && _tabEditorIndex < _tabEditorOrder.Count
@@ -4851,6 +4881,7 @@ namespace ClawTweaksCenter
             {
                 string label = _settingsIndex == SettingsKeyRow ? "Edit"
                     : _settingsIndex == SettingsTabsRow ? "Open"
+                    : _settingsIndex == SettingsSoundRow ? "Open"
                     : _settingsIndex == SettingsUserImagesRow ? "Choose"
                     : _settingsIndex == SettingsBackgroundRow ? "Choose"
                     : _settingsIndex == SettingsLaunchBehaviorRow ? "Cycle"
