@@ -3089,8 +3089,8 @@ namespace ClawTweaksCenter
         /// <summary>Human-readable version transition for the final status ("Updated X → Y", not just "Installed Y").</summary>
         private static string DescribeTransition(Version previous, string selectedVersion)
         {
-            if (previous == null) return $"Installed {selectedVersion}";
-            if (!TryParseVersion(selectedVersion, out var selected)) return $"Installed {selectedVersion}";
+            if (previous == null) return Core.Loc.F("Installed {0}", selectedVersion);
+            if (!TryParseVersion(selectedVersion, out var selected)) return Core.Loc.F("Installed {0}", selectedVersion);
             if (selected > previous) return $"Updated {previous} → {selected}";
             if (selected < previous) return $"Downgraded {previous} → {selected}";
             return $"Reinstalled {selected}";

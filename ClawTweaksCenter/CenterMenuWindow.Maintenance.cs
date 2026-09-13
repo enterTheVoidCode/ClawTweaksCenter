@@ -404,7 +404,7 @@ namespace ClawTweaksCenter
             var r = await _maintenance.ResetAsync();
             if (r.Ok)
             {
-                string pre = string.IsNullOrEmpty(r.Path) ? "" : $"\nSafety copy of the previous state: {r.Path}";
+                string pre = string.IsNullOrEmpty(r.Path) ? "" : Core.Loc.F("\nSafety copy of the previous state: {0}", r.Path);
                 ShowResult(StatusKind.Ok, "Reset complete",
                     $"All ClawTweaks settings were reset to a clean state. Reopen the Game Bar (Win+G) to continue.{pre}");
             }
@@ -433,7 +433,7 @@ namespace ClawTweaksCenter
             var r = await _maintenance.RestoreAsync(b.FilePath);
             if (r.Ok)
             {
-                string pre = string.IsNullOrEmpty(r.Path) ? "" : $"\nSafety copy of the previous state: {r.Path}";
+                string pre = string.IsNullOrEmpty(r.Path) ? "" : Core.Loc.F("\nSafety copy of the previous state: {0}", r.Path);
                 ShowResult(StatusKind.Ok, "Restore complete",
                     $"Restored {r.Count} files. The helper is restarting — reopen the Game Bar (Win+G) to continue.{pre}");
             }

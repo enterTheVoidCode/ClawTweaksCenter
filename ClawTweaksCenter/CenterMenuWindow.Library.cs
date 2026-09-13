@@ -1227,7 +1227,7 @@ namespace ClawTweaksCenter
                 case LibraryGroup.Roms:
                     if (!Library.PlayniteSource.IsPresent) return "Playnite is not installed.";
                     if (_romSystem == GameLibrary.RomRecentSystem) return "No ROM has been played yet.";
-                    return _romSystem == null ? "No ROMs in your Playnite library." : "No ROMs for " + _romSystem + ".";
+                    return _romSystem == null ? "No ROMs in your Playnite library." : Core.Loc.F("No ROMs for {0}.", _romSystem);
                 default: return "No games found.";
             }
         }
@@ -1925,7 +1925,7 @@ namespace ClawTweaksCenter
             var buckets = new SortedDictionary<string, List<GameEntry>>(StringComparer.CurrentCultureIgnoreCase);
             foreach (var g in list)
             {
-                string key = kind == GroupingKind.Platform ? PlatformLabel(g) : (g.SystemName ?? "Other");
+                string key = kind == GroupingKind.Platform ? PlatformLabel(g) : (g.SystemName ?? Core.Loc.T("Other"));
                 if (!buckets.TryGetValue(key, out var bucket)) buckets[key] = bucket = new List<GameEntry>();
                 bucket.Add(g);
             }
@@ -4409,7 +4409,7 @@ namespace ClawTweaksCenter
 
             var copy = new Button
             {
-                Content = "Copy",
+                Content = Core.Loc.T("Copy"),
                 Style = (Style)Application.Current.Resources["SetupButton"],
                 MinWidth = 90,
                 Margin = new Thickness(8, 0, 0, 0),

@@ -144,7 +144,7 @@ namespace ClawTweaksCenter
             if (!_miscLoadingApps)
                 head.Children.Add(new TextBlock
                 {
-                    Text = _miscChecked.Count == 1 ? "1 selected" : _miscChecked.Count + " selected",
+                    Text = Core.Loc.F("{0} selected", _miscChecked.Count),
                     FontSize = 14,
                     Foreground = UiHelpers.Subtle,
                     Margin = new Thickness(0, 4, 0, 0),
@@ -589,7 +589,7 @@ namespace ClawTweaksCenter
         {
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
-                Title = "Choose a program",
+                Title = Core.Loc.T("Choose a program"),
                 Filter = "Programs (*.exe)|*.exe",
                 CheckFileExists = true,
                 Multiselect = true,

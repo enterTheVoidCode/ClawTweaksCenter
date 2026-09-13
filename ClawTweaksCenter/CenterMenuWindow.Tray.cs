@@ -126,11 +126,11 @@ namespace ClawTweaksCenter
 
             var menu = new ContextMenu();
 
-            var openItem = new MenuItem { Header = "Open Center" };
+            var openItem = new MenuItem { Header = Core.Loc.T("Open Center") };
             openItem.Click += (_, __) => BringToFront();
             menu.Items.Add(openItem);
 
-            var libraryItem = new MenuItem { Header = "Open Library" };
+            var libraryItem = new MenuItem { Header = Core.Loc.T("Open Library") };
             libraryItem.Click += (_, __) =>
             {
                 BringToFront();
@@ -140,7 +140,7 @@ namespace ClawTweaksCenter
 
             menu.Items.Add(new Separator());
 
-            var exitItem = new MenuItem { Header = "Exit Center" };
+            var exitItem = new MenuItem { Header = Core.Loc.T("Exit Center") };
             exitItem.Click += (_, __) =>
             {
                 _reallyExiting = true;
