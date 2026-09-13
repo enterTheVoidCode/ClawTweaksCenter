@@ -4,7 +4,7 @@ using System.Globalization;
 
 namespace ClawTweaksCenter.Core
 {
-    /// <summary>The five languages Center ships, plus "follow the OS".</summary>
+    /// <summary>The six languages Center ships, plus "follow the OS".</summary>
     public enum UiLanguage
     {
         /// <summary>Whatever Windows is set to, if we have it. The default, and what a fresh
@@ -15,6 +15,7 @@ namespace ClawTweaksCenter.Core
         French,
         Korean,
         Spanish,
+        Chinese,
     }
 
     /// <summary>
@@ -99,6 +100,13 @@ namespace ClawTweaksCenter.Core
                     case "fr": return UiLanguage.French;
                     case "ko": return UiLanguage.Korean;
                     case "es": return UiLanguage.Spanish;
+                    case "zh":
+                        // Chinese ships Simplified only. zh-TW/zh-HK/zh-MO report CHT/ZHH/ZHM as
+                        // the three-letter code; those users stay on English rather than get
+                        // Simplified sprung on them. They can still pin 中文 in Center Settings.
+                        return CultureInfo.CurrentUICulture.ThreeLetterISOLanguageName is "CHT" or "ZHH" or "ZHM"
+                            ? UiLanguage.English
+                            : UiLanguage.Chinese;
                 }
             }
             catch { }
@@ -151,6 +159,7 @@ namespace ClawTweaksCenter.Core
                 case UiLanguage.French: return "Français";
                 case UiLanguage.Korean: return "한국어";
                 case UiLanguage.Spanish: return "Español";
+                case UiLanguage.Chinese: return "中文";
                 case UiLanguage.English: return "English";
                 default: return T("System language");
             }
@@ -161,7 +170,7 @@ namespace ClawTweaksCenter.Core
         public static readonly UiLanguage[] Order =
         {
             UiLanguage.System, UiLanguage.English, UiLanguage.German,
-            UiLanguage.French, UiLanguage.Korean, UiLanguage.Spanish,
+            UiLanguage.French, UiLanguage.Korean, UiLanguage.Spanish, UiLanguage.Chinese,
         };
 
         public static UiLanguage Next(UiLanguage current)
@@ -178,6 +187,7 @@ namespace ClawTweaksCenter.Core
                 case UiLanguage.French: return French;
                 case UiLanguage.Korean: return Korean;
                 case UiLanguage.Spanish: return Spanish;
+                case UiLanguage.Chinese: return Chinese;
                 default: return null;
             }
         }
