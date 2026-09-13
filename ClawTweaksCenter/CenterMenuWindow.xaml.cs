@@ -1016,7 +1016,9 @@ namespace ClawTweaksCenter
             if (update != null)
                 ContentHost.Children.Add(new TextBlock
                 {
-                    Text = $"▲ Update available on GitHub: {update.Version} ({update.Origin})",
+                    // The format goes through Loc.F so a language can move the version and origin;
+                    // the finished interpolation could never match a key.
+                    Text = Core.Loc.F("▲ Update available on GitHub: {0} ({1})", update.Version, update.Origin),
                     FontSize = 15, Foreground = UiHelpers.Ok, Margin = new Thickness(0, 0, 0, 16),
                 });
 
@@ -1156,7 +1158,7 @@ namespace ClawTweaksCenter
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Child = new TextBlock
                 {
-                    Text = "⚠  If HidHide or usbip was just installed, restart the device before running these steps.",
+                    Text = Core.Loc.T("⚠  If HidHide or usbip was just installed, restart the device before running these steps."),
                     FontSize = 14,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = UiHelpers.Warn,
@@ -1474,19 +1476,21 @@ namespace ClawTweaksCenter
             var legacyVersion = SelfInstaller.GetLegacyInstalledVersion();
             stack.Children.Add(new TextBlock
             {
-                Text = (legacyVersion != null ? $"Version {legacyVersion} is " : "A previous version is ") +
-                       $"still installed for all users, in {SelfInstaller.LegacyInstallDir}. This version " +
-                       "installs into your own user folder instead, so the old one is no longer used — but " +
-                       "it stays in Settings → Apps and in the Start Menu until it's removed, where it's " +
-                       "easy to launch by mistake.",
+                // Formats through Loc.F, per the UpdateSelectedTitle pattern: the version and the
+                // install dir are values a language may need to place differently in the sentence.
+                Text = legacyVersion != null
+                    ? Core.Loc.F("Version {0} is still installed for all users, in {1}. This version installs into your own user folder instead, so the old one is no longer used — but it stays in Settings → Apps and in the Start Menu until it's removed, where it's easy to launch by mistake.",
+                                 legacyVersion, SelfInstaller.LegacyInstallDir)
+                    : Core.Loc.F("A previous version is still installed for all users, in {0}. This version installs into your own user folder instead, so the old one is no longer used — but it stays in Settings → Apps and in the Start Menu until it's removed, where it's easy to launch by mistake.",
+                                 SelfInstaller.LegacyInstallDir),
                 FontSize = 14, Foreground = UiHelpers.Subtle,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "Removing it needs administrator rights. ClawTweaks Center never asks for those — " +
+                Text = Core.Loc.T("Removing it needs administrator rights. ClawTweaks Center never asks for those — " +
                        "the button below starts the old version's own uninstaller, so the prompt you see " +
-                       "comes from it, about removing itself.",
+                       "comes from it, about removing itself."),
                 FontSize = 14, Foreground = UiHelpers.Subtle,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
             });

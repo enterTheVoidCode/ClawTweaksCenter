@@ -4089,7 +4089,7 @@ namespace ClawTweaksCenter
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "OptiScaler wiki · " + (info.WikiPage ?? string.Empty).Replace('-', ' '),
+                Text = Core.Loc.T("OptiScaler wiki · ") + (info.WikiPage ?? string.Empty).Replace('-', ' '),
                 FontSize = 12,
                 Foreground = UiHelpers.Subtle,
                 Margin = new Thickness(0, 2, 0, 14),

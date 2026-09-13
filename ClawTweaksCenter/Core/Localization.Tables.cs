@@ -2619,7 +2619,7 @@ namespace ClawTweaksCenter.Core
         // Simplified sprung on them; they can still pin 中文 on Home → Center Settings.
         private static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>
         {
-            ["A backup is saved first"] = "会先保存一份备份",
+            ["A backup is saved first"] = "先保存备份",
             ["A confirmation prompt appeared \u2014 please confirm it to continue."] = "已弹出确认提示——请确认后继续。",
             ["A full reset backs up your settings first as well."] = "完全重置同样会先备份你的设置。",
             ["A helper from before the update is still running."] = "更新前的旧 Helper 仍在运行。",
@@ -2658,7 +2658,7 @@ namespace ClawTweaksCenter.Core
             ["Add ClawTweaks Center in AnyFSE as your full screen app."] = "在 AnyFSE 中将 ClawTweaks Center 添加为全屏应用。",
             ["Add ClawTweaks to the Game Bar"] = "将 ClawTweaks 添加到 Game Bar",
             ["Add ClawTweaks to the Game Bar first."] = "请先将 ClawTweaks 添加到 Game Bar。",
-            ["Add ROMs in Playnite, then close it \u2014 they are found automatically."] = "在 Playnite 中添加 ROM 后关闭它——它们会被自动找到。",
+            ["Add ROMs in Playnite, then close it \u2014 they are found automatically."] = "在 Playnite 中添加 ROM 后关闭它——它们会被自动检索。",
             ["Add a desktop icon"] = "添加桌面图标",
             ["Add a tool"] = "添加工具",
             ["Add an app"] = "添加应用",
@@ -3262,6 +3262,25 @@ namespace ClawTweaksCenter.Core
             ["{0} of {1} unlocked"] = "已解锁 {0}/{1}",
             ["{0}% of players"] = "{0}% 的玩家",
             ["Status"] = "状态",
+            ["Recent immersive"] = "最近沉浸模式",
+            ["Tab visibility & order"] = "标签页可见性与顺序",
+            ["OptiScaler wiki · "] = "OptiScaler Wiki · ",
+            ["Reset · Backup · Restore"] = "重置 · 备份 · 恢复",
+            ["Update & Release"] = "更新与发布",
+            ["Center Settings"] = "Center 设置",
+            ["Uninstall ClawTweaks"] = "卸载 ClawTweaks",
+            ["The update could not install itself. Try the button below."] = "更新无法自行安装。请试试下面的按钮。",
+            ["Install update now"] = "立即安装更新",
+            ["Removing it needs administrator rights. ClawTweaks Center never asks for those — the button below starts the old version's own uninstaller, so the prompt you see comes from it, about removing itself."] = "移除它需要管理员权限。ClawTweaks Center 从不请求这些权限——下面的按钮会启动旧版本自带的卸载程序,所以你看到的提示来自它,是关于卸载它自己的。",
+            ["The old version's uninstaller is running — confirm its prompt. This notice disappears once it's gone (press Ⓨ to refresh)."] = "旧版本的卸载程序正在运行——请确认它的提示。卸载完成后此提示会消失(按 Ⓨ 刷新)。",
+            ["These install kernel drivers. Without the restart everything looks installed and the virtual controller still won't start."] = "它们会安装内核驱动。不重启的话,一切看起来都已安装,而虚拟手柄仍然无法启动。",
+            ["Add"] = "添加",
+            ["Add {0}"] = "添加 {0}",
+            ["▲ Update available on GitHub: {0} ({1})"] = "▲ GitHub 有可用更新:{0} ({1})",
+            ["⚠  If HidHide or usbip was just installed, restart the device before running these steps."] = "⚠  如果刚安装了 HidHide 或 usbip,请在执行这些步骤前重启设备。",
+            ["Auto pre-restore — "] = "恢复前自动备份——",
+            ["Version {0} is still installed for all users, in {1}. This version installs into your own user folder instead, so the old one is no longer used — but it stays in Settings → Apps and in the Start Menu until it's removed, where it's easy to launch by mistake."] = "版本 {0} 仍为所有用户安装,位于 {1}。本版本改为安装到你自己的用户文件夹,旧版本因此不再使用——但在移除之前,它仍会出现在设置 → 应用和开始菜单中,容易被误启动。",
+            ["A previous version is still installed for all users, in {0}. This version installs into your own user folder instead, so the old one is no longer used — but it stays in Settings → Apps and in the Start Menu until it's removed, where it's easy to launch by mistake."] = "之前的版本仍为所有用户安装,位于 {0}。本版本改为安装到你自己的用户文件夹,旧版本因此不再使用——但在移除之前,它仍会出现在设置 → 应用和开始菜单中,容易被误启动。",
         };
 
     }

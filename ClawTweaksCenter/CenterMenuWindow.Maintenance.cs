@@ -204,7 +204,7 @@ namespace ClawTweaksCenter
                 string when = b.CreatedUtc?.ToLocalTime().ToString("yyyy-MM-dd HH:mm") ?? b.FileTime.ToString("yyyy-MM-dd HH:mm");
                 stack.Children.Add(new TextBlock
                 {
-                    Text = (b.IsPreRestore ? "Auto pre-restore — " : "") + when,
+                    Text = (b.IsPreRestore ? Core.Loc.T("Auto pre-restore — ") : "") + when,
                     FontSize = 16, FontWeight = FontWeights.SemiBold, Foreground = UiHelpers.Text, TextWrapping = TextWrapping.Wrap,
                 });
 

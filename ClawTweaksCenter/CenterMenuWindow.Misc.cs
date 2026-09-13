@@ -667,8 +667,10 @@ namespace ClawTweaksCenter
 
                 case MiscOverlay.Apps:
                     AddAction(PadButton.A, "Select", !_miscLoadingApps && _miscCandidates.Count > 0, ToggleCandidate);
+                    // The count is filled in through the format so a language can reorder it;
+                    // BuildChip looks the bare "Add" up on its own.
                     AddAction(PadButton.X,
-                        _miscChecked.Count == 0 ? "Add" : "Add " + _miscChecked.Count,
+                        _miscChecked.Count == 0 ? "Add" : Core.Loc.F("Add {0}", _miscChecked.Count),
                         _miscChecked.Count > 0, CommitCheckedApps);
                     AddAction(PadButton.B, "Back", true, MiscOverlayBack);
                     // The triggers jump by initial, exactly as they step ROM systems one tab over -
