@@ -204,6 +204,13 @@ namespace ClawTweaksCenter.Library
         {
             var sb = new StringBuilder();
             sb.Append("$ErrorActionPreference='SilentlyContinue';");
+            // Redirected powershell.exe writes output in the console OEM codepage (CP936 on zh-CN,
+            // CP437/850 on Western systems), but the reader below declares UTF8. Without this line
+            // every non-ASCII app name - Chinese software titles above all - is decoded with the
+            // wrong codepage and arrives as mojibake. This makes the bytes on the pipe match what
+            // the reader declares. try/catch because a failed assignment is a TERMINATING error
+            // that no error preference swallows; degrading to the old bytes beats aborting the scan.
+            sb.Append("try{[Console]::OutputEncoding=[System.Text.Encoding]::UTF8}catch{};");
             sb.Append("$s=[char]1;");
             sb.Append("Get-StartApps | ForEach-Object { 'S'+$s+'Start menu'+$s+$_.Name+$s+$_.AppID+$s };");
             sb.Append("$w=New-Object -ComObject WScript.Shell;");
