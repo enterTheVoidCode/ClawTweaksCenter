@@ -174,6 +174,11 @@ namespace ClawTweaksCenter.Ui
                 window.WindowStyle = WindowStyle.None;
                 window.ResizeMode = ResizeMode.NoResize;
                 window.WindowState = WindowState.Maximized;
+
+                // The DWM corner preference set by ModernWindow survives the style change, and a
+                // rounded window over a rectangular screen shows the desktop through all four
+                // corners. Square for fullscreen, rounded again on the way back.
+                ModernWindow.SetRoundedCorners(window, rounded: false);
             }
             catch
             {
@@ -202,6 +207,8 @@ namespace ClawTweaksCenter.Ui
                     window.WindowStyle = WindowStyle.SingleBorderWindow;
                     window.ResizeMode = ResizeMode.CanResize;
                 }
+
+                ModernWindow.SetRoundedCorners(window, rounded: true);
             }
             catch
             {
