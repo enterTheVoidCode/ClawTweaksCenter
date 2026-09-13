@@ -3282,6 +3282,11 @@ namespace ClawTweaksCenter.Core
             ["Version {0} is still installed for all users, in {1}. This version installs into your own user folder instead, so the old one is no longer used — but it stays in Settings → Apps and in the Start Menu until it's removed, where it's easy to launch by mistake."] = "版本 {0} 仍为所有用户安装,位于 {1}。本版本改为安装到你自己的用户文件夹,旧版本因此不再使用——但在移除之前,它仍会出现在设置 → 应用和开始菜单中,容易被误启动。",
             ["A previous version is still installed for all users, in {0}. This version installs into your own user folder instead, so the old one is no longer used — but it stays in Settings → Apps and in the Start Menu until it's removed, where it's easy to launch by mistake."] = "之前的版本仍为所有用户安装,位于 {0}。本版本改为安装到你自己的用户文件夹,旧版本因此不再使用——但在移除之前,它仍会出现在设置 → 应用和开始菜单中,容易被误启动。",
             ["Onboarding"] = "引导设置",
+            ["Supported."] = "受支持。",
+            ["Recognized, but not supported yet."] = "已识别,但尚未支持。",
+            ["Not a recognized MSI Claw — installing here is untested."] = "不是已识别的 MSI Claw——在此安装未经测试。",
+            ["Release"] = "正式版",
+            ["Test build"] = "测试构建",
         };
 
     }

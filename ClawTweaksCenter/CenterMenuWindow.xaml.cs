@@ -1017,8 +1017,9 @@ namespace ClawTweaksCenter
                 ContentHost.Children.Add(new TextBlock
                 {
                     // The format goes through Loc.F so a language can move the version and origin;
-                    // the finished interpolation could never match a key.
-                    Text = Core.Loc.F("▲ Update available on GitHub: {0} ({1})", update.Version, update.Origin),
+                    // the finished interpolation could never match a key. The origin is a data tag
+                    // ("Release" | "Test build" | "Nightly"), so it is looked up on its own here.
+                    Text = Core.Loc.F("▲ Update available on GitHub: {0} ({1})", update.Version, Core.Loc.T(update.Origin)),
                     FontSize = 15, Foreground = UiHelpers.Ok, Margin = new Thickness(0, 0, 0, 16),
                 });
 
@@ -2315,7 +2316,7 @@ namespace ClawTweaksCenter
 
             ContentHost.Children.Add(UiHelpers.Title(Core.Loc.T("Install this version?")));
             ContentHost.Children.Add(UiHelpers.Body(build.Version));
-            ContentHost.Children.Add(UiHelpers.Body($"{build.Origin} — {build.Title}"));
+            ContentHost.Children.Add(UiHelpers.Body($"{Core.Loc.T(build.Origin)} — {build.Title}"));
 
             if (_installedVersion != null && TryParseVersion(build.Version, out var selVer) && selVer < _installedVersion)
             {
@@ -2772,7 +2773,7 @@ namespace ClawTweaksCenter
             ContentHost.Children.Add(layout);
 
             left.Children.Add(UiHelpers.Title($"Installing {build.Version}"));
-            left.Children.Add(UiHelpers.Body($"{build.Origin} — {build.Title}"));
+            left.Children.Add(UiHelpers.Body($"{Core.Loc.T(build.Origin)} — {build.Title}"));
 
             var progressBar = new ProgressBar
             {
