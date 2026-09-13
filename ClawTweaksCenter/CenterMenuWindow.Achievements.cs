@@ -413,7 +413,9 @@ namespace ClawTweaksCenter
                 var when = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12, 0, 0, 0) };
                 when.Children.Add(new TextBlock
                 {
-                    Text = a.UnlockedAt.Value.ToString("d MMM yyyy", ci),
+                    // The culture's own long-date pattern, not a hardcoded shape: zh-CN renders
+                    // 2026年9月12日, de renders 12. September 2026 — each reading natively.
+                    Text = a.UnlockedAt.Value.ToString(ci.DateTimeFormat.LongDatePattern, ci),
                     FontSize = selectable ? 13 : 12,
                     Foreground = UiHelpers.Subtle,
                     HorizontalAlignment = HorizontalAlignment.Right,

@@ -88,7 +88,7 @@ namespace ClawTweaksCenter.Phases
             _root.Children.Clear();
             _root.Children.Add(UiHelpers.Title("Required tools"));
             _root.Children.Add(UiHelpers.Caption(
-                $"Last checked {DateTime.Now:HH:mm:ss}   ·   Scroll with the D-Pad or left stick"));
+                Core.Loc.F("Last checked {0}   ·   Scroll with the D-Pad or left stick", DateTime.Now.ToString("HH:mm:ss"))));
 
             // Prominent call-to-action at the top when something is missing.
             if (_anyMissing && !_busy)
@@ -142,7 +142,7 @@ namespace ClawTweaksCenter.Phases
             // "usbip is installed but too new" — into a bare "Not installed" on a machine where the
             // tool is plainly present. Missing() says "not found", which reads fine on its own.
             var status = s.Installed
-                ? "Installed — " + s.Detail
+                ? Core.Loc.T("Installed — ") + s.Detail
                 : string.IsNullOrWhiteSpace(s.Detail) || s.Detail == "not found"
                     ? "Not installed"
                     : s.Detail;

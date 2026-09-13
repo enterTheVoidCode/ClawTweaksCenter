@@ -511,7 +511,7 @@ namespace ClawTweaksCenter
             };
             stack.Children.Add(new TextBlock
             {
-                Text = "Rename",
+                Text = Core.Loc.T("Rename"),
                 FontSize = 26,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,

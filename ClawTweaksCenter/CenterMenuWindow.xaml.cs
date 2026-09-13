@@ -1016,7 +1016,10 @@ namespace ClawTweaksCenter
             if (update != null)
                 ContentHost.Children.Add(new TextBlock
                 {
-                    Text = $"▲ Update available on GitHub: {update.Version} ({update.Origin})",
+                    // The format goes through Loc.F so a language can move the version and origin;
+                    // the finished interpolation could never match a key. The origin is a data tag
+                    // ("Release" | "Test build" | "Nightly"), so it is looked up on its own here.
+                    Text = Core.Loc.F("▲ Update available on GitHub: {0} ({1})", update.Version, Core.Loc.T(update.Origin)),
                     FontSize = 15, Foreground = UiHelpers.Ok, Margin = new Thickness(0, 0, 0, 16),
                 });
 
@@ -1156,7 +1159,7 @@ namespace ClawTweaksCenter
                 HorizontalAlignment = HorizontalAlignment.Left,
                 Child = new TextBlock
                 {
-                    Text = "⚠  If HidHide or usbip was just installed, restart the device before running these steps.",
+                    Text = Core.Loc.T("⚠  If HidHide or usbip was just installed, restart the device before running these steps."),
                     FontSize = 14,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = UiHelpers.Warn,
@@ -1474,19 +1477,21 @@ namespace ClawTweaksCenter
             var legacyVersion = SelfInstaller.GetLegacyInstalledVersion();
             stack.Children.Add(new TextBlock
             {
-                Text = (legacyVersion != null ? $"Version {legacyVersion} is " : "A previous version is ") +
-                       $"still installed for all users, in {SelfInstaller.LegacyInstallDir}. This version " +
-                       "installs into your own user folder instead, so the old one is no longer used — but " +
-                       "it stays in Settings → Apps and in the Start Menu until it's removed, where it's " +
-                       "easy to launch by mistake.",
+                // Formats through Loc.F, per the UpdateSelectedTitle pattern: the version and the
+                // install dir are values a language may need to place differently in the sentence.
+                Text = legacyVersion != null
+                    ? Core.Loc.F("Version {0} is still installed for all users, in {1}. This version installs into your own user folder instead, so the old one is no longer used — but it stays in Settings → Apps and in the Start Menu until it's removed, where it's easy to launch by mistake.",
+                                 legacyVersion, SelfInstaller.LegacyInstallDir)
+                    : Core.Loc.F("A previous version is still installed for all users, in {0}. This version installs into your own user folder instead, so the old one is no longer used — but it stays in Settings → Apps and in the Start Menu until it's removed, where it's easy to launch by mistake.",
+                                 SelfInstaller.LegacyInstallDir),
                 FontSize = 14, Foreground = UiHelpers.Subtle,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "Removing it needs administrator rights. ClawTweaks Center never asks for those — " +
+                Text = Core.Loc.T("Removing it needs administrator rights. ClawTweaks Center never asks for those — " +
                        "the button below starts the old version's own uninstaller, so the prompt you see " +
-                       "comes from it, about removing itself.",
+                       "comes from it, about removing itself."),
                 FontSize = 14, Foreground = UiHelpers.Subtle,
                 TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
             });
@@ -2311,7 +2316,7 @@ namespace ClawTweaksCenter
 
             ContentHost.Children.Add(UiHelpers.Title(Core.Loc.T("Install this version?")));
             ContentHost.Children.Add(UiHelpers.Body(build.Version));
-            ContentHost.Children.Add(UiHelpers.Body($"{build.Origin} — {build.Title}"));
+            ContentHost.Children.Add(UiHelpers.Body($"{Core.Loc.T(build.Origin)} — {build.Title}"));
 
             if (_installedVersion != null && TryParseVersion(build.Version, out var selVer) && selVer < _installedVersion)
             {
@@ -2768,7 +2773,7 @@ namespace ClawTweaksCenter
             ContentHost.Children.Add(layout);
 
             left.Children.Add(UiHelpers.Title($"Installing {build.Version}"));
-            left.Children.Add(UiHelpers.Body($"{build.Origin} — {build.Title}"));
+            left.Children.Add(UiHelpers.Body($"{Core.Loc.T(build.Origin)} — {build.Title}"));
 
             var progressBar = new ProgressBar
             {
@@ -3084,8 +3089,8 @@ namespace ClawTweaksCenter
         /// <summary>Human-readable version transition for the final status ("Updated X → Y", not just "Installed Y").</summary>
         private static string DescribeTransition(Version previous, string selectedVersion)
         {
-            if (previous == null) return $"Installed {selectedVersion}";
-            if (!TryParseVersion(selectedVersion, out var selected)) return $"Installed {selectedVersion}";
+            if (previous == null) return Core.Loc.F("Installed {0}", selectedVersion);
+            if (!TryParseVersion(selectedVersion, out var selected)) return Core.Loc.F("Installed {0}", selectedVersion);
             if (selected > previous) return $"Updated {previous} → {selected}";
             if (selected < previous) return $"Downgraded {previous} → {selected}";
             return $"Reinstalled {selected}";

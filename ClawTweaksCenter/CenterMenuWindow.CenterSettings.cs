@@ -199,6 +199,7 @@ namespace ClawTweaksCenter
                 case UiLanguage.French: return "French";
                 case UiLanguage.Korean: return "Korean";
                 case UiLanguage.Spanish: return "Spanish";
+                case UiLanguage.Chinese: return "Chinese";
                 case UiLanguage.English: return "English";
                 default: return "System";
             }
