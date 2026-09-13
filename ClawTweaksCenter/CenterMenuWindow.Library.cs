@@ -1315,8 +1315,12 @@ namespace ClawTweaksCenter
             if (size != null) parts.Add(size);
 
             if (g.LastPlayed.HasValue)
+                // The culture's own long-date pattern rather than a hardcoded "d MMM yyyy": zh-CN
+                // then renders 2026年9月12日 instead of the half-translated "12 9月 2026".
                 parts.Add(Core.Loc.T("Last played") + " " +
-                          g.LastPlayed.Value.ToString("d MMM yyyy", System.Globalization.CultureInfo.CurrentCulture));
+                          g.LastPlayed.Value.ToString(
+                              System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.LongDatePattern,
+                              System.Globalization.CultureInfo.CurrentCulture));
 
             // Achievements last, after the date, because it is the one figure here that is about the
             // PLAYING rather than about the file - store, size and dates describe the installation.
