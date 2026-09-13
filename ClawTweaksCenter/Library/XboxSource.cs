@@ -189,7 +189,12 @@ namespace ClawTweaksCenter.Library
 
             // Single quotes only - the command is embedded in a double-quoted -Command argument.
             // The separator is a pipe because an app name can hold almost anything else.
+            // The OutputEncoding line makes the bytes on the pipe match the UTF8 the reader
+            // declares: redirected powershell.exe otherwise writes in the console OEM codepage
+            // (CP936 on zh-CN), and localized game names arrive as mojibake. try/catch because a
+            // failed assignment is a TERMINATING error that no error preference swallows.
             string output = RunPowerShell(
+                "try{[Console]::OutputEncoding=[System.Text.Encoding]::UTF8}catch{}; " +
                 "Get-StartApps | ForEach-Object { $_.Name + '|' + $_.AppID }", 30000);
             if (string.IsNullOrWhiteSpace(output)) return map;
 
