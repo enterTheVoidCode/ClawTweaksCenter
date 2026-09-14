@@ -60,12 +60,12 @@ namespace ClawTweaksCenter.Phases
             _root.Children.Add(UiHelpers.Body(
                 "In virtual mode the physical pad is hidden and one virtual VIIPER controller is " +
                 "active; in hardware mode the physical pad is used directly."));
-            _root.Children.Add(UiHelpers.Caption($"Last checked {DateTime.Now:HH:mm:ss}"));
+            _root.Children.Add(UiHelpers.Caption(Core.Loc.F("Last checked {0}", DateTime.Now.ToString("HH:mm:ss"))));
 
             // 1) Physical MSI Claw controller
             if (r.ClawPresent)
                 _root.Children.Add(UiHelpers.StatusRow(StatusKind.Ok, "Physical MSI Claw controller",
-                    $"Detected — {r.ClawNodes} interface node(s), mode: {r.ClawMode}."));
+                    Core.Loc.F("Detected — {0} interface node(s), mode: {1}.", r.ClawNodes, r.ClawMode)));
             else
                 _root.Children.Add(UiHelpers.StatusRow(StatusKind.Error, "Physical MSI Claw controller",
                     "NOT detected (VID_0DB0). The controller is missing, or MSI Center M has taken it over."));
@@ -73,7 +73,7 @@ namespace ClawTweaksCenter.Phases
             // 2) Virtual VIIPER controller
             if (r.VirtualPadCount > 0)
                 _root.Children.Add(UiHelpers.StatusRow(StatusKind.Ok, "Virtual controller (VIIPER)",
-                    $"Active: {r.VirtualPadName}"));
+                    Core.Loc.F("Active: {0}", r.VirtualPadName)));
             else
                 _root.Children.Add(UiHelpers.StatusRow(StatusKind.Info, "Virtual controller (VIIPER)",
                     "Not mounted right now. Expected only while virtual mode is running — normal at setup time."));

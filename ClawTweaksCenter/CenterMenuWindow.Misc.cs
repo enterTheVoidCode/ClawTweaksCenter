@@ -144,7 +144,7 @@ namespace ClawTweaksCenter
             if (!_miscLoadingApps)
                 head.Children.Add(new TextBlock
                 {
-                    Text = _miscChecked.Count == 1 ? "1 selected" : _miscChecked.Count + " selected",
+                    Text = Core.Loc.F("{0} selected", _miscChecked.Count),
                     FontSize = 14,
                     Foreground = UiHelpers.Subtle,
                     Margin = new Thickness(0, 4, 0, 0),
@@ -589,7 +589,7 @@ namespace ClawTweaksCenter
         {
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
-                Title = "Choose a program",
+                Title = Core.Loc.T("Choose a program"),
                 Filter = "Programs (*.exe)|*.exe",
                 CheckFileExists = true,
                 Multiselect = true,
@@ -667,8 +667,10 @@ namespace ClawTweaksCenter
 
                 case MiscOverlay.Apps:
                     AddAction(PadButton.A, "Select", !_miscLoadingApps && _miscCandidates.Count > 0, ToggleCandidate);
+                    // The count is filled in through the format so a language can reorder it;
+                    // BuildChip looks the bare "Add" up on its own.
                     AddAction(PadButton.X,
-                        _miscChecked.Count == 0 ? "Add" : "Add " + _miscChecked.Count,
+                        _miscChecked.Count == 0 ? "Add" : Core.Loc.F("Add {0}", _miscChecked.Count),
                         _miscChecked.Count > 0, CommitCheckedApps);
                     AddAction(PadButton.B, "Back", true, MiscOverlayBack);
                     // The triggers jump by initial, exactly as they step ROM systems one tab over -

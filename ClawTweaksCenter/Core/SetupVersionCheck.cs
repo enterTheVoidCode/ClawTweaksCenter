@@ -162,7 +162,7 @@ namespace ClawTweaksCenter.Core
                 {
                     result.MinimumAppVersion = minApp;
                     result.AppVersionMessage = GetString(root, msgKey)
-                        ?? $"Outdated version — install {minApp} or newer";
+                        ?? Loc.F("Outdated version — install {0} or newer", minApp);
                 }
 
                 ReadAnnouncements(root, result);

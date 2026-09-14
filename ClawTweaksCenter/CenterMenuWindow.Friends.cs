@@ -176,7 +176,7 @@ namespace ClawTweaksCenter
 
         private string CornerState() =>
             FriendsReadable ? _friends.OnlineCount + "/" + _friends.Friends.Count
-            : FriendsLoading ? "loading" : "none";
+            : FriendsLoading ? Core.Loc.T("loading") : Core.Loc.T("none");
         #endregion
 
         #region The corner

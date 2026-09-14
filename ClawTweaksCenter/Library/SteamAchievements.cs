@@ -526,6 +526,7 @@ namespace ClawTweaksCenter.Library
                 case Core.UiLanguage.French: return "french";
                 case Core.UiLanguage.Korean: return "koreana";
                 case Core.UiLanguage.Spanish: return "spanish";
+                case Core.UiLanguage.Chinese: return "schinese";
                 default: return "english";
             }
         }

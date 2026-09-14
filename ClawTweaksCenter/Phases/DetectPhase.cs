@@ -68,7 +68,7 @@ namespace ClawTweaksCenter.Phases
             _root.Children.Add(UiHelpers.Body(
                 "Next: controller health, required tools, the signing certificate, then the app " +
                 "itself. Each step re-checks live and won't let you continue until it's satisfied."));
-            _root.Children.Add(UiHelpers.Caption($"Detected {DateTime.Now:HH:mm:ss}"));
+            _root.Children.Add(UiHelpers.Caption(Core.Loc.F("Detected {0}", DateTime.Now.ToString("HH:mm:ss"))));
 
             State = PhaseState.Ok;
             _busy = false;

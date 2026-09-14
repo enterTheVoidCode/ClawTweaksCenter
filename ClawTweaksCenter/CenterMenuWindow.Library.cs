@@ -1231,7 +1231,7 @@ namespace ClawTweaksCenter
                 case LibraryGroup.Roms:
                     if (!Library.PlayniteSource.IsPresent) return "Playnite is not installed.";
                     if (_romSystem == GameLibrary.RomRecentSystem) return "No ROM has been played yet.";
-                    return _romSystem == null ? "No ROMs in your Playnite library." : "No ROMs for " + _romSystem + ".";
+                    return _romSystem == null ? "No ROMs in your Playnite library." : Core.Loc.F("No ROMs for {0}.", _romSystem);
                 default: return "No games found.";
             }
         }
@@ -1319,8 +1319,12 @@ namespace ClawTweaksCenter
             if (size != null) parts.Add(size);
 
             if (g.LastPlayed.HasValue)
+                // The culture's own long-date pattern rather than a hardcoded "d MMM yyyy": zh-CN
+                // then renders 2026年9月12日 instead of the half-translated "12 9月 2026".
                 parts.Add(Core.Loc.T("Last played") + " " +
-                          g.LastPlayed.Value.ToString("d MMM yyyy", System.Globalization.CultureInfo.CurrentCulture));
+                          g.LastPlayed.Value.ToString(
+                              System.Globalization.CultureInfo.CurrentCulture.DateTimeFormat.LongDatePattern,
+                              System.Globalization.CultureInfo.CurrentCulture));
 
             // Achievements last, after the date, because it is the one figure here that is about the
             // PLAYING rather than about the file - store, size and dates describe the installation.
@@ -1925,7 +1929,7 @@ namespace ClawTweaksCenter
             var buckets = new SortedDictionary<string, List<GameEntry>>(StringComparer.CurrentCultureIgnoreCase);
             foreach (var g in list)
             {
-                string key = kind == GroupingKind.Platform ? PlatformLabel(g) : (g.SystemName ?? "Other");
+                string key = kind == GroupingKind.Platform ? PlatformLabel(g) : (g.SystemName ?? Core.Loc.T("Other"));
                 if (!buckets.TryGetValue(key, out var bucket)) buckets[key] = bucket = new List<GameEntry>();
                 bucket.Add(g);
             }
@@ -4097,7 +4101,7 @@ namespace ClawTweaksCenter
             });
             stack.Children.Add(new TextBlock
             {
-                Text = "OptiScaler wiki · " + (info.WikiPage ?? string.Empty).Replace('-', ' '),
+                Text = Core.Loc.T("OptiScaler wiki · ") + (info.WikiPage ?? string.Empty).Replace('-', ' '),
                 FontSize = 12,
                 Foreground = UiHelpers.Subtle,
                 Margin = new Thickness(0, 2, 0, 14),
