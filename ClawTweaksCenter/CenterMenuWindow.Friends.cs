@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -203,9 +203,11 @@ namespace ClawTweaksCenter
 
             if (FriendsReadable)
             {
+                // The user's own status first - right after the key cap, before the count (user,
+                // 2026-09-17): what the friends see of THIS account, then how many of them are there.
                 row.Children.Add(BuildCornerChip("RT", "\uE716",
                     Core.Loc.F("{0} of {1} online", _friends.OnlineCount, _friends.Friends.Count),
-                    OpenFriends));
+                    OpenFriends, BuildOwnStatusBadge(14, shortWord: true)));
             }
             else if (FriendsLoading)
             {
@@ -231,10 +233,11 @@ namespace ClawTweaksCenter
             return row;
         }
 
-        private UIElement BuildCornerChip(string key, string glyph, string label, Action onClick)
+        private UIElement BuildCornerChip(string key, string glyph, string label, Action onClick, UIElement prefix = null)
         {
             var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
             row.Children.Add(BuildKeyCap(key));
+            if (prefix != null) row.Children.Add(prefix);
             row.Children.Add(new TextBlock
             {
                 // Escapes, not literals: a private-use character is invisible in every diff.
@@ -288,6 +291,9 @@ namespace ClawTweaksCenter
 
         private void CloseFriends()
         {
+            _statusPickerOpen = false;
+            _statusPickerRows.Clear();
+            _statusPollTimer?.Stop();
             _friendsOpen = false;
             _friendRows.Clear();
             _feedRows.Clear();
@@ -363,7 +369,13 @@ namespace ClawTweaksCenter
             AddColumnHead(FriendsColumnList, Core.Loc.T("Steam friends"),
                 !FriendsReadable
                     ? Core.Loc.T("Steam is not running.")
-                    : Core.Loc.F("{0} of {1} online", _friends.OnlineCount, list.Count));
+                    : Core.Loc.F("{0} of {1} online", _friends.OnlineCount, list.Count),
+                FriendsReadable ? BuildOwnStatusBadge(13) : null);
+
+            // The picker takes the list's place under the same head - INSTEAD of the rows, not over
+            // them. Stacked into the same grid cell it never showed (device, 2026-09-17): the two
+            // bodies fought over one cell and the list won.
+            if (_statusPickerOpen) { RenderStatusPicker(); return; }
 
             var stack = new StackPanel();
             if (list.Count == 0)
@@ -708,7 +720,7 @@ namespace ClawTweaksCenter
         #endregion
 
         #region Shared pieces
-        private void AddColumnHead(int column, string title, string subtitle)
+        private void AddColumnHead(int column, string title, string subtitle, UIElement subtitlePrefix = null)
         {
             var head = new StackPanel { Margin = ColumnMargin(column, 14, 10) };
             head.Children.Add(new TextBlock
@@ -720,12 +732,16 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 0, 0, 4),
             });
             // Both heads keep the same height, so the two lists start on the same line.
-            head.Children.Add(new TextBlock
+            var sub = new StackPanel { Orientation = Orientation.Horizontal };
+            if (subtitlePrefix != null) sub.Children.Add(subtitlePrefix);
+            sub.Children.Add(new TextBlock
             {
                 Text = string.IsNullOrEmpty(subtitle) ? " " : subtitle,
                 FontSize = 13,
                 Foreground = UiHelpers.Subtle,
+                VerticalAlignment = VerticalAlignment.Center,
             });
+            head.Children.Add(sub);
             Grid.SetRow(head, 0);
             Grid.SetColumn(head, column);
             LibraryRoot.Children.Add(head);
@@ -814,6 +830,13 @@ namespace ClawTweaksCenter
         /// to be guessed.</summary>
         private void ApplyFriendsSelection()
         {
+            if (_statusPickerOpen)
+            {
+                ApplyRowSelection(_statusPickerRows, _statusPickerIndex);
+                ApplyRowSelection(_friendRows, -1);
+                ApplyRowSelection(_feedRows, -1);
+                return;
+            }
             ApplyRowSelection(_friendRows, _friendsColumn == FriendsColumnList ? _friendIndex : -1);
             ApplyRowSelection(_feedRows, _friendsColumn == FriendsColumnFeed ? _feedIndex : -1);
         }
@@ -835,6 +858,16 @@ namespace ClawTweaksCenter
         #region Navigation and footer
         private void MoveFriendSelection(PadButton dir)
         {
+            if (_statusPickerOpen)
+            {
+                int step = dir == PadButton.Down ? 1 : dir == PadButton.Up ? -1 : 0;
+                int to = _statusPickerIndex + step;
+                if (step == 0 || to < 0 || to >= _statusPickerRows.Count) return;
+                _statusPickerIndex = to;
+                ApplyFriendsSelection();
+                return;
+            }
+
             if (dir == PadButton.Left || dir == PadButton.Right)
             {
                 int column = dir == PadButton.Right ? FriendsColumnFeed : FriendsColumnList;
@@ -885,9 +918,233 @@ namespace ClawTweaksCenter
 
         private void AddFriendsActions()
         {
+            if (_statusPickerOpen)
+            {
+                AddAction(PadButton.A, "Select", true, ApplyPickedStatus);
+                AddAction(PadButton.B, "Back", true, CloseStatusPicker);
+                return;
+            }
             AddAction(PadButton.A, "Chat", FriendForChat() != null, ChatWithSelectedFriend);
             AddAction(PadButton.B, "Close", true, CloseFriends);
+            // Only with a known own state: a Status button on an account the reader could not see
+            // would offer a list with nothing marked.
+            AddAction(PadButton.Y, "Status", OwnStatusKnown, OpenStatusPicker);
         }
+
+        #region Own status
+        private bool OwnStatusKnown => FriendsReadable && _friends.MyState.HasValue;
+
+        /// <summary>
+        /// Coloured dot plus the word, the same colours the friend rows use, and a separator after
+        /// it - the badge always precedes a count. Null when the reader did not deliver the own
+        /// state; the callers then show what they showed before.
+        /// </summary>
+        private UIElement BuildOwnStatusBadge(double fontSize, bool shortWord = false)
+        {
+            if (!OwnStatusKnown) return null;
+            var state = _friends.MyState.Value;
+
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0),
+            };
+            row.Children.Add(new System.Windows.Shapes.Ellipse
+            {
+                Width = fontSize * 0.6,
+                Height = fontSize * 0.6,
+                Fill = OwnStatusBrush(state),
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 5, 0),
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = shortWord ? OwnStatusShortText(state) : OwnStatusText(state),
+                FontSize = fontSize,
+                Foreground = OwnStatusBrush(state),
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            row.Children.Add(new TextBlock
+            {
+                Text = " \u00B7 ",
+                FontSize = fontSize,
+                Foreground = UiHelpers.Subtle,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            return row;
+        }
+
+        private static string OwnStatusText(SteamPersonaState state)
+        {
+            switch (state)
+            {
+                case SteamPersonaState.Offline: return Core.Loc.T("Offline");
+                case SteamPersonaState.Invisible: return Core.Loc.T("Invisible");
+                case SteamPersonaState.Busy: return Core.Loc.T("Busy");
+                case SteamPersonaState.Away:
+                case SteamPersonaState.Snooze: return Core.Loc.T("Away");
+                default: return Core.Loc.T("Online");
+            }
+        }
+
+        /// <summary>The corner has no room for "Unsichtbar" next to the count - it ran into the tab
+        /// strip (user, 2026-09-17). Abbreviations there, the full word everywhere else.</summary>
+        private static string OwnStatusShortText(SteamPersonaState state)
+        {
+            switch (state)
+            {
+                case SteamPersonaState.Offline: return Core.Loc.T("Offline");
+                case SteamPersonaState.Invisible: return Core.Loc.T("Invisible (short)");
+                case SteamPersonaState.Busy: return Core.Loc.T("Busy");
+                case SteamPersonaState.Away:
+                case SteamPersonaState.Snooze: return Core.Loc.T("Away (short)");
+                default: return Core.Loc.T("Online");
+            }
+        }
+
+        /// <summary>Invisible is grey like offline - that is what the friends see.</summary>
+        private static Brush OwnStatusBrush(SteamPersonaState state)
+        {
+            switch (state)
+            {
+                case SteamPersonaState.Offline:
+                case SteamPersonaState.Invisible: return UiHelpers.Subtle;
+                case SteamPersonaState.Away:
+                case SteamPersonaState.Snooze:
+                case SteamPersonaState.Busy: return UiHelpers.Warn;
+                default: return UiHelpers.Ok;
+            }
+        }
+
+        // ── The status picker ──────────────────────────────────────────────────────────────────
+        // A short list in the friends column: Online, Away, Invisible - the current one marked. A
+        // cycle on one button was the first form (2026-09-17) and was rejected the same day: three
+        // presses to reach a state, and no way to see what the next press would do.
+        //
+        // No Offline row. Measured 2026-09-17: `steam://friends/status/offline` changes nothing -
+        // neither the client's stored choice nor what the friends see - so a row for it would be a
+        // button that does nothing.
+        private bool _statusPickerOpen;
+        private int _statusPickerIndex;
+        private readonly List<Border> _statusPickerRows = new List<Border>();
+        private DispatcherTimer _statusPollTimer;
+
+        private void OpenStatusPicker()
+        {
+            if (!OwnStatusKnown) return;
+            _statusPickerOpen = true;
+            int at = Array.IndexOf(SteamFriends.SettableStates, _friends.MyState.Value);
+            _statusPickerIndex = at < 0 ? 0 : at;
+            RenderLibrary();
+            RefreshActionBar();
+        }
+
+        private void CloseStatusPicker()
+        {
+            _statusPickerOpen = false;
+            _statusPickerRows.Clear();
+            RenderLibrary();
+            RefreshActionBar();
+        }
+
+        /// <summary>The picker replaces the friend list's body (called from RenderFriendList in the
+        /// rows' place); the column head stays, so the badge above keeps saying what is set right now
+        /// while the list below offers the change.</summary>
+        private void RenderStatusPicker()
+        {
+            _statusPickerRows.Clear();
+            var stack = new StackPanel();
+            stack.Children.Add(new TextBlock
+            {
+                Text = Core.Loc.T("Set your status"),
+                FontSize = 15,
+                Foreground = UiHelpers.Text,
+                Margin = new Thickness(0, 0, 0, 10),
+            });
+
+            var current = _friends?.MyState;
+            var states = SteamFriends.SettableStates;
+            for (int i = 0; i < states.Length; i++)
+            {
+                var state = states[i];
+                var line = new StackPanel { Orientation = Orientation.Horizontal };
+                line.Children.Add(new System.Windows.Shapes.Ellipse
+                {
+                    Width = 10, Height = 10,
+                    Fill = OwnStatusBrush(state),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 10, 0),
+                });
+                line.Children.Add(new TextBlock
+                {
+                    Text = OwnStatusText(state),
+                    FontSize = 16,
+                    Foreground = UiHelpers.Text,
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+                if (current == state)
+                    line.Children.Add(new TextBlock
+                    {
+                        Text = "\uE73E",   // CheckMark - the one that is set now
+                        FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                        FontSize = 14,
+                        Foreground = UiHelpers.Ok,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(12, 0, 0, 0),
+                    });
+
+                var row = BuildOverlayRow(line);
+                row.Tag = i;
+                int captured = i;
+                row.MouseLeftButtonUp += (_, __) => { _statusPickerIndex = captured; ApplyPickedStatus(); };
+                _statusPickerRows.Add(row);
+                stack.Children.Add(row);
+            }
+
+            AddColumnBody(FriendsColumnList, stack);
+        }
+
+        /// <summary>
+        /// A: send the pick to Steam and watch localconfig.vdf for the answer. The stored choice
+        /// lands within seconds of the URL (measured 2026-09-17: Away was on disk 4 s later), so the
+        /// file is polled once a second for up to ten - the 10-second reader would show it too, only
+        /// later, and "I pressed A and nothing moved" was the first report against this screen.
+        /// </summary>
+        private void ApplyPickedStatus()
+        {
+            if (!_statusPickerOpen || _statusPickerIndex < 0 || _statusPickerIndex >= SteamFriends.SettableStates.Length) return;
+            var wanted = SteamFriends.SettableStates[_statusPickerIndex];
+            var before = _friends?.MyState;
+            Core.InstallLog.Write("[SteamFriends] own status " + before + " -> " + wanted + " requested");
+            CloseStatusPicker();
+            if (wanted == before) return;
+            if (!SteamFriends.SetMyStatus(wanted)) return;
+
+            _statusPollTimer?.Stop();
+            int polls = 0;
+            var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            timer.Tick += (_, __) =>
+            {
+                polls++;
+                var now = SteamFriends.ReadChosenPersonaState();
+                bool landed = now.HasValue && now.Value == wanted;
+                if (landed || polls >= 10)
+                {
+                    timer.Stop();
+                    if (!landed) Core.InstallLog.Write("[SteamFriends] own status: Steam did not store " + wanted + " within 10 s");
+                }
+                if (now.HasValue && _friends != null && _friends.MyState != now)
+                {
+                    _friends.MyState = now;
+                    if (_friendsOpen) RenderLibrary();
+                    RefreshTabStrip();
+                }
+            };
+            _statusPollTimer = timer;
+            timer.Start();
+        }
+        #endregion
         #endregion
     }
 }

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -56,6 +56,20 @@ namespace ClawTweaksCenter.Library
         public List<SteamFriend> Friends = new List<SteamFriend>();
         /// <summary>Steam's activity feed, newest first, friends in this list only.</summary>
         public List<FriendActivity> Activity = new List<FriendActivity>();
+
+        /// <summary>The signed-in user's own persona name, or null when the reader did not get it.</summary>
+        public string MyName;
+        /// <summary>
+        /// The signed-in user's own status - what THEIR friends see - or null when unknown.
+        ///
+        /// ⚠️ NOT from ISteamFriends.GetPersonaState. Measured 2026-09-17 with the user set to
+        /// Invisible in the client: vtable slot 2 answered 1 (Online), and it kept answering 1 after
+        /// a switch to Offline - that call reports the connection, not the chosen status. The chosen
+        /// status is on disk: localconfig.vdf, key `FriendStoreLocalPrefs_&lt;accountid&gt;`, a JSON
+        /// string with `ePersonaState` (7 for Invisible on that same machine). Steam rewrites the file
+        /// on the change. The API value is only the fallback for a file that cannot be read.
+        /// </summary>
+        public SteamPersonaState? MyState;
 
         public int OnlineCount => Friends.Count(f => f.IsOnline);
     }
@@ -144,6 +158,9 @@ namespace ClawTweaksCenter.Library
                 {
                     _loggedFailure = false;
                     ResolveAvatars(snapshot.Friends);
+
+                    var chosen = ReadChosenPersonaState();
+                    if (chosen.HasValue) snapshot.MyState = chosen;
 
                     // Steam's feed, trimmed to the people in this list - a removed friend's events stay
                     // in the cache and would otherwise show up under a name nobody can chat with.
@@ -243,6 +260,15 @@ namespace ClawTweaksCenter.Library
                     return;
                 }
 
+                if (root.TryGetProperty("me", out var me) && me.ValueKind == JsonValueKind.Object)
+                {
+                    if (me.TryGetProperty("name", out var myName)) snapshot.MyName = myName.GetString();
+                    if (me.TryGetProperty("state", out var myState) && myState.TryGetInt32(out int st))
+                        snapshot.MyState = (SteamPersonaState)st;
+                }
+                else if (root.TryGetProperty("meError", out var meErr))
+                    LogOnce("[SteamFriends] reader: own state unavailable - " + meErr.GetString());
+
                 if (!root.TryGetProperty("friends", out var list) || list.ValueKind != JsonValueKind.Array) return;
                 foreach (var f in list.EnumerateArray())
                 {
@@ -331,6 +357,35 @@ namespace ClawTweaksCenter.Library
                     f.AvatarUrl = "https://avatars.steamstatic.com/" + hash + "_medium.jpg";
         }
 
+        /// <summary>
+        /// The status the user picked in the client, from localconfig.vdf - see <see cref="SteamFriendsSnapshot.MyState"/>.
+        /// A text scan, not a KeyValues parse: the file is a third of a megabyte and this is one key
+        /// whose value is itself a JSON string. Null when the file or the key is not there.
+        /// </summary>
+        internal static SteamPersonaState? ReadChosenPersonaState()
+        {
+            try
+            {
+                string file = SteamPlaytime.LocalConfigPath();
+                if (file == null) return null;
+                string text;
+                using (var fs = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
+                using (var reader = new StreamReader(fs, Encoding.UTF8))
+                    text = reader.ReadToEnd();
+
+                var m = System.Text.RegularExpressions.Regex.Match(text,
+                    @"""FriendStoreLocalPrefs_[0-9]+""[^\r\n]*?ePersonaState\\"":(\d+)");
+                if (!m.Success) return null;
+                int st = int.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture);
+                return Enum.IsDefined(typeof(SteamPersonaState), st) ? (SteamPersonaState?)(SteamPersonaState)st : null;
+            }
+            catch (Exception ex)
+            {
+                LogOnce("[SteamFriends] own status unavailable from localconfig: " + ex.Message);
+                return null;
+            }
+        }
+
         private static Dictionary<ulong, string> ReadAvatarHashes(string file)
         {
             var result = new Dictionary<ulong, string>();
@@ -411,6 +466,40 @@ namespace ClawTweaksCenter.Library
             if (friend == null) return false;
             return GameLibrary.OpenSteamUri("steam://friends/message/" + friend.SteamId);
         }
+
+        /// <summary>
+        /// The states the user can pick, in the order the picker lists them. Busy and Snooze are not
+        /// offered: Steam's own client retired them from its menu. Offline is not offered either -
+        /// measured 2026-09-17, `steam://friends/status/offline` changed nothing on this machine
+        /// (stored choice stayed 7, friends kept seeing the same), so a row for it would do nothing.
+        /// </summary>
+        public static readonly SteamPersonaState[] SettableStates =
+        {
+            SteamPersonaState.Online, SteamPersonaState.Away, SteamPersonaState.Invisible,
+        };
+
+        /// <summary>
+        /// Sets the user's own status through Steam's browser protocol - `steam://friends/status/away`
+        /// and friends - the same route the chat link takes. No client interface, no undocumented
+        /// vtable slot: the public ISteamFriends has no setter, and the client-side one would be a
+        /// second layout to keep in step with Valve.
+        ///
+        /// Fire-and-forget on purpose: the confirmation is the next read of the user's own state, which
+        /// the friends refresh does anyway.
+        /// </summary>
+        public static bool SetMyStatus(SteamPersonaState state)
+        {
+            string word;
+            switch (state)
+            {
+                case SteamPersonaState.Online: word = "online"; break;
+                case SteamPersonaState.Away: word = "away"; break;
+                case SteamPersonaState.Invisible: word = "invisible"; break;
+                case SteamPersonaState.Offline: word = "offline"; break;
+                default: return false;
+            }
+            return GameLibrary.OpenSteamUri("steam://friends/status/" + word);
+        }
         #endregion
 
         #region Child side
@@ -427,6 +516,10 @@ namespace ClawTweaksCenter.Library
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate void ReleaseUserFn(IntPtr self, int pipe, int user);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate IntPtr GetInterfaceFn(IntPtr self, int user, int pipe, [MarshalAs(UnmanagedType.LPStr)] string version);
 
+        // The user's own name and state sit at the top of ISteamFriends (slots 0 and 2); slot 1 is
+        // SetPersonaName, which nothing here calls.
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate IntPtr GetPersonaNameFn(IntPtr self);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int GetPersonaStateFn(IntPtr self);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate int GetFriendCountFn(IntPtr self, int flags);
         // CSteamID is a class, and MSVC returns a class from a member function through a hidden
         // pointer that comes right after `this`. Verified against the running client 2026-09-11.
@@ -532,6 +625,22 @@ namespace ClawTweaksCenter.Library
                 {
                     w.WriteStartObject();
                     w.WriteBoolean("ok", true);
+
+                    // The user themself, from the same session - one object, before the list.
+                    try
+                    {
+                        w.WriteStartObject("me");
+                        w.WriteString("name", Marshal.PtrToStringUTF8(Method<GetPersonaNameFn>(friends, 0)(friends)));
+                        w.WriteNumber("state", Method<GetPersonaStateFn>(friends, 2)(friends));
+                        w.WriteEndObject();
+                    }
+                    catch (Exception ex)
+                    {
+                        // The list is worth more than the badge: a slot that ever moves costs the
+                        // badge, not the read.
+                        w.WriteString("meError", ex.GetType().Name + ": " + ex.Message);
+                    }
+
                     w.WriteStartArray("friends");
 
                     int n = count(friends, FriendFlagImmediate);
