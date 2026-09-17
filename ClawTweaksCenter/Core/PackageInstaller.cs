@@ -84,7 +84,7 @@ namespace ClawTweaksCenter.Core
         public static Version GetInstalledVersion()
         {
             string outp = RunPowerShell(
-                "(Get-AppxPackage -Name 'MSIClaw.ClawTweaks*' | Select-Object -First 1 -ExpandProperty Version)",
+                "(Get-AppxPackage -Name 'MSIClaw.ClawTweaks' | Select-Object -First 1 -ExpandProperty Version)",
                 15000, out _);
             return Version.TryParse((outp ?? string.Empty).Trim(), out var v) ? v : null;
         }
@@ -144,7 +144,7 @@ namespace ClawTweaksCenter.Core
             // Single quotes and string concatenation only — no double quotes anywhere, so nothing
             // here has to survive RunPowerShell's quote escaping on the way to the command line.
             string outp = RunPowerShell(
-                "Get-AppxPackage -PackageTypeFilter Main,Bundle -Name 'MSIClaw.ClawTweaks*' | " +
+                "Get-AppxPackage -PackageTypeFilter Main,Bundle -Name 'MSIClaw.ClawTweaks' | " +
                 "ForEach-Object { $_.PackageFullName + '|' + $_.IsBundle + '|' + $_.Status }",
                 20000, out _);
             if (string.IsNullOrWhiteSpace(outp)) return list;
