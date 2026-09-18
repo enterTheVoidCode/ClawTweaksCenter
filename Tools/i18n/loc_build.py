@@ -113,6 +113,9 @@ OSD_KEYS = [
     'Set in the Game Bar', 'delete it in the Game Bar',
     # what A does on the controller profile row, where A creates the profile.
     '[A] create a game profile',
+    # the tools page: its tiles and the two-press confirmation of the ones that end something
+    'Mode', 'LED', 'End task', 'Sleep', 'Hibernate', 'Restart', 'Shut down', 'Controller', 'Mouse',
+    '[A] confirm', '[B] cancel',
     'Vibration', 'Gyro', 'Gyro sens X', 'Gyro sens Y', 'Gyro smoothing', 'Gyro anti-deadzone',
     '[Right stick], hold [LT]',
     '[Right stick] ^ v source · < > step size',
