@@ -962,5 +962,9 @@
         // The MSI Quick Settings button opens the helper's native Quick Panel instead of the Game
         // Bar. Helper-owned, unused here - mirrored so the ordinals stay aligned.
         Settings_QuickSettingsButtonOpensPanel,   // bool
+
+        // Lossless Scaling: the active LS profile is a game profile. Helper/widget only, unused
+        // here - mirrored so the ordinals stay aligned.
+        LosslessScalingIsGameProfile,   // bool
     }
 }
