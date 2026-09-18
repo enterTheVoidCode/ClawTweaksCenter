@@ -110,7 +110,9 @@ OSD_KEYS = [
     'Left top', 'Left middle', 'Left bottom', 'Center top', 'Center bottom',
     'Right top', 'Right middle', 'Right bottom',
     'Fly-in',
-    'Set in the widget', 'remove in the widget',
+    'Set in the Game Bar', 'delete it in the Game Bar',
+    # what A does on the controller profile row, where A creates the profile.
+    '[A] create a game profile',
     'Vibration', 'Gyro', 'Gyro sens X', 'Gyro sens Y', 'Gyro smoothing', 'Gyro anti-deadzone',
     '[Right stick], hold [LT]',
     '[Right stick] ^ v source · < > step size',

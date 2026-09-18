@@ -976,8 +976,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "Rechts Mitte",
             ["Right bottom"] = "Rechts unten",
             ["Fly-in"] = "Einflug",
-            ["Set in the widget"] = "Im Widget gesetzt",
-            ["remove in the widget"] = "im Widget entfernen",
+            ["Set in the Game Bar"] = "In der Game Bar gesetzt",
+            ["delete it in the Game Bar"] = "in der Game Bar l\u00F6schen",
             ["Gyro sens X"] = "Gyro-Empf. X",
             ["Gyro sens Y"] = "Gyro-Empf. Y",
             ["Gyro smoothing"] = "Gyro-Gl\u00E4ttung",
@@ -985,6 +985,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[Rechter Stick], [LT] halten",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[Rechter Stick] ^ v Quelle \u00B7 < > Schrittweite",
             ["[Start] opens Game Bar"] = "[Start] \u00F6ffnet die Game Bar",
+            ["[A] create a game profile"] = "[A] Spielprofil anlegen",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -1932,8 +1933,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "Milieu droite",
             ["Right bottom"] = "Bas droite",
             ["Fly-in"] = "Animation",
-            ["Set in the widget"] = "D\u00E9fini dans le widget",
-            ["remove in the widget"] = "\u00E0 retirer dans le widget",
+            ["Set in the Game Bar"] = "D\u00E9fini dans la Game Bar",
+            ["delete it in the Game Bar"] = "\u00E0 supprimer dans la Game Bar",
             ["Gyro sens X"] = "Sensib. gyro X",
             ["Gyro sens Y"] = "Sensib. gyro Y",
             ["Gyro smoothing"] = "Lissage gyro",
@@ -1941,6 +1942,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[Stick droit], maintenir [LT]",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[Stick droit] ^ v source \u00B7 < > pas",
             ["[Start] opens Game Bar"] = "[Start] ouvre la Game Bar",
+            ["[A] create a game profile"] = "[A] cr\u00E9er un profil du jeu",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -2893,8 +2895,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "\uC624\uB978\uCABD \uC911\uC559",
             ["Right bottom"] = "\uC624\uB978\uCABD \uC544\uB798",
             ["Fly-in"] = "\uC2AC\uB77C\uC774\uB4DC \uC778",
-            ["Set in the widget"] = "\uC704\uC82F\uC5D0\uC11C \uC124\uC815",
-            ["remove in the widget"] = "\uC704\uC82F\uC5D0\uC11C \uC81C\uAC70",
+            ["Set in the Game Bar"] = "Game Bar\uC5D0\uC11C \uC124\uC815",
+            ["delete it in the Game Bar"] = "Game Bar\uC5D0\uC11C \uC0AD\uC81C",
             ["Gyro sens X"] = "\uC790\uC774\uB85C \uAC10\uB3C4 X",
             ["Gyro sens Y"] = "\uC790\uC774\uB85C \uAC10\uB3C4 Y",
             ["Gyro smoothing"] = "\uC790\uC774\uB85C \uC2A4\uBB34\uB529",
@@ -2902,6 +2904,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[\uC624\uB978\uCABD \uC2A4\uD2F1], [LT] \uB204\uB978 \uCC44",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[\uC624\uB978\uCABD \uC2A4\uD2F1] ^ v \uC18C\uC2A4 \u00B7 < > \uB2E8\uACC4",
             ["[Start] opens Game Bar"] = "[Start] Game Bar \uC5F4\uAE30",
+            ["[A] create a game profile"] = "[A] \uAC8C\uC784 \uD504\uB85C\uD544 \uB9CC\uB4E4\uAE30",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -3851,8 +3854,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "Centro der.",
             ["Right bottom"] = "Abajo der.",
             ["Fly-in"] = "Entrada",
-            ["Set in the widget"] = "Definido en el widget",
-            ["remove in the widget"] = "quitar en el widget",
+            ["Set in the Game Bar"] = "Definido en la Game Bar",
+            ["delete it in the Game Bar"] = "elim\u00EDnalo en la Game Bar",
             ["Gyro sens X"] = "Sensib. giro X",
             ["Gyro sens Y"] = "Sensib. giro Y",
             ["Gyro smoothing"] = "Suavizado giro",
@@ -3860,6 +3863,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[Stick derecho], mant\u00E9n [LT]",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[Stick derecho] ^ v fuente \u00B7 < > paso",
             ["[Start] opens Game Bar"] = "[Start] abre la Game Bar",
+            ["[A] create a game profile"] = "[A] crear un perfil del juego",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -4813,8 +4817,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "\u0421\u043F\u0440\u0430\u0432\u0430 \u043F\u043E \u0446\u0435\u043D\u0442\u0440\u0443",
             ["Right bottom"] = "\u0421\u043F\u0440\u0430\u0432\u0430 \u0441\u043D\u0438\u0437\u0443",
             ["Fly-in"] = "\u0410\u043D\u0438\u043C\u0430\u0446\u0438\u044F",
-            ["Set in the widget"] = "\u0417\u0430\u0434\u0430\u043D\u043E \u0432 \u0432\u0438\u0434\u0436\u0435\u0442\u0435",
-            ["remove in the widget"] = "\u0443\u0434\u0430\u043B\u0438\u0442\u044C \u0432 \u0432\u0438\u0434\u0436\u0435\u0442\u0435",
+            ["Set in the Game Bar"] = "\u0417\u0430\u0434\u0430\u043D\u043E \u0432 Game Bar",
+            ["delete it in the Game Bar"] = "\u0443\u0434\u0430\u043B\u0438\u0442\u044C \u0432 Game Bar",
             ["Gyro sens X"] = "\u0427\u0443\u0432\u0441\u0442\u0432. \u0433\u0438\u0440\u043E X",
             ["Gyro sens Y"] = "\u0427\u0443\u0432\u0441\u0442\u0432. \u0433\u0438\u0440\u043E Y",
             ["Gyro smoothing"] = "\u0421\u0433\u043B\u0430\u0436. \u0433\u0438\u0440\u043E",
@@ -4822,6 +4826,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[\u041F\u0440\u0430\u0432\u044B\u0439 \u0441\u0442\u0438\u043A], \u0443\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u044F [LT]",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[\u041F\u0440\u0430\u0432\u044B\u0439 \u0441\u0442\u0438\u043A] ^ v \u0438\u0441\u0442\u043E\u0447\u043D\u0438\u043A \u00B7 < > \u0448\u0430\u0433",
             ["[Start] opens Game Bar"] = "[Start] \u043E\u0442\u043A\u0440\u043E\u0435\u0442 Game Bar",
+            ["[A] create a game profile"] = "[A] \u0441\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0438\u0433\u0440\u044B",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -5766,8 +5771,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "\u039C\u03AD\u03C3\u03B7 \u03B4\u03B5\u03BE\u03B9\u03AC",
             ["Right bottom"] = "\u039A\u03AC\u03C4\u03C9 \u03B4\u03B5\u03BE\u03B9\u03AC",
             ["Fly-in"] = "\u0395\u03AF\u03C3\u03BF\u03B4\u03BF\u03C2",
-            ["Set in the widget"] = "\u039F\u03C1\u03AF\u03C3\u03C4\u03B7\u03BA\u03B5 \u03C3\u03C4\u03BF widget",
-            ["remove in the widget"] = "\u03B1\u03C6\u03B1\u03AF\u03C1\u03B5\u03C3\u03B7 \u03C3\u03C4\u03BF widget",
+            ["Set in the Game Bar"] = "\u039F\u03C1\u03AF\u03C3\u03C4\u03B7\u03BA\u03B5 \u03C3\u03C4\u03BF Game Bar",
+            ["delete it in the Game Bar"] = "\u03B4\u03B9\u03B1\u03B3\u03C1\u03B1\u03C6\u03AE \u03C3\u03C4\u03BF Game Bar",
             ["Gyro sens X"] = "\u0395\u03C5\u03B1\u03B9\u03C3\u03B8. \u03B3\u03CD\u03C1\u03BF\u03C5 X",
             ["Gyro sens Y"] = "\u0395\u03C5\u03B1\u03B9\u03C3\u03B8. \u03B3\u03CD\u03C1\u03BF\u03C5 Y",
             ["Gyro smoothing"] = "\u0395\u03BE\u03BF\u03BC\u03AC\u03BB\u03C5\u03BD\u03C3\u03B7 \u03B3\u03CD\u03C1\u03BF\u03C5",
@@ -5775,6 +5780,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[\u0394\u03B5\u03BE\u03AF stick], \u03BA\u03C1\u03B1\u03C4\u03CE\u03BD\u03C4\u03B1\u03C2 [LT]",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[\u0394\u03B5\u03BE\u03AF stick] ^ v \u03C0\u03B7\u03B3\u03AE \u00B7 < > \u03B2\u03AE\u03BC\u03B1",
             ["[Start] opens Game Bar"] = "[Start] \u03B1\u03BD\u03BF\u03AF\u03B3\u03B5\u03B9 \u03C4\u03BF Game Bar",
+            ["[A] create a game profile"] = "[A] \u03B4\u03B7\u03BC\u03B9\u03BF\u03C5\u03C1\u03B3\u03AF\u03B1 \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB \u03C0\u03B1\u03B9\u03C7\u03BD\u03B9\u03B4\u03B9\u03BF\u03CD",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -6724,8 +6730,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "\u53F3\u4E2D",
             ["Right bottom"] = "\u53F3\u4E0B",
             ["Fly-in"] = "\u6ED1\u5165",
-            ["Set in the widget"] = "\u5728\u5C0F\u7EC4\u4EF6\u4E2D\u8BBE\u7F6E",
-            ["remove in the widget"] = "\u5728\u5C0F\u7EC4\u4EF6\u4E2D\u79FB\u9664",
+            ["Set in the Game Bar"] = "\u5728 Game Bar \u4E2D\u8BBE\u7F6E",
+            ["delete it in the Game Bar"] = "\u5728 Game Bar \u4E2D\u5220\u9664",
             ["Gyro sens X"] = "\u9640\u87BA\u4EEA\u7075\u654F\u5EA6 X",
             ["Gyro sens Y"] = "\u9640\u87BA\u4EEA\u7075\u654F\u5EA6 Y",
             ["Gyro smoothing"] = "\u9640\u87BA\u4EEA\u5E73\u6ED1",
@@ -6733,6 +6739,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[\u53F3\u6447\u6746]\uFF0C\u6309\u4F4F [LT]",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[\u53F3\u6447\u6746] ^ v \u6765\u6E90 \u00B7 < > \u6B65\u957F",
             ["[Start] opens Game Bar"] = "[Start] \u6253\u5F00 Game Bar",
+            ["[A] create a game profile"] = "[A] \u521B\u5EFA\u6E38\u620F\u914D\u7F6E",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -7682,8 +7689,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "\u53F3\u4E2D",
             ["Right bottom"] = "\u53F3\u4E0B",
             ["Fly-in"] = "\u6ED1\u5165",
-            ["Set in the widget"] = "\u5728\u5C0F\u5DE5\u5177\u4E2D\u8A2D\u5B9A",
-            ["remove in the widget"] = "\u5728\u5C0F\u5DE5\u5177\u4E2D\u79FB\u9664",
+            ["Set in the Game Bar"] = "\u5728 Game Bar \u4E2D\u8A2D\u5B9A",
+            ["delete it in the Game Bar"] = "\u5728 Game Bar \u4E2D\u522A\u9664",
             ["Gyro sens X"] = "\u9640\u87BA\u5100\u9748\u654F\u5EA6 X",
             ["Gyro sens Y"] = "\u9640\u87BA\u5100\u9748\u654F\u5EA6 Y",
             ["Gyro smoothing"] = "\u9640\u87BA\u5100\u5E73\u6ED1",
@@ -7691,6 +7698,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[\u53F3\u6416\u687F]\uFF0C\u6309\u4F4F [LT]",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[\u53F3\u6416\u687F] ^ v \u4F86\u6E90 \u00B7 < > \u6B65\u9577",
             ["[Start] opens Game Bar"] = "[Start] \u958B\u555F Game Bar",
+            ["[A] create a game profile"] = "[A] \u5EFA\u7ACB\u904A\u6232\u8A2D\u5B9A\u6A94",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -8638,8 +8646,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "Centro destra",
             ["Right bottom"] = "Basso destra",
             ["Fly-in"] = "Entrata",
-            ["Set in the widget"] = "Impostato nel widget",
-            ["remove in the widget"] = "rimuovi nel widget",
+            ["Set in the Game Bar"] = "Impostato nella Game Bar",
+            ["delete it in the Game Bar"] = "elimina nella Game Bar",
             ["Gyro sens X"] = "Sensib. giro X",
             ["Gyro sens Y"] = "Sensib. giro Y",
             ["Gyro smoothing"] = "Smussatura giro",
@@ -8647,6 +8655,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[Stick destro], tieni [LT]",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[Stick destro] ^ v sorgente \u00B7 < > passo",
             ["[Start] opens Game Bar"] = "[Start] apre la Game Bar",
+            ["[A] create a game profile"] = "[A] crea un profilo gioco",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -9582,8 +9591,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "Centro direita",
             ["Right bottom"] = "Inf. direita",
             ["Fly-in"] = "Entrada",
-            ["Set in the widget"] = "Definido no widget",
-            ["remove in the widget"] = "remover no widget",
+            ["Set in the Game Bar"] = "Definido na Game Bar",
+            ["delete it in the Game Bar"] = "excluir na Game Bar",
             ["Gyro sens X"] = "Sensib. giro X",
             ["Gyro sens Y"] = "Sensib. giro Y",
             ["Gyro smoothing"] = "Suaviza\u00E7\u00E3o giro",
@@ -9591,6 +9600,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[Stick direito], segure [LT]",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[Stick direito] ^ v fonte \u00B7 < > passo",
             ["[Start] opens Game Bar"] = "[Start] abre a Game Bar",
+            ["[A] create a game profile"] = "[A] criar um perfil do jogo",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -10542,8 +10552,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "\u53F3\u4E2D",
             ["Right bottom"] = "\u53F3\u4E0B",
             ["Fly-in"] = "\u30B9\u30E9\u30A4\u30C9\u30A4\u30F3",
-            ["Set in the widget"] = "\u30A6\u30A3\u30B8\u30A7\u30C3\u30C8\u3067\u8A2D\u5B9A",
-            ["remove in the widget"] = "\u30A6\u30A3\u30B8\u30A7\u30C3\u30C8\u3067\u524A\u9664",
+            ["Set in the Game Bar"] = "Game Bar \u3067\u8A2D\u5B9A",
+            ["delete it in the Game Bar"] = "Game Bar \u3067\u524A\u9664",
             ["Gyro sens X"] = "\u30B8\u30E3\u30A4\u30ED\u611F\u5EA6 X",
             ["Gyro sens Y"] = "\u30B8\u30E3\u30A4\u30ED\u611F\u5EA6 Y",
             ["Gyro smoothing"] = "\u30B8\u30E3\u30A4\u30ED\u5E73\u6ED1\u5316",
@@ -10551,6 +10561,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[\u53F3\u30B9\u30C6\u30A3\u30C3\u30AF]\u3001[LT] \u9577\u62BC\u3057",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[\u53F3\u30B9\u30C6\u30A3\u30C3\u30AF] ^ v \u30BD\u30FC\u30B9 \u00B7 < > \u523B\u307F",
             ["[Start] opens Game Bar"] = "[Start] \u3067 Game Bar \u3092\u958B\u304F",
+            ["[A] create a game profile"] = "[A] \u30B2\u30FC\u30E0\u8A2D\u5B9A\u3092\u4F5C\u6210",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -11493,8 +11504,8 @@ namespace ClawTweaksCenter.Core
             ["Right middle"] = "Prawy \u015Brodek",
             ["Right bottom"] = "Prawy dolny",
             ["Fly-in"] = "Wjazd",
-            ["Set in the widget"] = "Ustawione w wid\u017Cecie",
-            ["remove in the widget"] = "usu\u0144 w wid\u017Cecie",
+            ["Set in the Game Bar"] = "Ustawione w Game Bar",
+            ["delete it in the Game Bar"] = "usu\u0144 w Game Bar",
             ["Gyro sens X"] = "Czu\u0142o\u015B\u0107 \u017Cyro X",
             ["Gyro sens Y"] = "Czu\u0142o\u015B\u0107 \u017Cyro Y",
             ["Gyro smoothing"] = "Wyg\u0142adzanie \u017Cyro",
@@ -11502,6 +11513,7 @@ namespace ClawTweaksCenter.Core
             ["[Right stick], hold [LT]"] = "[Prawy dr\u0105\u017Cek], trzymaj [LT]",
             ["[Right stick] ^ v source \u00B7 < > step size"] = "[Prawy dr\u0105\u017Cek] ^ v \u017Ar\u00F3d\u0142o \u00B7 < > krok",
             ["[Start] opens Game Bar"] = "[Start] otwiera Game Bar",
+            ["[A] create a game profile"] = "[A] utw\u00F3rz profil gry",
         };
 
     }
