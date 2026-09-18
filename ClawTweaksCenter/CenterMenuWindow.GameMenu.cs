@@ -104,6 +104,7 @@ namespace ClawTweaksCenter
             if (LaunchOverlayOpen || _settingsOpen || MiscOverlayOpen) return;
             var target = SelectedGame;
             if (target == null) return;
+            _gameMenuUninstallArmed = false;
 
             _gameMenuTarget = target;
             _gameMenuOverlay = GameMenuOverlay.Menu;
@@ -370,6 +371,25 @@ namespace ClawTweaksCenter
                     canUninstall ? UiHelpers.Text : UiHelpers.Subtle, "Uninstall",
                     () => { if (GameMenuTargetIsInstalledSteam) UninstallThroughSteam(); }));
             }
+            else if (game != null && game.Store != GameStore.Misc && game.Store != GameStore.Playnite)
+            {
+                // Every other store: the uninstaller the game registered with Windows, found by its
+                // folder (GameUninstaller). Same hand-over as Steam - the uninstaller asks, not us.
+                _gameMenuUninstall = GameUninstaller.Find(game);
+                bool canUninstall = _gameMenuUninstall != null;
+                var kind = _gameMenuUninstall?.Kind;
+                string uninstallSub = !game.Installed ? "Not installed"
+                    : !canUninstall ? "No uninstaller found"
+                    : kind == GameUninstaller.Kind.EpicLibrary ? "Opens your Epic library. Uninstall the game there."
+                    : kind == GameUninstaller.Kind.XboxPackage
+                        ? (_gameMenuUninstallArmed ? "Press again to delete the game." : "Deletes the game for this Windows user.")
+                    : Ui.WindowMode.IsFullscreen(this) ? "Runs the game's own uninstaller. In fullscreen, it can open behind Center."
+                    : "Runs the game's own uninstaller";
+                stack.Children.Add(GameMenuRow("", "Uninstall\u2026",
+                    uninstallSub,
+                    canUninstall ? UiHelpers.Text : UiHelpers.Subtle, "Uninstall",
+                    () => { if (_gameMenuUninstall != null) UninstallThroughRegisteredUninstaller(); }));
+            }
             else
             {
                 stack.Children.Add(GameMenuRow("", "Remove from library",
@@ -464,6 +484,12 @@ namespace ClawTweaksCenter
             int next = _gameMenuIndex + (dir == PadButton.Down ? 1 : dir == PadButton.Up ? -1 : 0);
             if (next < 0 || next >= _gameMenuRows.Count || next == _gameMenuIndex) return;
             _gameMenuIndex = next;
+            if (_gameMenuUninstallArmed)
+            {
+                // Leaving the row takes the second press back - it has to be two presses in a row.
+                _gameMenuUninstallArmed = false;
+                RenderGameMenuOverlay();
+            }
             ApplyGameMenuSelection();
             RefreshActionBar();
         }
@@ -505,6 +531,55 @@ namespace ClawTweaksCenter
             else
                 Core.InstallLog.Write("[GameMenu] steam://uninstall could not be opened for " + game.Title);
             CloseGameMenuOverlay();
+        }
+
+        /// <summary>The registered uninstaller found for the game the menu is open on, or null.
+        /// Looked up once when the menu is built, not per press.</summary>
+        private GameUninstaller.Command _gameMenuUninstall;
+
+        /// <summary>First press on an Xbox uninstall row. Nothing but us asks before a Store package
+        /// goes, so the row needs a second press. Moving the cursor or closing the menu disarms it.</summary>
+        private bool _gameMenuUninstallArmed;
+
+        private void UninstallThroughRegisteredUninstaller()
+        {
+            var game = _gameMenuTarget;
+            var cmd = _gameMenuUninstall;
+            if (game == null || cmd == null) return;
+
+            if (cmd.Kind == GameUninstaller.Kind.XboxPackage)
+            {
+                if (!_gameMenuUninstallArmed)
+                {
+                    _gameMenuUninstallArmed = true;
+                    RenderGameMenuOverlay();
+                    RefreshActionBar();
+                    return;
+                }
+                _gameMenuUninstallArmed = false;
+                Core.InstallLog.Write("[GameMenu] removing Xbox package " + cmd.PackageFamily + " (" + game.Title + ")");
+                CloseGameMenuOverlay();
+                _ = RemoveXboxPackageThenRescan(cmd, game.Title);
+                return;
+            }
+
+            if (GameUninstaller.Run(cmd))
+                Core.InstallLog.Write("[GameMenu] uninstall handed to '" + cmd.DisplayName + "' for " + game.Title
+                                      + ": " + cmd.FileName + " " + cmd.Arguments);
+            else
+                Core.InstallLog.Write("[GameMenu] registered uninstaller could not be started for " + game.Title);
+            CloseGameMenuOverlay();
+        }
+
+        /// <summary>Removes the package in the background (a large game takes minutes), then rescans
+        /// so the tile goes. A failure is logged; the tile simply stays.</summary>
+        private async System.Threading.Tasks.Task RemoveXboxPackageThenRescan(GameUninstaller.Command cmd, string title)
+        {
+            string error = await GameUninstaller.RemoveXboxPackageAsync(cmd);
+            Core.InstallLog.Write(error == null
+                ? "[GameMenu] Xbox package removed: " + cmd.PackageFamily + " (" + title + ")"
+                : "[GameMenu] Xbox package removal failed for " + cmd.PackageFamily + ": " + error);
+            await Dispatcher.InvokeAsync(RefreshLibrarySilently);
         }
 
         /// <summary>

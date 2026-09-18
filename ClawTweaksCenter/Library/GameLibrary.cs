@@ -431,9 +431,13 @@ namespace ClawTweaksCenter.Library
                     // it. Not playable, so it is added in front of the playable list rather than
                     // filtered out of it, and it does not eat into RecentLimit.
                     var downloading = Games.Where(g => g.Downloading).ToList();
+                    // ...unless the user asked for them (Show own apps in Recent). Their only
+                    // timestamp is a start from this library, so they merge with the store
+                    // timestamps on one date order.
+                    bool ownApps = Core.CenterSettings.ShowOwnAppsInRecent;
                     downloading.AddRange(playable.Where(g => g.LastPlayed.HasValue
                                                           && g.Store != GameStore.Playnite
-                                                          && g.Store != GameStore.Misc)
+                                                          && (ownApps || g.Store != GameStore.Misc))
                                                  .OrderByDescending(g => g.LastPlayed.Value)
                                                  .Take(RecentLimit));
                     return downloading;

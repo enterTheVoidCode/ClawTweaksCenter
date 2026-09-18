@@ -2408,10 +2408,14 @@ namespace ClawTweaksCenter
         /// bottom of the panel.</summary>
         private const int SettingsSoundRow = 12;
 
+        /// <summary>Lets the apps the user added by hand (My Apps) onto the Recent reel, ordered by
+        /// their last start from the library. Beside Sound because the Recent band above is full.</summary>
+        private const int SettingsOwnAppsInRecentRow = 13;
+
         /// <summary>The key row, and it is ALWAYS the last one: it holds a text box, so it spans the
         /// full width and sits on its own line below the pairs. The navigation maths below derives the
         /// pair count from this, so adding a switch above it needs no other change.</summary>
-        private const int SettingsKeyRow = 13;
+        private const int SettingsKeyRow = 14;
 
         // THREE, not two (user, 2026-09-05). Nine switches in two columns ran past the bottom of an
         // eight-inch panel again - the same reason this went from one column to two - and the rows are
@@ -2507,6 +2511,8 @@ namespace ClawTweaksCenter
             pairs.Children.Add(BuildSettingRow(SettingsBackgroundRow, "Center background", null, BackgroundSummary()));
 
             pairs.Children.Add(BuildSettingRow(SettingsSoundRow, "Sound settings", null, null));
+            pairs.Children.Add(BuildSettingRow(SettingsOwnAppsInRecentRow, "Show own apps in Recent",
+                Core.CenterSettings.ShowOwnAppsInRecent, null));
             stack.Children.Add(pairs);
 
             var keyRow = BuildSettingRow(SettingsKeyRow, "SteamGridDB key", null, null);
@@ -2693,6 +2699,7 @@ namespace ClawTweaksCenter
                 case SettingsUserImagesRow: return "The folder your own covers and backgrounds come from.";
                 case SettingsBackgroundRow: return "The picture behind the library.";
                 case SettingsSoundRow: return "Interface sounds, music, and a volume for each.";
+                case SettingsOwnAppsInRecentRow: return "Apps you added show up in Recent after you start them here.";
                 case SettingsKeyRow: return "Downloads covers for games that have none.";
                 default: return string.Empty;
             }
@@ -2809,6 +2816,10 @@ namespace ClawTweaksCenter
                 case SettingsTabsRow:
                     OpenTabEditor();
                     return;
+                case SettingsOwnAppsInRecentRow:
+                    Core.CenterSettings.ShowOwnAppsInRecent = !Core.CenterSettings.ShowOwnAppsInRecent;
+                    // No repaint from here - CloseSettings re-renders the library, and Recent with it.
+                    break;
                 case SettingsSoundRow:
                     OpenSoundSettings();
                     return;
@@ -3413,7 +3424,7 @@ namespace ClawTweaksCenter
             bool started = GameLibrary.Launch(game, out var startedProcess);
             if (started)
             {
-                _library.History.Note(game.InstallDir, DateTime.Now);
+                _library.History.NoteLaunch(game, DateTime.Now);
                 _library.History.SaveIfChanged();
             }
 

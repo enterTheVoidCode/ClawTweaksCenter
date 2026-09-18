@@ -129,6 +129,36 @@ namespace ClawTweaksCenter.Library
             _dirty = true;
         }
 
+        /// <summary>
+        /// The history key for an entry: its install folder, or for an app the user added by hand
+        /// (which deliberately has NO install folder, see MiscStore.ToGameEntry) its stable Id with a
+        /// prefix no path can start with. Only a launch from the library writes such a key - nothing
+        /// else knows when a hand-added app ran.
+        /// </summary>
+        private const string MiscKeyPrefix = "misc:";
+
+        private static string KeyFor(GameEntry g)
+        {
+            if (g == null) return null;
+            if (g.Store == GameStore.Misc)
+                return string.IsNullOrWhiteSpace(g.Id) ? null : MiscKeyPrefix + g.Id;
+            return string.IsNullOrWhiteSpace(g.InstallDir) ? null : Normalize(g.InstallDir);
+        }
+
+        /// <summary>Records a launch from the library, for any kind of entry.</summary>
+        public void NoteLaunch(GameEntry game, DateTime whenLocal)
+        {
+            if (game == null) return;
+            if (game.Store != GameStore.Misc) { Note(game.InstallDir, whenLocal); return; }
+
+            string key = KeyFor(game);
+            if (key == null) return;
+            DateTime utc = whenLocal.ToUniversalTime();
+            if (_lastPlayed.TryGetValue(key, out var existing) && existing >= utc) return;
+            _lastPlayed[key] = utc;
+            _dirty = true;
+        }
+
         public DateTime? LastPlayedFor(string installDir)
         {
             if (string.IsNullOrWhiteSpace(installDir)) return null;
@@ -148,6 +178,12 @@ namespace ClawTweaksCenter.Library
         {
             foreach (var g in games)
             {
+                if (g != null && g.Store == GameStore.Misc)
+                {
+                    string key = KeyFor(g);
+                    if (key != null && _lastPlayed.TryGetValue(key, out var utc)) g.LastPlayed = utc.ToLocalTime();
+                    continue;
+                }
                 if (g?.InstallDir == null) continue;
                 if (g.LastPlayed.HasValue) Note(g.InstallDir, g.LastPlayed.Value);
 
@@ -300,6 +336,7 @@ namespace ClawTweaksCenter.Library
 
         private static string Normalize(string path)
         {
+            if (path != null && path.StartsWith(MiscKeyPrefix, StringComparison.Ordinal)) return path;
             try { return Path.GetFullPath(path).TrimEnd('\\', '/'); }
             catch { return (path ?? string.Empty).TrimEnd('\\', '/'); }
         }

@@ -124,6 +124,7 @@ namespace ClawTweaksCenter.Library
                             DisplayName = Value(key, "DisplayName"),
                             InstallLocation = Value(key, "InstallLocation"),
                             UninstallString = Value(key, "UninstallString"),
+                            DisplayIcon = Value(key, "DisplayIcon"),
                         });
                     }
                 }
@@ -137,6 +138,7 @@ namespace ClawTweaksCenter.Library
             public string DisplayName;
             public string InstallLocation;
             public string UninstallString;
+            public string DisplayIcon;
         }
     }
 

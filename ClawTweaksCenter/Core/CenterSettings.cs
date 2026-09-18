@@ -144,6 +144,16 @@ namespace ClawTweaksCenter.Core
         }
 
         /// <summary>
+        /// Let the apps added by hand (My Apps) onto the Recent reel, by their last start from the
+        /// library. OFF by default: My Apps are mostly tools, and Recent is meant to hold games.
+        /// </summary>
+        public static bool ShowOwnAppsInRecent
+        {
+            get => ReadBool("ShowOwnAppsInRecent", false);
+            set => WriteBool("ShowOwnAppsInRecent", value);
+        }
+
+        /// <summary>
         /// A folder of the user's own pictures, used as a source of cover art and of the Center
         /// background. Empty until they name one.
         ///
