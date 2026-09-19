@@ -345,14 +345,20 @@ namespace ClawTweaksCenter
             if (started)
                 stack.Children.Add(new TextBlock
                 {
-                    // Three shapes: the modded Wi-Fi driver is unpacked into a folder the user runs
+                    // Four shapes: the modded Wi-Fi driver is unpacked into a folder the user runs
                     // Setup.bat from; the graphics driver is the one download big enough (over
-                    // 800 MB) that "nothing is happening" needs an answer (user, 2026-09-16).
+                    // 800 MB) that "nothing is happening" needs an answer (user, 2026-09-16); and
+                    // anything that is not an .exe/.msi - BIOS, controller firmware, MSI Center M all
+                    // ship as ZIPs - is never started: the helper saves it to Downloads and opens
+                    // Explorer on it (user, 2026-09-19). Before that, this line promised an installer
+                    // for exactly those three, which never came.
                     Text = Core.Loc.T(IsModdedWifi(d)
                         ? "Download started in the background. The folder opens when it is done - run Setup.bat there."
-                        : IsGraphics(d)
-                            ? "Download started in the background - over 800 MB. The installer opens when it is done."
-                            : "Download started in the background. The installer opens when it is done."),
+                        : !IsRunnableDownload(d)
+                            ? "Downloading to your Downloads folder. The folder opens when it is done."
+                            : IsGraphics(d)
+                                ? "Download started in the background - over 800 MB. The installer opens when it is done."
+                                : "Download started in the background. The installer opens when it is done."),
                     FontSize = 12, Foreground = UiHelpers.Accent, TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 6, 0, 0),
                 });
@@ -389,6 +395,24 @@ namespace ClawTweaksCenter
         private static bool IsModdedWifi(DriverEntryDto d) =>
             string.Equals(d.Action, "moddedwifi", StringComparison.OrdinalIgnoreCase);
 
+        /// <summary>A row whose link is a web page, not a file (the manifest's "deeplink" action).
+        /// The helper only downloads from MSI's and Intel's download hosts and refuses a page, so
+        /// these open in the browser - which is what the widget has always done with them.</summary>
+        private static bool IsDeepLink(DriverEntryDto d) =>
+            string.Equals(d.Action, "deeplink", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>The helper starts only an .exe or .msi; everything else is saved to Downloads.
+        /// Read from the URL the way the helper reads it, so the two cannot disagree.</summary>
+        private static bool IsRunnableDownload(DriverEntryDto d)
+        {
+            try
+            {
+                string ext = System.IO.Path.GetExtension(new Uri(d.DownloadUrl).LocalPath).ToLowerInvariant();
+                return ext == ".exe" || ext == ".msi";
+            }
+            catch { return false; }
+        }
+
         private static bool CanInstall(DriverEntryDto d) =>
             !d.Ignored
             && !string.IsNullOrWhiteSpace(d.DownloadUrl)
@@ -413,6 +437,18 @@ namespace ClawTweaksCenter
             try
             {
                 if (!await EnsureHelperAsync()) { _driversError = "ClawTweaks is not running."; RenderDriversIfStillOpen(); return; }
+                if (IsDeepLink(d))
+                {
+                    // A page, not a file: Center runs unelevated, so the browser opens as the user.
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = d.DownloadUrl,
+                        UseShellExecute = true,
+                    });
+                    Core.InstallLog.Write($"Driver page opened from Center: {d.Name} -> {d.DownloadUrl}");
+                    return;
+                }
+
                 // The modded Wi-Fi driver has its own verb: the helper downloads and unpacks it and
                 // opens the folder, because its Setup.bat is the user's to run (see the helper's
                 // InstallModdedWifiAsync). InstallDriverUpdate would try to launch a zip.
@@ -485,7 +521,9 @@ namespace ClawTweaksCenter
                 switch (d.UpdateStatus)
                 {
                     case DriverUpdateStatusDto.UpdateAvailable:
-                        text = d.IsBeta ? Core.Loc.T("Update available (beta)") : Core.Loc.T("Update available");
+                        // TestForced: offered only because the driver test mode is on.
+                        text = d.TestForced ? Core.Loc.T("Update available (test)")
+                            : d.IsBeta ? Core.Loc.T("Update available (beta)") : Core.Loc.T("Update available");
                         colour = UiHelpers.Warn;
                         break;
                     case DriverUpdateStatusDto.UpToDate:
@@ -826,7 +864,7 @@ namespace ClawTweaksCenter
             bool canAct = row?.Activate != null;
             // "Install" on a driver card, "Open" on the Windows Update button - the chip names what
             // the press does, and the two are not the same thing.
-            AddAction(PadButton.A, row?.Driver != null ? "Install" : "Open", canAct, () =>
+            AddAction(PadButton.A, row?.Driver != null && !IsDeepLink(row.Driver) ? "Install" : "Open", canAct, () =>
             {
                 if (canAct) row.Activate();
             });
@@ -897,6 +935,8 @@ namespace ClawTweaksCenter
             /// settings, never stored here - the helper is the one copy.</summary>
             public bool UseIntelBeta { get; set; }
             public bool UseModdedWifi { get; set; }
+            /// <summary>The helper's debug switch: every driver with a download is offered.</summary>
+            public bool DriverTestMode { get; set; }
             public string Message { get; set; }
             public List<DriverEntryDto> Drivers { get; set; }
         }
@@ -911,6 +951,8 @@ namespace ClawTweaksCenter
             public string Highlights { get; set; }
             public bool IsBeta { get; set; }
             public bool Ignored { get; set; }
+            /// <summary>Offered only because of the test mode - the row is really current.</summary>
+            public bool TestForced { get; set; }
             public string ProviderScope { get; set; }
             public string DownloadUrl { get; set; }   // what A hands to the helper
             public string Action { get; set; }        // "install" | "moddedwifi" | ... - picks the verb

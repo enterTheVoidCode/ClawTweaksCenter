@@ -52,9 +52,13 @@ namespace ClawTweaksCenter
         // checkboxes send - so Center holds no copy of either. Without a helper the rows say so.
         private const int CenterSettingsDriverBetaRow = 4;
         private const int CenterSettingsDriverWifiRow = 5;
+        // Debug switch, also helper state (DriverTestMode): every driver with a download is offered
+        // as an update, so each download path can be tried on a machine that is current (user,
+        // 2026-09-19). The widget's debug section writes the same value.
+        private const int CenterSettingsDriverTestRow = 6;
 
-        private const int CenterSettingsWidgetCheckRow = 6;
-        private const int CenterSettingsWidgetTestRow = 7;
+        private const int CenterSettingsWidgetCheckRow = 7;
+        private const int CenterSettingsWidgetTestRow = 8;
 
         /// <summary>From here down the grid is ONE column - see MoveCenterSettingsSelection.</summary>
         private const int CenterSettingsTailStart = CenterSettingsDriverBetaRow;
@@ -168,6 +172,9 @@ namespace ClawTweaksCenter
             checks.Children.Add(new Border());
             checks.Children.Add(BuildCenterSettingRow(CenterSettingsDriverWifiRow, Loc.T("Modded Wi-Fi driver instead of stock"),
                 haveHelper ? null : Loc.T("ClawTweaks is not running."), haveHelper ? _driverResult.UseModdedWifi : (bool?)null));
+            checks.Children.Add(new Border());
+            checks.Children.Add(BuildCenterSettingRow(CenterSettingsDriverTestRow, Loc.T("Offer every driver as an update"),
+                haveHelper ? null : Loc.T("ClawTweaks is not running."), haveHelper ? _driverResult.DriverTestMode : (bool?)null));
             checks.Children.Add(new Border());
 
             checks.Children.Add(BuildCenterSettingRow(CenterSettingsWidgetCheckRow, Loc.T("Gamebar Widget Releases"),
@@ -514,6 +521,10 @@ namespace ClawTweaksCenter
 
                 case CenterSettingsDriverWifiRow:
                     if (_driverResult != null) SetDriverOptIn("SetUseModdedWifi", !_driverResult.UseModdedWifi);
+                    return;
+
+                case CenterSettingsDriverTestRow:
+                    if (_driverResult != null) SetDriverOptIn("SetDriverTestMode", !_driverResult.DriverTestMode);
                     return;
 
                 // Removed 2026-09-15 with the experimental band - see the note where the row

@@ -198,6 +198,9 @@ namespace ClawTweaksCenter
             foreach (var d in result?.Drivers ?? new List<DriverEntryDto>())
             {
                 if (d.Ignored) continue;                                    // muted is muted
+                // A test-mode row is really current. Posting it would also burn the dedupe key, so
+                // the real update at that version could never announce itself later.
+                if (d.TestForced) continue;
                 if (d.UpdateStatus != DriverUpdateStatusDto.UpdateAvailable) continue;
 
                 // Name AND version: the same driver at a NEWER version has to be able to speak up

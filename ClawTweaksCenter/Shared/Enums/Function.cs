@@ -966,5 +966,9 @@
         // Lossless Scaling: the active LS profile is a game profile. Helper/widget only, unused
         // here - mirrored so the ordinals stay aligned.
         LosslessScalingIsGameProfile,   // bool
+
+        // Mount the Claw's controller the way Handheld Companion does (helper-owned). Center does not
+        // use it; mirrored to keep the ordinals lined up with the helper.
+        Settings_ClawHcMount,           // bool
     }
 }
