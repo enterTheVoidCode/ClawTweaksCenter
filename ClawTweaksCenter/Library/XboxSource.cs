@@ -27,6 +27,12 @@ namespace ClawTweaksCenter.Library
     /// launchable app, needs no elevation, and takes 1.6 s. Intersecting it with the folders under a
     /// GamingRoot is what separates games from the other 233 entries.
     ///
+    /// BUT it also lists plain Win32 shortcuts, and their AppID is not an AUMID - Steam's entry for
+    /// DOOM The Dark Ages is the literal string <c>steam://rungameid/3017860</c>. Paired with the
+    /// folder Xbox leaves behind after an uninstall, that produced an "Xbox" tile that launched the
+    /// game through Steam. So the intersection separates games from other apps, and <see
+    /// cref="IsAumid"/> separates Xbox games from everything else that happens to share the name.
+    ///
     /// Verified against both installed games:
     ///     Forza Horizon 6  -> Microsoft.ForteBaseGame_8wekyb3d8bbwe!Forzahorizon6
     ///     Stardew Valley   -> ConcernedApe.StardewValleyPC_0c8vynj4cqe4e!Game
@@ -203,11 +209,37 @@ namespace ClawTweaksCenter.Library
                 string aumid = line.Substring(sep + 1).Trim();
                 if (name.Length == 0 || aumid.Length == 0) continue;
 
+                // Only packaged apps. Anything else in the Start menu is a launcher's shortcut,
+                // and pairing one with a leftover folder invents an Xbox game that is not there.
+                if (!IsAumid(aumid)) continue;
+
                 string key = NormalizeName(name);
                 if (key.Length == 0) continue;
                 if (!map.ContainsKey(key)) map[key] = new StartApp { Name = name, Aumid = aumid };
             }
             return map;
+        }
+
+        /// <summary>
+        /// Is this AppID a package AUMID (<c>Name_publisher!AppId</c>) rather than a Win32 shortcut?
+        ///
+        /// Checked on the shape, not against the installed packages: enumerating those was measured
+        /// at 3.2 s and this runs per Start menu entry. The shape is enough because the two things
+        /// being told apart look nothing alike - a family name carries an underscore and never a
+        /// colon or a separator, while a shortcut AppID is either a URI (<c>steam://rungameid/...</c>)
+        /// or a path under the Start menu folder.
+        /// </summary>
+        private static bool IsAumid(string appId)
+        {
+            if (string.IsNullOrWhiteSpace(appId)) return false;
+            if (appId.IndexOf(':') >= 0 || appId.IndexOf('\\') >= 0 || appId.IndexOf('/') >= 0) return false;
+
+            int bang = appId.IndexOf('!');
+            if (bang <= 0 || bang >= appId.Length - 1) return false;
+            if (appId.IndexOf('!', bang + 1) >= 0) return false;
+
+            // The part before '!' is the package family name, which is always Name_PublisherId.
+            return appId.LastIndexOf('_', bang) > 0;
         }
 
         private static string RunPowerShell(string command, int timeoutMs)
