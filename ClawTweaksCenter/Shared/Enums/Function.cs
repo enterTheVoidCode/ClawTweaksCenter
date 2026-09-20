@@ -970,5 +970,9 @@
         // Mount the Claw's controller the way Handheld Companion does (helper-owned). Center does not
         // use it; mirrored to keep the ordinals lined up with the helper.
         Settings_ClawHcMount,           // bool
+
+        // Mirrored from the helper: keep only the helper on HidHide's application allow list.
+        // Unused in Center, appended so the ordinals stay identical.
+        Settings_ClawMinimalAllowlist,  // bool
     }
 }
