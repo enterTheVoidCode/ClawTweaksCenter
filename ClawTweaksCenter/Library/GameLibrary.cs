@@ -192,6 +192,7 @@ namespace ClawTweaksCenter.Library
                 GameArt.ResolveLocalArt(all);
                 ArtOverrideStore.ApplyTo(all);  // a manual pick always outranks local/auto-fetched art
                 FavoritesStore.ApplyTo(all);
+                HiddenGamesStore.ApplyTo(all);
                 history.ApplyTo(all);
                 all.Sort((a, b) => string.Compare(a.Title, b.Title, StringComparison.CurrentCultureIgnoreCase));
 
@@ -303,6 +304,7 @@ namespace ClawTweaksCenter.Library
             GameArt.ResolveLocalArt(rebuilt);
             ArtOverrideStore.ApplyTo(rebuilt);
             FavoritesStore.ApplyTo(rebuilt);
+            HiddenGamesStore.ApplyTo(rebuilt);
             History.ApplyTo(rebuilt);
             rebuilt.Sort((a, b) => string.Compare(a.Title, b.Title, StringComparison.CurrentCultureIgnoreCase));
             Games = rebuilt;
@@ -373,6 +375,7 @@ namespace ClawTweaksCenter.Library
             GameArt.ResolveLocalArt(merged);
             ArtOverrideStore.ApplyTo(merged);
             FavoritesStore.ApplyTo(merged);
+            HiddenGamesStore.ApplyTo(merged);
             History.ApplyTo(merged);
             merged.Sort((a, b) => string.Compare(a.Title, b.Title, StringComparison.CurrentCultureIgnoreCase));
 
@@ -391,15 +394,19 @@ namespace ClawTweaksCenter.Library
             // NOT INSTALLED IS THE ONE TAB THAT WANTS THE OTHERS. Everything below it works on
             // `playable`, so an entry that cannot be started cannot leak onto a shelf that offers to
             // start it - one filter in one place rather than a condition in nine branches.
+            // HIDDEN GAMES ARE ON NO SHELF, this one included. Filtered once, here, so no tab can
+            // forget it; the entries stay in Games, which is what Library settings lists them from.
+            var shown = Games.Where(g => !g.IsHidden).ToList();
+
             if (group == LibraryGroup.NotInstalled)
-                return Games.Where(g => !g.Installed)
+                return shown.Where(g => !g.Installed)
                             // Downloads first: they are the ones with something happening, and the
                             // ones the user just pressed a button to cause.
                             .OrderByDescending(g => g.DownloadTotalBytes > 0)
                             .ThenBy(g => g.Title, StringComparer.CurrentCultureIgnoreCase)
                             .ToList();
 
-            var playable = Games.Where(g => g.Installed).ToList();
+            var playable = shown.Where(g => g.Installed).ToList();
 
             switch (group)
             {
@@ -430,7 +437,7 @@ namespace ClawTweaksCenter.Library
                     // machine that is happening right now, and the user pressed a button to cause
                     // it. Not playable, so it is added in front of the playable list rather than
                     // filtered out of it, and it does not eat into RecentLimit.
-                    var downloading = Games.Where(g => g.Downloading).ToList();
+                    var downloading = shown.Where(g => g.Downloading).ToList();
                     // ...unless the user asked for them (Show own apps in Recent). Their only
                     // timestamp is a start from this library, so they merge with the store
                     // timestamps on one date order.

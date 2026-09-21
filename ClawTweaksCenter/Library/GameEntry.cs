@@ -148,6 +148,12 @@ namespace ClawTweaksCenter.Library
         /// never the source of truth, so toggling it never needs to survive a rebuild by itself.</summary>
         public bool IsFavorite { get; set; }
 
+        /// <summary>Taken off every shelf by the user, via the game menu. Backed by HiddenGamesStore
+        /// and re-applied on every scan round, the same way IsFavorite is. The entry stays in
+        /// GameLibrary.Games - only ForGroup leaves it out - so bringing it back from Library settings
+        /// needs no rescan.</summary>
+        public bool IsHidden { get; set; }
+
         /// <summary>Stable cross-source identity for FavoritesStore and ArtOverrideStore: Store alone
         /// is not unique, Id alone collides between stores (a Steam AppID and an Epic AppName can be
         /// the same string by coincidence), so both together are what those stores key on.</summary>

@@ -1632,6 +1632,7 @@ namespace ClawTweaksCenter
         {
             if (_soundSettingsOpen) { MoveSoundSettingsSelection(dir); return; }
             if (_tabEditorOpen) { MoveTabEditorSelection(dir); return; }
+            if (_hiddenGamesOpen) { MoveHiddenGamesSelection(dir); return; }
             if (_settingsOpen) { MoveSettingsSelection(dir); return; }
             if (MiscOverlayOpen) { MoveMiscSelection(dir); return; }
             if (GameMenuOverlayOpen) { MoveGameMenuSelection(dir); return; }
@@ -2374,7 +2375,7 @@ namespace ClawTweaksCenter
         //   3-5   while it is open: where Center goes, what a game start does, which tabs exist
         //   6-8   the grid and the Recent reel
         //   9-11  artwork: the shape of it, where your own pictures come from, the background
-        //   12    sound, on its own line above the key row - a sub-screen, not a switch
+        //   12-14 sound, own apps in Recent, hidden games
         private const int SettingsStartInLibraryRow = 0;
         private const int SettingsStartWithClawTweaksRow = 1;
         private const int SettingsStartSteamRow = 2;
@@ -2412,10 +2413,14 @@ namespace ClawTweaksCenter
         /// their last start from the library. Beside Sound because the Recent band above is full.</summary>
         private const int SettingsOwnAppsInRecentRow = 13;
 
+        /// <summary>Opens the list of games hidden from the game menu, where each one can be shown
+        /// again. Closes the band Sound opened.</summary>
+        private const int SettingsHiddenGamesRow = 14;
+
         /// <summary>The key row, and it is ALWAYS the last one: it holds a text box, so it spans the
         /// full width and sits on its own line below the pairs. The navigation maths below derives the
         /// pair count from this, so adding a switch above it needs no other change.</summary>
-        private const int SettingsKeyRow = 14;
+        private const int SettingsKeyRow = 15;
 
         // THREE, not two (user, 2026-09-05). Nine switches in two columns ran past the bottom of an
         // eight-inch panel again - the same reason this went from one column to two - and the rows are
@@ -2441,6 +2446,7 @@ namespace ClawTweaksCenter
         {
             _settingsOpen = true;
             _soundSettingsOpen = false;
+            _hiddenGamesOpen = false;
             _settingsIndex = 0;
             RenderLibrarySettings();
             RefreshActionBar();
@@ -2452,6 +2458,7 @@ namespace ClawTweaksCenter
             // The sub-screen implies the screen: closed together, or the next settings visit would
             // open straight into sound settings with the grid's rows missing.
             _soundSettingsOpen = false;
+            _hiddenGamesOpen = false;
             _artKeyBox = null;
             _artKeyStatus = null;
             _settingsRows.Clear();
@@ -2513,6 +2520,7 @@ namespace ClawTweaksCenter
             pairs.Children.Add(BuildSettingRow(SettingsSoundRow, "Sound settings", null, null));
             pairs.Children.Add(BuildSettingRow(SettingsOwnAppsInRecentRow, "Show own apps in Recent",
                 Core.CenterSettings.ShowOwnAppsInRecent, null));
+            pairs.Children.Add(BuildSettingRow(SettingsHiddenGamesRow, "Hidden games", null, HiddenGamesSummary()));
             stack.Children.Add(pairs);
 
             var keyRow = BuildSettingRow(SettingsKeyRow, "SteamGridDB key", null, null);
@@ -2700,6 +2708,7 @@ namespace ClawTweaksCenter
                 case SettingsBackgroundRow: return "The picture behind the library.";
                 case SettingsSoundRow: return "Interface sounds, music, and a volume for each.";
                 case SettingsOwnAppsInRecentRow: return "Apps you added show up in Recent after you start them here.";
+                case SettingsHiddenGamesRow: return "Games you hid in the game menu. Show them again here.";
                 case SettingsKeyRow: return "Downloads covers for games that have none.";
                 default: return string.Empty;
             }
@@ -2822,6 +2831,9 @@ namespace ClawTweaksCenter
                     break;
                 case SettingsSoundRow:
                     OpenSoundSettings();
+                    return;
+                case SettingsHiddenGamesRow:
+                    OpenHiddenGames();
                     return;
                 case SettingsKeyRow:
                     _artKeyBox?.Focus();
@@ -5208,6 +5220,12 @@ namespace ClawTweaksCenter
                 return;
             }
 
+            if (_hiddenGamesOpen)
+            {
+                AddHiddenGamesActions();
+                return;
+            }
+
             if (_tabEditorOpen)
             {
                 bool hidden = _tabEditorIndex >= 0 && _tabEditorIndex < _tabEditorOrder.Count
@@ -5222,6 +5240,7 @@ namespace ClawTweaksCenter
                 string label = _settingsIndex == SettingsKeyRow ? "Edit"
                     : _settingsIndex == SettingsTabsRow ? "Open"
                     : _settingsIndex == SettingsSoundRow ? "Open"
+                    : _settingsIndex == SettingsHiddenGamesRow ? "Open"
                     : _settingsIndex == SettingsUserImagesRow ? "Choose"
                     : _settingsIndex == SettingsBackgroundRow ? "Choose"
                     : _settingsIndex == SettingsLaunchBehaviorRow ? "Cycle"

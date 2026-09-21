@@ -339,26 +339,20 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 3, 0, 0),
             });
 
-            stack.Children.Add(BuildDriverChip(d));
-
             bool started = _driverInstallStarted.Contains(DriverMuteKey(d));
+
+            // The state pill, and beside it WHAT A DOES on this card (user, 2026-09-21): Install for
+            // an Intel .exe the helper starts, Download for everything it only saves (MSI's ZIPs, the
+            // modded Wi-Fi archive), Open page for a web page. The footer names the same verb.
+            var pills = new StackPanel { Orientation = Orientation.Horizontal };
+            pills.Children.Add(BuildDriverChip(d));
+            if (CanInstall(d) && !started) pills.Children.Add(BuildVerbPill(VerbOf(d)));
+            stack.Children.Add(pills);
+
             if (started)
                 stack.Children.Add(new TextBlock
                 {
-                    // Four shapes: the modded Wi-Fi driver is unpacked into a folder the user runs
-                    // Setup.bat from; the graphics driver is the one download big enough (over
-                    // 800 MB) that "nothing is happening" needs an answer (user, 2026-09-16); and
-                    // anything that is not an .exe/.msi - BIOS, controller firmware, MSI Center M all
-                    // ship as ZIPs - is never started: the helper saves it to Downloads and opens
-                    // Explorer on it (user, 2026-09-19). Before that, this line promised an installer
-                    // for exactly those three, which never came.
-                    Text = Core.Loc.T(IsModdedWifi(d)
-                        ? "Download started in the background. The folder opens when it is done - run Setup.bat there."
-                        : !IsRunnableDownload(d)
-                            ? "Downloading to your Downloads folder. The folder opens when it is done."
-                            : IsGraphics(d)
-                                ? "Download started in the background - over 800 MB. The installer opens when it is done."
-                                : "Download started in the background. The installer opens when it is done."),
+                    Text = Core.Loc.T(StartedHint(d)),
                     FontSize = 12, Foreground = UiHelpers.Accent, TextWrapping = TextWrapping.Wrap,
                     Margin = new Thickness(0, 6, 0, 0),
                 });
@@ -390,6 +384,63 @@ namespace ClawTweaksCenter
             Action install = CanInstall(d) && !started ? () => StartDriverInstall(d) : (Action)null;
             RegisterDriverRow(0, card, install, d);
             return card;
+        }
+
+        private enum DriverVerb { Install, Download, Open }
+
+        /// <summary>
+        /// What A does on a driver card, read from what the helper will do with it - never from the
+        /// vendor. An .exe/.msi is started (the Intel graphics, Wi-Fi and Bluetooth installers); the
+        /// modded Wi-Fi archive and MSI's ZIPs are only saved to Downloads; a "deeplink" row is a
+        /// web page. Taking it from the URL the way the helper does is what keeps the label honest.
+        /// </summary>
+        private static DriverVerb VerbOf(DriverEntryDto d)
+        {
+            if (IsDeepLink(d)) return DriverVerb.Open;
+            if (IsModdedWifi(d)) return DriverVerb.Download;
+            return IsRunnableDownload(d) ? DriverVerb.Install : DriverVerb.Download;
+        }
+
+        private static string VerbLabel(DriverVerb v) =>
+            v == DriverVerb.Install ? "Install" : v == DriverVerb.Download ? "Download" : "Open page";
+
+        /// <summary>
+        /// The line under a card once A was pressed. It is on screen for three seconds before the
+        /// download is even asked for (see StartDriverInstall), because a small file finishes at once
+        /// and the installer or the Downloads folder then covers Center.
+        ///
+        /// Every Intel installer is large enough that "nothing is happening" needs an answer; the
+        /// graphics one is over 800 MB (user, 2026-09-16 and 2026-09-21).
+        /// </summary>
+        private static string StartedHint(DriverEntryDto d)
+        {
+            if (IsModdedWifi(d))
+                return "Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat.";
+            if (VerbOf(d) == DriverVerb.Download)
+                return "Download starts in the background. Your Downloads folder opens when it is done.";
+            return IsGraphics(d)
+                ? "Download starts in the background - over 800 MB, this takes a while. The installer opens when it is done."
+                : "Download starts in the background and can take a few minutes. The installer opens when it is done.";
+        }
+
+        private static Border BuildVerbPill(DriverVerb v)
+        {
+            return new Border
+            {
+                CornerRadius = new CornerRadius(5),
+                Padding = new Thickness(10, 3, 10, 4),
+                Margin = new Thickness(8, 7, 0, 0),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                BorderThickness = new Thickness(1),
+                BorderBrush = UiHelpers.Accent,
+                Child = new TextBlock
+                {
+                    Text = "\u24B6 " + Core.Loc.T(VerbLabel(v)),
+                    FontSize = 12,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = UiHelpers.Accent,
+                },
+            };
         }
 
         private static bool IsModdedWifi(DriverEntryDto d) =>
@@ -449,16 +500,29 @@ namespace ClawTweaksCenter
                     return;
                 }
 
-                // The modded Wi-Fi driver has its own verb: the helper downloads and unpacks it and
-                // opens the folder, because its Setup.bat is the user's to run (see the helper's
-                // InstallModdedWifiAsync). InstallDriverUpdate would try to launch a zip.
+                // THE HINT FIRST, THE DOWNLOAD THREE SECONDS LATER (user, 2026-09-21). A ZIP or the
+                // modded archive is done in a moment, and Explorer or the installer then lands on top
+                // of Center before the line under the card was readable. The card is marked now, so
+                // a second A in those three seconds does nothing.
+                string key = DriverMuteKey(d);
+                if (!_driverInstallStarted.Add(key)) return;
+                RenderDriversIfStillOpen();
+                RefreshActionBar();
+                await Task.Delay(TimeSpan.FromSeconds(3));
+
+                // The modded Wi-Fi driver has its own verb: the helper saves the archive to
+                // Downloads and opens Explorer on it - it never unpacks or runs Setup.bat (see the
+                // helper's InstallModdedWifiAsync). InstallDriverUpdate would refuse its host.
                 bool sent = IsModdedWifi(d)
                     ? _helperPipe.SendRequest("InstallModdedWifi", true)
                     : _helperPipe.SendRequest("InstallDriverUpdate", d.DownloadUrl);
                 if (sent)
+                    Core.InstallLog.Write($"Driver {VerbLabel(VerbOf(d)).ToLowerInvariant()} requested from Center: {d.Name} {d.Version}");
+                else
                 {
-                    _driverInstallStarted.Add(DriverMuteKey(d));
-                    Core.InstallLog.Write($"Driver install requested from Center: {d.Name} {d.Version}");
+                    // Nothing went out: take the mark back, or the card claims a download forever.
+                    _driverInstallStarted.Remove(key);
+                    Core.InstallLog.Write($"Driver request could not be sent: {d.Name} {d.Version}");
                 }
                 RenderDriversIfStillOpen();
             }
@@ -864,7 +928,7 @@ namespace ClawTweaksCenter
             bool canAct = row?.Activate != null;
             // "Install" on a driver card, "Open" on the Windows Update button - the chip names what
             // the press does, and the two are not the same thing.
-            AddAction(PadButton.A, row?.Driver != null && !IsDeepLink(row.Driver) ? "Install" : "Open", canAct, () =>
+            AddAction(PadButton.A, row?.Driver != null ? VerbLabel(VerbOf(row.Driver)) : "Open", canAct, () =>
             {
                 if (canAct) row.Activate();
             });

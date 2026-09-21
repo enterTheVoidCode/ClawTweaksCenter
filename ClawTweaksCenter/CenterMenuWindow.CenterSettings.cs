@@ -170,7 +170,7 @@ namespace ClawTweaksCenter
             checks.Children.Add(BuildCenterSettingRow(CenterSettingsDriverBetaRow, Loc.T("Also non-WHQL graphics drivers"),
                 haveHelper ? null : Loc.T("ClawTweaks is not running."), haveHelper ? _driverResult.UseIntelBeta : (bool?)null));
             checks.Children.Add(new Border());
-            checks.Children.Add(BuildCenterSettingRow(CenterSettingsDriverWifiRow, Loc.T("Modded Wi-Fi driver instead of stock"),
+            checks.Children.Add(BuildCenterSettingRow(CenterSettingsDriverWifiRow, Loc.T("Modded Wi-Fi driver instead of stock (download only)"),
                 haveHelper ? null : Loc.T("ClawTweaks is not running."), haveHelper ? _driverResult.UseModdedWifi : (bool?)null));
             checks.Children.Add(new Border());
             checks.Children.Add(BuildCenterSettingRow(CenterSettingsDriverTestRow, Loc.T("Offer every driver as an update"),

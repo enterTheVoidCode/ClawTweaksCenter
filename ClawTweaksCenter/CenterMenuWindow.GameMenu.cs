@@ -105,6 +105,7 @@ namespace ClawTweaksCenter
             var target = SelectedGame;
             if (target == null) return;
             _gameMenuUninstallArmed = false;
+            _gameMenuUninstallSide = false;
 
             _gameMenuTarget = target;
             _gameMenuOverlay = GameMenuOverlay.Menu;
@@ -272,6 +273,7 @@ namespace ClawTweaksCenter
             // the launch screen, which is where somebody is actually thinking about playing; the row
             // below is all that stays.
             _gameMenuActions.Clear();
+            _gameMenuSplitRow = -1;
 
             bool isFav = game?.IsFavorite == true;
             // Filled star when it already is one, outline when it is not - the glyph carries the
@@ -350,52 +352,62 @@ namespace ClawTweaksCenter
                 ownEntry ? UiHelpers.Text : UiHelpers.Subtle, "Rename",
                 () => { if (GameMenuTargetIsMisc) OpenRename(); }));
 
-            // A Steam game cannot be removed from the library (the next scan brings it back), but it
-            // CAN be uninstalled - through Steam (user, 2026-09-15). The row takes the place of
-            // "Remove from library" for Steam entries only; every other store keeps the greyed
-            // remove row, because there is nothing we can hand the job to.
+            // ONE ROW, TWO ACTIONS for everything that comes from a scan: Hide and Uninstall
+            // (user, 2026-09-21). The menu has no vertical room for a second row, and the two are the
+            // same question - "get this off my shelf" - answered at two depths. Left/Right picks the
+            // half, A does it. Hide comes first: it is the one that can be taken back.
             //
-            // NO PROMPT OF OUR OWN. steam://uninstall/<appid> opens Steam's own "are you sure"
-            // dialog, and a second question in front of it was one too many (user, after the first
-            // device test). Same glyph as the remove row below: it is the same kind of action.
-            if (game?.Store == GameStore.Steam)
+            // Entries the user added by hand keep "Remove from library". Hiding one would be a second
+            // way to lose it, and deleting it is already free to undo by adding it again.
+            if (ownEntry)
             {
-                bool canUninstall = game.Installed;
-                // Steam's "are you sure" is a desktop window; a fullscreen Center sits in front of
-                // the desktop, so it can open behind us (user, 2026-09-16). One sentence, on the row.
-                string uninstallSub = !canUninstall ? "Not installed"
-                    : Ui.WindowMode.IsFullscreen(this) ? "Steam removes the game files. In fullscreen, Steam's dialog can open behind Center."
-                    : "Steam removes the game files";
-                stack.Children.Add(GameMenuRow("", "Uninstall\u2026",
-                    uninstallSub,
-                    canUninstall ? UiHelpers.Text : UiHelpers.Subtle, "Uninstall",
-                    () => { if (GameMenuTargetIsInstalledSteam) UninstallThroughSteam(); }));
-            }
-            else if (game != null && game.Store != GameStore.Misc && game.Store != GameStore.Playnite)
-            {
-                // Every other store: the uninstaller the game registered with Windows, found by its
-                // folder (GameUninstaller). Same hand-over as Steam - the uninstaller asks, not us.
-                _gameMenuUninstall = GameUninstaller.Find(game);
-                bool canUninstall = _gameMenuUninstall != null;
-                var kind = _gameMenuUninstall?.Kind;
-                string uninstallSub = !game.Installed ? "Not installed"
-                    : !canUninstall ? "No uninstaller found"
-                    : kind == GameUninstaller.Kind.EpicLibrary ? "Opens your Epic library. Uninstall the game there."
-                    : kind == GameUninstaller.Kind.XboxPackage
-                        ? (_gameMenuUninstallArmed ? "Press again to delete the game." : "Deletes the game for this Windows user.")
-                    : Ui.WindowMode.IsFullscreen(this) ? "Runs the game's own uninstaller. In fullscreen, it can open behind Center."
-                    : "Runs the game's own uninstaller";
-                stack.Children.Add(GameMenuRow("", "Uninstall\u2026",
-                    uninstallSub,
-                    canUninstall ? UiHelpers.Text : UiHelpers.Subtle, "Uninstall",
-                    () => { if (_gameMenuUninstall != null) UninstallThroughRegisteredUninstaller(); }));
-            }
-            else
-            {
-                stack.Children.Add(GameMenuRow("", "Remove from library",
-                    ownEntry ? "Deletes the entry, not the app" : "Only for apps you added yourself",
-                    ownEntry ? UiHelpers.Text : UiHelpers.Subtle, "Remove",
+                stack.Children.Add(GameMenuRow("", "Remove from library",
+                    "Deletes the entry, not the app",
+                    UiHelpers.Text, "Remove",
                     () => { if (GameMenuTargetIsMisc) RemoveMiscGameFromMenu(); }));
+            }
+            else if (game != null)
+            {
+                bool canUninstall;
+                string uninstallSub;
+                Action uninstallRun;
+                if (game.Store == GameStore.Steam)
+                {
+                    // NO PROMPT OF OUR OWN. steam://uninstall/<appid> opens Steam's own "are you
+                    // sure" dialog, and a second question in front of it was one too many (user,
+                    // 2026-09-15). Steam's dialog is a desktop window, so in fullscreen it can open
+                    // behind Center (user, 2026-09-16) - one sentence, on the row.
+                    canUninstall = game.Installed;
+                    uninstallSub = !canUninstall ? "Not installed"
+                        : Ui.WindowMode.IsFullscreen(this) ? "Steam removes the game files. In fullscreen, Steam's dialog can open behind Center."
+                        : "Steam removes the game files";
+                    uninstallRun = () => { if (GameMenuTargetIsInstalledSteam) UninstallThroughSteam(); };
+                }
+                else if (game.Store != GameStore.Playnite)
+                {
+                    // Every other store: the uninstaller the game registered with Windows, found by
+                    // its folder (GameUninstaller). Same hand-over as Steam - the uninstaller asks.
+                    _gameMenuUninstall = GameUninstaller.Find(game);
+                    canUninstall = _gameMenuUninstall != null;
+                    var kind = _gameMenuUninstall?.Kind;
+                    uninstallSub = !game.Installed ? "Not installed"
+                        : !canUninstall ? "No uninstaller found"
+                        : kind == GameUninstaller.Kind.EpicLibrary ? "Opens your Epic library. Uninstall the game there."
+                        : kind == GameUninstaller.Kind.XboxPackage
+                            ? (_gameMenuUninstallArmed ? "Press again to delete the game." : "Deletes the game for this Windows user.")
+                        : Ui.WindowMode.IsFullscreen(this) ? "Runs the game's own uninstaller. In fullscreen, it can open behind Center."
+                        : "Runs the game's own uninstaller";
+                    uninstallRun = () => { if (_gameMenuUninstall != null) UninstallThroughRegisteredUninstaller(); };
+                }
+                else
+                {
+                    // A ROM is a file of the user's own; Center deletes no files.
+                    canUninstall = false;
+                    uninstallSub = "Not for ROMs";
+                    uninstallRun = () => { };
+                }
+
+                stack.Children.Add(GameMenuHideUninstallRow(canUninstall, uninstallSub, uninstallRun));
             }
 
             if (_gameMenuIndex >= _gameMenuActions.Count) _gameMenuIndex = _gameMenuActions.Count - 1;
@@ -464,6 +476,114 @@ namespace ClawTweaksCenter
             return row;
         }
 
+        /// <summary>Which half of the Hide/Uninstall row A acts on. Hide unless the user moved
+        /// right - reset every time the menu opens, so an uninstall is never one press away by
+        /// accident.</summary>
+        private bool _gameMenuUninstallSide;
+
+        /// <summary>Index of the Hide/Uninstall row in this render, or -1 when the menu has none.
+        /// Left/Right only mean something on that row.</summary>
+        private int _gameMenuSplitRow = -1;
+
+        /// <summary>
+        /// The Hide/Uninstall row: the chosen half is the title and the subtitle, both halves are
+        /// named on the right so the other one can be found. Built like GameMenuRow and registered
+        /// the same way, so the footer, the mouse and the D-pad treat it as one row.
+        /// </summary>
+        private Border GameMenuHideUninstallRow(bool canUninstall, string uninstallSub, Action uninstallRun)
+        {
+            bool uninstall = _gameMenuUninstallSide;
+            bool live = !uninstall || canUninstall;
+
+            string title = uninstall ? "Uninstall…" : "Hide";
+            string sub = uninstall ? uninstallSub : "Show it again in Library settings";
+            string label = uninstall ? "Uninstall" : "Hide";
+            Action run = uninstall ? uninstallRun : HideGameFromMenu;
+
+            _gameMenuSplitRow = _gameMenuActions.Count;
+            var row = GameMenuRow(uninstall ? "" : "", title, sub,
+                live ? UiHelpers.Text : UiHelpers.Subtle, label, run);
+
+            var chips = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(12, 0, 0, 0),
+            };
+            chips.Children.Add(HideUninstallChip("Hide", !uninstall, true));
+            chips.Children.Add(HideUninstallChip("Uninstall", uninstall, canUninstall));
+
+            var grid = (Grid)row.Child;
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            Grid.SetColumn(chips, 2);
+            grid.Children.Add(chips);
+
+            // A click on a chip only picks that half, like Left/Right - it never runs it. Handled, so
+            // the row's own click (which carries the action of the half shown when it was built)
+            // does not fire underneath.
+            PickHalfOnClick((Border)chips.Children[0], false);
+            PickHalfOnClick((Border)chips.Children[1], true);
+            return row;
+        }
+
+        private void PickHalfOnClick(Border chip, bool uninstallSide)
+        {
+            chip.MouseLeftButtonUp += (_, e) =>
+            {
+                e.Handled = true;
+                _gameMenuIndex = _gameMenuSplitRow;
+                FlipGameMenuSplitRow(uninstallSide ? PadButton.Right : PadButton.Left);
+                ApplyGameMenuSelection();
+            };
+        }
+
+        private static Border HideUninstallChip(string text, bool active, bool enabled)
+        {
+            return new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(10, 4, 10, 4),
+                Margin = new Thickness(6, 0, 0, 0),
+                BorderThickness = new Thickness(1),
+                BorderBrush = active ? UiHelpers.Accent : UiHelpers.Subtle,
+                Background = active ? UiHelpers.Accent : Brushes.Transparent,
+                Opacity = enabled ? 1.0 : 0.45,
+                Child = new TextBlock
+                {
+                    Text = Core.Loc.T(text),
+                    FontSize = 13,
+                    Foreground = active ? Brushes.White : UiHelpers.Subtle,
+                },
+            };
+        }
+
+        /// <summary>Left/Right on the Hide/Uninstall row. Moving off the uninstall half takes a
+        /// pending Xbox second press back, same as moving off the row.</summary>
+        private bool FlipGameMenuSplitRow(PadButton dir)
+        {
+            if (_gameMenuSplitRow < 0 || _gameMenuIndex != _gameMenuSplitRow) return false;
+            bool want = dir == PadButton.Right;
+            if (want == _gameMenuUninstallSide) return true;
+            _gameMenuUninstallSide = want;
+            _gameMenuUninstallArmed = false;
+            RenderGameMenuOverlay();
+            RefreshActionBar();
+            return true;
+        }
+
+        /// <summary>
+        /// Takes a scanned game off every shelf. No question first: it deletes nothing, and Library
+        /// settings lists it to bring it back.
+        /// </summary>
+        private void HideGameFromMenu()
+        {
+            var target = _gameMenuTarget;
+            if (target == null || target.Store == GameStore.Misc) return;
+            HiddenGamesStore.Hide(target);
+            Core.InstallLog.Write("[GameMenu] hidden: " + target.Title + " (" + target.FavoriteKey + ")");
+            CloseGameMenuOverlay();
+        }
+
         private void ApplyGameMenuSelection()
         {
             foreach (var row in _gameMenuRows)
@@ -480,6 +600,8 @@ namespace ClawTweaksCenter
             if (_gameMenuOverlay == GameMenuOverlay.Achievements) { MoveAchievementSelection(dir); return; }
             if (_gameMenuOverlay == GameMenuOverlay.CtwWallpapers) { MoveCtwWallpaperSelection(dir); return; }
             if (_gameMenuRows.Count == 0) return;
+
+            if ((dir == PadButton.Left || dir == PadButton.Right) && FlipGameMenuSplitRow(dir)) return;
 
             int next = _gameMenuIndex + (dir == PadButton.Down ? 1 : dir == PadButton.Up ? -1 : 0);
             if (next < 0 || next >= _gameMenuRows.Count || next == _gameMenuIndex) return;
