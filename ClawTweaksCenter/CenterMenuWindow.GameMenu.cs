@@ -73,6 +73,14 @@ namespace ClawTweaksCenter
 
         private TextBox _renameBox;
 
+        /// <summary>Start parameters on the Rename screen - only for an entry with an exe path.
+        /// Null otherwise; Up/Down then has nowhere to go.</summary>
+        private TextBox _renameArgsBox;
+
+        /// <summary>Which of the two boxes Up/Down last selected. Kept across renders so a re-render
+        /// does not throw the cursor back to the name.</summary>
+        private bool _renameOnArgs;
+
         // Art picker state. -1 selects the search box itself; 0.. selects a result tile.
         private TextBox _artPickerQueryBox;
         // The box is torn down and rebuilt on every re-render (a search landing, a pick failing), so
@@ -106,6 +114,7 @@ namespace ClawTweaksCenter
             if (target == null) return;
             _gameMenuUninstallArmed = false;
             _gameMenuUninstallSide = false;
+            _gameMenuCoverSide = 0;
 
             _gameMenuTarget = target;
             _gameMenuOverlay = GameMenuOverlay.Menu;
@@ -220,6 +229,7 @@ namespace ClawTweaksCenter
             _gameMenuRows.Clear();
             _artPickerTiles.Clear();
             _renameBox = null;
+            _renameArgsBox = null;
             // Dropped with the tiles, not just alongside them: RenderArtPicker only assigns a new one
             // on the has-results path, so a "searching"/"nothing found" render would otherwise leave
             // the previous, now-detached ScrollViewer here for the next scroll call to talk to.
@@ -273,7 +283,7 @@ namespace ClawTweaksCenter
             // the launch screen, which is where somebody is actually thinking about playing; the row
             // below is all that stays.
             _gameMenuActions.Clear();
-            _gameMenuSplitRow = -1;
+            _gameMenuSplitRows.Clear();
 
             bool isFav = game?.IsFavorite == true;
             // Filled star when it already is one, outline when it is not - the glyph carries the
@@ -308,33 +318,11 @@ namespace ClawTweaksCenter
                 canOpenAchievements ? UiHelpers.Text : UiHelpers.Subtle, "View",
                 () => { if (canOpenAchievements) OpenAchievements(_gameMenuTarget, false); }));
 
-            bool hasKey = Library.SteamGridDb.HasKey;
-            stack.Children.Add(GameMenuRow("", "Choose cover art…",
-                hasKey ? "Search SteamGridDB for a different cover" : "Set a SteamGridDB key in Settings first",
-                UiHelpers.Text, "Choose cover",
-                () => { if (Library.SteamGridDb.HasKey) OpenArtPicker(); }));
-
-            // A FOLDER glyph, not a photo: the SteamGridDB row directly above already draws the
-            // photo (U+E91B), and two rows with the same icon are two rows nobody can tell apart at
-            // a glance. Kept as an escape rather than the literal character the older rows carry -
-            // a private-use character is invisible in every diff and survives no encoding change.
-            // Own pictures, and NOT gated on the SteamGridDB key: this is the route that works for
-            // somebody who never signed up for anything. It is listed under the SteamGridDB row
-            // because that one finds a cover without any preparation, and this one asks for a folder
-            // first - the cheaper offer goes first.
-            bool hasFolder = Library.UserImageLibrary.HasFolder;
-            stack.Children.Add(GameMenuRow("\uE8B7", "Use one of your own images\u2026",
-                hasFolder ? Library.UserImageLibrary.Folder : "Pick the folder your pictures are in",
-                UiHelpers.Text, "Own image",
-                () => OpenUserArtPicker(UserArtPurpose.Cover)));
-
-            // Greyed rather than hidden when there is nothing to undo - the same shape as the two
-            // rows below, and it keeps the row count steady as the cursor moves across games.
-            bool hasOwnCover = ArtOverrideStore.Has(game);
-            stack.Children.Add(GameMenuRow("\uE7A7", "Reset cover",
-                hasOwnCover ? "Back to the cover Center finds itself" : "No picked cover on this game",
-                hasOwnCover ? UiHelpers.Text : UiHelpers.Subtle, "Reset",
-                ResetPickedCover));
+            // ONE ROW FOR THE COVER (user, 2026-09-21), three halves: SteamGridDB, an image of
+            // your own, and back to the default. Same shape as Hide/Uninstall below - Left/Right picks
+            // the half, A does it - and for the same reason: the menu has no vertical room, and the
+            // three are one question, "which picture".
+            stack.Children.Add(GameMenuCoverRow(game));
 
             // Renaming and removing apply only to entries the USER added by hand. A Steam or Xbox
             // game comes from a scan: a new name would be overwritten by the next one and a deleted
@@ -348,7 +336,7 @@ namespace ClawTweaksCenter
             bool ownEntry = GameMenuTargetIsMisc;
 
             stack.Children.Add(GameMenuRow("", "Rename…",
-                ownEntry ? "Also looks for new cover art" : "Only for apps you added yourself",
+                ownEntry ? "Name and start parameters" : "Only for apps you added yourself",
                 ownEntry ? UiHelpers.Text : UiHelpers.Subtle, "Rename",
                 () => { if (GameMenuTargetIsMisc) OpenRename(); }));
 
@@ -481,28 +469,35 @@ namespace ClawTweaksCenter
         /// accident.</summary>
         private bool _gameMenuUninstallSide;
 
-        /// <summary>Index of the Hide/Uninstall row in this render, or -1 when the menu has none.
-        /// Left/Right only mean something on that row.</summary>
-        private int _gameMenuSplitRow = -1;
+        /// <summary>Which third of the cover row A acts on: 0 SteamGridDB, 1 own image, 2 default.
+        /// Reset to SteamGridDB every time the menu opens.</summary>
+        private int _gameMenuCoverSide;
+
+        /// <summary>One row, several actions, Left/Right between them.</summary>
+        private sealed class GameMenuSplit
+        {
+            public int Count;
+            public Func<int> Get;
+            public Action<int> Set;
+        }
+
+        /// <summary>The split rows of this render, by row index. Left/Right only mean something on
+        /// them.</summary>
+        private readonly Dictionary<int, GameMenuSplit> _gameMenuSplitRows = new Dictionary<int, GameMenuSplit>();
 
         /// <summary>
-        /// The Hide/Uninstall row: the chosen half is the title and the subtitle, both halves are
-        /// named on the right so the other one can be found. Built like GameMenuRow and registered
-        /// the same way, so the footer, the mouse and the D-pad treat it as one row.
+        /// A row with several actions: the chosen part is the title and the subtitle, every part is
+        /// named on the right so the others can be found. Built like GameMenuRow and registered the
+        /// same way, so the footer, the mouse and the D-pad treat it as one row.
         /// </summary>
-        private Border GameMenuHideUninstallRow(bool canUninstall, string uninstallSub, Action uninstallRun)
+        private Border GameMenuSplitRow(int side, string[] chipLabels, bool[] chipEnabled,
+                                        string glyph, string title, string subtitle, bool live,
+                                        string actionLabel, Action run, Action<int> setSide)
         {
-            bool uninstall = _gameMenuUninstallSide;
-            bool live = !uninstall || canUninstall;
+            int rowIndex = _gameMenuActions.Count;
+            _gameMenuSplitRows[rowIndex] = new GameMenuSplit { Count = chipLabels.Length, Get = () => side, Set = setSide };
 
-            string title = uninstall ? "Uninstall…" : "Hide";
-            string sub = uninstall ? uninstallSub : "Show it again in Library settings";
-            string label = uninstall ? "Uninstall" : "Hide";
-            Action run = uninstall ? uninstallRun : HideGameFromMenu;
-
-            _gameMenuSplitRow = _gameMenuActions.Count;
-            var row = GameMenuRow(uninstall ? "" : "", title, sub,
-                live ? UiHelpers.Text : UiHelpers.Subtle, label, run);
+            var row = GameMenuRow(glyph, title, subtitle, live ? UiHelpers.Text : UiHelpers.Subtle, actionLabel, run);
 
             var chips = new StackPanel
             {
@@ -510,34 +505,97 @@ namespace ClawTweaksCenter
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(12, 0, 0, 0),
             };
-            chips.Children.Add(HideUninstallChip("Hide", !uninstall, true));
-            chips.Children.Add(HideUninstallChip("Uninstall", uninstall, canUninstall));
+            for (int i = 0; i < chipLabels.Length; i++)
+            {
+                var chip = SplitChip(chipLabels[i], i == side, chipEnabled[i]);
+                int target = i;
+                // A click on a chip only picks that part, like Left/Right - it never runs it.
+                // Handled, so the row's own click (which carries the action of the part shown when it
+                // was built) does not fire underneath.
+                chip.MouseLeftButtonUp += (_, e) =>
+                {
+                    e.Handled = true;
+                    _gameMenuIndex = rowIndex;
+                    PickGameMenuSplit(rowIndex, target);
+                    ApplyGameMenuSelection();
+                };
+                chips.Children.Add(chip);
+            }
 
             var grid = (Grid)row.Child;
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             Grid.SetColumn(chips, 2);
             grid.Children.Add(chips);
-
-            // A click on a chip only picks that half, like Left/Right - it never runs it. Handled, so
-            // the row's own click (which carries the action of the half shown when it was built)
-            // does not fire underneath.
-            PickHalfOnClick((Border)chips.Children[0], false);
-            PickHalfOnClick((Border)chips.Children[1], true);
             return row;
         }
 
-        private void PickHalfOnClick(Border chip, bool uninstallSide)
+        private Border GameMenuHideUninstallRow(bool canUninstall, string uninstallSub, Action uninstallRun)
         {
-            chip.MouseLeftButtonUp += (_, e) =>
-            {
-                e.Handled = true;
-                _gameMenuIndex = _gameMenuSplitRow;
-                FlipGameMenuSplitRow(uninstallSide ? PadButton.Right : PadButton.Left);
-                ApplyGameMenuSelection();
-            };
+            bool uninstall = _gameMenuUninstallSide;
+            return GameMenuSplitRow(uninstall ? 1 : 0,
+                new[] { "Hide", "Uninstall" }, new[] { true, canUninstall },
+                uninstall ? "" : "",
+                uninstall ? "Uninstall…" : "Hide",
+                uninstall ? uninstallSub : "Show it again in Library settings",
+                !uninstall || canUninstall,
+                uninstall ? "Uninstall" : "Hide",
+                uninstall ? uninstallRun : (Action)HideGameFromMenu,
+                v =>
+                {
+                    _gameMenuUninstallSide = v == 1;
+                    // Moving off the uninstall half takes a pending Xbox second press back.
+                    _gameMenuUninstallArmed = false;
+                });
         }
 
-        private static Border HideUninstallChip(string text, bool active, bool enabled)
+        /// <summary>
+        /// SteamGridDB, an image of your own, or back to the default.
+        ///
+        /// The FOLDER glyph for own images, not a photo: the SteamGridDB half draws the photo, and
+        /// two parts with the same icon cannot be told apart at a glance. Own images are NOT gated on
+        /// the SteamGridDB key - it is the route that works for somebody who never signed up for
+        /// anything. Default is greyed rather than dropped when there is nothing to undo, so the row
+        /// keeps its three parts as the cursor moves across games.
+        /// </summary>
+        private Border GameMenuCoverRow(GameEntry game)
+        {
+            bool hasKey = Library.SteamGridDb.HasKey;
+            bool hasFolder = Library.UserImageLibrary.HasFolder;
+            bool hasOwnCover = ArtOverrideStore.Has(game);
+            int side = Math.Max(0, Math.Min(2, _gameMenuCoverSide));
+
+            string glyph, title, sub, label;
+            bool live;
+            Action run;
+            switch (side)
+            {
+                case 1:
+                    glyph = "\uE8B7"; title = "Use one of your own images\u2026";
+                    sub = hasFolder ? Library.UserImageLibrary.Folder : "Pick the folder your pictures are in";
+                    live = true; label = "Own image";
+                    run = () => OpenUserArtPicker(UserArtPurpose.Cover);
+                    break;
+                case 2:
+                    glyph = "\uE7A7"; title = "Reset cover";
+                    sub = hasOwnCover ? "Back to the cover Center finds itself" : "No picked cover on this game";
+                    live = hasOwnCover; label = "Reset";
+                    run = ResetPickedCover;
+                    break;
+                default:
+                    glyph = "\uE91B"; title = "Choose cover art\u2026";
+                    sub = hasKey ? "Search SteamGridDB for a different cover" : "Set a SteamGridDB key in Settings first";
+                    live = hasKey; label = "Choose cover";
+                    run = () => { if (Library.SteamGridDb.HasKey) OpenArtPicker(); };
+                    break;
+            }
+
+            return GameMenuSplitRow(side,
+                new[] { "SteamGridDB", "Own image", "Default" }, new[] { hasKey, true, hasOwnCover },
+                glyph, title, sub, live, label, run,
+                v => _gameMenuCoverSide = v);
+        }
+
+        private static Border SplitChip(string text, bool active, bool enabled)
         {
             return new Border
             {
@@ -557,18 +615,24 @@ namespace ClawTweaksCenter
             };
         }
 
-        /// <summary>Left/Right on the Hide/Uninstall row. Moving off the uninstall half takes a
-        /// pending Xbox second press back, same as moving off the row.</summary>
+        /// <summary>Left/Right on a split row. False when the cursor is not on one, so the caller
+        /// falls through to its own handling.</summary>
         private bool FlipGameMenuSplitRow(PadButton dir)
         {
-            if (_gameMenuSplitRow < 0 || _gameMenuIndex != _gameMenuSplitRow) return false;
-            bool want = dir == PadButton.Right;
-            if (want == _gameMenuUninstallSide) return true;
-            _gameMenuUninstallSide = want;
-            _gameMenuUninstallArmed = false;
+            if (!_gameMenuSplitRows.TryGetValue(_gameMenuIndex, out var split)) return false;
+            int want = split.Get() + (dir == PadButton.Right ? 1 : -1);
+            if (want < 0 || want >= split.Count) return true;
+            PickGameMenuSplit(_gameMenuIndex, want);
+            return true;
+        }
+
+        private void PickGameMenuSplit(int rowIndex, int part)
+        {
+            if (!_gameMenuSplitRows.TryGetValue(rowIndex, out var split)) return;
+            if (part == split.Get()) return;
+            split.Set(part);
             RenderGameMenuOverlay();
             RefreshActionBar();
-            return true;
         }
 
         /// <summary>
@@ -599,6 +663,7 @@ namespace ClawTweaksCenter
             if (_gameMenuOverlay == GameMenuOverlay.UserArtFolder) { MoveUserArtFolderSelection(dir); return; }
             if (_gameMenuOverlay == GameMenuOverlay.Achievements) { MoveAchievementSelection(dir); return; }
             if (_gameMenuOverlay == GameMenuOverlay.CtwWallpapers) { MoveCtwWallpaperSelection(dir); return; }
+            if (_gameMenuOverlay == GameMenuOverlay.Rename) { MoveRenameField(dir); return; }
             if (_gameMenuRows.Count == 0) return;
 
             if ((dir == PadButton.Left || dir == PadButton.Right) && FlipGameMenuSplitRow(dir)) return;
@@ -753,6 +818,7 @@ namespace ClawTweaksCenter
         {
             if (!GameMenuTargetIsMisc) return;
             _gameMenuOverlay = GameMenuOverlay.Rename;
+            _renameOnArgs = false;
             RenderGameMenuOverlay();
             RefreshActionBar();
         }
@@ -790,9 +856,65 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 8, 0, 0),
             });
 
+            // START PARAMETERS. Only an exe entry has a field: a shortcut carries its own and is
+            // started as it is, and a Start-menu app has no command line to add to.
+            string launch = _gameMenuTarget?.LaunchExe;
+            if (!string.IsNullOrEmpty(launch))
+            {
+                stack.Children.Add(new TextBlock
+                {
+                    Text = "Start parameters",
+                    FontSize = 16,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = UiHelpers.Text,
+                    Margin = new Thickness(0, 24, 0, 8),
+                });
+
+                if (MiscShortcut.IsShortcut(launch))
+                {
+                    stack.Children.Add(new TextBlock
+                    {
+                        Text = "Set start parameters in the shortcut.",
+                        FontSize = 13,
+                        Foreground = UiHelpers.Subtle,
+                    });
+                }
+                else
+                {
+                    _renameArgsBox = new TextBox
+                    {
+                        Text = _gameMenuTarget?.LaunchArgs ?? string.Empty,
+                        FontSize = 16,
+                        Padding = new Thickness(8, 6, 8, 6),
+                    };
+                    stack.Children.Add(_renameArgsBox);
+                }
+            }
+            if (_renameArgsBox == null) _renameOnArgs = false;
+
             LibraryRoot.Children.Add(stack);
-            _renameBox.Focus();
-            _renameBox.SelectAll();
+            FocusRenameField();
+        }
+
+        private TextBox CurrentRenameField => _renameOnArgs && _renameArgsBox != null ? _renameArgsBox : _renameBox;
+
+        private void FocusRenameField()
+        {
+            var box = CurrentRenameField;
+            if (box == null) return;
+            box.Focus();
+            box.SelectAll();
+        }
+
+        /// <summary>Up/Down moves between the name and the start parameters.</summary>
+        private void MoveRenameField(PadButton dir)
+        {
+            if (_renameArgsBox == null) return;
+            bool toArgs = dir == PadButton.Down ? true : dir == PadButton.Up ? false : _renameOnArgs;
+            if (toArgs == _renameOnArgs) return;
+            _renameOnArgs = toArgs;
+            FocusRenameField();
+            RefreshActionBar();
         }
 
         /// <summary>
@@ -807,8 +929,14 @@ namespace ClawTweaksCenter
         {
             var target = _gameMenuTarget;
             string name = (_renameBox?.Text ?? string.Empty).Trim();
+            bool nameChanged = target != null && name.Length > 0 && name != target.Title;
 
-            if (target == null || name.Length == 0 || name == target.Title)
+            // Null when there is no field (shortcut, Start-menu app) - then the stored value stays.
+            string args = _renameArgsBox?.Text?.Trim();
+            bool argsChanged = target != null && args != null
+                               && !string.Equals(args, target.LaunchArgs ?? string.Empty, StringComparison.Ordinal);
+
+            if (!nameChanged && !argsChanged)
             {
                 _gameMenuOverlay = GameMenuOverlay.Menu;
                 RenderGameMenuOverlay();
@@ -818,10 +946,17 @@ namespace ClawTweaksCenter
 
             var entries = MiscStore.Load();
             foreach (var entry in entries)
-                if (string.Equals(entry.Id, target.Id, StringComparison.OrdinalIgnoreCase))
-                    entry.Title = name;
+            {
+                if (!string.Equals(entry.Id, target.Id, StringComparison.OrdinalIgnoreCase)) continue;
+                if (nameChanged) entry.Title = name;
+                if (argsChanged) entry.Args = args.Length == 0 ? null : args;
+            }
 
-            target.ArtPath = null;
+            // Only a new NAME drops the cover - the lookup is keyed on the title, the parameters do
+            // not change what the cover should be.
+            if (nameChanged) target.ArtPath = null;
+            if (argsChanged)
+                Core.InstallLog.Write("[Misc] start parameters for '" + target.Title + "' set to: " + (args.Length == 0 ? "(none)" : args));
             PublishMisc(entries);
 
             // Out of the overlay entirely: the entry the menu was opened on has just been replaced by
@@ -1212,7 +1347,7 @@ namespace ClawTweaksCenter
                     return true;
 
                 case GameMenuOverlay.Rename:
-                    AddAction(PadButton.A, "Edit name", true, () => { _renameBox?.Focus(); _renameBox?.SelectAll(); });
+                    AddAction(PadButton.A, _renameOnArgs && _renameArgsBox != null ? "Edit parameters" : "Edit name", true, FocusRenameField);
                     AddAction(PadButton.B, "Save", true, GameMenuBack);
                     return true;
 

@@ -1008,6 +1008,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "Der Download startet im Hintergrund. Dein Download-Ordner \u00F6ffnet sich, sobald er fertig ist.",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "Der Download startet im Hintergrund. Dein Download-Ordner \u00F6ffnet sich, sobald er fertig ist. Entpacke ihn und starte Setup.bat.",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "Modded-WLAN-Treiber statt Stock (nur Download)",
+            ["Name and start parameters"] = "Name und Startparameter",
+            ["Start parameters"] = "Startparameter",
+            ["Set start parameters in the shortcut."] = "Startparameter legst du in der Verkn\u00FCpfung fest.",
+            ["Edit parameters"] = "Parameter \u00E4ndern",
+            ["Default"] = "Standard",
+            ["Library overview"] = "Bibliotheks\u00FCbersicht",
+            ["What the library shows and where its covers come from."] = "Was die Bibliothek zeigt und woher die Cover kommen.",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -1987,6 +1994,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "Le t\u00E9l\u00E9chargement d\u00E9marre en arri\u00E8re-plan. Ton dossier T\u00E9l\u00E9chargements s'ouvre \u00E0 la fin.",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "Le t\u00E9l\u00E9chargement d\u00E9marre en arri\u00E8re-plan. Ton dossier T\u00E9l\u00E9chargements s'ouvre \u00E0 la fin. D\u00E9compresse-le et lance Setup.bat.",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "Pilote Wi-Fi modd\u00E9 au lieu de l'officiel (t\u00E9l\u00E9chargement seul)",
+            ["Name and start parameters"] = "Nom et param\u00E8tres de lancement",
+            ["Start parameters"] = "Param\u00E8tres de lancement",
+            ["Set start parameters in the shortcut."] = "D\u00E9finis les param\u00E8tres dans le raccourci.",
+            ["Edit parameters"] = "Modifier les param\u00E8tres",
+            ["Default"] = "Par d\u00E9faut",
+            ["Library overview"] = "Aper\u00E7u de la biblioth\u00E8que",
+            ["What the library shows and where its covers come from."] = "Ce que montre la biblioth\u00E8que et d'o\u00F9 viennent les jaquettes.",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -2971,6 +2985,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "\uB2E4\uC6B4\uB85C\uB4DC\uAC00 \uBC31\uADF8\uB77C\uC6B4\uB4DC\uC5D0\uC11C \uC2DC\uC791\uB429\uB2C8\uB2E4. \uC644\uB8CC\uB418\uBA74 \uB2E4\uC6B4\uB85C\uB4DC \uD3F4\uB354\uAC00 \uC5F4\uB9BD\uB2C8\uB2E4.",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "\uB2E4\uC6B4\uB85C\uB4DC\uAC00 \uBC31\uADF8\uB77C\uC6B4\uB4DC\uC5D0\uC11C \uC2DC\uC791\uB429\uB2C8\uB2E4. \uC644\uB8CC\uB418\uBA74 \uB2E4\uC6B4\uB85C\uB4DC \uD3F4\uB354\uAC00 \uC5F4\uB9BD\uB2C8\uB2E4. \uC555\uCD95\uC744 \uD480\uACE0 Setup.bat\uC744 \uC2E4\uD589\uD558\uC138\uC694.",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "\uAE30\uBCF8 \uB300\uC2E0 \uBAA8\uB4DC Wi-Fi \uB4DC\uB77C\uC774\uBC84 (\uB2E4\uC6B4\uB85C\uB4DC\uB9CC)",
+            ["Name and start parameters"] = "\uC774\uB984\uACFC \uC2DC\uC791 \uB9E4\uAC1C\uBCC0\uC218",
+            ["Start parameters"] = "\uC2DC\uC791 \uB9E4\uAC1C\uBCC0\uC218",
+            ["Set start parameters in the shortcut."] = "\uC2DC\uC791 \uB9E4\uAC1C\uBCC0\uC218\uB294 \uBC14\uB85C \uAC00\uAE30\uC5D0\uC11C \uC124\uC815\uD558\uC138\uC694.",
+            ["Edit parameters"] = "\uB9E4\uAC1C\uBCC0\uC218 \uD3B8\uC9D1",
+            ["Default"] = "\uAE30\uBCF8\uAC12",
+            ["Library overview"] = "\uB77C\uC774\uBE0C\uB7EC\uB9AC \uAC1C\uC694",
+            ["What the library shows and where its covers come from."] = "\uB77C\uC774\uBE0C\uB7EC\uB9AC\uC5D0 \uD45C\uC2DC\uB418\uB294 \uD56D\uBAA9\uACFC \uCEE4\uBC84\uC758 \uCD9C\uCC98\uC785\uB2C8\uB2E4.",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -3952,6 +3973,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "La descarga empieza en segundo plano. Tu carpeta Descargas se abre al terminar.",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "La descarga empieza en segundo plano. Tu carpeta Descargas se abre al terminar. Descompr\u00EDmelo y ejecuta Setup.bat.",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "Controlador Wi-Fi modificado en vez del original (solo descarga)",
+            ["Name and start parameters"] = "Nombre y par\u00E1metros de inicio",
+            ["Start parameters"] = "Par\u00E1metros de inicio",
+            ["Set start parameters in the shortcut."] = "Define los par\u00E1metros en el acceso directo.",
+            ["Edit parameters"] = "Editar par\u00E1metros",
+            ["Default"] = "Original",
+            ["Library overview"] = "Resumen de la biblioteca",
+            ["What the library shows and where its covers come from."] = "Qu\u00E9 muestra la biblioteca y de d\u00F3nde vienen las portadas.",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -4937,6 +4965,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u043D\u0430\u0447\u043D\u0451\u0442\u0441\u044F \u0432 \u0444\u043E\u043D\u0435. \u041F\u043E \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0438\u0438 \u043E\u0442\u043A\u0440\u043E\u0435\u0442\u0441\u044F \u043F\u0430\u043F\u043A\u0430 \u00AB\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0438\u00BB.",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u043D\u0430\u0447\u043D\u0451\u0442\u0441\u044F \u0432 \u0444\u043E\u043D\u0435. \u041F\u043E \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0438\u0438 \u043E\u0442\u043A\u0440\u043E\u0435\u0442\u0441\u044F \u043F\u0430\u043F\u043A\u0430 \u00AB\u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0438\u00BB. \u0420\u0430\u0441\u043F\u0430\u043A\u0443\u0439 \u0430\u0440\u0445\u0438\u0432 \u0438 \u0437\u0430\u043F\u0443\u0441\u0442\u0438 Setup.bat.",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "\u041C\u043E\u0434\u0438\u0444\u0438\u0446\u0438\u0440\u043E\u0432\u0430\u043D\u043D\u044B\u0439 \u0434\u0440\u0430\u0439\u0432\u0435\u0440 Wi-Fi \u0432\u043C\u0435\u0441\u0442\u043E \u0448\u0442\u0430\u0442\u043D\u043E\u0433\u043E (\u0442\u043E\u043B\u044C\u043A\u043E \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0430)",
+            ["Name and start parameters"] = "\u0418\u043C\u044F \u0438 \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B \u0437\u0430\u043F\u0443\u0441\u043A\u0430",
+            ["Start parameters"] = "\u041F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B \u0437\u0430\u043F\u0443\u0441\u043A\u0430",
+            ["Set start parameters in the shortcut."] = "\u0417\u0430\u0434\u0430\u0439 \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B \u0432 \u044F\u0440\u043B\u044B\u043A\u0435.",
+            ["Edit parameters"] = "\u0418\u0437\u043C\u0435\u043D\u0438\u0442\u044C \u043F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B",
+            ["Default"] = "\u041F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E",
+            ["Library overview"] = "\u041E\u0431\u0437\u043E\u0440 \u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0438",
+            ["What the library shows and where its covers come from."] = "\u0427\u0442\u043E \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u0442 \u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0430 \u0438 \u043E\u0442\u043A\u0443\u0434\u0430 \u0431\u0435\u0440\u0443\u0442\u0441\u044F \u043E\u0431\u043B\u043E\u0436\u043A\u0438.",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -5913,6 +5948,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "\u0397 \u03BB\u03AE\u03C8\u03B7 \u03BE\u03B5\u03BA\u03B9\u03BD\u03AC \u03C3\u03C4\u03BF \u03C0\u03B1\u03C1\u03B1\u03C3\u03BA\u03AE\u03BD\u03B9\u03BF. \u039F \u03C6\u03AC\u03BA\u03B5\u03BB\u03BF\u03C2 \u039B\u03AE\u03C8\u03B5\u03B9\u03C2 \u03B1\u03BD\u03BF\u03AF\u03B3\u03B5\u03B9 \u03BC\u03CC\u03BB\u03B9\u03C2 \u03C4\u03B5\u03BB\u03B5\u03B9\u03CE\u03C3\u03B5\u03B9.",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "\u0397 \u03BB\u03AE\u03C8\u03B7 \u03BE\u03B5\u03BA\u03B9\u03BD\u03AC \u03C3\u03C4\u03BF \u03C0\u03B1\u03C1\u03B1\u03C3\u03BA\u03AE\u03BD\u03B9\u03BF. \u039F \u03C6\u03AC\u03BA\u03B5\u03BB\u03BF\u03C2 \u039B\u03AE\u03C8\u03B5\u03B9\u03C2 \u03B1\u03BD\u03BF\u03AF\u03B3\u03B5\u03B9 \u03BC\u03CC\u03BB\u03B9\u03C2 \u03C4\u03B5\u03BB\u03B5\u03B9\u03CE\u03C3\u03B5\u03B9. \u0391\u03C0\u03BF\u03C3\u03C5\u03BC\u03C0\u03AF\u03B5\u03C3\u03AD \u03C4\u03BF \u03BA\u03B1\u03B9 \u03B5\u03BA\u03C4\u03AD\u03BB\u03B5\u03C3\u03B5 \u03C4\u03BF Setup.bat.",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "\u03A4\u03C1\u03BF\u03C0\u03BF\u03C0\u03BF\u03B9\u03B7\u03BC\u03AD\u03BD\u03BF \u03C0\u03C1\u03CC\u03B3\u03C1\u03B1\u03BC\u03BC\u03B1 \u03BF\u03B4\u03AE\u03B3\u03B7\u03C3\u03B7\u03C2 Wi-Fi (\u03BC\u03CC\u03BD\u03BF \u03BB\u03AE\u03C8\u03B7)",
+            ["Name and start parameters"] = "\u038C\u03BD\u03BF\u03BC\u03B1 \u03BA\u03B1\u03B9 \u03C0\u03B1\u03C1\u03AC\u03BC\u03B5\u03C4\u03C1\u03BF\u03B9 \u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7\u03C2",
+            ["Start parameters"] = "\u03A0\u03B1\u03C1\u03AC\u03BC\u03B5\u03C4\u03C1\u03BF\u03B9 \u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7\u03C2",
+            ["Set start parameters in the shortcut."] = "\u038C\u03C1\u03B9\u03C3\u03B5 \u03C4\u03B9\u03C2 \u03C0\u03B1\u03C1\u03B1\u03BC\u03AD\u03C4\u03C1\u03BF\u03C5\u03C2 \u03C3\u03C4\u03B7 \u03C3\u03C5\u03BD\u03C4\u03CC\u03BC\u03B5\u03C5\u03C3\u03B7.",
+            ["Edit parameters"] = "\u0391\u03BB\u03BB\u03B1\u03B3\u03AE \u03C0\u03B1\u03C1\u03B1\u03BC\u03AD\u03C4\u03C1\u03C9\u03BD",
+            ["Default"] = "\u03A0\u03C1\u03BF\u03B5\u03C0\u03B9\u03BB\u03BF\u03B3\u03AE",
+            ["Library overview"] = "\u0395\u03C0\u03B9\u03C3\u03BA\u03CC\u03C0\u03B7\u03C3\u03B7 \u03B2\u03B9\u03B2\u03BB\u03B9\u03BF\u03B8\u03AE\u03BA\u03B7\u03C2",
+            ["What the library shows and where its covers come from."] = "\u03A4\u03B9 \u03B4\u03B5\u03AF\u03C7\u03BD\u03B5\u03B9 \u03B7 \u03B2\u03B9\u03B2\u03BB\u03B9\u03BF\u03B8\u03AE\u03BA\u03B7 \u03BA\u03B1\u03B9 \u03B1\u03C0\u03CC \u03C0\u03BF\u03CD \u03AD\u03C1\u03C7\u03BF\u03BD\u03C4\u03B1\u03B9 \u03C4\u03B1 \u03B5\u03BE\u03CE\u03C6\u03C5\u03BB\u03BB\u03B1.",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -6894,6 +6936,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "\u4E0B\u8F7D\u5C06\u5728\u540E\u53F0\u5F00\u59CB\u3002\u5B8C\u6210\u540E\u4F1A\u6253\u5F00\u4F60\u7684\u201C\u4E0B\u8F7D\u201D\u6587\u4EF6\u5939\u3002",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "\u4E0B\u8F7D\u5C06\u5728\u540E\u53F0\u5F00\u59CB\u3002\u5B8C\u6210\u540E\u4F1A\u6253\u5F00\u4F60\u7684\u201C\u4E0B\u8F7D\u201D\u6587\u4EF6\u5939\u3002\u89E3\u538B\u540E\u8FD0\u884C Setup.bat\u3002",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "\u6539\u7248 Wi-Fi \u9A71\u52A8\u4EE3\u66FF\u539F\u7248\uFF08\u4EC5\u4E0B\u8F7D\uFF09",
+            ["Name and start parameters"] = "\u540D\u79F0\u548C\u542F\u52A8\u53C2\u6570",
+            ["Start parameters"] = "\u542F\u52A8\u53C2\u6570",
+            ["Set start parameters in the shortcut."] = "\u8BF7\u5728\u5FEB\u6377\u65B9\u5F0F\u4E2D\u8BBE\u7F6E\u542F\u52A8\u53C2\u6570\u3002",
+            ["Edit parameters"] = "\u4FEE\u6539\u53C2\u6570",
+            ["Default"] = "\u9ED8\u8BA4",
+            ["Library overview"] = "\u6E38\u620F\u5E93\u6982\u89C8",
+            ["What the library shows and where its covers come from."] = "\u6E38\u620F\u5E93\u663E\u793A\u7684\u5185\u5BB9\u4EE5\u53CA\u5C01\u9762\u7684\u6765\u6E90\u3002",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -7875,6 +7924,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "\u4E0B\u8F09\u5C07\u5728\u80CC\u666F\u958B\u59CB\u3002\u5B8C\u6210\u5F8C\u6703\u958B\u555F\u4F60\u7684\u300C\u4E0B\u8F09\u300D\u8CC7\u6599\u593E\u3002",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "\u4E0B\u8F09\u5C07\u5728\u80CC\u666F\u958B\u59CB\u3002\u5B8C\u6210\u5F8C\u6703\u958B\u555F\u4F60\u7684\u300C\u4E0B\u8F09\u300D\u8CC7\u6599\u593E\u3002\u89E3\u58D3\u7E2E\u5F8C\u57F7\u884C Setup.bat\u3002",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "\u6539\u7248 Wi-Fi \u9A45\u52D5\u7A0B\u5F0F\u53D6\u4EE3\u539F\u7248\uFF08\u50C5\u4E0B\u8F09\uFF09",
+            ["Name and start parameters"] = "\u540D\u7A31\u548C\u555F\u52D5\u53C3\u6578",
+            ["Start parameters"] = "\u555F\u52D5\u53C3\u6578",
+            ["Set start parameters in the shortcut."] = "\u8ACB\u5728\u6377\u5F91\u4E2D\u8A2D\u5B9A\u555F\u52D5\u53C3\u6578\u3002",
+            ["Edit parameters"] = "\u4FEE\u6539\u53C3\u6578",
+            ["Default"] = "\u9810\u8A2D",
+            ["Library overview"] = "\u904A\u6232\u5EAB\u6982\u89BD",
+            ["What the library shows and where its covers come from."] = "\u904A\u6232\u5EAB\u986F\u793A\u7684\u5167\u5BB9\u4EE5\u53CA\u5C01\u9762\u7684\u4F86\u6E90\u3002",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -8854,6 +8910,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "Il download parte in background. La cartella Download si apre al termine.",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "Il download parte in background. La cartella Download si apre al termine. Estrailo ed esegui Setup.bat.",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "Driver Wi-Fi modificato invece dell'originale (solo download)",
+            ["Name and start parameters"] = "Nome e parametri di avvio",
+            ["Start parameters"] = "Parametri di avvio",
+            ["Set start parameters in the shortcut."] = "Imposta i parametri nel collegamento.",
+            ["Edit parameters"] = "Modifica parametri",
+            ["Default"] = "Predefinita",
+            ["Library overview"] = "Panoramica libreria",
+            ["What the library shows and where its covers come from."] = "Cosa mostra la libreria e da dove arrivano le copertine.",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -9821,6 +9884,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "O download come\u00E7a em segundo plano. Sua pasta Downloads abre quando terminar.",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "O download come\u00E7a em segundo plano. Sua pasta Downloads abre quando terminar. Extraia e execute o Setup.bat.",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "Driver Wi-Fi modificado em vez do original (s\u00F3 download)",
+            ["Name and start parameters"] = "Nome e par\u00E2metros de in\u00EDcio",
+            ["Start parameters"] = "Par\u00E2metros de in\u00EDcio",
+            ["Set start parameters in the shortcut."] = "Defina os par\u00E2metros no atalho.",
+            ["Edit parameters"] = "Editar par\u00E2metros",
+            ["Default"] = "Padr\u00E3o",
+            ["Library overview"] = "Vis\u00E3o geral da biblioteca",
+            ["What the library shows and where its covers come from."] = "O que a biblioteca mostra e de onde v\u00EAm as capas.",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -10804,6 +10874,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u306F\u30D0\u30C3\u30AF\u30B0\u30E9\u30A6\u30F3\u30C9\u3067\u59CB\u307E\u308A\u307E\u3059\u3002\u5B8C\u4E86\u3059\u308B\u3068\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9 \u30D5\u30A9\u30EB\u30C0\u30FC\u304C\u958B\u304D\u307E\u3059\u3002",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u306F\u30D0\u30C3\u30AF\u30B0\u30E9\u30A6\u30F3\u30C9\u3067\u59CB\u307E\u308A\u307E\u3059\u3002\u5B8C\u4E86\u3059\u308B\u3068\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9 \u30D5\u30A9\u30EB\u30C0\u30FC\u304C\u958B\u304D\u307E\u3059\u3002\u5C55\u958B\u3057\u3066 Setup.bat \u3092\u5B9F\u884C\u3057\u307E\u3059\u3002",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "\u6A19\u6E96\u306E\u4EE3\u308F\u308A\u306B\u6539\u9020\u7248 Wi-Fi \u30C9\u30E9\u30A4\u30D0\u30FC\uFF08\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u306E\u307F\uFF09",
+            ["Name and start parameters"] = "\u540D\u524D\u3068\u8D77\u52D5\u30D1\u30E9\u30E1\u30FC\u30BF\u30FC",
+            ["Start parameters"] = "\u8D77\u52D5\u30D1\u30E9\u30E1\u30FC\u30BF\u30FC",
+            ["Set start parameters in the shortcut."] = "\u8D77\u52D5\u30D1\u30E9\u30E1\u30FC\u30BF\u30FC\u306F\u30B7\u30E7\u30FC\u30C8\u30AB\u30C3\u30C8\u3067\u8A2D\u5B9A\u3057\u307E\u3059\u3002",
+            ["Edit parameters"] = "\u30D1\u30E9\u30E1\u30FC\u30BF\u30FC\u3092\u7DE8\u96C6",
+            ["Default"] = "\u65E2\u5B9A",
+            ["Library overview"] = "\u30E9\u30A4\u30D6\u30E9\u30EA\u306E\u6982\u8981",
+            ["What the library shows and where its covers come from."] = "\u30E9\u30A4\u30D6\u30E9\u30EA\u306B\u8868\u793A\u3055\u308C\u308B\u5185\u5BB9\u3068\u30AB\u30D0\u30FC\u306E\u5165\u624B\u5143\u3002",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -11778,6 +11855,13 @@ namespace ClawTweaksCenter.Core
             ["Download starts in the background. Your Downloads folder opens when it is done."] = "Pobieranie rusza w tle. Folder Pobrane otworzy si\u0119 po zako\u0144czeniu.",
             ["Download starts in the background. Your Downloads folder opens when it is done. Unpack it and run Setup.bat."] = "Pobieranie rusza w tle. Folder Pobrane otworzy si\u0119 po zako\u0144czeniu. Rozpakuj archiwum i uruchom Setup.bat.",
             ["Modded Wi-Fi driver instead of stock (download only)"] = "Zmodyfikowany sterownik Wi-Fi zamiast fabrycznego (tylko pobieranie)",
+            ["Name and start parameters"] = "Nazwa i parametry uruchamiania",
+            ["Start parameters"] = "Parametry uruchamiania",
+            ["Set start parameters in the shortcut."] = "Ustaw parametry w skr\u00F3cie.",
+            ["Edit parameters"] = "Edytuj parametry",
+            ["Default"] = "Domy\u015Blna",
+            ["Library overview"] = "Przegl\u0105d biblioteki",
+            ["What the library shows and where its covers come from."] = "Co pokazuje biblioteka i sk\u0105d pochodz\u0105 ok\u0142adki.",
         };
 
     }

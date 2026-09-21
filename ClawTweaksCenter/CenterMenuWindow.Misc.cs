@@ -590,7 +590,10 @@ namespace ClawTweaksCenter
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
                 Title = Core.Loc.T("Choose a program"),   // a Win32 dialog, not one of our builders
-                Filter = "Programs (*.exe)|*.exe",
+                Filter = "Programs (*.exe;*.lnk)|*.exe;*.lnk",
+                // OFF, or the dialog hands back the shortcut's TARGET and the entry loses everything
+                // the shortcut carries - parameters, working folder, "Run as administrator".
+                DereferenceLinks = false,
                 CheckFileExists = true,
                 Multiselect = true,
             };
@@ -608,13 +611,17 @@ namespace ClawTweaksCenter
             {
                 if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) continue;
                 if (!have.Add(path)) continue;
+                bool shortcut = MiscShortcut.IsShortcut(path);
                 entries.Add(new MiscEntry
                 {
                     Id = Guid.NewGuid().ToString("N"),
                     // The file name without its extension, as the first guess at a name. It is often
-                    // wrong ("citra-qt"), which is exactly why renaming exists next to it.
+                    // wrong ("citra-qt"), which is exactly why renaming exists next to it. A shortcut's
+                    // name is usually the better one - it is what the user called it.
                     Title = Path.GetFileNameWithoutExtension(path),
+                    // A shortcut is stored AS the launch target (see MiscEntry.ShortcutTarget).
                     Exe = path,
+                    ShortcutTarget = shortcut ? MiscShortcut.ResolveTarget(path) : null,
                 });
             }
 

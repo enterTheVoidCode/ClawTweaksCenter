@@ -7,7 +7,7 @@ here is built unless it says so.
 
 ## 1. Own apps (My Apps): admin tools fail to start, silently
 
-**Found 2026-09-21, not built (user: "wir machen deine Empfehlung, aber noch nicht jetzt").**
+**Found 2026-09-21. BUILT 2026-09-21, compiled, NOT run on a device.** (`MiscSource.Launch`)
 
 `MiscSource.Launch` starts an entry with a path through `Process.Start` with
 `UseShellExecute = false`, i.e. a bare `CreateProcess`. An exe whose manifest asks for admin rights
@@ -25,23 +25,37 @@ to, so the launch fails: the screen says it failed and the log has no line at al
 - Not planned: anything specific to cracked games (loader detection, bypasses). The UAC retry does
   the same as a double-click in Explorer on something the user picked; it does not favour them.
 
-**To check alongside:** whether `GameRunTracker` can wait on a process that was elevated through
-UAC (`WaitForExitAsync` from an unelevated Center).
+**Built:** error 740 retries through the shell (Windows' UAC prompt for the target, Center stays
+unelevated); a declined prompt (1223) and every other failure are logged as `[Misc] ...` in the
+install log with the Win32 code and the path.
+
+**Tracking an elevated program:** the handle from the shell start is waited on directly. The folder
+fallback (item 2) no longer uses `Process.MainModule`, which an unelevated Center is denied on an
+elevated process, but `QueryFullProcessImageName` with the limited query right - that also changes
+the store tracking (Steam, Epic, Xbox) for the better: an elevated game under its install folder is
+now seen.
 
 ## 2. Own apps: launcher stubs end the "game" at once (suspected)
 
-**Derived from the code, NOT seen on a device.**
+**Derived from the code, NOT seen on a device. BUILT 2026-09-21, not run.** (`GameRunTracker`)
 
 `GameRunTracker.Track` waits on the exact process we started and reads its exit as the end of the
 game. Many tools and games start through a small launcher that starts the real program and exits
 straight away. Center would then take the game as ended and come back while it is still running.
 
-If a user report sounds like "Center pops back up right after the start", it is this case. A fix
-would watch for a child process or the window, not the stub.
+If a user report sounds like "Center pops back up right after the start", it is this case.
+
+**Built:** a Misc process that exits within 30 s, with a program from the same folder running within
+6 s after, is taken as a stub; the tracker then watches the folder until it is empty. Log line:
+`[RunTracker] '<name>' exited after N ms ... a launcher stub; watching the folder.`
+
+⚠️ Folders other programs share are never watched (drive root, Windows and everything under it,
+Program Files itself, profile, Desktop, AppData, Documents) - an unrelated process there would keep
+Center hidden for good.
 
 ## 3. Own apps: .lnk files and start parameters
 
-**Recommended 2026-09-21, not built.**
+**BUILT 2026-09-21, compiled, NOT run on a device.**
 
 What exists: `MiscEntry.Args` is stored and passed on launch. It is filled only from Desktop and
 Startup shortcuts (`AppInventory`, target + arguments via `WScript.Shell`). The file picker takes
@@ -61,9 +75,18 @@ is always forced to the exe's folder.
 already exists; a second text box "Start parameters" under the name is the natural place. Both
 apply to own apps only.
 
+**Built as recommended:**
+- File picker: `*.exe;*.lnk`, `DereferenceLinks = false` (otherwise the dialog returns the
+  shortcut's target). The .lnk is stored in `MiscEntry.Exe`; `ShortcutTarget` is resolved once when
+  added and used for the icon, the Claw profile match and the tracker - never to start it.
+- Rename screen: "Start parameters" box under the name for exe entries, Up/Down switches between
+  the two, B saves both. A shortcut entry shows "Set start parameters in the shortcut." A Start-menu
+  app shows nothing. A new name still drops the cover, new parameters do not.
+- The game menu row now reads "Name and start parameters".
+
 ## 4. EA app: installed games are not found (EA SPORTS FC 27)
 
-**Found 2026-09-21 on the first EA-app game tested, not built.**
+**Found 2026-09-21 on the first EA-app game tested. BUILT 2026-09-21, compiled, not run.**
 
 `EaSource` reads `HKLM\SOFTWARE\Origin Games\<id>` and needs a folder for each id. It looks for one
 in the key (`InstallDir` / `Install Dir`) and then in the uninstall entries, matched by the key name
@@ -80,7 +103,7 @@ So the entry is dropped as "no folder", exactly like the uninstalled leftovers n
 25, 26, WRC, F1 24, Battlefield 6 all sit in `Origin Games` without a folder on this machine - those
 are correct to drop).
 
-**Fix:** for every uninstall entry whose `InstallLocation` holds `__Installer\installerdata.xml`,
+**Fix (built):** for every uninstall entry whose `InstallLocation` holds `__Installer\installerdata.xml`,
 read its `<contentID>` values and map each id to that folder. This is the file the EA app itself
 writes into every game it installs, it names the id directly, and it still requires the folder to
 exist - the leftovers stay out.

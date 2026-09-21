@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
@@ -30,7 +31,16 @@ namespace ClawTweaksCenter.Library
         /// through the shell (packaged apps, and the opaque ProgIDs the Start menu hands out).</summary>
         public string Exe { get; set; }
 
+        /// <summary>Start parameters for an exe entry. Editable on the Rename screen. Ignored for a
+        /// shortcut entry: the .lnk carries its own, and a second set here would be two answers to
+        /// one question.</summary>
         public string Args { get; set; }
+
+        /// <summary>For an entry whose <see cref="Exe"/> is a .lnk: the program the shortcut pointed at
+        /// when it was added. Used for the icon, the Claw profile match and to find the running
+        /// program afterwards - NEVER to start it. The shortcut itself is what gets started, so
+        /// "Run as administrator", the working folder and the parameters in it all apply 1:1.</summary>
+        public string ShortcutTarget { get; set; }
 
         /// <summary>The Start menu AppID, for entries with no resolvable path. Activated through
         /// <c>shell:appsFolder</c>, which is the documented route and needs no WinRT.</summary>
@@ -103,9 +113,9 @@ namespace ClawTweaksCenter.Library
                 Id = entry.Id,
                 Store = GameStore.Misc,
                 Title = entry.Title,
-                ExePath = entry.Exe,
+                ExePath = MiscShortcut.IsShortcut(entry.Exe) ? entry.ShortcutTarget : entry.Exe,
                 LaunchExe = entry.Exe,
-                LaunchArgs = entry.Args,
+                LaunchArgs = MiscShortcut.IsShortcut(entry.Exe) ? null : entry.Args,
                 LaunchUri = string.IsNullOrWhiteSpace(entry.Aumid) ? null : "shell:appsFolder\\" + entry.Aumid,
             };
         }
@@ -138,11 +148,18 @@ namespace ClawTweaksCenter.Library
         /// <summary>
         /// Starts one Misc entry.
         ///
-        /// Two routes, and which one applies is decided by what could be resolved when the entry was
-        /// added, not by trying and seeing. A path is started directly with its own folder as the
-        /// working directory - tools read configuration next to themselves as routinely as emulators
-        /// do. Everything else goes through <c>shell:appsFolder</c>, which is what a packaged app and
-        /// an opaque Start menu ProgID both need.
+        /// Three routes, decided by what the entry is, not by trying and seeing:
+        ///   - a .lnk goes through the shell, exactly like a double-click on it;
+        ///   - an exe is started directly with its own folder as the working directory - tools read
+        ///     configuration next to themselves as routinely as emulators do;
+        ///   - everything else goes through <c>shell:appsFolder</c>, which is what a packaged app and
+        ///     an opaque Start menu ProgID both need.
+        ///
+        /// ⚠️ ERROR 740 IS RETRIED THROUGH THE SHELL. A bare CreateProcess on an exe that asks for
+        /// admin rights fails with "the requested operation requires elevation" and shows no prompt.
+        /// The shell start shows Windows' own UAC prompt FOR THAT PROGRAM - Center itself stays
+        /// unelevated, so "Center never asks for admin" holds. It is the same as a double-click in
+        /// Explorer on something the user picked.
         /// </summary>
         public static bool Launch(GameEntry game) => Launch(game, out _);
 
@@ -153,18 +170,39 @@ namespace ClawTweaksCenter.Library
 
             if (!string.IsNullOrEmpty(game.LaunchExe) && File.Exists(game.LaunchExe))
             {
+                if (MiscShortcut.IsShortcut(game.LaunchExe))
+                    return ShellStart(game.LaunchExe, null, null, game.Title, out startedProcess);
+
+                string args = game.LaunchArgs ?? string.Empty;
+                string workDir = Path.GetDirectoryName(game.LaunchExe);
                 try
                 {
                     startedProcess = Process.Start(new ProcessStartInfo
                     {
                         FileName = game.LaunchExe,
-                        Arguments = game.LaunchArgs ?? string.Empty,
-                        WorkingDirectory = Path.GetDirectoryName(game.LaunchExe),
+                        Arguments = args,
+                        WorkingDirectory = workDir,
                         UseShellExecute = false,
                     });
                     return true;
                 }
-                catch { }
+                catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorElevationRequired)
+                {
+                    Core.InstallLog.Write("[Misc] '" + game.Title + "' needs admin rights (740) - starting it through the shell so Windows asks: " + game.LaunchExe);
+                    return ShellStart(game.LaunchExe, args, workDir, game.Title, out startedProcess);
+                }
+                catch (Win32Exception ex)
+                {
+                    Core.InstallLog.Write("[Misc] start failed for '" + game.Title + "' (Win32 " + ex.NativeErrorCode + ": " + ex.Message + "): " + game.LaunchExe);
+                }
+                catch (Exception ex)
+                {
+                    Core.InstallLog.Write("[Misc] start failed for '" + game.Title + "' (" + ex.GetType().Name + ": " + ex.Message + "): " + game.LaunchExe);
+                }
+            }
+            else if (!string.IsNullOrEmpty(game.LaunchExe))
+            {
+                Core.InstallLog.Write("[Misc] '" + game.Title + "' points at a file that is gone: " + game.LaunchExe);
             }
 
             if (string.IsNullOrEmpty(game.LaunchUri)) return false;
@@ -173,7 +211,70 @@ namespace ClawTweaksCenter.Library
                 Process.Start(new ProcessStartInfo { FileName = game.LaunchUri, UseShellExecute = true });
                 return true;
             }
-            catch { return false; }
+            catch (Exception ex)
+            {
+                Core.InstallLog.Write("[Misc] start failed for '" + game.Title + "' (" + ex.Message + "): " + game.LaunchUri);
+                return false;
+            }
+        }
+
+        private const int ErrorElevationRequired = 740;
+        private const int ErrorCancelled = 1223;
+
+        /// <summary>A start through the shell. Returns true when the shell accepted it; the process
+        /// handle may still be null (a shortcut to a packaged app, or a program that hands off to an
+        /// already running copy), and the tracker then watches the program's folder instead.</summary>
+        private static bool ShellStart(string file, string args, string workDir, string title, out Process startedProcess)
+        {
+            startedProcess = null;
+            try
+            {
+                var psi = new ProcessStartInfo { FileName = file, UseShellExecute = true };
+                if (!string.IsNullOrEmpty(args)) psi.Arguments = args;
+                if (!string.IsNullOrEmpty(workDir)) psi.WorkingDirectory = workDir;
+                startedProcess = Process.Start(psi);
+                return true;
+            }
+            catch (Win32Exception ex) when (ex.NativeErrorCode == ErrorCancelled)
+            {
+                Core.InstallLog.Write("[Misc] '" + title + "': the UAC prompt was declined.");
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Core.InstallLog.Write("[Misc] shell start failed for '" + title + "' (" + ex.Message + "): " + file);
+                return false;
+            }
+        }
+    }
+
+    /// <summary>Shortcut (.lnk) entries in the Misc tab.</summary>
+    public static class MiscShortcut
+    {
+        public static bool IsShortcut(string path) =>
+            !string.IsNullOrEmpty(path) && path.EndsWith(".lnk", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>The program a shortcut points at, or null. Read once, when the entry is added -
+        /// through WScript.Shell, which ships with Windows (the same object SelfInstaller uses to
+        /// write Center's own shortcuts).</summary>
+        public static string ResolveTarget(string lnkPath)
+        {
+            object shell = null, shortcut = null;
+            try
+            {
+                Type shellType = Type.GetTypeFromProgID("WScript.Shell");
+                if (shellType == null) return null;
+                shell = Activator.CreateInstance(shellType);
+                shortcut = ((dynamic)shell).CreateShortcut(lnkPath);
+                string target = ((dynamic)shortcut).TargetPath as string;
+                return string.IsNullOrWhiteSpace(target) ? null : target;
+            }
+            catch { return null; }
+            finally
+            {
+                if (shortcut != null) try { System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shortcut); } catch { }
+                if (shell != null) try { System.Runtime.InteropServices.Marshal.FinalReleaseComObject(shell); } catch { }
+            }
         }
     }
 }

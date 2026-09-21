@@ -2422,6 +2422,10 @@ namespace ClawTweaksCenter
         /// pair count from this, so adding a switch above it needs no other change.</summary>
         private const int SettingsKeyRow = 15;
 
+        /// <summary>The library overview, beside the key row in the half it leaves free. It used to
+        /// be X on every shelf; the footer had no room for it (user, 2026-09-21).</summary>
+        private const int SettingsInfoRow = 16;
+
         // THREE, not two (user, 2026-09-05). Nine switches in two columns ran past the bottom of an
         // eight-inch panel again - the same reason this went from one column to two - and the rows are
         // a short label plus a switch, so the width was never carrying anything.
@@ -2554,6 +2558,10 @@ namespace ClawTweaksCenter
             keyHolder.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             Grid.SetColumn(keyRow, 0);
             keyHolder.Children.Add(keyRow);
+            var infoRow = BuildSettingRow(SettingsInfoRow, "Library overview", null, null);
+            infoRow.VerticalAlignment = VerticalAlignment.Top;
+            Grid.SetColumn(infoRow, 1);
+            keyHolder.Children.Add(infoRow);
             stack.Children.Add(keyHolder);
 
             // ONE LINE FOR THE SELECTED ROW, at the bottom (user, 2026-09-12). The rows are two or
@@ -2710,6 +2718,7 @@ namespace ClawTweaksCenter
                 case SettingsOwnAppsInRecentRow: return "Apps you added show up in Recent after you start them here.";
                 case SettingsHiddenGamesRow: return "Games you hid in the game menu. Show them again here.";
                 case SettingsKeyRow: return "Downloads covers for games that have none.";
+                case SettingsInfoRow: return "What the library shows and where its covers come from.";
                 default: return string.Empty;
             }
         }
@@ -2723,34 +2732,38 @@ namespace ClawTweaksCenter
         private void MoveSettingsSelection(PadButton dir)
         {
             if (_settingsRows.Count == 0) return;
-            int last = _settingsRows.Count - 1;   // the full-width key row
-            int pairs = last;                     // everything above it
+            int last = _settingsRows.Count - 1;
+            int pairs = SettingsKeyRow;           // the grid; below it the key row and the overview
+            bool bottom = _settingsIndex >= pairs;
             int next = _settingsIndex;
 
             switch (dir)
             {
                 case PadButton.Left:
-                    if (_settingsIndex >= pairs || _settingsIndex % SettingsColumns == 0) return;
+                    if (bottom) { if (_settingsIndex == SettingsInfoRow) next = SettingsKeyRow; break; }
+                    if (_settingsIndex % SettingsColumns == 0) return;
                     next = _settingsIndex - 1;
                     break;
                 case PadButton.Right:
-                    if (_settingsIndex >= pairs || _settingsIndex % SettingsColumns == SettingsColumns - 1) return;
+                    if (bottom) { if (_settingsIndex == SettingsKeyRow) next = SettingsInfoRow; break; }
+                    if (_settingsIndex % SettingsColumns == SettingsColumns - 1) return;
                     next = _settingsIndex + 1;
                     if (next >= pairs) return;
                     break;
                 case PadButton.Up:
-                    // From the key row, onto the LAST switch that exists rather than a fixed index.
-                    // With an odd number of switches the bottom row is half empty, so "one row up"
-                    // is a cell that is not there - and "pairs - columns" lands a whole row too high
-                    // in exactly that case, skipping the switch the cursor just came down past.
-                    if (_settingsIndex == last) { next = Math.Max(0, pairs - 1); break; }
+                    // From the bottom band onto the LAST switch that exists rather than a fixed
+                    // index. With a part-filled last grid row, "one row up" can be a cell that is not
+                    // there, and "pairs - columns" would skip the switch the cursor came down past.
+                    if (bottom) { next = Math.Max(0, pairs - 1); break; }
                     if (_settingsIndex < SettingsColumns) return;
                     next = _settingsIndex - SettingsColumns;
                     break;
                 case PadButton.Down:
-                    if (_settingsIndex >= pairs) return;
+                    if (bottom) return;
                     next = _settingsIndex + SettingsColumns;
-                    if (next >= pairs) next = last;
+                    if (next >= pairs)
+                        // The overview sits under the right half of the grid.
+                        next = _settingsIndex % SettingsColumns == SettingsColumns - 1 ? SettingsInfoRow : SettingsKeyRow;
                     break;
                 default: return;
             }
@@ -2838,6 +2851,9 @@ namespace ClawTweaksCenter
                 case SettingsKeyRow:
                     _artKeyBox?.Focus();
                     _artKeyBox?.SelectAll();
+                    return;
+                case SettingsInfoRow:
+                    OpenLibraryInfoFromSettings();
                     return;
             }
             RenderLibrarySettings();
@@ -4437,9 +4453,34 @@ namespace ClawTweaksCenter
             RefreshActionBar();
         }
 
+        /// <summary>True while the overview was opened from Library settings - closing it goes back
+        /// there, onto the row it was opened from.</summary>
+        private bool _infoFromSettings;
+
+        private void OpenLibraryInfoFromSettings()
+        {
+            // The settings screen steps aside rather than closing: no library re-render in between,
+            // and CloseLibraryInfo puts it back.
+            _settingsOpen = false;
+            _soundSettingsOpen = false;
+            _hiddenGamesOpen = false;
+            _settingsRows.Clear();
+            _infoFromSettings = true;
+            OpenLibraryInfo();
+        }
+
         private void CloseLibraryInfo()
         {
             _infoOpen = false;
+            if (_infoFromSettings)
+            {
+                _infoFromSettings = false;
+                OpenLibrarySettings();
+                _settingsIndex = SettingsInfoRow;
+                ApplySettingsSelection();
+                RefreshActionBar();
+                return;
+            }
             RenderLibrary();
             RefreshTabStrip();
             RefreshActionBar();
@@ -5241,6 +5282,7 @@ namespace ClawTweaksCenter
                     : _settingsIndex == SettingsTabsRow ? "Open"
                     : _settingsIndex == SettingsSoundRow ? "Open"
                     : _settingsIndex == SettingsHiddenGamesRow ? "Open"
+                    : _settingsIndex == SettingsInfoRow ? "Open"
                     : _settingsIndex == SettingsUserImagesRow ? "Choose"
                     : _settingsIndex == SettingsBackgroundRow ? "Choose"
                     : _settingsIndex == SettingsLaunchBehaviorRow ? "Cycle"
@@ -5269,11 +5311,8 @@ namespace ClawTweaksCenter
             // the stores does nothing for a list that is not scanned, and Rescan stays on Y in every
             // other tab. Braced deliberately - AddAction just overwrites a dictionary slot, so an
             // unguarded Rescan call below this block would silently win over "Edit" on every redraw.
-            // X is the info screen in EVERY tab, so the key cap next to the icon in the tab strip is
-            // true wherever the user is standing. Misc's "Add app" moved to Y, which is free there -
-            // Y is the tab-specific slot (Rescan elsewhere), X is the one that means the same thing
-            // everywhere.
-            AddAction(PadButton.X, "Info", true, OpenLibraryInfo);
+            // NO X (user, 2026-09-21). It was the info screen on every shelf and pushed the footer
+            // onto a second line on My Apps. The overview is a row in Library settings now.
 
             if (_libraryGroup == LibraryGroup.Misc)
             {
@@ -5294,17 +5333,17 @@ namespace ClawTweaksCenter
                     _libraryScanned = false;
                     _ = ScanLibraryAsync();
                 };
-                if (_libraryGroup == LibraryGroup.Recent)
-                {
-                    if (!_libraryScanning) _liveActions[PadButton.Y] = rescan;
-                }
-                else
-                {
-                    AddAction(PadButton.Y, "Rescan", !_libraryScanning, rescan);
-                }
+                //
+                // THE SAME IN EVERY TAB NOW (user, 2026-09-21): at most three chips, A, Menu and
+                // Settings. Y still rescans everywhere.
+                if (!_libraryScanning) _liveActions[PadButton.Y] = rescan;
             }
 
-            AddAction(PadButton.View, "Settings", true, OpenLibrarySettings);
+            // THREE CHIPS AT MOST (user, 2026-09-21). My Apps shows "Add app" in place of the
+            // Settings chip - Settings is on the same button in every other tab, and View still
+            // opens it here.
+            if (_libraryGroup == LibraryGroup.Misc) _liveActions[PadButton.View] = OpenLibrarySettings;
+            else AddAction(PadButton.View, "Settings", true, OpenLibrarySettings);
 
             // B STILL WORKS, IT JUST HAS NO CHIP (user, 2026-09-09). On the shelf - Recent, the
             // stores, ROMs - it opens the exit prompt, which is not something anyone needs told:

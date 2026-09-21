@@ -1,6 +1,7 @@
 ﻿<Window x:Class="ClawTweaksCenter.CenterMenuWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:ui="clr-namespace:ClawTweaksCenter.Ui"
         Title="ClawTweaks Center"
         Width="1120" Height="760"
         MinWidth="720" MinHeight="520"
@@ -164,7 +165,9 @@
                            FontSize="12" Foreground="{StaticResource SubtleTextBrush}"
                            Visibility="Collapsed" />
 
-                <WrapPanel x:Name="ActionBar" Grid.Column="1" Orientation="Horizontal"
+                <!-- ONE line, never two (user, 2026-09-21): a chip that does not fit is left out
+                     from the end instead of wrapping. See Ui/SingleLineBar.cs. -->
+                <ui:SingleLineBar x:Name="ActionBar" Grid.Column="1"
                            HorizontalAlignment="Center" VerticalAlignment="Center"
                            Margin="12,4,12,4" />
 

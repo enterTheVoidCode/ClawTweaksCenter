@@ -266,6 +266,14 @@ namespace ClawTweaksCenter.Library
 
                 if (!string.IsNullOrWhiteSpace(u.KeyName)) map[u.KeyName] = dir;
 
+                // THE EA APP'S OWN LINK, and the only one it writes for its current installs.
+                // Measured on EA SPORTS FC 27 (2026-09-21): the uninstall key is a GUID, the command
+                // is "Cleanup.exe uninstall_game" with no id, and "Origin Games\16425884" holds no
+                // folder. The id is named in the manifest the EA app puts into every game it
+                // installs. Reading it still requires the folder to exist, so uninstalled leftovers
+                // in "Origin Games" stay out.
+                foreach (string contentId in ContentIdsIn(dir)) map[contentId] = dir;
+
                 string cmd = u.UninstallString;
                 if (string.IsNullOrWhiteSpace(cmd)) continue;
                 int at = cmd.IndexOf("offerIds=", StringComparison.OrdinalIgnoreCase);
@@ -278,6 +286,27 @@ namespace ClawTweaksCenter.Library
                 if (end > start) map[cmd.Substring(start, end - start)] = dir;
             }
             return map;
+        }
+
+        private static readonly System.Text.RegularExpressions.Regex ContentIdPattern =
+            new System.Text.RegularExpressions.Regex(@"<contentID>\s*([^<\s]+)\s*</contentID>",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        /// <summary>The content ids in <c>__Installer\installerdata.xml</c>, or none. A regex rather
+        /// than an XML parser: the file is EA's, and a manifest that some installer version writes
+        /// slightly malformed must cost this one game, not throw the whole EA scan.</summary>
+        private static List<string> ContentIdsIn(string dir)
+        {
+            var ids = new List<string>();
+            try
+            {
+                string file = Path.Combine(dir, "__Installer", "installerdata.xml");
+                if (!File.Exists(file)) return ids;
+                foreach (System.Text.RegularExpressions.Match m in ContentIdPattern.Matches(File.ReadAllText(file)))
+                    ids.Add(m.Groups[1].Value);
+            }
+            catch { }
+            return ids;
         }
     }
 

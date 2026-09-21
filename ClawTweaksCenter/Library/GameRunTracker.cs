@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -40,6 +42,14 @@ namespace ClawTweaksCenter.Library
         // than a desktop Playnite normally runs on, so this matters more here, not less.
         private const int SuspendGuardMs = PollIntervalMs + 30_000;
 
+        // A process we started that is gone again within this window is taken to be a launcher
+        // stub, not the game: many tools start the real program and exit straight away.
+        private const int StubWindowMs = 30_000;
+
+        // How long to look for the program a stub handed off to. It has been started by the time
+        // the stub exits, so this is a grace period, not a store hand-off.
+        private const int StubHandOffMs = 6_000;
+
         /// <summary>
         /// Starts watching in the background. <paramref name="onEnded"/> runs on whatever thread the
         /// watch finishes on - callers that touch UI must marshal it themselves (see
@@ -53,12 +63,33 @@ namespace ClawTweaksCenter.Library
                 {
                     if (directProcess != null)
                     {
+                        var alive = Stopwatch.StartNew();
                         await directProcess.WaitForExitAsync(ct).ConfigureAwait(false);
+
+                        // LAUNCHER STUBS. The process we started is gone after a few seconds, but
+                        // the program it handed off to is running from the same folder. Watch that
+                        // folder instead of calling the game ended.
+                        string stubDir = ProgramFolderOf(game);
+                        if (alive.ElapsedMilliseconds < StubWindowMs && stubDir != null
+                            && await WaitForAppearAsync(stubDir, StubHandOffMs, ct).ConfigureAwait(false))
+                        {
+                            Core.InstallLog.Write("[RunTracker] '" + game?.Title + "' exited after "
+                                + alive.ElapsedMilliseconds + " ms and left a program running in " + stubDir
+                                + " - a launcher stub; watching the folder.");
+                            await WaitForDisappearAsync(stubDir, ct).ConfigureAwait(false);
+                        }
                     }
                     else if (!string.IsNullOrEmpty(game?.InstallDir))
                     {
-                        if (!await WaitForAppearAsync(game.InstallDir, ct).ConfigureAwait(false)) return;
+                        if (!await WaitForAppearAsync(game.InstallDir, StartupTimeoutMs, ct).ConfigureAwait(false)) return;
                         await WaitForDisappearAsync(game.InstallDir, ct).ConfigureAwait(false);
+                    }
+                    else if (ProgramFolderOf(game) is string folder)
+                    {
+                        // A shortcut started through the shell hands back no process. Its target's
+                        // folder is the next best thing - the same as the store case above.
+                        if (!await WaitForAppearAsync(folder, StartupTimeoutMs, ct).ConfigureAwait(false)) return;
+                        await WaitForDisappearAsync(folder, ct).ConfigureAwait(false);
                     }
                     else
                     {
@@ -72,9 +103,48 @@ namespace ClawTweaksCenter.Library
             }, ct);
         }
 
-        private static async Task<bool> WaitForAppearAsync(string installDir, CancellationToken ct)
+        /// <summary>
+        /// The folder of a Misc entry's program, when it is safe to watch - or null.
+        ///
+        /// Misc entries carry no InstallDir on purpose (see MiscStore.ToGameEntry), so this is the
+        /// exe's own folder. A folder that other programs share - the Windows directory, a drive root,
+        /// Program Files itself, the Desktop - would read any unrelated process as "still running"
+        /// and keep Center hidden for good, so those are refused.
+        /// </summary>
+        private static string ProgramFolderOf(GameEntry game)
         {
-            var deadline = DateTime.UtcNow.AddMilliseconds(StartupTimeoutMs);
+            if (game == null || game.Store != GameStore.Misc || string.IsNullOrEmpty(game.ExePath)) return null;
+            try
+            {
+                string dir = Path.GetDirectoryName(Path.GetFullPath(game.ExePath))?.TrimEnd('\\');
+                if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir)) return null;
+                if (string.Equals(Path.GetPathRoot(dir)?.TrimEnd('\\'), dir, StringComparison.OrdinalIgnoreCase)) return null;
+
+                foreach (var f in new[]
+                {
+                    Environment.SpecialFolder.Windows, Environment.SpecialFolder.System,
+                    Environment.SpecialFolder.SystemX86, Environment.SpecialFolder.ProgramFiles,
+                    Environment.SpecialFolder.ProgramFilesX86, Environment.SpecialFolder.UserProfile,
+                    Environment.SpecialFolder.DesktopDirectory, Environment.SpecialFolder.CommonDesktopDirectory,
+                    Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolder.ApplicationData,
+                    Environment.SpecialFolder.MyDocuments,
+                })
+                {
+                    string shared = Environment.GetFolderPath(f)?.TrimEnd('\\');
+                    if (!string.IsNullOrEmpty(shared) && string.Equals(shared, dir, StringComparison.OrdinalIgnoreCase)) return null;
+                }
+
+                // Anything under the Windows directory is shared by definition.
+                string win = Environment.GetFolderPath(Environment.SpecialFolder.Windows)?.TrimEnd('\\');
+                if (!string.IsNullOrEmpty(win) && dir.StartsWith(win + "\\", StringComparison.OrdinalIgnoreCase)) return null;
+                return dir;
+            }
+            catch { return null; }
+        }
+
+        private static async Task<bool> WaitForAppearAsync(string installDir, int timeoutMs, CancellationToken ct)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
             while (DateTime.UtcNow < deadline)
             {
                 ct.ThrowIfCancellationRequested();
@@ -100,7 +170,7 @@ namespace ClawTweaksCenter.Library
             }
         }
 
-        /// <summary>Any currently running process whose main module lives under the install folder.
+        /// <summary>Any currently running process whose image lives under the install folder.
         /// Mirrors Playnite's MonitorDirectory: it is the only strategy that works without a process
         /// handle, because it needs no cooperation from whatever actually launched the game.</summary>
         private static bool AnyProcessUnder(string installDir)
@@ -110,20 +180,45 @@ namespace ClawTweaksCenter.Library
             {
                 using (proc)
                 {
-                    try
-                    {
-                        string path = proc.MainModule?.FileName;
-                        if (!string.IsNullOrEmpty(path) && path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
-                            return true;
-                    }
-                    // A system/elevated process denies MainModule to an unelevated reader - not a
-                    // match, not an error. Center never elevates (see CenterSettings and the CLAUDE.md
-                    // rule this repo is built under), so this is the expected, normal outcome for most
-                    // of what Process.GetProcesses() returns.
-                    catch { }
+                    string path = ImagePathOf(proc.Id);
+                    if (!string.IsNullOrEmpty(path) && path.StartsWith(root, StringComparison.OrdinalIgnoreCase))
+                        return true;
                 }
             }
             return false;
         }
+
+        /// <summary>
+        /// The image path through PROCESS_QUERY_LIMITED_INFORMATION, or null.
+        ///
+        /// NOT Process.MainModule: that needs PROCESS_VM_READ, which an unelevated Center is denied on
+        /// an ELEVATED process. A program started through the UAC prompt (see MiscSource.Launch) would
+        /// then be invisible here and read as "ended" the moment it started. The limited right is
+        /// granted across the elevation boundary, and it is also far cheaper than enumerating modules.
+        /// System processes still refuse it - not a match, not an error.
+        /// </summary>
+        private static string ImagePathOf(int pid)
+        {
+            IntPtr h = OpenProcess(ProcessQueryLimitedInformation, false, pid);
+            if (h == IntPtr.Zero) return null;
+            try
+            {
+                var sb = new StringBuilder(1024);
+                int size = sb.Capacity;
+                return QueryFullProcessImageName(h, 0, sb, ref size) ? sb.ToString(0, size) : null;
+            }
+            finally { CloseHandle(h); }
+        }
+
+        private const uint ProcessQueryLimitedInformation = 0x1000;
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern IntPtr OpenProcess(uint access, bool inherit, int pid);
+
+        [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+        private static extern bool QueryFullProcessImageName(IntPtr process, int flags, StringBuilder name, ref int size);
+
+        [DllImport("kernel32.dll")]
+        private static extern bool CloseHandle(IntPtr handle);
     }
 }

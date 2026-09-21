@@ -261,7 +261,7 @@ namespace ClawTweaksCenter
 
             if (_driversBusy && _driverResult == null)
             {
-                stack.Children.Add(UiHelpers.Body("Checking…"));
+                stack.Children.Add(CheckingLine("Checking…"));
                 return stack;
             }
             if (_driversError != null)
@@ -639,7 +639,7 @@ namespace ClawTweaksCenter
             {
                 // The search really does take tens of seconds. Saying so is the difference between a
                 // slow screen and one the user reads as frozen.
-                stack.Children.Add(UiHelpers.Body("Checking with Windows… this can take up to a minute."));
+                stack.Children.Add(CheckingLine("Checking with Windows… this can take up to a minute."));
                 AppendWindowsUpdateFooterRows(stack);
                 return stack;
             }
@@ -902,6 +902,24 @@ namespace ClawTweaksCenter
             },
         };
 
+        /// <summary>The red spinner beside a "checking" line, while a check runs.</summary>
+        private static UIElement CheckingLine(string text)
+        {
+            var row = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 4, 0, 4) };
+            var spinner = GifSpinner.Create(28);
+            if (spinner is FrameworkElement fe)
+            {
+                fe.VerticalAlignment = VerticalAlignment.Center;
+                fe.Margin = new Thickness(0, 0, 10, 0);
+            }
+            row.Children.Add(spinner);
+            var body = UiHelpers.Body(text);
+            body.VerticalAlignment = VerticalAlignment.Center;
+            body.Margin = new Thickness(0);
+            row.Children.Add(body);
+            return row;
+        }
+
         private static TextBlock SectionHeading(string text) => new TextBlock
         {
             Text = Core.Loc.T(text),
@@ -932,13 +950,37 @@ namespace ClawTweaksCenter
             {
                 if (canAct) row.Activate();
             });
-            // Mute lives on RT: A, X and Y are taken and the chip has to exist to be found. Only
-            // while the cursor is on a driver card - there is nothing to mute anywhere else.
+
+            // THREE CHIPS AT MOST, and only the ones for the column the cursor is in (user,
+            // 2026-09-21). Left, device drivers: Y checks again, RT mutes the card under the cursor.
+            // Right, Windows Update: X checks. Both check buttons stay BOUND in either column - only
+            // the chip follows the cursor.
+            bool windowsColumn = row?.Column == 1;
+            Action checkWindows = () => _ = RequestWindowsUpdatesAsync(force: true);
+            Action checkDrivers = () => _ = RequestDriversAsync(force: true);
+
+            if (windowsColumn)
+            {
+                AddAction(PadButton.X, "Check Windows Update", !_windowsUpdatesBusy, checkWindows);
+                if (!_driversBusy) _liveActions[PadButton.Y] = checkDrivers;
+            }
+            else
+            {
+                AddAction(PadButton.Y, "Check drivers again", !_driversBusy, checkDrivers);
+                if (!_windowsUpdatesBusy) _liveActions[PadButton.X] = checkWindows;
+            }
+
+            // Mute lives on RT, only while the cursor is on a driver card - there is nothing to mute
+            // anywhere else. That is the third chip there, so Back keeps its binding without one.
             if (row?.Driver != null)
+            {
                 AddAction(PadButton.RT, row.Driver.Ignored ? "Unmute" : "Mute", true, () => ToggleDriverMute(row.Driver));
-            AddAction(PadButton.X, "Check Windows Update", !_windowsUpdatesBusy, () => _ = RequestWindowsUpdatesAsync(force: true));
-            AddAction(PadButton.Y, "Check drivers again", !_driversBusy, () => _ = RequestDriversAsync(force: true));
-            AddAction(PadButton.B, "Back", true, GoHome);
+                _liveActions[PadButton.B] = GoHome;
+            }
+            else
+            {
+                AddAction(PadButton.B, "Back", true, GoHome);
+            }
         }
 
         /// <summary>
