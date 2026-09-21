@@ -102,8 +102,8 @@ namespace ClawTweaksCenter
                 Core.Notifications.Add(
                     key: "fse:hint",
                     kind: "fse",
-                    title: Core.Loc.T("Make the library your Xbox full-screen start app"),
-                    detail: Core.Loc.T("Saves memory and start-up time. Run the setup from the GitHub releases page to register it."));
+                    title: Core.Loc.T("Set up the library as your FSE start app"),
+                    detail: Core.Loc.T("If you have not yet, install FSE with the ClawTweaks setup. It asks you during installation."));
             }
             catch (Exception ex)
             {
