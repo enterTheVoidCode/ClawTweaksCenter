@@ -78,6 +78,8 @@ OSD_KEYS = [
     'Restoring controller',
     'Switching back to the hardware gamepad\u2026',
     'Controller restored',
+    # the firmware mouse card: the gamepad is silent in that mode, so the tile is the way back
+    'Switch back with the Mode tile',
     'Hardware gamepad is back',
     'Controller not restored',
     'It stays in DInput mode',

@@ -1015,6 +1015,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "Standard",
             ["Library overview"] = "Bibliotheks\u00FCbersicht",
             ["What the library shows and where its covers come from."] = "Was die Bibliothek zeigt und woher die Cover kommen.",
+            ["Switch back with the Mode tile"] = "Zur\u00FCck mit der Mode-Kachel",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2001,6 +2002,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "Par d\u00E9faut",
             ["Library overview"] = "Aper\u00E7u de la biblioth\u00E8que",
             ["What the library shows and where its covers come from."] = "Ce que montre la biblioth\u00E8que et d'o\u00F9 viennent les jaquettes.",
+            ["Switch back with the Mode tile"] = "Retour avec la tuile Mode",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -2992,6 +2994,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "\uAE30\uBCF8\uAC12",
             ["Library overview"] = "\uB77C\uC774\uBE0C\uB7EC\uB9AC \uAC1C\uC694",
             ["What the library shows and where its covers come from."] = "\uB77C\uC774\uBE0C\uB7EC\uB9AC\uC5D0 \uD45C\uC2DC\uB418\uB294 \uD56D\uBAA9\uACFC \uCEE4\uBC84\uC758 \uCD9C\uCC98\uC785\uB2C8\uB2E4.",
+            ["Switch back with the Mode tile"] = "Mode \uD0C0\uC77C\uB85C \uB3CC\uC544\uAC00\uAE30",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -3980,6 +3983,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "Original",
             ["Library overview"] = "Resumen de la biblioteca",
             ["What the library shows and where its covers come from."] = "Qu\u00E9 muestra la biblioteca y de d\u00F3nde vienen las portadas.",
+            ["Switch back with the Mode tile"] = "Vuelve con el mosaico Mode",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -4972,6 +4976,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "\u041F\u043E \u0443\u043C\u043E\u043B\u0447\u0430\u043D\u0438\u044E",
             ["Library overview"] = "\u041E\u0431\u0437\u043E\u0440 \u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0438",
             ["What the library shows and where its covers come from."] = "\u0427\u0442\u043E \u043F\u043E\u043A\u0430\u0437\u044B\u0432\u0430\u0435\u0442 \u0431\u0438\u0431\u043B\u0438\u043E\u0442\u0435\u043A\u0430 \u0438 \u043E\u0442\u043A\u0443\u0434\u0430 \u0431\u0435\u0440\u0443\u0442\u0441\u044F \u043E\u0431\u043B\u043E\u0436\u043A\u0438.",
+            ["Switch back with the Mode tile"] = "\u041D\u0430\u0437\u0430\u0434 \u2014 \u043F\u043B\u0438\u0442\u043A\u0430 Mode",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -5955,6 +5960,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "\u03A0\u03C1\u03BF\u03B5\u03C0\u03B9\u03BB\u03BF\u03B3\u03AE",
             ["Library overview"] = "\u0395\u03C0\u03B9\u03C3\u03BA\u03CC\u03C0\u03B7\u03C3\u03B7 \u03B2\u03B9\u03B2\u03BB\u03B9\u03BF\u03B8\u03AE\u03BA\u03B7\u03C2",
             ["What the library shows and where its covers come from."] = "\u03A4\u03B9 \u03B4\u03B5\u03AF\u03C7\u03BD\u03B5\u03B9 \u03B7 \u03B2\u03B9\u03B2\u03BB\u03B9\u03BF\u03B8\u03AE\u03BA\u03B7 \u03BA\u03B1\u03B9 \u03B1\u03C0\u03CC \u03C0\u03BF\u03CD \u03AD\u03C1\u03C7\u03BF\u03BD\u03C4\u03B1\u03B9 \u03C4\u03B1 \u03B5\u03BE\u03CE\u03C6\u03C5\u03BB\u03BB\u03B1.",
+            ["Switch back with the Mode tile"] = "\u0395\u03C0\u03B9\u03C3\u03C4\u03C1\u03BF\u03C6\u03AE \u03BC\u03B5 \u03C4\u03BF \u03C0\u03BB\u03B1\u03BA\u03AF\u03B4\u03B9\u03BF Mode",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -6943,6 +6949,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "\u9ED8\u8BA4",
             ["Library overview"] = "\u6E38\u620F\u5E93\u6982\u89C8",
             ["What the library shows and where its covers come from."] = "\u6E38\u620F\u5E93\u663E\u793A\u7684\u5185\u5BB9\u4EE5\u53CA\u5C01\u9762\u7684\u6765\u6E90\u3002",
+            ["Switch back with the Mode tile"] = "\u70B9\u51FB Mode \u78C1\u8D34\u8FD4\u56DE",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -7931,6 +7938,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "\u9810\u8A2D",
             ["Library overview"] = "\u904A\u6232\u5EAB\u6982\u89BD",
             ["What the library shows and where its covers come from."] = "\u904A\u6232\u5EAB\u986F\u793A\u7684\u5167\u5BB9\u4EE5\u53CA\u5C01\u9762\u7684\u4F86\u6E90\u3002",
+            ["Switch back with the Mode tile"] = "\u9EDE\u9078 Mode \u78DA\u8FD4\u56DE",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -8917,6 +8925,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "Predefinita",
             ["Library overview"] = "Panoramica libreria",
             ["What the library shows and where its covers come from."] = "Cosa mostra la libreria e da dove arrivano le copertine.",
+            ["Switch back with the Mode tile"] = "Torna indietro con il riquadro Mode",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -9891,6 +9900,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "Padr\u00E3o",
             ["Library overview"] = "Vis\u00E3o geral da biblioteca",
             ["What the library shows and where its covers come from."] = "O que a biblioteca mostra e de onde v\u00EAm as capas.",
+            ["Switch back with the Mode tile"] = "Volte pelo bloco Mode",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -10881,6 +10891,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "\u65E2\u5B9A",
             ["Library overview"] = "\u30E9\u30A4\u30D6\u30E9\u30EA\u306E\u6982\u8981",
             ["What the library shows and where its covers come from."] = "\u30E9\u30A4\u30D6\u30E9\u30EA\u306B\u8868\u793A\u3055\u308C\u308B\u5185\u5BB9\u3068\u30AB\u30D0\u30FC\u306E\u5165\u624B\u5143\u3002",
+            ["Switch back with the Mode tile"] = "Mode \u30BF\u30A4\u30EB\u3067\u623B\u308B",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -11862,6 +11873,7 @@ namespace ClawTweaksCenter.Core
             ["Default"] = "Domy\u015Blna",
             ["Library overview"] = "Przegl\u0105d biblioteki",
             ["What the library shows and where its covers come from."] = "Co pokazuje biblioteka i sk\u0105d pochodz\u0105 ok\u0142adki.",
+            ["Switch back with the Mode tile"] = "Wr\u00F3\u0107 kafelkiem Mode",
         };
 
     }
