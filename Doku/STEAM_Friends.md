@@ -133,6 +133,23 @@ does not.
 **Never add `SteamAppId`, `SteamGameId` or a `steam_appid.txt`.** The reader clears both variables
 before loading the DLL.
 
+### 🔴 Sharpened 2026-09-23: the reason above is too narrow
+
+`SteamAPI_Init` is named here as the thing that makes Steam report a game. **It is not the only
+one.** A probe on 2026-09-23 set only the `SteamAppId` environment variable before loading
+`steamclient64.dll`, then did `ConnectToGlobalUser` and read achievements through
+`ISteamUserStats` - **`SteamAPI_Init` was never called** - and the user's phone showed
+"playing Lies of P" for as long as the connection was held.
+
+So the environment variable plus a plain client connection is already enough. The rule does not
+change; it now rests on a measurement instead of a derivation, and nobody should read the sentence
+above as "it is safe as long as we avoid `SteamAPI_Init`".
+
+⚠️ The observer used in that run - the public profile XML at
+`steamcommunity.com/profiles/<id64>/?xml=1` - **reported "Online" the whole time and was wrong.**
+It is cached. Do not use it to prove a negative about presence. Details, and the rest of that
+round: `STEAM_API_Options.md` §5 and §6.
+
 ---
 
 ## 4. Why the read runs in a child process

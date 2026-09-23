@@ -61,7 +61,7 @@ UserGameStatsSchema_1091500.bin
       display -> icon_gray "<sha1>.jpg"
       display -> hidden    1
 
-UserGameStats_1383763160_1091500.bin
+UserGameStats_<accountId>_1091500.bin
   cache -> "1"
       data              0x0000613F        BITFIELD of unlocked bits in this block
       AchievementTimes -> "0"  1734901826  unix seconds
@@ -411,6 +411,51 @@ already obvious: fetch once per game when the full list is opened, cache to disk
 as the offline answer.
 
 ---
+
+## 11. How fresh the blobs really are (measured 2026-09-23)
+
+The reader is only as current as Steam's own cache, and that cache is written **in batches**, not
+on unlock.
+
+| | |
+|---|---|
+| blobs in `appcache\stats` | 430 |
+| **older than 30 days** | **373** |
+| games with a `LastPlayed` in `localconfig.vdf` | 158 |
+| **of those with no blob at all** | **60** (38 %) |
+| `achievement_progress.json` (the fallback) | 5 days old on that day |
+| worst single case: app 482400 | played 24.08., blob written 05.07. - 51 days apart |
+
+The batch signature: 430 files spread over only **39 distinct days**, 83 written on one of them and
+77 on another. Same shape as `librarycache\0.json` for the friends feed.
+
+### ⚠️ The obvious measurement does not answer the obvious question
+
+Comparing the newest unlock time **inside** a blob with the file's mtime gives **0 of 47 blobs**
+written within an hour of their newest unlock. That looks like "Steam never writes on unlock" and
+it is a fallacy: the mtime shows only the LAST write, and a later batch overwrote the trace.
+Whether Steam also writes at unlock time is **not answerable from this data**.
+
+⚠️ Opening Steam Big Picture destroys the evidence - afterwards four games with September unlocks
+all carry the same batch timestamp.
+
+**What would answer it:** a watcher on `appcache\stats` across one play session with an easy
+achievement, and no Big Picture in that session. Not built.
+
+### Not built, and they need no login
+
+Two things would improve the reader without an account, both measured as anonymous `200` on
+2026-09-23 (details in `STEAM_API_Options.md` §1):
+
+- `IPlayerService/GetGameAchievements` - localised names, icons, hidden flag **and world-wide
+  rarity** for any app. Closes both "rarity is usually missing" and "no schema on disk means no
+  list".
+- Re-reading at the moments that matter rather than only on a library refresh: when a game Center
+  launched exits, and on a `FileSystemWatcher` over `appcache\stats`. That makes Center as fresh as
+  Steam is on this device - which is a promise we can keep, unlike the current one.
+
+**The live route through the running client was measured and rejected** - it announces the user as
+playing. `STEAM_API_Options.md` §5.
 
 ## Files
 
