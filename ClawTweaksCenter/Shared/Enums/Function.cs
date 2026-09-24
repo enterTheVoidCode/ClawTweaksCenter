@@ -1,4 +1,4 @@
-﻿namespace Shared.Enums
+namespace Shared.Enums
 {
     public enum Function
     {
@@ -967,12 +967,13 @@
         // here - mirrored so the ordinals stay aligned.
         LosslessScalingIsGameProfile,   // bool
 
-        // Mount the Claw's controller the way Handheld Companion does (helper-owned). Center does not
-        // use it; mirrored to keep the ordinals lined up with the helper.
-        Settings_ClawHcMount,           // bool
-
-        // Mirrored from the helper: keep only the helper on HidHide's application allow list.
-        // Unused in Center, appended so the ordinals stay identical.
-        Settings_ClawMinimalAllowlist,  // bool
+        // RETIRED 2026-09-24 in the helper, mirrored here. Function is ORDINAL: these two slots stay
+        // so an older helper and a newer Center keep reading the same settings. Do NOT delete and do
+        // NOT reuse them. Center never used either value.
+        //   Settings_ClawHcMount          - the alternative Handheld Companion controller mount.
+        //   Settings_ClawMinimalAllowlist - the switch for the minimal HidHide allow list, which is
+        //                                   now the helper's only behaviour and needs no switch.
+        Settings_ClawHcMount_Retired,           // bool
+        Settings_ClawMinimalAllowlist_Retired,  // bool
     }
 }
