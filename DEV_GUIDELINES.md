@@ -1019,3 +1019,50 @@ pin does. The command line is `"C:\...\app.exe" --flags "%1"`; **passing the who
 filename is the silent failure here** — it resolves to nothing and looks like a row that does not
 work. The fallback opens a page, because at that point inventing one beats a dead row.
 
+
+## 🟡 TODO (2026-09-17, NICHT gebaut): ein Steam-Kontowechsel wird nirgends bemerkt
+
+Aufgenommen als Notiz nach einem Durchgang durch die Steam-Seite der Library. **Nichts davon ist
+angefasst** - hier steht, was heute passiert, damit die naechste Entscheidung nicht bei null anfaengt.
+
+**Welches Konto gelesen wird, entscheidet genau eine Stelle** - `SteamPlaytime.ActiveAccountId()`,
+und das ist richtig so (zwei Meinungen darueber waeren der Weg zu "die Stunden des einen neben den
+Errungenschaften des anderen"). Sie nimmt `HKCU\Software\Valve\Steam\ActiveProcess\ActiveUser`,
+solange Steam laeuft, und sonst den `userdata`-Ordner mit der **neuesten** `localconfig.vdf`.
+
+| Datenquelle | kontogebunden |
+|---|---|
+| installierte Spiele (`appmanifest_*.acf`) | nein - gehoeren der Maschine |
+| Spielzeit / LastPlayed (`localconfig.vdf`) | ja |
+| Errungenschaften (`UserGameStats_<acct>_<appid>.bin`) | ja (die Unlock-Haelfte; das Schema nicht) |
+| **Besitz / "Nicht installiert"** (`appcache\packageinfo.vdf`) | **nein - Maschinen-Cache des zuletzt angemeldeten Kontos** |
+| Freunde, eigener Status | ja, immer das gerade angemeldete (live aus dem Client) |
+
+**Was heute schon von selbst nachzieht:** `SteamPlaytime.Refresh()` und `SteamAchievements.Refresh()`
+laufen **pro Scan-Runde**, und ein Scan laeuft bei jedem Betreten der Library und nach jedem
+Spielende. Ein Wechsel korrigiert sich also, sobald die Library einmal neu betreten wird.
+
+**Was NICHT nachzieht, und das sind die drei Punkte der Aufgabe:**
+
+1. **Kein Watcher auf `ActiveUser`.** Wer beim Wechsel in der Library stehen bleibt, sieht weiter die
+   Zahlen des alten Kontos.
+2. **Der "Nicht installiert"-Tab folgt gar nicht.** `SteamOwned` liest einen maschinenweiten Cache;
+   bis das neue Konto einmal online war, steht dort die Bibliothek des alten. Im Code als
+   "⚠️ NOT VERIFIED" bereits vermerkt, zusammen mit Family Sharing.
+3. **Centers eigene Stores sind pro WINDOWS-Nutzer, nicht pro Steam-Konto** - Favoriten,
+   Play-History/Recent, Art-Overrides, Friend-Seen. Recent kann also die Spiele des einen auflisten,
+   waehrend der andere angemeldet ist.
+
+⚠️ **Der schaedlichste Teil ist nicht die Heuristik, sondern dass sie STILL ist:** nirgends steht ein
+Kontoname, also ist ein Fehlgriff von einem Treffer nicht zu unterscheiden. `loginusers.vdf` traegt
+`PersonaName` zum Ordner - eine Zeile im Library-Header oder in den Einstellungen wuerde es
+beantwortbar machen, und das ist der billigste der drei Schritte.
+
+⚠️ **Der Installiert-Tab bleibt vom Wechsel unberuehrt und ist trotzdem betroffen:** die Manifeste
+gehoeren der Maschine, also erscheinen die Spiele des einen Kontos beim anderen - mit dessen
+Spielzeit (oft keiner) und dessen Errungenschaften. "Keine Stunden" auf einem bespielten Spiel ist
+dann die richtige Antwort auf die falsche Frage.
+
+**Erst abstimmen**, bevor etwas gebaut wird: ob Favoriten und Recent kuenftig pro Steam-Konto liegen
+sollen, ist eine Design-Entscheidung mit Migrationsfolgen - und nicht dieselbe Frage wie "welches
+Konto lesen wir gerade".
