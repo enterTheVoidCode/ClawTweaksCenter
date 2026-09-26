@@ -167,6 +167,30 @@ internal static class HistoryTests
     }
 
     [RegressionTest]
+    private static void FailedHistorySaveDoesNotCommitHarvestProgressAcrossProcesses()
+    {
+        WithHistoryFile(path =>
+        {
+            string logs = WriteHelperLog(path);
+            File.WriteAllText(path, "[]");
+            RunHarvestProbeNamed("history-harvest-blocked-save", path, logs, @"C:\SyntheticGames\First");
+            AssertEx.Equal("[]", File.ReadAllText(path), "The fixture must prevent history replacement.");
+
+            // A new process has lost the in-memory events from the blocked write. The unchanged
+            // log must remain eligible until those events have been committed to the history file.
+            RunHarvestProbe(path, logs, @"C:\SyntheticGames\First");
+            AssertEx.Equal<DateTime?>(Earlier, PlayHistory.Load(path).LastPlayedFor(@"C:\SyntheticGames\First"),
+                "An unsaved harvest was stamped complete and could not recover after restart.");
+
+            string manifest = Path.Combine(Path.GetDirectoryName(path)!, "playharvest.json");
+            string before = File.ReadAllText(manifest);
+            using (File.Open(Path.Combine(logs, "helper_synthetic.log"), FileMode.Open, FileAccess.Read, FileShare.None))
+                RunHarvestProbe(path, logs, @"C:\SyntheticGames\First");
+            AssertEx.Equal(before, File.ReadAllText(manifest), "A durably saved harvest should still skip unchanged logs.");
+        });
+    }
+
+    [RegressionTest]
     private static void HarvestDirectorySetIgnoresCaseOrderAndDuplicates()
     {
         WithHistoryFile(path =>
@@ -208,13 +232,31 @@ internal static class HistoryTests
     private static string HarvestProbe(string[] args)
     {
         var history = PlayHistory.Load(args[0]);
-        var games = args.Skip(2).Select(dir => new GameEntry { Store = GameStore.Steam, InstallDir = dir }).ToArray();
-        history.HarvestHelperLogs(games, CancellationToken.None, args[1]);
-        history.SaveIfChanged();
+        Harvest(history, args);
         return "harvested";
     }
 
+    [RegressionProbe("history-harvest-blocked-save")]
+    private static string HarvestWithBlockedSave(string[] args)
+    {
+        // Load before taking the lock: this isolates the save failure from a failed history read.
+        var history = PlayHistory.Load(args[0]);
+        using var locked = File.Open(args[0], FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+        Harvest(history, args);
+        return "harvested";
+    }
+
+    private static void Harvest(PlayHistory history, string[] args)
+    {
+        var games = args.Skip(2).Select(dir => new GameEntry { Store = GameStore.Steam, InstallDir = dir }).ToArray();
+        history.HarvestHelperLogs(games, CancellationToken.None, args[1]);
+        history.SaveIfChanged();
+    }
+
     private static void RunHarvestProbe(string path, string logs, params string[] directories)
+        => RunHarvestProbeNamed("history-harvest", path, logs, directories);
+
+    private static void RunHarvestProbeNamed(string probe, string path, string logs, params string[] directories)
     {
         var start = new ProcessStartInfo(Environment.ProcessPath!)
         {
@@ -225,7 +267,7 @@ internal static class HistoryTests
         };
         if (Path.GetFileNameWithoutExtension(start.FileName).Equals("dotnet", StringComparison.OrdinalIgnoreCase))
             start.ArgumentList.Add(Assembly.GetExecutingAssembly().Location);
-        foreach (string argument in new[] { "--probe", "history-harvest", path, logs }.Concat(directories))
+        foreach (string argument in new[] { "--probe", probe, path, logs }.Concat(directories))
             start.ArgumentList.Add(argument);
         using var process = Process.Start(start)!;
         var output = process.StandardOutput.ReadToEndAsync();
