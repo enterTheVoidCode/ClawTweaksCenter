@@ -1032,11 +1032,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "Spielprofil angelegt",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "In der Game Bar TDP, L\u00FCfter und Controller daf\u00FCr einstellen.",
             ["Not detected as a game any more"] = "Wird nicht mehr als Spiel erkannt",
-            ["Undo in Game Bar > Settings > Game detection"] = "R\u00FCckg\u00E4ngig in Game Bar > Einstellungen > Spieleerkennung",
+            ["Undo in Game Bar > Settings > Game detection"] = "R\u00FCcknahme in Game Bar > Spieleerkennung",
             ["FPS limit is per game"] = "FPS-Limit nur pro Spiel",
             ["Activate a per-game profile and set it there."] = "Ein Profil pro Spiel aktivieren und es dort setzen.",
             ["RTSS overlay is per game"] = "RTSS-Overlay nur pro Spiel",
             ["Activate a per-game profile and pick it there."] = "Ein Profil pro Spiel aktivieren und es dort w\u00E4hlen.",
+            ["Use global profile / Not a game"] = "Globales Profil / Kein Spiel",
+            ["Stop detecting this as a game"] = "Nicht mehr als Spiel erkennen",
+            ["No notification at the next start"] = "Keine Meldung beim n\u00E4chsten Start",
+            ["Press [Select] to confirm"] = "[Select] zum Best\u00E4tigen",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2040,11 +2044,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "Profil du jeu cr\u00E9\u00E9",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "Ouvre la Game Bar pour r\u00E9gler TDP, ventilateur et manette.",
             ["Not detected as a game any more"] = "N'est plus d\u00E9tect\u00E9 comme un jeu",
-            ["Undo in Game Bar > Settings > Game detection"] = "Annuler dans Game Bar > Param\u00E8tres > D\u00E9tection des jeux",
+            ["Undo in Game Bar > Settings > Game detection"] = "Annuler dans Game Bar > D\u00E9tection des jeux",
             ["FPS limit is per game"] = "Limite FPS par jeu",
             ["Activate a per-game profile and set it there."] = "Active un profil par jeu et r\u00E8gle-le l\u00E0.",
             ["RTSS overlay is per game"] = "Overlay RTSS par jeu",
             ["Activate a per-game profile and pick it there."] = "Active un profil par jeu et choisis-le l\u00E0.",
+            ["Use global profile / Not a game"] = "Profil global / Pas un jeu",
+            ["Stop detecting this as a game"] = "Ne plus d\u00E9tecter comme un jeu",
+            ["No notification at the next start"] = "Plus de notification au prochain lancement",
+            ["Press [Select] to confirm"] = "[Select] pour confirmer",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3053,11 +3061,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "\uAC8C\uC784 \uD504\uB85C\uD544 \uC0DD\uC131\uB428",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "Game Bar\uC5D0\uC11C TDP, \uD32C, \uCEE8\uD2B8\uB864\uB7EC\uB97C \uC124\uC815\uD558\uC138\uC694.",
             ["Not detected as a game any more"] = "\uB354 \uC774\uC0C1 \uAC8C\uC784\uC73C\uB85C \uAC10\uC9C0\uB418\uC9C0 \uC54A\uC74C",
-            ["Undo in Game Bar > Settings > Game detection"] = "Game Bar > \uC124\uC815 > \uAC8C\uC784 \uAC10\uC9C0\uC5D0\uC11C \uB418\uB3CC\uB9AC\uAE30",
+            ["Undo in Game Bar > Settings > Game detection"] = "Game Bar > \uAC8C\uC784 \uAC10\uC9C0\uC5D0\uC11C \uB418\uB3CC\uB9AC\uAE30",
             ["FPS limit is per game"] = "FPS \uC81C\uD55C\uC740 \uAC8C\uC784\uBCC4",
             ["Activate a per-game profile and set it there."] = "\uAC8C\uC784\uBCC4 \uD504\uB85C\uD544\uC744 \uD65C\uC131\uD654\uD558\uACE0 \uAC70\uAE30\uC11C \uC124\uC815\uD558\uC138\uC694.",
             ["RTSS overlay is per game"] = "RTSS \uC624\uBC84\uB808\uC774\uB294 \uAC8C\uC784\uBCC4",
             ["Activate a per-game profile and pick it there."] = "\uAC8C\uC784\uBCC4 \uD504\uB85C\uD544\uC744 \uD65C\uC131\uD654\uD558\uACE0 \uAC70\uAE30\uC11C \uC120\uD0DD\uD558\uC138\uC694.",
+            ["Use global profile / Not a game"] = "\uC804\uC5ED \uD504\uB85C\uD544 \uC0AC\uC6A9 / \uAC8C\uC784 \uC544\uB2D8",
+            ["Stop detecting this as a game"] = "\uAC8C\uC784\uC73C\uB85C \uAC10\uC9C0\uD558\uC9C0 \uC54A\uAE30",
+            ["No notification at the next start"] = "\uB2E4\uC74C \uC2E4\uD589 \uB54C \uC54C\uB9BC \uC5C6\uC74C",
+            ["Press [Select] to confirm"] = "\uD655\uC778\uD558\uB824\uBA74 [Select]",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4063,11 +4075,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "Perfil del juego creado",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "Abre la Game Bar para ajustar TDP, ventilador y mando.",
             ["Not detected as a game any more"] = "Ya no se detecta como juego",
-            ["Undo in Game Bar > Settings > Game detection"] = "Deshacer en Game Bar > Ajustes > Detecci\u00F3n de juegos",
+            ["Undo in Game Bar > Settings > Game detection"] = "Deshacer en Game Bar > Detecci\u00F3n de juegos",
             ["FPS limit is per game"] = "El l\u00EDmite de FPS es por juego",
             ["Activate a per-game profile and set it there."] = "Activa un perfil por juego y aj\u00FAstalo ah\u00ED.",
             ["RTSS overlay is per game"] = "El overlay RTSS es por juego",
             ["Activate a per-game profile and pick it there."] = "Activa un perfil por juego y el\u00EDgelo ah\u00ED.",
+            ["Use global profile / Not a game"] = "Perfil global / No es un juego",
+            ["Stop detecting this as a game"] = "Dejar de detectarlo como juego",
+            ["No notification at the next start"] = "Sin aviso en el pr\u00F3ximo inicio",
+            ["Press [Select] to confirm"] = "[Select] para confirmar",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -5077,11 +5093,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "\u041F\u0440\u043E\u0444\u0438\u043B\u044C \u0438\u0433\u0440\u044B \u0441\u043E\u0437\u0434\u0430\u043D",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "\u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 Game Bar, \u0447\u0442\u043E\u0431\u044B \u0437\u0430\u0434\u0430\u0442\u044C TDP, \u0432\u0435\u043D\u0442\u0438\u043B\u044F\u0442\u043E\u0440 \u0438 \u0433\u0435\u0439\u043C\u043F\u0430\u0434.",
             ["Not detected as a game any more"] = "\u0411\u043E\u043B\u044C\u0448\u0435 \u043D\u0435 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u044F\u0435\u0442\u0441\u044F \u043A\u0430\u043A \u0438\u0433\u0440\u0430",
-            ["Undo in Game Bar > Settings > Game detection"] = "\u041E\u0442\u043C\u0435\u043D\u0438\u0442\u044C \u0432 Game Bar > \u041D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438 > \u041E\u0431\u043D\u0430\u0440\u0443\u0436\u0435\u043D\u0438\u0435 \u0438\u0433\u0440",
+            ["Undo in Game Bar > Settings > Game detection"] = "\u041E\u0442\u043C\u0435\u043D\u0438\u0442\u044C \u0432 Game Bar > \u041E\u0431\u043D\u0430\u0440\u0443\u0436\u0435\u043D\u0438\u0435 \u0438\u0433\u0440",
             ["FPS limit is per game"] = "\u041B\u0438\u043C\u0438\u0442 FPS - \u0434\u043B\u044F \u043A\u0430\u0436\u0434\u043E\u0439 \u0438\u0433\u0440\u044B",
             ["Activate a per-game profile and set it there."] = "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0434\u043B\u044F \u0438\u0433\u0440\u044B \u0438 \u0437\u0430\u0434\u0430\u0439\u0442\u0435 \u0435\u0433\u043E \u0442\u0430\u043C.",
             ["RTSS overlay is per game"] = "\u041E\u0432\u0435\u0440\u043B\u0435\u0439 RTSS - \u0434\u043B\u044F \u043A\u0430\u0436\u0434\u043E\u0439 \u0438\u0433\u0440\u044B",
             ["Activate a per-game profile and pick it there."] = "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0434\u043B\u044F \u0438\u0433\u0440\u044B \u0438 \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435 \u0435\u0433\u043E \u0442\u0430\u043C.",
+            ["Use global profile / Not a game"] = "\u041E\u0431\u0449\u0438\u0439 \u043F\u0440\u043E\u0444\u0438\u043B\u044C / \u041D\u0435 \u0438\u0433\u0440\u0430",
+            ["Stop detecting this as a game"] = "\u041D\u0435 \u0441\u0447\u0438\u0442\u0430\u0442\u044C \u044D\u0442\u043E \u0438\u0433\u0440\u043E\u0439",
+            ["No notification at the next start"] = "\u041F\u0440\u0438 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u043C \u0437\u0430\u043F\u0443\u0441\u043A\u0435 \u0431\u0435\u0437 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F",
+            ["Press [Select] to confirm"] = "[Select] \u0434\u043B\u044F \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -6082,11 +6102,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "\u03A4\u03BF \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB \u03C0\u03B1\u03B9\u03C7\u03BD\u03B9\u03B4\u03B9\u03BF\u03CD \u03B4\u03B7\u03BC\u03B9\u03BF\u03C5\u03C1\u03B3\u03AE\u03B8\u03B7\u03BA\u03B5",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "\u0391\u03BD\u03BF\u03AF\u03BE\u03C4\u03B5 \u03C4\u03BF Game Bar \u03B3\u03B9\u03B1 TDP, \u03B1\u03BD\u03B5\u03BC\u03B9\u03C3\u03C4\u03AE\u03C1\u03B1 \u03BA\u03B1\u03B9 \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF.",
             ["Not detected as a game any more"] = "\u0394\u03B5\u03BD \u03B5\u03BD\u03C4\u03BF\u03C0\u03AF\u03B6\u03B5\u03C4\u03B1\u03B9 \u03C0\u03BB\u03AD\u03BF\u03BD \u03C9\u03C2 \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9",
-            ["Undo in Game Bar > Settings > Game detection"] = "\u0391\u03BD\u03B1\u03AF\u03C1\u03B5\u03C3\u03B7 \u03C3\u03C4\u03BF Game Bar > \u03A1\u03C5\u03B8\u03BC\u03AF\u03C3\u03B5\u03B9\u03C2 > \u0395\u03BD\u03C4\u03BF\u03C0\u03B9\u03C3\u03BC\u03CC\u03C2 \u03C0\u03B1\u03B9\u03C7\u03BD\u03B9\u03B4\u03B9\u03CE\u03BD",
+            ["Undo in Game Bar > Settings > Game detection"] = "\u0391\u03BD\u03B1\u03AF\u03C1\u03B5\u03C3\u03B7 \u03C3\u03C4\u03BF Game Bar > \u0395\u03BD\u03C4\u03BF\u03C0\u03B9\u03C3\u03BC\u03CC\u03C2 \u03C0\u03B1\u03B9\u03C7\u03BD\u03B9\u03B4\u03B9\u03CE\u03BD",
             ["FPS limit is per game"] = "\u03A4\u03BF \u03CC\u03C1\u03B9\u03BF FPS \u03B5\u03AF\u03BD\u03B1\u03B9 \u03B1\u03BD\u03AC \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9",
             ["Activate a per-game profile and set it there."] = "\u0395\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03B9\u03AE\u03C3\u03C4\u03B5 \u03AD\u03BD\u03B1 \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB \u03B1\u03BD\u03AC \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9 \u03BA\u03B1\u03B9 \u03BF\u03C1\u03AF\u03C3\u03C4\u03B5 \u03C4\u03BF \u03B5\u03BA\u03B5\u03AF.",
             ["RTSS overlay is per game"] = "\u0397 \u03B5\u03C0\u03B9\u03BA\u03AC\u03BB\u03C5\u03C8\u03B7 RTSS \u03B5\u03AF\u03BD\u03B1\u03B9 \u03B1\u03BD\u03AC \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9",
             ["Activate a per-game profile and pick it there."] = "\u0395\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03B9\u03AE\u03C3\u03C4\u03B5 \u03AD\u03BD\u03B1 \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB \u03B1\u03BD\u03AC \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9 \u03BA\u03B1\u03B9 \u03B5\u03C0\u03B9\u03BB\u03AD\u03BE\u03C4\u03B5 \u03C4\u03BF \u03B5\u03BA\u03B5\u03AF.",
+            ["Use global profile / Not a game"] = "\u039A\u03B1\u03B8\u03BF\u03BB\u03B9\u03BA\u03CC \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB / \u038C\u03C7\u03B9 \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9",
+            ["Stop detecting this as a game"] = "\u039D\u03B1 \u03BC\u03B7\u03BD \u03B5\u03BD\u03C4\u03BF\u03C0\u03AF\u03B6\u03B5\u03C4\u03B1\u03B9 \u03C9\u03C2 \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9",
+            ["No notification at the next start"] = "\u039A\u03B1\u03BC\u03AF\u03B1 \u03B5\u03B9\u03B4\u03BF\u03C0\u03BF\u03AF\u03B7\u03C3\u03B7 \u03C3\u03C4\u03B7\u03BD \u03B5\u03C0\u03CC\u03BC\u03B5\u03BD\u03B7 \u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7",
+            ["Press [Select] to confirm"] = "[Select] \u03B3\u03B9\u03B1 \u03B5\u03C0\u03B9\u03B2\u03B5\u03B2\u03B1\u03AF\u03C9\u03C3\u03B7",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -7092,11 +7116,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "\u5DF2\u521B\u5EFA\u6E38\u620F\u914D\u7F6E",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "\u5728 Game Bar \u4E2D\u8BBE\u7F6E TDP\u3001\u98CE\u6247\u548C\u624B\u67C4\u3002",
             ["Not detected as a game any more"] = "\u4E0D\u518D\u8BC6\u522B\u4E3A\u6E38\u620F",
-            ["Undo in Game Bar > Settings > Game detection"] = "\u53EF\u5728 Game Bar > \u8BBE\u7F6E > \u6E38\u620F\u68C0\u6D4B\u4E2D\u64A4\u9500",
+            ["Undo in Game Bar > Settings > Game detection"] = "\u53EF\u5728 Game Bar > \u6E38\u620F\u68C0\u6D4B\u4E2D\u64A4\u9500",
             ["FPS limit is per game"] = "\u5E27\u7387\u9650\u5236\u6309\u6E38\u620F\u8BBE\u7F6E",
             ["Activate a per-game profile and set it there."] = "\u542F\u7528\u6BCF\u4E2A\u6E38\u620F\u7684\u914D\u7F6E\u5E76\u5728\u90A3\u91CC\u8BBE\u7F6E\u3002",
             ["RTSS overlay is per game"] = "RTSS \u53E0\u52A0\u5C42\u6309\u6E38\u620F\u8BBE\u7F6E",
             ["Activate a per-game profile and pick it there."] = "\u542F\u7528\u6BCF\u4E2A\u6E38\u620F\u7684\u914D\u7F6E\u5E76\u5728\u90A3\u91CC\u9009\u62E9\u3002",
+            ["Use global profile / Not a game"] = "\u4F7F\u7528\u5168\u5C40\u914D\u7F6E / \u4E0D\u662F\u6E38\u620F",
+            ["Stop detecting this as a game"] = "\u4E0D\u518D\u5C06\u5176\u8BC6\u522B\u4E3A\u6E38\u620F",
+            ["No notification at the next start"] = "\u4E0B\u6B21\u542F\u52A8\u65F6\u4E0D\u518D\u63D0\u793A",
+            ["Press [Select] to confirm"] = "\u6309 [Select] \u786E\u8BA4",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -8102,11 +8130,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "\u5DF2\u5EFA\u7ACB\u904A\u6232\u8A2D\u5B9A\u6A94",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "\u5728 Game Bar \u4E2D\u8A2D\u5B9A TDP\u3001\u98A8\u6247\u548C\u624B\u628A\u3002",
             ["Not detected as a game any more"] = "\u4E0D\u518D\u8FA8\u8B58\u70BA\u904A\u6232",
-            ["Undo in Game Bar > Settings > Game detection"] = "\u53EF\u5728 Game Bar > \u8A2D\u5B9A > \u904A\u6232\u5075\u6E2C\u4E2D\u5FA9\u539F",
+            ["Undo in Game Bar > Settings > Game detection"] = "\u53EF\u5728 Game Bar > \u904A\u6232\u5075\u6E2C\u4E2D\u5FA9\u539F",
             ["FPS limit is per game"] = "\u5E40\u7387\u9650\u5236\u6309\u904A\u6232\u8A2D\u5B9A",
             ["Activate a per-game profile and set it there."] = "\u555F\u7528\u6BCF\u6B3E\u904A\u6232\u7684\u8A2D\u5B9A\u6A94\u4E26\u5728\u90A3\u88E1\u8A2D\u5B9A\u3002",
             ["RTSS overlay is per game"] = "RTSS \u758A\u52A0\u5C64\u6309\u904A\u6232\u8A2D\u5B9A",
             ["Activate a per-game profile and pick it there."] = "\u555F\u7528\u6BCF\u6B3E\u904A\u6232\u7684\u8A2D\u5B9A\u6A94\u4E26\u5728\u90A3\u88E1\u9078\u64C7\u3002",
+            ["Use global profile / Not a game"] = "\u4F7F\u7528\u5168\u57DF\u8A2D\u5B9A\u6A94 / \u4E0D\u662F\u904A\u6232",
+            ["Stop detecting this as a game"] = "\u4E0D\u518D\u5C07\u5176\u8FA8\u8B58\u70BA\u904A\u6232",
+            ["No notification at the next start"] = "\u4E0B\u6B21\u555F\u52D5\u6642\u4E0D\u518D\u63D0\u793A",
+            ["Press [Select] to confirm"] = "\u6309 [Select] \u78BA\u8A8D",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -9110,11 +9142,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "Profilo gioco creato",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "Apri la Game Bar per impostare TDP, ventola e controller.",
             ["Not detected as a game any more"] = "Non pi\u00F9 rilevato come gioco",
-            ["Undo in Game Bar > Settings > Game detection"] = "Annulla in Game Bar > Impostazioni > Rilevamento giochi",
+            ["Undo in Game Bar > Settings > Game detection"] = "Annulla in Game Bar > Rilevamento giochi",
             ["FPS limit is per game"] = "Il limite FPS \u00E8 per gioco",
             ["Activate a per-game profile and set it there."] = "Attiva un profilo per gioco e impostalo l\u00EC.",
             ["RTSS overlay is per game"] = "L'overlay RTSS \u00E8 per gioco",
             ["Activate a per-game profile and pick it there."] = "Attiva un profilo per gioco e selezionalo l\u00EC.",
+            ["Use global profile / Not a game"] = "Profilo globale / Non \u00E8 un gioco",
+            ["Stop detecting this as a game"] = "Non rilevarlo pi\u00F9 come gioco",
+            ["No notification at the next start"] = "Nessun avviso al prossimo avvio",
+            ["Press [Select] to confirm"] = "[Select] per confermare",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -10106,11 +10142,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "Perfil do jogo criado",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "Abra a Game Bar para definir TDP, ventoinha e controle.",
             ["Not detected as a game any more"] = "J\u00E1 n\u00E3o \u00E9 detetado como jogo",
-            ["Undo in Game Bar > Settings > Game detection"] = "Desfazer em Game Bar > Configura\u00E7\u00F5es > Detec\u00E7\u00E3o de jogos",
+            ["Undo in Game Bar > Settings > Game detection"] = "Desfazer em Game Bar > Detec\u00E7\u00E3o de jogos",
             ["FPS limit is per game"] = "O limite de FPS \u00E9 por jogo",
             ["Activate a per-game profile and set it there."] = "Ative um perfil por jogo e defina-o l\u00E1.",
             ["RTSS overlay is per game"] = "O overlay RTSS \u00E9 por jogo",
             ["Activate a per-game profile and pick it there."] = "Ative um perfil por jogo e selecione-o l\u00E1.",
+            ["Use global profile / Not a game"] = "Perfil global / N\u00E3o \u00E9 um jogo",
+            ["Stop detecting this as a game"] = "Parar de detetar como jogo",
+            ["No notification at the next start"] = "Sem aviso no pr\u00F3ximo in\u00EDcio",
+            ["Press [Select] to confirm"] = "[Select] para confirmar",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -11118,11 +11158,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "\u30B2\u30FC\u30E0\u8A2D\u5B9A\u3092\u4F5C\u6210\u3057\u307E\u3057\u305F",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "Game Bar \u3067 TDP\u30FB\u30D5\u30A1\u30F3\u30FB\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u3092\u8A2D\u5B9A\u3067\u304D\u307E\u3059\u3002",
             ["Not detected as a game any more"] = "\u30B2\u30FC\u30E0\u3068\u3057\u3066\u691C\u51FA\u3057\u307E\u305B\u3093",
-            ["Undo in Game Bar > Settings > Game detection"] = "Game Bar > \u8A2D\u5B9A > \u30B2\u30FC\u30E0\u691C\u51FA \u3067\u53D6\u308A\u6D88\u305B\u307E\u3059",
+            ["Undo in Game Bar > Settings > Game detection"] = "Game Bar > \u30B2\u30FC\u30E0\u691C\u51FA \u3067\u53D6\u308A\u6D88\u3057",
             ["FPS limit is per game"] = "FPS \u5236\u9650\u306F\u30B2\u30FC\u30E0\u3054\u3068",
             ["Activate a per-game profile and set it there."] = "\u30B2\u30FC\u30E0\u3054\u3068\u306E\u30D7\u30ED\u30D5\u30A1\u30A4\u30EB\u3092\u6709\u52B9\u306B\u3057\u3066\u3001\u305D\u3053\u3067\u8A2D\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
             ["RTSS overlay is per game"] = "RTSS \u30AA\u30FC\u30D0\u30FC\u30EC\u30A4\u306F\u30B2\u30FC\u30E0\u3054\u3068",
             ["Activate a per-game profile and pick it there."] = "\u30B2\u30FC\u30E0\u3054\u3068\u306E\u30D7\u30ED\u30D5\u30A1\u30A4\u30EB\u3092\u6709\u52B9\u306B\u3057\u3066\u3001\u305D\u3053\u3067\u9078\u3093\u3067\u304F\u3060\u3055\u3044\u3002",
+            ["Use global profile / Not a game"] = "\u5168\u4F53\u8A2D\u5B9A\u3092\u4F7F\u3046 / \u30B2\u30FC\u30E0\u3067\u306F\u306A\u3044",
+            ["Stop detecting this as a game"] = "\u30B2\u30FC\u30E0\u3068\u3057\u3066\u691C\u51FA\u3057\u306A\u3044",
+            ["No notification at the next start"] = "\u6B21\u56DE\u306E\u8D77\u52D5\u6642\u306B\u901A\u77E5\u306A\u3057",
+            ["Press [Select] to confirm"] = "[Select] \u3067\u78BA\u5B9A",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -12121,11 +12165,15 @@ namespace ClawTweaksCenter.Core
             ["Game profile created"] = "Utworzono profil gry",
             ["Open the Game Bar to set TDP, fan and controller settings for it."] = "Otw\u00F3rz Game Bar, aby ustawi\u0107 TDP, wentylator i kontroler.",
             ["Not detected as a game any more"] = "Ju\u017C nie wykrywane jako gra",
-            ["Undo in Game Bar > Settings > Game detection"] = "Cofnij w Game Bar > Ustawienia > Wykrywanie gier",
+            ["Undo in Game Bar > Settings > Game detection"] = "Cofnij w Game Bar > Wykrywanie gier",
             ["FPS limit is per game"] = "Limit FPS jest dla ka\u017Cdej gry",
             ["Activate a per-game profile and set it there."] = "W\u0142\u0105cz profil dla ka\u017Cdej gry i ustaw go tam.",
             ["RTSS overlay is per game"] = "Nak\u0142adka RTSS jest dla ka\u017Cdej gry",
             ["Activate a per-game profile and pick it there."] = "W\u0142\u0105cz profil dla ka\u017Cdej gry i wybierz j\u0105 tam.",
+            ["Use global profile / Not a game"] = "Profil globalny / To nie gra",
+            ["Stop detecting this as a game"] = "Nie wykrywaj tego jako gry",
+            ["No notification at the next start"] = "Brak powiadomienia przy kolejnym starcie",
+            ["Press [Select] to confirm"] = "[Select] aby potwierdzi\u0107",
         };
 
     }

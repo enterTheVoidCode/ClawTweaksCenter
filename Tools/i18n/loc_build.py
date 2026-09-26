@@ -132,15 +132,21 @@ OSD_KEYS = [
     'Global settings restored',
     # A FORMAT, not a sentence: a line with a game's name glued on could never match a row.
     'Restored after {0}',
-    # The interactive card that offers [Start] / [Select] on a detected game.
+    # The interactive card that offers [Start] / [Select] on a detected game. Redesigned 0.4.0.57:
+    # the second state is a PROMPT, so [Start] becomes "Back" there and the [Select] row grows to
+    # three lines. Every cell in strings.tsv was measured against the row's real budget (450 px for
+    # a row line, 540 px for the state line, Segoe UI at the shipped sizes) - the card ellipsizes
+    # rather than wraps, so a translation that does not fit is silently cut.
     'Game',
     'Create a game profile',
     'Press [Start]',
-    'Not a game',
+    'Use global profile / Not a game',
     'Press [Select]',
-    'Create a game profile, or stop detecting it',
-    'Confirm: never detect this as a game',
-    'Press [Select] to confirm · undo under Game Bar > Settings > Game detection',
+    'Back',
+    'Undo in Game Bar > Settings > Game detection',
+    'Stop detecting this as a game',
+    'No notification at the next start',
+    'Press [Select] to confirm',
     # ... and what the answer led to.
     'Game profile created',
     'Open the Game Bar to set TDP, fan and controller settings for it.',
