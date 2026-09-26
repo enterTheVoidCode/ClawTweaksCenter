@@ -15,6 +15,11 @@ namespace ClawTweaksCenter.Core
         /// <summary>False while the helper hasn't confirmed the target isn't already satisfied —
         /// the UI greys the run button out instead of guessing.</summary>
         public bool Actionable = false;
+
+        /// <summary>Not shown at all. Different from "not actionable": a gated step is waiting for
+        /// an earlier one and belongs on screen, a hidden step does not apply to this installation.
+        /// Set for the virtual-controller steps in ClawTweaks Essential (see EssentialMode).</summary>
+        public bool Hidden = false;
     }
 
     /// <summary>
@@ -78,6 +83,90 @@ namespace ClawTweaksCenter.Core
         private bool _autoJumpPosApplied;   // the helper's slot has been reflected into the stepper once
         private bool _settling;             // a background status-settle loop is already running
 
+        /// <summary>
+        /// 🔴 THIS INSTALLATION IS NOT GOING TO RUN THE VIRTUAL CONTROLLER, so two of the five
+        /// steps are asking for something impossible (user, 2026-09-26: after an Essential install
+        /// "kam das normale onboarding das nicht mehr so richtig passt").
+        ///
+        /// Step 2 enables the virtual controller, which the helper now refuses when its drivers are
+        /// absent. Step 4 feeds the Game Bar slot to the auto-jump, which only ever fires while
+        /// controller emulation is active - it would store a number nothing reads.
+        ///
+        /// ⚠️ NOT "the virtual controller is currently off". Somebody in hardware mode who HAS the
+        /// drivers can switch at any moment, and taking the steps away would remove their way back.
+        /// True only when it is genuinely out of play: the setup was asked and said no, or the
+        /// drivers are not on the machine.
+        ///
+        /// ⚠️ Probed once and cached. ToolDetect touches the registry, the file system and a
+        /// device handle, and RecomputeGating runs on every status push.
+        /// </summary>
+        public bool EssentialMode { get; private set; }
+        public string EssentialTitle { get; private set; } = "";
+        public string EssentialDetail { get; private set; } = "";
+
+        private bool _essentialProbed;
+        private string _essentialMissing = "";
+
+        /// <summary>The step indexes the UI should draw, in order. Everything that renders or
+        /// navigates the step cards goes through this - an index that is hidden must not be
+        /// reachable by the D-pad either.</summary>
+        public List<int> VisibleStepIndexes
+        {
+            get
+            {
+                var list = new List<int>();
+                for (int i = 0; i < Steps.Count; i++)
+                    if (!Steps[i].Hidden) list.Add(i);
+                return list;
+            }
+        }
+
+        private void RefreshEssentialMode()
+        {
+            if (!_essentialProbed)
+            {
+                _essentialProbed = true;
+                bool usbip = false, hidHide = false;
+                try { usbip = ToolDetect.Usbip().Installed; } catch { usbip = true; }
+                try { hidHide = ToolDetect.HidHide().Installed; } catch { hidHide = true; }
+
+                _essentialMissing = "";
+                if (!usbip) _essentialMissing = "usbip-win2";
+                if (!hidHide) _essentialMissing = _essentialMissing.Length == 0 ? "HidHide" : _essentialMissing + " + HidHide";
+            }
+
+            bool declined = SetupToolChoices.VirtualControllerWanted == false;
+            bool toolsMissing = _essentialMissing.Length > 0;
+
+            // The live state still wins: if the virtual controller is actually running, nothing here
+            // applies, whatever the setup once recorded.
+            EssentialMode = _controllerEnabled != true && (declined || toolsMissing);
+
+            if (EssentialMode)
+            {
+                // ⚠️ Two different situations and only one of them is a choice. "You picked
+                // Essential" over a failed driver install credits the user with a decision they did
+                // not make.
+                if (declined)
+                {
+                    EssentialTitle = "ClawTweaks Essential";
+                    EssentialDetail = "You chose the hardware controller during setup. "
+                        + "The virtual controller steps are hidden. Install "
+                        + (toolsMissing ? _essentialMissing : "its drivers")
+                        + " to switch.";
+                }
+                else
+                {
+                    EssentialTitle = "Virtual controller not available";
+                    EssentialDetail = _essentialMissing + " is not installed, so its steps are hidden. "
+                        + "Everything else works.";
+                }
+            }
+
+            Steps[StepVirtualController].Hidden = EssentialMode;
+            Steps[StepAutoJump].Hidden = EssentialMode;
+        }
+
         private void Notify() => StepsChanged?.Invoke();
 
         /// <summary>The Center runs a SINGLE shared HelperPipeClient (the helper's ClawTweaksCenter pipe
@@ -118,6 +207,8 @@ namespace ClawTweaksCenter.Core
         /// </summary>
         private void RecomputeGating()
         {
+            RefreshEssentialMode();
+
             // Step 0 — HW controller health.
             var hw = Steps[StepHwHealth];
             if (hw.State != OnboardingStepState.Working)

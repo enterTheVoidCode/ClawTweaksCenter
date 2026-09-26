@@ -1261,6 +1261,37 @@ namespace ClawTweaksCenter
                 },
             });
 
+            // ClawTweaks Essential: two of the five steps are gone, and a page that quietly loses
+            // half of itself is its own kind of confusing. Amber like the reboot note above, and for
+            // the same reason - this is a statement about the machine, not a warning.
+            if (_onboarding.EssentialMode)
+            {
+                var essStack = new StackPanel();
+                essStack.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T(_onboarding.EssentialTitle),
+                    FontSize = 15, FontWeight = FontWeights.SemiBold,
+                    Foreground = UiHelpers.Warn, TextWrapping = TextWrapping.Wrap,
+                });
+                essStack.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T(_onboarding.EssentialDetail),
+                    FontSize = 13, Foreground = UiHelpers.Subtle,
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0),
+                });
+                ContentHost.Children.Add(new Border
+                {
+                    Background = Tint(UiHelpers.Warn, 0x18),
+                    BorderBrush = Tint(UiHelpers.Warn, 0x99),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(8),
+                    Padding = new Thickness(12, 8, 12, 8),
+                    Margin = new Thickness(0, 0, 0, 14),
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Child = essStack,
+                });
+            }
+
             if (_onboarding.IsConnecting)
             {
                 var connectingRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 10, 0, 10) };
@@ -1277,8 +1308,20 @@ namespace ClawTweaksCenter
                 ContentHost.Children.Add(connectingRow);
             }
 
-            if (_onbSelectedIndex < 0) _onbSelectedIndex = 0;
-            if (_onbSelectedIndex >= _onboarding.Steps.Count) _onbSelectedIndex = _onboarding.Steps.Count - 1;
+            // ⚠️ EVERYTHING BELOW WALKS THE VISIBLE STEPS, not Steps itself. A hidden step must be
+            // unreachable by the cursor too, and the two-column grid is laid out by POSITION - one
+            // skipped card would otherwise leave a hole and put the D-pad's row arithmetic out by one.
+            var visible = _onboarding.VisibleStepIndexes;
+            if (visible.Count == 0) return;
+
+            // The cursor lives on a real step index. If it was parked on one that just disappeared,
+            // move it to the nearest visible step rather than to zero - the user was somewhere.
+            if (!visible.Contains(_onbSelectedIndex))
+            {
+                int fallback = visible[0];
+                foreach (var v in visible) { if (v <= _onbSelectedIndex) fallback = v; }
+                _onbSelectedIndex = fallback;
+            }
             _onbSelectedCard = null;
 
             // Two-column grid of numbered step cards; the controller cursor highlights one with an accent
@@ -1286,10 +1329,10 @@ namespace ClawTweaksCenter
             var onbGrid = new UniformGrid { Columns = 2 };
             ContentHost.Children.Add(onbGrid);
 
-            for (int i = 0; i < _onboarding.Steps.Count; i++)
+            for (int pos = 0; pos < visible.Count; pos++)
             {
-                int index = i; // capture
-                var step = _onboarding.Steps[i];
+                int index = visible[pos]; // capture - the REAL step index, what RunStepAsync takes
+                var step = _onboarding.Steps[index];
                 bool selectedCard = index == _onbSelectedIndex;
                 bool working = step.State == OnboardingStepState.Working;
 
@@ -1325,7 +1368,7 @@ namespace ClawTweaksCenter
                 // The runner hands these over as finished strings, so this is the only place that can
                 // translate them - the number in front is built here, which is also why the KEY is the
                 // title alone and not the numbered line.
-                textStack.Children.Add(new TextBlock { Text = $"{index + 1}. {Core.Loc.T(step.Title)}", FontSize = 16, Foreground = UiHelpers.Text, TextWrapping = TextWrapping.Wrap });
+                textStack.Children.Add(new TextBlock { Text = $"{pos + 1}. {Core.Loc.T(step.Title)}", FontSize = 16, Foreground = UiHelpers.Text, TextWrapping = TextWrapping.Wrap });
                 if (!string.IsNullOrEmpty(step.Detail))
                     textStack.Children.Add(new TextBlock { Text = Core.Loc.T(step.Detail), FontSize = 13, Foreground = UiHelpers.Subtle });
                 Grid.SetColumn(textStack, 1);
@@ -2121,6 +2164,10 @@ namespace ClawTweaksCenter
             var steps = _onboarding.Steps;
             if (steps.Count == 0) return;
 
+            // Positions on screen, not indexes in the list - see the note in RenderOnboarding.
+            var visible = _onboarding.VisibleStepIndexes;
+            if (visible.Count == 0) return;
+
             if (_onbSelectedIndex == OnboardingRunner.StepAutoJump
                 && (dir == PadButton.Left || dir == PadButton.Right)
                 && steps[OnboardingRunner.StepAutoJump].Actionable)
@@ -2140,12 +2187,15 @@ namespace ClawTweaksCenter
                 _ => 0,
             };
             if (delta == 0) return;
-            int next = _onbSelectedIndex + delta;
-            if (next < 0) next = 0;
-            if (next >= steps.Count) next = steps.Count - 1;
-            if (next == _onbSelectedIndex) return;
 
-            _onbSelectedIndex = next;
+            int curPos = visible.IndexOf(_onbSelectedIndex);
+            if (curPos < 0) curPos = 0;
+            int nextPos = curPos + delta;
+            if (nextPos < 0) nextPos = 0;
+            if (nextPos >= visible.Count) nextPos = visible.Count - 1;
+            if (nextPos == curPos) return;
+
+            _onbSelectedIndex = visible[nextPos];
             RenderOnboarding();
         }
         #endregion
