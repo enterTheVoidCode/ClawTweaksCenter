@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -46,8 +48,8 @@ namespace ClawTweaksCenter.Library
         /// Beside the history rather than inside it: the history file is a published shape and
         /// this is bookkeeping.
         /// </summary>
-        private static string HarvestManifestPath => Path.Combine(
-            Path.GetDirectoryName(StorePath), "playharvest.json");
+        private string HarvestManifestPath => Path.Combine(
+            Path.GetDirectoryName(_storePath), "playharvest.json");
 
         private static string HelperLogDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -235,6 +237,9 @@ namespace ClawTweaksCenter.Library
         /// of lines would be the expensive part of starting the library.
         /// </summary>
         public void HarvestHelperLogs(IReadOnlyList<GameEntry> games, CancellationToken ct)
+            => HarvestHelperLogs(games, ct, HelperLogDir);
+
+        internal void HarvestHelperLogs(IReadOnlyList<GameEntry> games, CancellationToken ct, string logDir)
         {
             if (games == null || games.Count == 0) return;
 
@@ -243,7 +248,6 @@ namespace ClawTweaksCenter.Library
                 if (!string.IsNullOrWhiteSpace(g?.InstallDir)) dirs.Add(Normalize(g.InstallDir));
             if (dirs.Count == 0) return;
 
-            string logDir = HelperLogDir;
             if (!Directory.Exists(logDir)) return;
 
             string[] files;
@@ -318,12 +322,15 @@ namespace ClawTweaksCenter.Library
 
         private static string DirsKeyFor(List<string> dirs)
         {
-            var copy = new List<string>(dirs);
-            copy.Sort(StringComparer.OrdinalIgnoreCase);
-            return copy.Count + "|" + string.Join("|", copy).GetHashCode().ToString(CultureInfo.InvariantCulture);
+            // Persisted across processes: string.GetHashCode is randomized on every start.
+            // Canonicalize the set so case, source order and duplicate folders do not force reads.
+            var canonical = new SortedSet<string>(StringComparer.Ordinal);
+            foreach (string dir in dirs) canonical.Add(Normalize(dir).ToUpperInvariant());
+            byte[] bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(canonical));
+            return "sha256:" + Convert.ToHexString(SHA256.HashData(bytes));
         }
 
-        private static HarvestManifest LoadHarvestManifest(List<string> dirs)
+        private HarvestManifest LoadHarvestManifest(List<string> dirs)
         {
             string key = DirsKeyFor(dirs);
             try
@@ -338,7 +345,7 @@ namespace ClawTweaksCenter.Library
             return new HarvestManifest { DirsKey = key };
         }
 
-        private static void SaveHarvestManifest(HarvestManifest m)
+        private void SaveHarvestManifest(HarvestManifest m)
         {
             try
             {
