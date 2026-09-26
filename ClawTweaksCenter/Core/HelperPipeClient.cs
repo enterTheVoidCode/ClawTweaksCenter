@@ -4,7 +4,6 @@ using System.IO;
 using System.IO.Pipes;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Shared.Enums;
@@ -161,7 +160,7 @@ namespace ClawTweaksCenter.Core
                     if (line == null) break;
                     if (string.IsNullOrWhiteSpace(line)) continue;
 
-                    if (TryParseFunctionContent(line, out var function, out var content))
+                    if (HelperPipeProtocol.TryParse(line, out var function, out var content))
                     {
                         lock (_valuesLock) { _lastKnownValues[function] = content; }
                         _firstPushTcs?.TrySetResult(true); // liveness proof for TryConnectVerifiedAsync
@@ -199,25 +198,6 @@ namespace ClawTweaksCenter.Core
             }
             Diag("Reconnect window elapsed without a live helper.");
         }
-
-        /// <summary>Same hand-rolled extraction the widget's own PipeClient.cs uses — no JSON library.</summary>
-        private static bool TryParseFunctionContent(string json, out Function function, out string content)
-        {
-            function = Function.None;
-            content = null;
-
-            var funcMatch = Regex.Match(json, "\"Function\"\\s*:\\s*(-?\\d+)");
-            if (!funcMatch.Success) return false;
-            if (!int.TryParse(funcMatch.Groups[1].Value, out int funcInt)) return false;
-            function = (Function)funcInt;
-
-            var contentMatch = Regex.Match(json, "\"Content\"\\s*:\\s*\"([^\"\\\\]*(?:\\\\.[^\"\\\\]*)*)\"");
-            if (contentMatch.Success) content = UnescapeJson(contentMatch.Groups[1].Value);
-            return true;
-        }
-
-        private static string UnescapeJson(string s) =>
-            s.Replace("\\\"", "\"").Replace("\\\\", "\\").Replace("\\n", "\n").Replace("\\r", "\r").Replace("\\t", "\t");
 
         /// <summary>Fire-and-forget property write — RequestId stays 0 (async push, no correlated ack
         /// expected back). The helper's own value-change broadcast is what confirms it landed.</summary>
