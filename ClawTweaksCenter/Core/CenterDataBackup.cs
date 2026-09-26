@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -192,61 +193,156 @@ namespace ClawTweaksCenter.Core
         // ── Restore ────────────────────────────────────────────────────────────────────────────
 
         /// <summary>
-        /// Writes Center's half of a backup back: the data folder is cleared (logs excepted) and
-        /// refilled, the registry values are replaced. Returns the number of files written, or -1.
+        /// Validates and stages Center's half before replacing data and settings. Originals are
+        /// retained until both stores commit, with rollback on failure. Logs and install values
+        /// stay in place. Returns the number of files written, or -1 with an error.
         ///
-        /// ⚠️ THE CALLER RESTARTS CENTER AFTERWARDS. Favorites, play history, the art index, the
-        /// settings cache - every one of them is held in memory by a running Center and would write
-        /// itself back over the restored files at the next change. A restart is the only reload that
-        /// cannot miss one.
+        /// Runs at startup before any store is loaded. Favorites, play history, the art index and
+        /// settings are held in memory by a running Center and would overwrite restored files at
+        /// the next change, so callers schedule a restart rather than restoring in a live session.
         /// </summary>
         internal static int RestoreFromZip(string zipPath, out string error)
         {
+            int written = RestoreFromZip(zipPath, DataDir,
+                new RegistryCenterBackupSettings(RegistryKeyPath), out error);
+            InstallLog.Write(written < 0 ? "CenterDataBackup.RestoreFromZip failed: " + error
+                : $"CenterDataBackup: restored {written} Center file(s) from '{zipPath}'.");
+            return written;
+        }
+
+        internal static int RestoreFromZip(string zipPath, string root, ICenterBackupSettings store, out string error)
+        {
             error = null;
+            string work = null;
+            bool retainRecovery = false;
+            bool settingsTouched = false;
+            IReadOnlyList<CenterBackupSetting> originalSettings = null;
+            var movedOriginals = new List<(string Live, string Saved)>();
+            var installedFiles = new List<string>();
             try
             {
+                root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(root));
                 using (var zip = ZipFile.OpenRead(zipPath))
                 {
-                    var settings = zip.GetEntry(SettingsEntry);
-                    if (settings == null) { error = "This backup has no Center data."; return -1; }
+                    var settingsEntries = zip.Entries.Where(e => e.FullName == SettingsEntry).ToList();
+                    if (settingsEntries.Count != 1)
+                        throw new InvalidDataException("The backup must contain exactly one Center settings file.");
+                    IReadOnlyList<CenterBackupSetting> settings;
+                    using (var reader = new StreamReader(settingsEntries[0].Open()))
+                        settings = ParseSettingsJson(reader.ReadToEnd());
 
-                    string root = DataDir;
-                    WipeDataFiles(root);
-                    Directory.CreateDirectory(root);
-
-                    int written = 0;
+                    // A sibling keeps moves on the same volume and remains outside every data wipe.
+                    // No live path or registry value changes until every entry has been extracted.
+                    work = Path.Combine(Path.GetDirectoryName(root), ".center-restore-" + Guid.NewGuid().ToString("N"));
+                    string stage = Path.Combine(work, "staged");
+                    string previous = Path.Combine(work, "previous");
+                    Directory.CreateDirectory(stage);
+                    var files = new List<string>();
+                    var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var e in zip.Entries)
                     {
                         if (!e.FullName.StartsWith(DataPrefix, StringComparison.Ordinal)) continue;
                         if (e.FullName.EndsWith("/", StringComparison.Ordinal)) continue;
 
-                        string rel = e.FullName.Substring(DataPrefix.Length);
-                        // A zip written by anyone else could carry "..": keep every path inside root.
-                        string dest = Path.GetFullPath(Path.Combine(root, rel.Replace('/', Path.DirectorySeparatorChar)));
-                        if (!dest.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) continue;
-
+                        string rel = e.FullName.Substring(DataPrefix.Length).Replace('/', Path.DirectorySeparatorChar);
+                        string dest = RestoreDestination(stage, rel);
+                        if (IsLog(dest)) continue;
+                        if (!seen.Add(dest)) throw new InvalidDataException("Duplicate Center data path in backup.");
                         Directory.CreateDirectory(Path.GetDirectoryName(dest));
-                        e.ExtractToFile(dest, overwrite: true);
-                        written++;
+                        e.ExtractToFile(dest);
+                        files.Add(rel);
                     }
 
-                    string json;
-                    using (var s = settings.Open())
-                    using (var r = new StreamReader(s))
-                        json = r.ReadToEnd();
-                    ImportSettingsJson(json);
-                    written++;
+                    // The rollback snapshot keeps raw values/kinds (including expandable strings,
+                    // binary and multi-string), unlike the intentionally narrower backup format.
+                    originalSettings = store.ReadAll().Where(v => !SkippedValues.Contains(v.Name)).ToArray();
+                    File.WriteAllText(Path.Combine(work, "settings-before.json"), JsonSerializer.Serialize(originalSettings));
+                    Directory.CreateDirectory(root);
+                    var originals = Directory.EnumerateFiles(root, "*", SearchOption.AllDirectories)
+                        .Where(f => !IsLog(f)).ToList();
+                    foreach (var file in originals)
+                    {
+                        string saved = Path.Combine(previous, Path.GetRelativePath(root, file));
+                        Directory.CreateDirectory(Path.GetDirectoryName(saved));
+                        File.Move(file, saved);
+                        movedOriginals.Add((file, saved));
+                    }
+                    RemoveEmptyDirectories(root);
+                    foreach (var rel in files)
+                    {
+                        string dest = RestoreDestination(root, rel);
+                        Directory.CreateDirectory(Path.GetDirectoryName(dest));
+                        File.Move(Path.Combine(stage, rel), dest);
+                        installedFiles.Add(dest);
+                    }
 
-                    InstallLog.Write($"CenterDataBackup: restored {written} Center file(s) from '{zipPath}'.");
-                    return written;
+                    settingsTouched = true;
+                    ReplaceSettings(settings, store);
+                    return files.Count + 1;
                 }
             }
             catch (Exception ex)
             {
                 error = ex.Message;
-                InstallLog.Write("CenterDataBackup.RestoreFromZip failed: " + ex.Message);
+                // Try every rollback step even if another one fails. Never discard the saved
+                // originals when access is still blocked; the error identifies the recovery copy.
+                var rollbackErrors = new List<string>();
+                if (settingsTouched)
+                    TryRollback(() => ReplaceSettings(originalSettings, store), rollbackErrors);
+                foreach (var file in installedFiles.AsEnumerable().Reverse())
+                    TryRollback(() => File.Delete(file), rollbackErrors);
+                if (movedOriginals.Count > 0)
+                    TryRollback(() => RemoveEmptyDirectories(root), rollbackErrors);
+                foreach (var file in movedOriginals.AsEnumerable().Reverse())
+                    TryRollback(() =>
+                    {
+                        Directory.CreateDirectory(Path.GetDirectoryName(file.Live));
+                        File.Move(file.Saved, file.Live);
+                    }, rollbackErrors);
+                if (rollbackErrors.Count > 0)
+                {
+                    retainRecovery = true;
+                    error += $" Rollback incomplete; recovery data retained at '{work}': " + string.Join("; ", rollbackErrors);
+                }
                 return -1;
             }
+            finally
+            {
+                if (work != null && !retainRecovery)
+                {
+                    // Failure to clean a disposable staging/committed snapshot is not a failed
+                    // restore, and must not cause a second rollback after a successful commit.
+                    try { if (Directory.Exists(work)) Directory.Delete(work, recursive: true); }
+                    catch { }
+                }
+            }
+        }
+
+        private static string RestoreDestination(string root, string relative)
+        {
+            // Reject aliases as well as traversal: Windows strips trailing dots/spaces, and ':'
+            // could target an alternate stream rather than the staged ordinary file.
+            if (Path.IsPathRooted(relative) || relative.Contains(':') ||
+                relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
+                    .Any(p => p.Length == 0 || p == "." || p == ".." || p.EndsWith('.') || p.EndsWith(' ')))
+                throw new InvalidDataException("Invalid Center data path in backup.");
+            string dest = Path.GetFullPath(Path.Combine(root, relative));
+            if (!dest.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException("Center data path escapes the restore folder.");
+            return dest;
+        }
+
+        private static void RemoveEmptyDirectories(string root)
+        {
+            foreach (var dir in Directory.EnumerateDirectories(root, "*", SearchOption.AllDirectories)
+                .OrderByDescending(d => d.Length).ToList())
+                if (!Directory.EnumerateFileSystemEntries(dir).Any()) Directory.Delete(dir);
+        }
+
+        private static void TryRollback(Action action, List<string> errors)
+        {
+            try { action(); }
+            catch (Exception ex) { errors.Add(ex.Message); }
         }
 
         // ── Reset ──────────────────────────────────────────────────────────────────────────────
@@ -335,27 +431,40 @@ namespace ClawTweaksCenter.Core
             return JsonSerializer.Serialize(list, new JsonSerializerOptions { WriteIndented = true });
         }
 
-        private static void ImportSettingsJson(string json)
+        private static IReadOnlyList<CenterBackupSetting> ParseSettingsJson(string json)
         {
-            var list = JsonSerializer.Deserialize<List<RegValue>>(json) ?? new List<RegValue>();
-            using (var key = Registry.CurrentUser.CreateSubKey(RegistryKeyPath, writable: true))
+            var list = JsonSerializer.Deserialize<List<RegValue>>(json)
+                ?? throw new InvalidDataException("Center settings must be an array.");
+            var result = new List<CenterBackupSetting>();
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var v in list)
             {
-                // Replace, not merge: a setting that did not exist when the backup was taken must
-                // not survive it, or "restore to Tuesday" leaves Wednesday's choices in place.
-                foreach (var name in key.GetValueNames())
-                    if (!SkippedValues.Contains(name)) key.DeleteValue(name, throwOnMissingValue: false);
-
-                foreach (var v in list)
+                if (v == null || v.Name == null || v.Name.Length > 16383 || v.Name.Contains('\0'))
+                    throw new InvalidDataException("Invalid Center setting name.");
+                if (SkippedValues.Contains(v.Name)) continue;
+                if (!names.Add(v.Name)) throw new InvalidDataException("Duplicate Center setting name.");
+                switch (v.Kind)
                 {
-                    if (string.IsNullOrEmpty(v.Name) || SkippedValues.Contains(v.Name)) continue;
-                    switch (v.Kind)
-                    {
-                        case "dword": if (int.TryParse(v.Value, out int i)) key.SetValue(v.Name, i, RegistryValueKind.DWord); break;
-                        case "qword": if (long.TryParse(v.Value, out long l)) key.SetValue(v.Name, l, RegistryValueKind.QWord); break;
-                        case "string": key.SetValue(v.Name, v.Value ?? "", RegistryValueKind.String); break;
-                    }
+                    case "dword" when int.TryParse(v.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i):
+                        result.Add(new(v.Name, RegistryValueKind.DWord, i)); break;
+                    case "qword" when long.TryParse(v.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long l):
+                        result.Add(new(v.Name, RegistryValueKind.QWord, l)); break;
+                    case "string" when v.Value != null:
+                        result.Add(new(v.Name, RegistryValueKind.String, v.Value)); break;
+                    default:
+                        throw new InvalidDataException("Invalid kind or value for Center setting '" + v.Name + "'.");
                 }
             }
+            return result;
+        }
+
+        private static void ReplaceSettings(IReadOnlyList<CenterBackupSetting> values, ICenterBackupSettings store)
+        {
+            // Replace, not merge: Wednesday's choices must not survive restoring Tuesday.
+            foreach (var current in store.ReadAll())
+                if (!SkippedValues.Contains(current.Name)) store.Delete(current.Name);
+            foreach (var value in values)
+                if (!SkippedValues.Contains(value.Name)) store.Set(value);
         }
     }
 }
