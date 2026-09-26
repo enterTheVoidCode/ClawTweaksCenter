@@ -38,6 +38,14 @@ internal static class PipeProtocolTests
     }
 
     [RegressionTest]
+    private static void InvalidUnicodeSurrogatesAreRejectedWithoutThrowing()
+    {
+        foreach (var payload in new[] { "\\uD800", "\\uDC00", "\\uDC00\\uD800", "\\uD800x" })
+            AssertEx.False(HelperPipeProtocol.TryParse("{\"Function\":1,\"Content\":\"" + payload + "\"}", out _, out _),
+                "Accepted an invalid Unicode surrogate sequence: " + payload);
+    }
+
+    [RegressionTest]
     private static void OptionalContentAndUnknownOrdinalsRemainCompatible()
     {
         AssertEx.True(HelperPipeProtocol.TryParse("{\"Function\":2147483647}", out var function, out var content));
