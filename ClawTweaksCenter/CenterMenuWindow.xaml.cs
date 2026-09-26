@@ -1269,13 +1269,15 @@ namespace ClawTweaksCenter
                 var essStack = new StackPanel();
                 essStack.Children.Add(new TextBlock
                 {
-                    Text = Core.Loc.T(_onboarding.EssentialTitle),
+                    // Already localised by the runner - it has to be, the detail carries a tool
+                    // name and a format cannot be looked up after it is filled in.
+                    Text = _onboarding.EssentialTitle,
                     FontSize = 15, FontWeight = FontWeights.SemiBold,
                     Foreground = UiHelpers.Warn, TextWrapping = TextWrapping.Wrap,
                 });
                 essStack.Children.Add(new TextBlock
                 {
-                    Text = Core.Loc.T(_onboarding.EssentialDetail),
+                    Text = _onboarding.EssentialDetail,
                     FontSize = 13, Foreground = UiHelpers.Subtle,
                     TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0),
                 });

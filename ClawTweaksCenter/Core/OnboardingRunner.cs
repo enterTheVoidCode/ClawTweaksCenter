@@ -69,7 +69,10 @@ namespace ClawTweaksCenter.Core
             new OnboardingStep { Title = "Enable virtual controller" },
             new OnboardingStep { Title = "Add ClawTweaks to the Game Bar" },
             new OnboardingStep { Title = "Activate Game Bar auto-jump" },
-            new OnboardingStep { Title = "Open Game Bar on the last widget" },
+            // ⚠️ THE USER'S OWN WORDING, near enough verbatim (2026-09-26). Do not "improve" it
+            // into a description of the mechanism - the step says what it does for you, not what
+            // registry value it writes.
+            new OnboardingStep { Title = "Always open the last Game Bar widget" },
         };
 
         public event Action StepsChanged;
@@ -156,19 +159,22 @@ namespace ClawTweaksCenter.Core
                 // ⚠️ Two different situations and only one of them is a choice. "You picked
                 // Essential" over a failed driver install credits the user with a decision they did
                 // not make.
+                //
+                // 🔴 LOCALISED HERE, AS A FORMAT. These were built by string concatenation, which
+                // is a line that can never be translated: the lookup keys on the whole English
+                // sentence and a sentence with a tool name glued into it matches nothing. Same trap
+                // the OSD cards hit. The caller therefore does NOT run these through Loc again.
                 if (declined)
                 {
-                    EssentialTitle = "ClawTweaks Essential";
-                    EssentialDetail = "You chose the hardware controller during setup. "
-                        + "The virtual controller steps are hidden. Install "
-                        + (toolsMissing ? _essentialMissing : "its drivers")
-                        + " to switch.";
+                    EssentialTitle = Loc.T("ClawTweaks Essential");
+                    EssentialDetail = toolsMissing
+                        ? Loc.F("You chose the hardware controller during setup. Install {0} to switch.", _essentialMissing)
+                        : Loc.T("You chose the hardware controller during setup.");
                 }
                 else
                 {
-                    EssentialTitle = "Virtual controller not available";
-                    EssentialDetail = _essentialMissing + " is not installed, so its steps are hidden. "
-                        + "Everything else works.";
+                    EssentialTitle = Loc.T("Virtual controller not available");
+                    EssentialDetail = Loc.F("{0} is not installed, so its steps are hidden.", _essentialMissing);
                 }
             }
 
@@ -353,12 +359,12 @@ namespace ClawTweaksCenter.Core
                 else if (_gameBarOpensOnHome == false)
                 {
                     gb.State = OnboardingStepState.Ok; gb.Actionable = true;
-                    gb.Detail = "Game Bar reopens the last widget.";
+                    gb.Detail = "On. ClawTweaks opens straight away.";
                 }
                 else if (_gameBarOpensOnHome == true)
                 {
                     gb.State = OnboardingStepState.Pending; gb.Actionable = true;
-                    gb.Detail = "Game Bar always opens on Home — turn that off to land in ClawTweaks.";
+                    gb.Detail = "Turns off the jump back to Home, so ClawTweaks opens straight away.";
                 }
                 else
                 {
@@ -558,7 +564,7 @@ namespace ClawTweaksCenter.Core
         {
             var step = Steps[StepGameBarHome];
             step.State = OnboardingStepState.Working;
-            step.Detail = "Changing the Game Bar setting…";
+            step.Detail = "Changing the setting…";
             Notify();
 
             string result = await PipeClient.GameBarOpensOnHomeAsync(TimeSpan.FromSeconds(8), setTo: false)
@@ -579,14 +585,12 @@ namespace ClawTweaksCenter.Core
                 // The write did not take. Measured behaviour says this should not happen, so say
                 // what to do rather than guess why.
                 step.State = OnboardingStepState.Error;
-                step.Detail = "Game Bar kept the setting. Close Game Bar and run this again, or turn "
-                            + "off “In compact mode, Game Bar always opens to Home” in Game Bar → Settings → General.";
+                step.Detail = "Game Bar kept the setting. Close Game Bar and run this again.";
             }
             else
             {
                 step.State = OnboardingStepState.Error;
-                step.Detail = "Could not read the Game Bar setting. Turn off “In compact mode, Game Bar "
-                            + "always opens to Home” in Game Bar → Settings → General.";
+                step.Detail = "Could not read the Game Bar setting.";
             }
             step.Actionable = true;
             Notify();

@@ -1045,6 +1045,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "[Select] erneut zum Best\u00E4tigen",
             ["Hides the notification."] = "Blendet die Meldung aus.",
             ["Press [Select] to hide this notification"] = "[Select] blendet diese Meldung aus",
+            ["Always open the last Game Bar widget"] = "Immer letztes Game-Bar-Widget \u00F6ffnen",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "Schaltet den Sprung zur\u00FCck auf Start ab, damit ClawTweaks direkt aufgeht.",
+            ["On. ClawTweaks opens straight away."] = "An. ClawTweaks geht direkt auf.",
+            ["Checking Game Bar\u2026"] = "Game Bar wird gepr\u00FCft\u2026",
+            ["Changing the setting\u2026"] = "Einstellung wird ge\u00E4ndert\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "Fertig. Wirkt nach einem Neustart der Game Bar.",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "Die Game Bar hat die Einstellung behalten. Schlie\u00DFe sie und versuche es erneut.",
+            ["Could not read the Game Bar setting."] = "Die Game-Bar-Einstellung war nicht lesbar.",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "Virtueller Controller nicht verf\u00FCgbar",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "Du hast im Setup den Hardware-Controller gew\u00E4hlt. Installiere {0}, um zu wechseln.",
+            ["You chose the hardware controller during setup."] = "Du hast im Setup den Hardware-Controller gew\u00E4hlt.",
+            ["{0} is not installed, so its steps are hidden."] = "{0} ist nicht installiert, daher sind die Schritte ausgeblendet.",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2061,6 +2074,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "Appuyer de nouveau sur [Select]",
             ["Hides the notification."] = "Masque la notification.",
             ["Press [Select] to hide this notification"] = "[Select] masque cette notification",
+            ["Always open the last Game Bar widget"] = "Toujours ouvrir le dernier widget Game Bar",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "D\u00E9sactive le retour \u00E0 l'accueil, pour que ClawTweaks s'ouvre directement.",
+            ["On. ClawTweaks opens straight away."] = "Activ\u00E9. ClawTweaks s'ouvre directement.",
+            ["Checking Game Bar\u2026"] = "V\u00E9rification de la Game Bar\u2026",
+            ["Changing the setting\u2026"] = "Modification du r\u00E9glage\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "Termin\u00E9. Effectif apr\u00E8s red\u00E9marrage de la Game Bar.",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "La Game Bar a conserv\u00E9 le r\u00E9glage. Fermez-la et r\u00E9essayez.",
+            ["Could not read the Game Bar setting."] = "Impossible de lire le r\u00E9glage de la Game Bar.",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "Manette virtuelle indisponible",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "Vous avez choisi la manette mat\u00E9rielle lors de l'installation. Installez {0} pour changer.",
+            ["You chose the hardware controller during setup."] = "Vous avez choisi la manette mat\u00E9rielle lors de l'installation.",
+            ["{0} is not installed, so its steps are hidden."] = "{0} n'est pas install\u00E9, ses \u00E9tapes sont donc masqu\u00E9es.",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3082,6 +3108,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "\uD655\uC778\uD558\uB824\uBA74 [Select] \uB2E4\uC2DC",
             ["Hides the notification."] = "\uC54C\uB9BC\uC744 \uC228\uAE41\uB2C8\uB2E4.",
             ["Press [Select] to hide this notification"] = "[Select]\uB85C \uC774 \uC54C\uB9BC \uC228\uAE30\uAE30",
+            ["Always open the last Game Bar widget"] = "\uB9C8\uC9C0\uB9C9 Game Bar \uC704\uC82F \uD56D\uC0C1 \uC5F4\uAE30",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "\uD648\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30\uB97C \uB054\uC5B4 ClawTweaks\uAC00 \uBC14\uB85C \uC5F4\uB9AC\uAC8C \uD569\uB2C8\uB2E4.",
+            ["On. ClawTweaks opens straight away."] = "\uCF1C\uC9D0. ClawTweaks\uAC00 \uBC14\uB85C \uC5F4\uB9BD\uB2C8\uB2E4.",
+            ["Checking Game Bar\u2026"] = "Game Bar \uD655\uC778 \uC911\u2026",
+            ["Changing the setting\u2026"] = "\uC124\uC815\uC744 \uBCC0\uACBD\uD558\uB294 \uC911\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "\uC644\uB8CC. Game Bar\uB97C \uB2E4\uC2DC \uC2DC\uC791\uD558\uBA74 \uC801\uC6A9\uB429\uB2C8\uB2E4.",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "Game Bar\uAC00 \uC124\uC815\uC744 \uC720\uC9C0\uD588\uC2B5\uB2C8\uB2E4. Game Bar\uB97C \uB2EB\uACE0 \uB2E4\uC2DC \uC2E4\uD589\uD558\uC138\uC694.",
+            ["Could not read the Game Bar setting."] = "Game Bar \uC124\uC815\uC744 \uC77D\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "\uAC00\uC0C1 \uCEE8\uD2B8\uB864\uB7EC\uB97C \uC0AC\uC6A9\uD560 \uC218 \uC5C6\uC74C",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "\uC124\uCE58 \uC2DC \uD558\uB4DC\uC6E8\uC5B4 \uCEE8\uD2B8\uB864\uB7EC\uB97C \uC120\uD0DD\uD588\uC2B5\uB2C8\uB2E4. \uBC14\uAFB8\uB824\uBA74 {0}\uC744(\uB97C) \uC124\uCE58\uD558\uC138\uC694.",
+            ["You chose the hardware controller during setup."] = "\uC124\uCE58 \uC2DC \uD558\uB4DC\uC6E8\uC5B4 \uCEE8\uD2B8\uB864\uB7EC\uB97C \uC120\uD0DD\uD588\uC2B5\uB2C8\uB2E4.",
+            ["{0} is not installed, so its steps are hidden."] = "{0}\uC774(\uAC00) \uC124\uCE58\uB418\uC9C0 \uC54A\uC544 \uD574\uB2F9 \uB2E8\uACC4\uB97C \uC228\uACBC\uC2B5\uB2C8\uB2E4.",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4100,6 +4139,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "Pulsa [Select] otra vez",
             ["Hides the notification."] = "Oculta el aviso.",
             ["Press [Select] to hide this notification"] = "[Select] oculta este aviso",
+            ["Always open the last Game Bar widget"] = "Abrir siempre el \u00FAltimo widget de Game Bar",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "Desactiva el salto de vuelta a Inicio, as\u00ED ClawTweaks se abre directamente.",
+            ["On. ClawTweaks opens straight away."] = "Activado. ClawTweaks se abre directamente.",
+            ["Checking Game Bar\u2026"] = "Comprobando la Game Bar\u2026",
+            ["Changing the setting\u2026"] = "Cambiando el ajuste\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "Listo. Se aplica cuando la Game Bar se reinicie.",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "La Game Bar mantuvo el ajuste. Ci\u00E9rrala y vuelve a ejecutarlo.",
+            ["Could not read the Game Bar setting."] = "No se pudo leer el ajuste de la Game Bar.",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "Mando virtual no disponible",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "Elegiste el mando por hardware durante la instalaci\u00F3n. Instala {0} para cambiar.",
+            ["You chose the hardware controller during setup."] = "Elegiste el mando por hardware durante la instalaci\u00F3n.",
+            ["{0} is not installed, so its steps are hidden."] = "{0} no est\u00E1 instalado, as\u00ED que sus pasos est\u00E1n ocultos.",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -5122,6 +5174,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "\u041D\u0430\u0436\u043C\u0438\u0442\u0435 [Select] \u0435\u0449\u0451 \u0440\u0430\u0437",
             ["Hides the notification."] = "\u0421\u043A\u0440\u044B\u0432\u0430\u0435\u0442 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0435.",
             ["Press [Select] to hide this notification"] = "[Select] \u0441\u043A\u0440\u044B\u0432\u0430\u0435\u0442 \u044D\u0442\u043E \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0435",
+            ["Always open the last Game Bar widget"] = "\u0412\u0441\u0435\u0433\u0434\u0430 \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0442\u044C \u043F\u043E\u0441\u043B\u0435\u0434\u043D\u0438\u0439 \u0432\u0438\u0434\u0436\u0435\u0442 Game Bar",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "\u041E\u0442\u043A\u043B\u044E\u0447\u0430\u0435\u0442 \u0432\u043E\u0437\u0432\u0440\u0430\u0442 \u043D\u0430 \u0433\u043B\u0430\u0432\u043D\u0443\u044E, \u0447\u0442\u043E\u0431\u044B ClawTweaks \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u043B\u0441\u044F \u0441\u0440\u0430\u0437\u0443.",
+            ["On. ClawTweaks opens straight away."] = "\u0412\u043A\u043B\u044E\u0447\u0435\u043D\u043E. ClawTweaks \u043E\u0442\u043A\u0440\u044B\u0432\u0430\u0435\u0442\u0441\u044F \u0441\u0440\u0430\u0437\u0443.",
+            ["Checking Game Bar\u2026"] = "\u041F\u0440\u043E\u0432\u0435\u0440\u043A\u0430 Game Bar\u2026",
+            ["Changing the setting\u2026"] = "\u0418\u0437\u043C\u0435\u043D\u0435\u043D\u0438\u0435 \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0438\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "\u0413\u043E\u0442\u043E\u0432\u043E. \u0421\u0440\u0430\u0431\u043E\u0442\u0430\u0435\u0442 \u043F\u043E\u0441\u043B\u0435 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u043A\u0430 Game Bar.",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "Game Bar \u0441\u043E\u0445\u0440\u0430\u043D\u0438\u043B\u0430 \u0441\u0432\u043E\u044E \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0443. \u0417\u0430\u043A\u0440\u043E\u0439\u0442\u0435 \u0435\u0451 \u0438 \u043F\u043E\u0432\u0442\u043E\u0440\u0438\u0442\u0435.",
+            ["Could not read the Game Bar setting."] = "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u043F\u0440\u043E\u0447\u0438\u0442\u0430\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0443 Game Bar.",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "\u0412\u0438\u0440\u0442\u0443\u0430\u043B\u044C\u043D\u044B\u0439 \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u043D\u0435\u0434\u043E\u0441\u0442\u0443\u043F\u0435\u043D",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "\u041F\u0440\u0438 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0435 \u0432\u044B \u0432\u044B\u0431\u0440\u0430\u043B\u0438 \u0430\u043F\u043F\u0430\u0440\u0430\u0442\u043D\u044B\u0439 \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440. \u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0435 {0}, \u0447\u0442\u043E\u0431\u044B \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u0441\u044F.",
+            ["You chose the hardware controller during setup."] = "\u041F\u0440\u0438 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0435 \u0432\u044B \u0432\u044B\u0431\u0440\u0430\u043B\u0438 \u0430\u043F\u043F\u0430\u0440\u0430\u0442\u043D\u044B\u0439 \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440.",
+            ["{0} is not installed, so its steps are hidden."] = "{0} \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D, \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0435\u0433\u043E \u0448\u0430\u0433\u0438 \u0441\u043A\u0440\u044B\u0442\u044B.",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -6135,6 +6200,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "\u03A0\u03B1\u03C4\u03AE\u03C3\u03C4\u03B5 \u03BE\u03B1\u03BD\u03AC [Select]",
             ["Hides the notification."] = "\u0391\u03C0\u03BF\u03BA\u03C1\u03CD\u03C0\u03C4\u03B5\u03B9 \u03C4\u03B7\u03BD \u03B5\u03B9\u03B4\u03BF\u03C0\u03BF\u03AF\u03B7\u03C3\u03B7.",
             ["Press [Select] to hide this notification"] = "[Select] \u03B1\u03C0\u03BF\u03BA\u03C1\u03CD\u03C0\u03C4\u03B5\u03B9 \u03C4\u03B7\u03BD \u03B5\u03B9\u03B4\u03BF\u03C0\u03BF\u03AF\u03B7\u03C3\u03B7",
+            ["Always open the last Game Bar widget"] = "\u0386\u03BD\u03BF\u03B9\u03B3\u03BC\u03B1 \u03C0\u03AC\u03BD\u03C4\u03B1 \u03C4\u03BF\u03C5 \u03C4\u03B5\u03BB\u03B5\u03C5\u03C4\u03B1\u03AF\u03BF\u03C5 widget Game Bar",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "\u0391\u03C0\u03B5\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03B9\u03B5\u03AF \u03C4\u03B7\u03BD \u03B5\u03C0\u03B9\u03C3\u03C4\u03C1\u03BF\u03C6\u03AE \u03C3\u03C4\u03B7\u03BD \u0391\u03C1\u03C7\u03AE, \u03CE\u03C3\u03C4\u03B5 \u03C4\u03BF ClawTweaks \u03BD\u03B1 \u03B1\u03BD\u03BF\u03AF\u03B3\u03B5\u03B9 \u03B1\u03BC\u03AD\u03C3\u03C9\u03C2.",
+            ["On. ClawTweaks opens straight away."] = "\u0395\u03BD\u03B5\u03C1\u03B3\u03CC. \u03A4\u03BF ClawTweaks \u03B1\u03BD\u03BF\u03AF\u03B3\u03B5\u03B9 \u03B1\u03BC\u03AD\u03C3\u03C9\u03C2.",
+            ["Checking Game Bar\u2026"] = "\u0388\u03BB\u03B5\u03B3\u03C7\u03BF\u03C2 Game Bar\u2026",
+            ["Changing the setting\u2026"] = "\u0391\u03BB\u03BB\u03B1\u03B3\u03AE \u03C4\u03B7\u03C2 \u03C1\u03CD\u03B8\u03BC\u03B9\u03C3\u03B7\u03C2\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "\u0388\u03C4\u03BF\u03B9\u03BC\u03BF. \u0399\u03C3\u03C7\u03CD\u03B5\u03B9 \u03BC\u03B5\u03C4\u03AC \u03C4\u03B7\u03BD \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7 \u03C4\u03B7\u03C2 Game Bar.",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "\u0397 Game Bar \u043A\u03C1\u03AC\u03C4\u03B7\u03C3\u03B5 \u03C4\u03B7 \u03C1\u03CD\u03B8\u03BC\u03B9\u03C3\u03B7. \u039A\u03BB\u03B5\u03AF\u03C3\u03C4\u03B5 \u03C4\u03B7\u03BD \u03BA\u03B1\u03B9 \u03BE\u03B1\u03BD\u03B1\u03B4\u03BF\u03BA\u03B9\u03BC\u03AC\u03C3\u03C4\u03B5.",
+            ["Could not read the Game Bar setting."] = "\u0394\u03B5\u03BD \u03AE\u03C4\u03B1\u03BD \u03B4\u03C5\u03BD\u03B1\u03C4\u03AE \u03B7 \u03B1\u03BD\u03AC\u03B3\u03BD\u03C9\u03C3\u03B7 \u03C4\u03B7\u03C2 \u03C1\u03CD\u03B8\u03BC\u03B9\u03C3\u03B7\u03C2 Game Bar.",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "\u03A4\u03BF \u03B5\u03B9\u03BA\u03BF\u03BD\u03B9\u03BA\u03CC \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03B4\u03B5\u03BD \u03B5\u03AF\u03BD\u03B1\u03B9 \u03B4\u03B9\u03B1\u03B8\u03AD\u03C3\u03B9\u03BC\u03BF",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "\u0395\u03C0\u03B9\u03BB\u03AD\u03BE\u03B1\u03C4\u03B5 \u03C4\u03BF \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03C5\u03BB\u03B9\u03BA\u03BF\u03CD \u03C3\u03C4\u03B7\u03BD \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7. \u0395\u03B3\u03BA\u03B1\u03C4\u03B1\u03C3\u03C4\u03AE\u03C3\u03C4\u03B5 {0} \u03B3\u03B9\u03B1 \u03B1\u03BB\u03BB\u03B1\u03B3\u03AE.",
+            ["You chose the hardware controller during setup."] = "\u0395\u03C0\u03B9\u03BB\u03AD\u03BE\u03B1\u03C4\u03B5 \u03C4\u03BF \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03C5\u03BB\u03B9\u03BA\u03BF\u03CD \u03C3\u03C4\u03B7\u03BD \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7.",
+            ["{0} is not installed, so its steps are hidden."] = "\u03A4\u03BF {0} \u03B4\u03B5\u03BD \u03B5\u03AF\u03BD\u03B1\u03B9 \u03B5\u03B3\u03BA\u03B1\u03C4\u03B5\u03C3\u03C4\u03B7\u03BC\u03AD\u03BD\u03BF, \u03BF\u03C0\u03CC\u03C4\u03B5 \u03C4\u03B1 \u03B2\u03AE\u03BC\u03B1\u03C4\u03AC \u03C4\u03BF\u03C5 \u03B5\u03AF\u03BD\u03B1\u03B9 \u03BA\u03C1\u03C5\u03BC\u03BC\u03AD\u03BD\u03B1.",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -7153,6 +7231,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "\u518D\u6B21\u6309 [Select] \u786E\u8BA4",
             ["Hides the notification."] = "\u9690\u85CF\u8BE5\u63D0\u793A\u3002",
             ["Press [Select] to hide this notification"] = "\u6309 [Select] \u9690\u85CF\u8BE5\u63D0\u793A",
+            ["Always open the last Game Bar widget"] = "\u59CB\u7EC8\u6253\u5F00\u4E0A\u6B21\u7684 Game Bar \u5C0F\u7EC4\u4EF6",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "\u5173\u95ED\u8FD4\u56DE\u9996\u9875\u7684\u8DF3\u8F6C\uFF0CClawTweaks \u4FBF\u76F4\u63A5\u6253\u5F00\u3002",
+            ["On. ClawTweaks opens straight away."] = "\u5DF2\u5F00\u542F\u3002ClawTweaks \u76F4\u63A5\u6253\u5F00\u3002",
+            ["Checking Game Bar\u2026"] = "\u6B63\u5728\u68C0\u67E5 Game Bar\u2026",
+            ["Changing the setting\u2026"] = "\u6B63\u5728\u4FEE\u6539\u8BBE\u7F6E\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "\u5B8C\u6210\u3002\u91CD\u542F Game Bar \u540E\u751F\u6548\u3002",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "Game Bar \u4FDD\u7559\u4E86\u539F\u8BBE\u7F6E\u3002\u8BF7\u5148\u5173\u95ED Game Bar \u518D\u8BD5\u4E00\u6B21\u3002",
+            ["Could not read the Game Bar setting."] = "\u65E0\u6CD5\u8BFB\u53D6 Game Bar \u8BBE\u7F6E\u3002",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "\u865A\u62DF\u624B\u67C4\u4E0D\u53EF\u7528",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "\u4F60\u5728\u5B89\u88C5\u65F6\u9009\u4E86\u786C\u4EF6\u624B\u67C4\u3002\u5B89\u88C5 {0} \u5373\u53EF\u5207\u6362\u3002",
+            ["You chose the hardware controller during setup."] = "\u4F60\u5728\u5B89\u88C5\u65F6\u9009\u4E86\u786C\u4EF6\u624B\u67C4\u3002",
+            ["{0} is not installed, so its steps are hidden."] = "\u672A\u5B89\u88C5 {0}\uFF0C\u56E0\u6B64\u76F8\u5173\u6B65\u9AA4\u5DF2\u9690\u85CF\u3002",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -8171,6 +8262,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "\u518D\u6B21\u6309 [Select] \u78BA\u8A8D",
             ["Hides the notification."] = "\u96B1\u85CF\u8A72\u63D0\u793A\u3002",
             ["Press [Select] to hide this notification"] = "\u6309 [Select] \u96B1\u85CF\u8A72\u63D0\u793A",
+            ["Always open the last Game Bar widget"] = "\u59CB\u7D42\u958B\u555F\u4E0A\u6B21\u7684 Game Bar \u5C0F\u5DE5\u5177",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "\u95DC\u9589\u8FD4\u56DE\u9996\u9801\u7684\u8DF3\u8F49\uFF0CClawTweaks \u4FBF\u76F4\u63A5\u958B\u555F\u3002",
+            ["On. ClawTweaks opens straight away."] = "\u5DF2\u958B\u555F\u3002ClawTweaks \u76F4\u63A5\u958B\u555F\u3002",
+            ["Checking Game Bar\u2026"] = "\u6B63\u5728\u6AA2\u67E5 Game Bar\u2026",
+            ["Changing the setting\u2026"] = "\u6B63\u5728\u4FEE\u6539\u8A2D\u5B9A\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "\u5B8C\u6210\u3002\u91CD\u65B0\u555F\u52D5 Game Bar \u5F8C\u751F\u6548\u3002",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "Game Bar \u4FDD\u7559\u4E86\u539F\u8A2D\u5B9A\u3002\u8ACB\u5148\u95DC\u9589 Game Bar \u518D\u8A66\u4E00\u6B21\u3002",
+            ["Could not read the Game Bar setting."] = "\u7121\u6CD5\u8B80\u53D6 Game Bar \u8A2D\u5B9A\u3002",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "\u865B\u64EC\u624B\u628A\u4E0D\u53EF\u7528",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "\u4F60\u5728\u5B89\u88DD\u6642\u9078\u4E86\u786C\u9AD4\u624B\u628A\u3002\u5B89\u88DD {0} \u5373\u53EF\u5207\u63DB\u3002",
+            ["You chose the hardware controller during setup."] = "\u4F60\u5728\u5B89\u88DD\u6642\u9078\u4E86\u786C\u9AD4\u624B\u628A\u3002",
+            ["{0} is not installed, so its steps are hidden."] = "\u672A\u5B89\u88DD {0}\uFF0C\u56E0\u6B64\u76F8\u95DC\u6B65\u9A5F\u5DF2\u96B1\u85CF\u3002",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -9187,6 +9291,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "Premi di nuovo [Select]",
             ["Hides the notification."] = "Nasconde l'avviso.",
             ["Press [Select] to hide this notification"] = "[Select] nasconde questo avviso",
+            ["Always open the last Game Bar widget"] = "Apri sempre l'ultimo widget della Game Bar",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "Disattiva il ritorno alla Home, cos\u00EC ClawTweaks si apre subito.",
+            ["On. ClawTweaks opens straight away."] = "Attivo. ClawTweaks si apre subito.",
+            ["Checking Game Bar\u2026"] = "Controllo della Game Bar\u2026",
+            ["Changing the setting\u2026"] = "Modifica dell'impostazione\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "Fatto. Ha effetto dopo il riavvio della Game Bar.",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "La Game Bar ha tenuto l'impostazione. Chiudila e riprova.",
+            ["Could not read the Game Bar setting."] = "Impossibile leggere l'impostazione della Game Bar.",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "Controller virtuale non disponibile",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "Hai scelto il controller hardware durante l'installazione. Installa {0} per cambiare.",
+            ["You chose the hardware controller during setup."] = "Hai scelto il controller hardware durante l'installazione.",
+            ["{0} is not installed, so its steps are hidden."] = "{0} non \u00E8 installato, quindi i suoi passaggi sono nascosti.",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -10191,6 +10308,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "Pressione [Select] de novo",
             ["Hides the notification."] = "Oculta o aviso.",
             ["Press [Select] to hide this notification"] = "[Select] oculta este aviso",
+            ["Always open the last Game Bar widget"] = "Sempre abrir o \u00FAltimo widget da Game Bar",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "Desliga o salto de volta para o In\u00EDcio, assim o ClawTweaks abre direto.",
+            ["On. ClawTweaks opens straight away."] = "Ligado. O ClawTweaks abre direto.",
+            ["Checking Game Bar\u2026"] = "Verificando a Game Bar\u2026",
+            ["Changing the setting\u2026"] = "Alterando a configura\u00E7\u00E3o\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "Pronto. Vale depois que a Game Bar reiniciar.",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "A Game Bar manteve a configura\u00E7\u00E3o. Feche-a e tente de novo.",
+            ["Could not read the Game Bar setting."] = "N\u00E3o foi poss\u00EDvel ler a configura\u00E7\u00E3o da Game Bar.",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "Controle virtual indispon\u00EDvel",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "Voc\u00EA escolheu o controle por hardware na instala\u00E7\u00E3o. Instale {0} para trocar.",
+            ["You chose the hardware controller during setup."] = "Voc\u00EA escolheu o controle por hardware na instala\u00E7\u00E3o.",
+            ["{0} is not installed, so its steps are hidden."] = "{0} n\u00E3o est\u00E1 instalado, ent\u00E3o os passos dele ficam ocultos.",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -11211,6 +11341,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "[Select] \u3092\u3082\u3046\u4E00\u5EA6\u62BC\u3059",
             ["Hides the notification."] = "\u901A\u77E5\u3092\u975E\u8868\u793A\u306B\u3057\u307E\u3059\u3002",
             ["Press [Select] to hide this notification"] = "[Select] \u3067\u3053\u306E\u901A\u77E5\u3092\u975E\u8868\u793A",
+            ["Always open the last Game Bar widget"] = "\u5E38\u306B\u6700\u5F8C\u306E Game Bar \u30A6\u30A3\u30B8\u30A7\u30C3\u30C8\u3092\u958B\u304F",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "\u30DB\u30FC\u30E0\u3078\u306E\u623B\u308A\u3092\u30AA\u30D5\u306B\u3057\u3001ClawTweaks \u304C\u3059\u3050\u958B\u304F\u3088\u3046\u306B\u3057\u307E\u3059\u3002",
+            ["On. ClawTweaks opens straight away."] = "\u30AA\u30F3\u3002ClawTweaks \u304C\u3059\u3050\u958B\u304D\u307E\u3059\u3002",
+            ["Checking Game Bar\u2026"] = "Game Bar \u3092\u78BA\u8A8D\u4E2D\u2026",
+            ["Changing the setting\u2026"] = "\u8A2D\u5B9A\u3092\u5909\u66F4\u4E2D\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "\u5B8C\u4E86\u3002Game Bar \u306E\u518D\u8D77\u52D5\u5F8C\u306B\u9069\u7528\u3055\u308C\u307E\u3059\u3002",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "Game Bar \u304C\u8A2D\u5B9A\u3092\u4FDD\u6301\u3057\u307E\u3057\u305F\u3002Game Bar \u3092\u9589\u3058\u3066\u3082\u3046\u4E00\u5EA6\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+            ["Could not read the Game Bar setting."] = "Game Bar \u306E\u8A2D\u5B9A\u3092\u8AAD\u307F\u53D6\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "\u4EEE\u60F3\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u306F\u5229\u7528\u3067\u304D\u307E\u305B\u3093",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u6642\u306B\u30CF\u30FC\u30C9\u30A6\u30A7\u30A2\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u3092\u9078\u3073\u307E\u3057\u305F\u3002{0} \u3092\u5165\u308C\u308C\u3070\u5207\u308A\u66FF\u3048\u3089\u308C\u307E\u3059\u3002",
+            ["You chose the hardware controller during setup."] = "\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u6642\u306B\u30CF\u30FC\u30C9\u30A6\u30A7\u30A2\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u3092\u9078\u3073\u307E\u3057\u305F\u3002",
+            ["{0} is not installed, so its steps are hidden."] = "{0} \u304C\u672A\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u306E\u305F\u3081\u3001\u305D\u306E\u624B\u9806\u306F\u975E\u8868\u793A\u3067\u3059\u3002",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -12222,6 +12365,19 @@ namespace ClawTweaksCenter.Core
             ["Press [Select] again to confirm"] = "Naci\u015Bnij [Select] ponownie",
             ["Hides the notification."] = "Ukrywa powiadomienie.",
             ["Press [Select] to hide this notification"] = "[Select] ukrywa to powiadomienie",
+            ["Always open the last Game Bar widget"] = "Zawsze otwieraj ostatni wid\u017Cet Game Bar",
+            ["Turns off the jump back to Home, so ClawTweaks opens straight away."] = "Wy\u0142\u0105cza powr\u00F3t do ekranu g\u0142\u00F3wnego, aby ClawTweaks otwiera\u0142 si\u0119 od razu.",
+            ["On. ClawTweaks opens straight away."] = "W\u0142\u0105czone. ClawTweaks otwiera si\u0119 od razu.",
+            ["Checking Game Bar\u2026"] = "Sprawdzanie Game Bar\u2026",
+            ["Changing the setting\u2026"] = "Zmiana ustawienia\u2026",
+            ["Done. Takes effect after Game Bar restarts."] = "Gotowe. Zadzia\u0142a po ponownym uruchomieniu Game Bar.",
+            ["Game Bar kept the setting. Close Game Bar and run this again."] = "Game Bar zachowa\u0142 ustawienie. Zamknij go i spr\u00F3buj ponownie.",
+            ["Could not read the Game Bar setting."] = "Nie uda\u0142o si\u0119 odczyta\u0107 ustawienia Game Bar.",
+            ["ClawTweaks Essential"] = "ClawTweaks Essential",
+            ["Virtual controller not available"] = "Kontroler wirtualny niedost\u0119pny",
+            ["You chose the hardware controller during setup. Install {0} to switch."] = "Podczas instalacji wybra\u0142e\u015B kontroler sprz\u0119towy. Zainstaluj {0}, aby prze\u0142\u0105czy\u0107.",
+            ["You chose the hardware controller during setup."] = "Podczas instalacji wybra\u0142e\u015B kontroler sprz\u0119towy.",
+            ["{0} is not installed, so its steps are hidden."] = "{0} nie jest zainstalowany, wi\u0119c jego kroki s\u0105 ukryte.",
         };
 
     }
