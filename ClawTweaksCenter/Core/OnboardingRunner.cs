@@ -542,10 +542,11 @@ namespace ClawTweaksCenter.Core
         /// <summary>
         /// Turns Game Bar's "always open to Home" switch OFF, then READS IT BACK.
         ///
-        /// 🔴 The read-back is the point, not politeness. Game Bar keeps its settings in memory
-        /// and writes them out as it closes, so a write underneath a running Game Bar can simply be
-        /// undone - the helper says so, and reporting "done" on the write alone would be a lie the
-        /// user only discovers at the next Win+G.
+        /// 🔴 The read-back is the point, not politeness. Measured 2026-09-26: the write DOES
+        /// survive Game Bar closing, but a running Game Bar keeps showing and using its cached
+        /// value until it restarts, and any other Game Bar setting the user changes in the same
+        /// session writes that stale cache back out. Reporting "done" from the write alone would
+        /// be a claim this code cannot make.
         /// </summary>
         private async Task RunGameBarHomeAsync(Action<string> log = null)
         {
@@ -561,11 +562,16 @@ namespace ClawTweaksCenter.Core
             if (_gameBarOpensOnHome == false)
             {
                 step.State = OnboardingStepState.Ok;
-                step.Detail = "Game Bar reopens the last widget.";
+                // ⚠️ A RUNNING GAME BAR WILL NOT NOTICE. The value is stored, and measured to
+                // survive Game Bar closing - but Game Bar reads it once and keeps it, so the
+                // behaviour only changes after it restarts. Promising it for the next Win+G would
+                // be a promise the very next press breaks.
+                step.Detail = "Done. Takes effect after Game Bar restarts.";
             }
             else if (_gameBarOpensOnHome == true)
             {
-                // Game Bar was up and put its own value back, or refused it.
+                // The write did not take. Measured behaviour says this should not happen, so say
+                // what to do rather than guess why.
                 step.State = OnboardingStepState.Error;
                 step.Detail = "Game Bar kept the setting. Close Game Bar and run this again, or turn "
                             + "off “In compact mode, Game Bar always opens to Home” in Game Bar → Settings → General.";
