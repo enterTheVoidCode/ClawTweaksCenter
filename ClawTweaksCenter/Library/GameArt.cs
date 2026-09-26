@@ -180,11 +180,20 @@ namespace ClawTweaksCenter.Library
         /// full costs about 2.1 MB of memory; two hundred of them is 430 MB. Decoded to a 150 px tile
         /// it is about 130 KB. Every other performance measure is irrelevant next to this one.
         /// </summary>
-        public static Task<BitmapSource> LoadAsync(string path, int decodePixelWidth)
+        public static async Task<BitmapSource> LoadAsync(string path, int decodePixelWidth)
         {
-            if (string.IsNullOrEmpty(path) || decodePixelWidth <= 0) return Task.FromResult<BitmapSource>(null);
+            if (string.IsNullOrEmpty(path) || decodePixelWidth <= 0) return null;
             string key = decodePixelWidth.ToString() + "|" + path;
-            return Cache.GetOrAdd(key, _ => Task.Run(() => Decode(path, decodePixelWidth)));
+            var pending = Cache.GetOrAdd(key, _ => Task.Run(() => Decode(path, decodePixelWidth)));
+            var bitmap = await pending.ConfigureAwait(false);
+            if (bitmap == null)
+            {
+                // A missing, locked or incomplete file may be repaired during this session. Remove
+                // only this failed task: a late waiter must not evict a newer successful retry.
+                ((ICollection<KeyValuePair<string, Task<BitmapSource>>>)Cache)
+                    .Remove(new KeyValuePair<string, Task<BitmapSource>>(key, pending));
+            }
+            return bitmap;
         }
 
         private static BitmapSource Decode(string path, int decodePixelWidth)
