@@ -99,17 +99,13 @@ namespace ClawTweaksCenter.Core
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 };
-                using (var proc = Process.Start(psi))
-                {
-                    if (proc == null) return null;
-                    string output = proc.StandardOutput.ReadToEnd();
-                    if (!proc.WaitForExit(30000)) { try { proc.Kill(); } catch { } return null; }
+                var result = ProcessRunner.Run(psi, 30000);
+                if (result == null || result.TimedOut) return null;
 
-                    var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                    if (lines.Length < 2) return null;
-                    version = lines[1].Trim();
-                    return lines[0].Trim();
-                }
+                var lines = result.StandardOutput.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                if (lines.Length < 2) return null;
+                version = lines[1].Trim();
+                return lines[0].Trim();
             }
             catch { return null; }
         }
@@ -363,18 +359,16 @@ namespace ClawTweaksCenter.Core
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 };
-                using var p = Process.Start(psi);
-                if (p == null) { detail = "schtasks did not start"; return TaskPresence.Unknown; }
+                var process = ProcessRunner.Run(psi, SchtasksTimeoutMs);
+                if (process == null) { detail = "schtasks did not start"; return TaskPresence.Unknown; }
 
-                if (!p.WaitForExit(SchtasksTimeoutMs))
+                if (process.TimedOut)
                 {
-                    // Leave nothing behind competing for the same disk.
-                    try { p.Kill(entireProcessTree: true); } catch { }
                     detail = $"schtasks /Query did not answer within {SchtasksTimeoutMs}ms";
                     return TaskPresence.Unknown;
                 }
 
-                int code = p.ExitCode;
+                int code = process.ExitCode;
                 detail = $"schtasks /Query exit {code}";
                 return code == 0 ? TaskPresence.Present : TaskPresence.Absent;
             }
@@ -425,17 +419,16 @@ namespace ClawTweaksCenter.Core
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 };
-                using var p = Process.Start(psi);
-                if (p == null) { detail = "schtasks did not start"; return false; }
+                var process = ProcessRunner.Run(psi, SchtasksTimeoutMs);
+                if (process == null) { detail = "schtasks did not start"; return false; }
 
-                if (!p.WaitForExit(SchtasksTimeoutMs))
+                if (process.TimedOut)
                 {
-                    try { p.Kill(entireProcessTree: true); } catch { }
                     detail = $"schtasks /Run did not answer within {SchtasksTimeoutMs}ms";
                     return false;
                 }
 
-                int code = p.ExitCode;
+                int code = process.ExitCode;
                 detail = $"schtasks /Run exit {code}";
                 return code == 0;
             }

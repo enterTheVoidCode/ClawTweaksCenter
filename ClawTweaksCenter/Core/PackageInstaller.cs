@@ -69,12 +69,10 @@ namespace ClawTweaksCenter.Core
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 };
-                using var proc = Process.Start(psi);
-                if (proc == null) return null;
-                string outp = proc.StandardOutput.ReadToEnd();
-                stderr = proc.StandardError.ReadToEnd();
-                if (!proc.WaitForExit(timeoutMs)) { try { proc.Kill(); } catch { } return null; }
-                return outp;
+                var result = ProcessRunner.Run(psi, timeoutMs);
+                if (result == null) return null;
+                stderr = result.StandardError;
+                return result.TimedOut ? null : result.StandardOutput;
             }
             catch { return null; }
         }
@@ -524,16 +522,16 @@ namespace ClawTweaksCenter.Core
                     RedirectStandardError = true,
                 };
                 log?.Invoke("Installing package…");
-                using var proc = Process.Start(psi);
-                if (proc == null) return false;
-                string outp = proc.StandardOutput.ReadToEnd();
-                string err = proc.StandardError.ReadToEnd();
-                if (!proc.WaitForExit(300000)) { try { proc.Kill(); } catch { } log?.Invoke("Install timed out."); return false; }
-                if (proc.ExitCode != 0 || !string.IsNullOrWhiteSpace(err))
+                var result = ProcessRunner.Run(psi, 300000);
+                if (result == null) return false;
+                string outp = result.StandardOutput;
+                string err = result.StandardError;
+                if (result.TimedOut) { log?.Invoke("Install timed out."); return false; }
+                if (result.ExitCode != 0 || !string.IsNullOrWhiteSpace(err))
                 {
                     error = (string.IsNullOrWhiteSpace(err) ? outp : err).Trim();
                     log?.Invoke("Install error: " + error);
-                    return proc.ExitCode == 0;
+                    return result.ExitCode == 0;
                 }
                 log?.Invoke("Package installed.");
                 return true;

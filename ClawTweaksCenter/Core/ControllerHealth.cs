@@ -55,17 +55,16 @@ namespace ClawTweaksCenter.Core
                     StandardOutputEncoding = Encoding.UTF8,
                 };
 
-                using var proc = Process.Start(psi);
-                string stdout = proc.StandardOutput.ReadToEnd();
-                if (!proc.WaitForExit(20000))
+                var process = ProcessRunner.Run(psi, 20000);
+                if (process == null) throw new InvalidOperationException("PowerShell did not start.");
+                if (process.TimedOut)
                 {
-                    try { proc.Kill(); } catch { }
                     result.Problems.Add("Controller probe timed out.");
                     result.Verdict = HealthVerdict.Warning;
                     return result;
                 }
 
-                Parse(stdout, result);
+                Parse(process.StandardOutput, result);
                 Judge(result);
             }
             catch (Exception ex)
