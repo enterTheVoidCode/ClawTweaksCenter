@@ -311,7 +311,11 @@ namespace ClawTweaksCenter.Library
                 catch { }
             }
 
-            SaveHarvestManifest(manifest);
+            // A durable stamp must never outrun the history it describes. If history replacement
+            // fails, SaveIfChanged leaves _dirty set and the logs must remain retryable next time,
+            // including after a restart has lost the harvested events held only in memory.
+            SaveIfChanged();
+            if (!_dirty) SaveHarvestManifest(manifest);
         }
 
         private sealed class HarvestManifest
