@@ -1,3 +1,4 @@
+using System;
 using System.Text.Json;
 using Shared.Enums;
 
@@ -33,6 +34,9 @@ namespace ClawTweaksCenter.Core
                 return true;
             }
             catch (JsonException) { return false; }
+            // JsonDocument can retain syntactically valid escapes with an unpaired UTF-16
+            // surrogate; GetString rejects those later with InvalidOperationException.
+            catch (InvalidOperationException) { return false; }
         }
     }
 }
