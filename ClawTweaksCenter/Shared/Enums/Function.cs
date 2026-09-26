@@ -975,5 +975,15 @@
         //                                   now the helper's only behaviour and needs no switch.
         Settings_ClawHcMount_Retired,           // bool
         Settings_ClawMinimalAllowlist_Retired,  // bool
+
+        // WHAT THE USER ANSWERED IN THE INNO SETUP, read from HKLM\SOFTWARE\ClawTweaks\Setup.
+        // Wire form "vc=1;rtss=0;tools=0;missing=HidHide"; an absent key means that question was
+        // never asked, which is every installation from before 0.4.0.60.
+        Setup_ToolChoices,              // string
+
+        // Game Bar's "in compact mode, always open to Home" switch, read out of the Game Bar
+        // package's own settings hive. "1" = always Home, "0" = reopens the last widget,
+        // "" = could not tell. In ClawTweaks Essential this replaces the auto-jump.
+        Setup_GameBarOpensOnHome,       // string: "1" / "0" / ""
     }
 }

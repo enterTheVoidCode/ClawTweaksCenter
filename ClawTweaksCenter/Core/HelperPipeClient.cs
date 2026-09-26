@@ -400,6 +400,48 @@ namespace ClawTweaksCenter.Core
         /// read-only round-trip) and waits for the resulting ControllerHwHealth push. Returns the raw
         /// "key=value;…" payload, or null on timeout. Onboarding step 0 parses this to gate the chain.
         /// </summary>
+        /// <summary>
+        /// Asks the helper for Game Bar's "always open to Home" switch, or flips it when
+        /// <paramref name="setTo"/> is given. "1" / "0" / "" - empty means the helper could not
+        /// read it, which must not be read as "off".
+        ///
+        /// The helper reads it out of the Game Bar package's own settings hive; nothing here can
+        /// do that itself, and no HKCU value mirrors it (measured 2026-09-26).
+        /// </summary>
+        public async Task<string> GameBarOpensOnHomeAsync(TimeSpan timeout, bool? setTo = null)
+        {
+            if (!IsConnected) return null;
+            var tcs = new TaskCompletionSource<string>();
+            void Handler(Function f, string c)
+            {
+                if (f == Function.Setup_GameBarOpensOnHome) tcs.TrySetResult(c);
+            }
+
+            PropertyUpdated += Handler;
+            try
+            {
+                string line = setTo.HasValue
+                    ? "{\"RequestId\":0,\"Command\":0,\"Function\":0,\"CenterSetGameBarHome\":\"" + (setTo.Value ? "1" : "0") + "\"}"
+                    : "{\"RequestId\":0,\"Command\":0,\"Function\":0,\"CenterRequestGameBarHome\":true}";
+                lock (_writeLock)
+                {
+                    _writer.WriteLine(line);
+                    _writer.Flush();
+                }
+
+                var completed = await Task.WhenAny(tcs.Task, Task.Delay(timeout)).ConfigureAwait(false);
+                return completed == tcs.Task ? tcs.Task.Result : null;
+            }
+            catch (Exception)
+            {
+                return null;
+            }
+            finally
+            {
+                PropertyUpdated -= Handler;
+            }
+        }
+
         public async Task<string> RequestControllerHealthAsync(TimeSpan timeout)
         {
             if (!IsConnected) return null;

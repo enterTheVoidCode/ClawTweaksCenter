@@ -54,6 +54,12 @@ namespace ClawTweaksCenter.Core
         public const int StepAddToBar = 3;
         public const int StepAutoJump = 4;
 
+        /// <summary>Game Bar's own "always open to Home" switch. The ESSENTIAL counterpart of the
+        /// auto-jump: turned off, Game Bar reopens the widget you used last, which lands you in
+        /// ClawTweaks with no virtual pad needed to tap RB. Hidden outside Essential mode, where
+        /// the auto-jump already does the job.</summary>
+        public const int StepGameBarHome = 5;
+
         public HelperPipeClient PipeClient { get; }
 
         public IReadOnlyList<OnboardingStep> Steps { get; } = new List<OnboardingStep>
@@ -63,6 +69,7 @@ namespace ClawTweaksCenter.Core
             new OnboardingStep { Title = "Enable virtual controller" },
             new OnboardingStep { Title = "Add ClawTweaks to the Game Bar" },
             new OnboardingStep { Title = "Activate Game Bar auto-jump" },
+            new OnboardingStep { Title = "Open Game Bar on the last widget" },
         };
 
         public event Action StepsChanged;
@@ -82,6 +89,8 @@ namespace ClawTweaksCenter.Core
                                             // user already configured auto-jump → step auto-completes.
         private bool _autoJumpPosApplied;   // the helper's slot has been reflected into the stepper once
         private bool _settling;             // a background status-settle loop is already running
+        private bool? _gameBarOpensOnHome;  // from the helper: true = always Home (what we want off),
+                                            // null = not read yet, or unreadable
 
         /// <summary>
         /// 🔴 THIS INSTALLATION IS NOT GOING TO RUN THE VIRTUAL CONTROLLER, so two of the five
@@ -165,6 +174,9 @@ namespace ClawTweaksCenter.Core
 
             Steps[StepVirtualController].Hidden = EssentialMode;
             Steps[StepAutoJump].Hidden = EssentialMode;
+            // The two are alternatives, never both: auto-jump taps RB with the virtual pad, this
+            // one changes Game Bar's own behaviour and needs no pad at all.
+            Steps[StepGameBarHome].Hidden = !EssentialMode;
         }
 
         private void Notify() => StepsChanged?.Invoke();
@@ -182,6 +194,13 @@ namespace ClawTweaksCenter.Core
                 if (function == Function.MsiCenterActive) { _centerMRunning = value; RecomputeGating(); }
                 else if (function == Function.ControllerEmulationEnabled) { _controllerEnabled = value; RecomputeGating(); }
                 else if (function == Function.GameBarWidgetFavorited) { _favorited = value; RecomputeGating(); }
+                else if (function == Function.Setup_GameBarOpensOnHome)
+                {
+                    // "" means the helper could not read it - that stays null, so the step says
+                    // nothing rather than claiming a setting is wrong.
+                    _gameBarOpensOnHome = content == "1" ? true : (content == "0" ? (bool?)false : null);
+                    RecomputeGating();
+                }
                 else if (function == Function.GameBarWidgetPosition)
                 {
                     if (int.TryParse(content, out var p) && p >= 1 && p <= 10)
@@ -286,11 +305,24 @@ namespace ClawTweaksCenter.Core
             var bar = Steps[StepAddToBar];
             if (bar.State != OnboardingStepState.Working)
             {
-                bool ready = _verifiedThisSession || _controllerEnabled == true;
+                // 🔴 THE PREREQUISITE IS NOT THE SAME IN BOTH MODES (user, 2026-09-26: "das gamebar
+                // hinzufuegen punkt ging nicht los da der vorangegangene punkt nun fehlt"). This
+                // used to wait for the virtual controller, which in ClawTweaks Essential never
+                // arrives - so the step sat behind a prerequisite that had been removed from the
+                // page and the chain dead-ended after "Disable MSI Center M".
+                //
+                // Adding CTW to the Game Bar has nothing to do with the virtual pad anyway. In
+                // Essential mode the real prerequisite is the one before it: a healthy controller
+                // and Center M out of the way.
+                bool ready = EssentialMode
+                    ? (HwOk && _centerMRunning != true)
+                    : (_verifiedThisSession || _controllerEnabled == true);
                 if (!ready)
                 {
                     bar.State = OnboardingStepState.Pending; bar.Actionable = false;
-                    bar.Detail = "Enable the virtual controller first.";
+                    bar.Detail = EssentialMode
+                        ? "Disable MSI Center M first."
+                        : "Enable the virtual controller first.";
                 }
                 else if (_favorited == true)
                 {
@@ -304,6 +336,36 @@ namespace ClawTweaksCenter.Core
                     bar.Detail = _favorited == false
                         ? "Not in the bar yet — favorite ClawTweaks in the Game Bar (Win+G), then Check."
                         : "Open the Game Bar (Win+G), favorite ClawTweaks, then Check.";
+                }
+            }
+
+            // Step 5 — Game Bar's own "open to Home" switch (Essential only). Needs CTW in the bar
+            // for the same reason the auto-jump does: reopening the last widget only helps once
+            // ClawTweaks can BE the last widget.
+            var gb = Steps[StepGameBarHome];
+            if (gb.State != OnboardingStepState.Working)
+            {
+                if (_favorited != true)
+                {
+                    gb.State = OnboardingStepState.Pending; gb.Actionable = false;
+                    gb.Detail = "Add ClawTweaks to the Game Bar first.";
+                }
+                else if (_gameBarOpensOnHome == false)
+                {
+                    gb.State = OnboardingStepState.Ok; gb.Actionable = true;
+                    gb.Detail = "Game Bar reopens the last widget.";
+                }
+                else if (_gameBarOpensOnHome == true)
+                {
+                    gb.State = OnboardingStepState.Pending; gb.Actionable = true;
+                    gb.Detail = "Game Bar always opens on Home — turn that off to land in ClawTweaks.";
+                }
+                else
+                {
+                    // ⚠️ UNREADABLE IS NOT WRONG. Saying "always opens on Home" over a setting we
+                    // could not read would send the user to change something already correct.
+                    gb.State = OnboardingStepState.Pending; gb.Actionable = true;
+                    gb.Detail = "Checking Game Bar…";
                 }
             }
 
@@ -362,6 +424,20 @@ namespace ClawTweaksCenter.Core
                 // the background until it resolves, so step 3 (and favorited/auto-jump) tick themselves
                 // without a manual Refresh. Fire-and-forget; RecomputeGating runs on each push.
                 _ = SettleStatusAsync();
+
+                // The Game Bar switch is not part of the status snapshot - nothing pushes it, so it
+                // has to be asked for. Only in Essential mode, where the step that shows it exists.
+                if (EssentialMode)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        string r = await PipeClient.GameBarOpensOnHomeAsync(TimeSpan.FromSeconds(6))
+                                                   .ConfigureAwait(false);
+                        _gameBarOpensOnHome = r == "1" ? true : (r == "0" ? (bool?)false : null);
+                        RecomputeGating();
+                        Notify();
+                    });
+                }
             }
             finally
             {
@@ -411,6 +487,7 @@ namespace ClawTweaksCenter.Core
                 case StepVirtualController: await RunVirtualControllerAsync(log).ConfigureAwait(false); break;
                 case StepAddToBar: await RunCheckPresenceAsync().ConfigureAwait(false); break;
                 case StepAutoJump: RunAutoJump(); break;
+                case StepGameBarHome: await RunGameBarHomeAsync(log).ConfigureAwait(false); break;
             }
         }
 
@@ -460,6 +537,48 @@ namespace ClawTweaksCenter.Core
             if (ok) { _centerMRunning = false; step.State = OnboardingStepState.Ok; step.Detail = "Disabled."; step.Actionable = false; }
             else { step.State = OnboardingStepState.Error; step.Detail = "Did not confirm in time."; }
             RecomputeGating();
+        }
+
+        /// <summary>
+        /// Turns Game Bar's "always open to Home" switch OFF, then READS IT BACK.
+        ///
+        /// 🔴 The read-back is the point, not politeness. Game Bar keeps its settings in memory
+        /// and writes them out as it closes, so a write underneath a running Game Bar can simply be
+        /// undone - the helper says so, and reporting "done" on the write alone would be a lie the
+        /// user only discovers at the next Win+G.
+        /// </summary>
+        private async Task RunGameBarHomeAsync(Action<string> log = null)
+        {
+            var step = Steps[StepGameBarHome];
+            step.State = OnboardingStepState.Working;
+            step.Detail = "Changing the Game Bar setting…";
+            Notify();
+
+            string result = await PipeClient.GameBarOpensOnHomeAsync(TimeSpan.FromSeconds(8), setTo: false)
+                                            .ConfigureAwait(false);
+            _gameBarOpensOnHome = result == "1" ? true : (result == "0" ? (bool?)false : null);
+
+            if (_gameBarOpensOnHome == false)
+            {
+                step.State = OnboardingStepState.Ok;
+                step.Detail = "Game Bar reopens the last widget.";
+            }
+            else if (_gameBarOpensOnHome == true)
+            {
+                // Game Bar was up and put its own value back, or refused it.
+                step.State = OnboardingStepState.Error;
+                step.Detail = "Game Bar kept the setting. Close Game Bar and run this again, or turn "
+                            + "off “In compact mode, Game Bar always opens to Home” in Game Bar → Settings → General.";
+            }
+            else
+            {
+                step.State = OnboardingStepState.Error;
+                step.Detail = "Could not read the Game Bar setting. Turn off “In compact mode, Game Bar "
+                            + "always opens to Home” in Game Bar → Settings → General.";
+            }
+            step.Actionable = true;
+            Notify();
+            log?.Invoke(step.Detail);
         }
 
         /// <summary>
