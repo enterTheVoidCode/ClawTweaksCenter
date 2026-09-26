@@ -122,6 +122,36 @@ OSD_KEYS = [
     '[Right stick], hold [LT]',
     '[Right stick] ^ v source · < > step size',
     '[Start] opens Game Bar',
+    # The game-start / game-end cards. The helper composes these (Shared/Data/GameStartCard.cs) and
+    # translates them in ONE place, line by line - so every line is its own key. The title of a game
+    # card is the game's NAME and is never a key; 'Global profile' above is the title of the restore
+    # card and was already here for the Quick Panel.
+    'Profile active - same as global',
+    'No profile - global settings active',
+    'Settings loaded',
+    'Global settings restored',
+    # A FORMAT, not a sentence: a line with a game's name glued on could never match a row.
+    'Restored after {0}',
+    # The interactive card that offers [Start] / [Select] on a detected game.
+    'Game',
+    'Create a game profile',
+    'Press [Start]',
+    'Not a game',
+    'Press [Select]',
+    'Create a game profile, or stop detecting it',
+    'Confirm: never detect this as a game',
+    'Press [Select] to confirm · undo under Game Bar > Settings > Game detection',
+    # ... and what the answer led to.
+    'Game profile created',
+    'Open the Game Bar to set TDP, fan and controller settings for it.',
+    'Not detected as a game any more',
+    'Undo in Game Bar > Settings > Game detection',
+    # The two settings the global profile may no longer carry (0.4.0.53). Shown as a card because
+    # the same refusal reaches the Game Bar widget, CTW Center and the native Quick Panel.
+    'FPS limit is per game',
+    'Activate a per-game profile and set it there.',
+    'RTSS overlay is per game',
+    'Activate a per-game profile and pick it there.',
 ]
 
 # TSV column -> the C# field name for that language's dictionary. The order here is the order the

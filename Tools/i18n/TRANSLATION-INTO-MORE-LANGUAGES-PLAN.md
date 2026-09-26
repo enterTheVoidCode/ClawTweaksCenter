@@ -277,9 +277,26 @@ append-only. The helper is .NET Framework 4.8, not .NET 10. Scope is the notific
       translation had to happen where the string was BUILT; doing it where the card is DRAWN
       makes line-wise lookup possible instead. It also avoids giving a UWP process a registry
       read it is not allowed to make.
-      ⚠️ The widget's own card lines (profile applied / no profile / global restored /
-      reverted) are **not translated yet** — the mechanism reaches them, but their English
-      lines still need TSV rows and `OSD_KEYS` entries.
+      ✅ **Done 2026-09-26 (0.4.0.56):** those card lines now have their rows. The composer moved
+      out of the widget entirely in the meantime (`Shared/Data/GameStartCard.cs`, the helper draws
+      every game start regardless of route), so the 21 rows added cover the game-start and
+      game-end cards, the interactive `[Start]`/`[Select]` card and what each answer leads to, and
+      the two refusals the global profile now raises.
+      ⚠️ **One line needed a code change, not a row:** the restore card said
+      `"Restored after " + gameName`. A card is translated line by line against a table keyed by
+      the English string, so a line with a game's name glued on can never match — it would have
+      stayed English in all thirteen languages and nothing would have said so. It is a FORMAT now
+      (`Restored after {0}`, `GameStartCardContent.BodyArg`), filled in after the lookup.
+- [ ] **P3.4b — the widget's OWN chrome is still entirely English.** Not a gap in the rows: there
+      is **no `Loc` in the Game Bar widget at all** (`grep Loc.T XboxGamingBar` finds nothing).
+      Every label, checkbox and flyout in it is a literal in XAML or code-behind. The two newest
+      ones are the FPS-limit and RTSS-overlay refusals plus the RTSS restart caveat next to
+      "Up to 180 FPS" (0.4.0.56).
+      ⚠️ This is the bigger piece of work of the two and it is a MECHANISM, not a translation
+      round: a UWP widget cannot make the registry read `OsdLoc` uses, so it needs the language
+      handed to it over the pipe, and its XAML literals need to become bindings or be set from
+      code. Decide that before adding rows — rows for strings nothing can look up are the shape
+      P3.4 already rejected once.
 - [ ] **P3.5 — test on the device** with Center set to a language Windows does not have.
 
 ---
