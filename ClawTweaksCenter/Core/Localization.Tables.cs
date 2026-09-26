@@ -1041,6 +1041,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "Nicht mehr als Spiel erkennen",
             ["No notification at the next start"] = "Keine Meldung beim n\u00E4chsten Start",
             ["Press [Select] to confirm"] = "[Select] zum Best\u00E4tigen",
+            ["Stop detecting this as a game?"] = "Nicht mehr als Spiel erkennen?",
+            ["Press [Select] again to confirm"] = "[Select] erneut zum Best\u00E4tigen",
+            ["Hides the notification."] = "Blendet die Meldung aus.",
+            ["Press [Select] to hide this notification"] = "[Select] blendet diese Meldung aus",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2053,6 +2057,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "Ne plus d\u00E9tecter comme un jeu",
             ["No notification at the next start"] = "Plus de notification au prochain lancement",
             ["Press [Select] to confirm"] = "[Select] pour confirmer",
+            ["Stop detecting this as a game?"] = "Ne plus d\u00E9tecter comme un jeu ?",
+            ["Press [Select] again to confirm"] = "Appuyer de nouveau sur [Select]",
+            ["Hides the notification."] = "Masque la notification.",
+            ["Press [Select] to hide this notification"] = "[Select] masque cette notification",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3070,6 +3078,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "\uAC8C\uC784\uC73C\uB85C \uAC10\uC9C0\uD558\uC9C0 \uC54A\uAE30",
             ["No notification at the next start"] = "\uB2E4\uC74C \uC2E4\uD589 \uB54C \uC54C\uB9BC \uC5C6\uC74C",
             ["Press [Select] to confirm"] = "\uD655\uC778\uD558\uB824\uBA74 [Select]",
+            ["Stop detecting this as a game?"] = "\uAC8C\uC784\uC73C\uB85C \uAC10\uC9C0\uD558\uC9C0 \uC54A\uC744\uAE4C\uC694?",
+            ["Press [Select] again to confirm"] = "\uD655\uC778\uD558\uB824\uBA74 [Select] \uB2E4\uC2DC",
+            ["Hides the notification."] = "\uC54C\uB9BC\uC744 \uC228\uAE41\uB2C8\uB2E4.",
+            ["Press [Select] to hide this notification"] = "[Select]\uB85C \uC774 \uC54C\uB9BC \uC228\uAE30\uAE30",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4084,6 +4096,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "Dejar de detectarlo como juego",
             ["No notification at the next start"] = "Sin aviso en el pr\u00F3ximo inicio",
             ["Press [Select] to confirm"] = "[Select] para confirmar",
+            ["Stop detecting this as a game?"] = "\u00BFDejar de detectarlo como juego?",
+            ["Press [Select] again to confirm"] = "Pulsa [Select] otra vez",
+            ["Hides the notification."] = "Oculta el aviso.",
+            ["Press [Select] to hide this notification"] = "[Select] oculta este aviso",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -5102,6 +5118,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "\u041D\u0435 \u0441\u0447\u0438\u0442\u0430\u0442\u044C \u044D\u0442\u043E \u0438\u0433\u0440\u043E\u0439",
             ["No notification at the next start"] = "\u041F\u0440\u0438 \u0441\u043B\u0435\u0434\u0443\u044E\u0449\u0435\u043C \u0437\u0430\u043F\u0443\u0441\u043A\u0435 \u0431\u0435\u0437 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u044F",
             ["Press [Select] to confirm"] = "[Select] \u0434\u043B\u044F \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043D\u0438\u044F",
+            ["Stop detecting this as a game?"] = "\u0411\u043E\u043B\u044C\u0448\u0435 \u043D\u0435 \u0441\u0447\u0438\u0442\u0430\u0442\u044C \u044D\u0442\u043E \u0438\u0433\u0440\u043E\u0439?",
+            ["Press [Select] again to confirm"] = "\u041D\u0430\u0436\u043C\u0438\u0442\u0435 [Select] \u0435\u0449\u0451 \u0440\u0430\u0437",
+            ["Hides the notification."] = "\u0421\u043A\u0440\u044B\u0432\u0430\u0435\u0442 \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0435.",
+            ["Press [Select] to hide this notification"] = "[Select] \u0441\u043A\u0440\u044B\u0432\u0430\u0435\u0442 \u044D\u0442\u043E \u0443\u0432\u0435\u0434\u043E\u043C\u043B\u0435\u043D\u0438\u0435",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -6111,6 +6131,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "\u039D\u03B1 \u03BC\u03B7\u03BD \u03B5\u03BD\u03C4\u03BF\u03C0\u03AF\u03B6\u03B5\u03C4\u03B1\u03B9 \u03C9\u03C2 \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9",
             ["No notification at the next start"] = "\u039A\u03B1\u03BC\u03AF\u03B1 \u03B5\u03B9\u03B4\u03BF\u03C0\u03BF\u03AF\u03B7\u03C3\u03B7 \u03C3\u03C4\u03B7\u03BD \u03B5\u03C0\u03CC\u03BC\u03B5\u03BD\u03B7 \u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7",
             ["Press [Select] to confirm"] = "[Select] \u03B3\u03B9\u03B1 \u03B5\u03C0\u03B9\u03B2\u03B5\u03B2\u03B1\u03AF\u03C9\u03C3\u03B7",
+            ["Stop detecting this as a game?"] = "\u039D\u03B1 \u03BC\u03B7\u03BD \u03B5\u03BD\u03C4\u03BF\u03C0\u03AF\u03B6\u03B5\u03C4\u03B1\u03B9 \u03C9\u03C2 \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9;",
+            ["Press [Select] again to confirm"] = "\u03A0\u03B1\u03C4\u03AE\u03C3\u03C4\u03B5 \u03BE\u03B1\u03BD\u03AC [Select]",
+            ["Hides the notification."] = "\u0391\u03C0\u03BF\u03BA\u03C1\u03CD\u03C0\u03C4\u03B5\u03B9 \u03C4\u03B7\u03BD \u03B5\u03B9\u03B4\u03BF\u03C0\u03BF\u03AF\u03B7\u03C3\u03B7.",
+            ["Press [Select] to hide this notification"] = "[Select] \u03B1\u03C0\u03BF\u03BA\u03C1\u03CD\u03C0\u03C4\u03B5\u03B9 \u03C4\u03B7\u03BD \u03B5\u03B9\u03B4\u03BF\u03C0\u03BF\u03AF\u03B7\u03C3\u03B7",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -7125,6 +7149,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "\u4E0D\u518D\u5C06\u5176\u8BC6\u522B\u4E3A\u6E38\u620F",
             ["No notification at the next start"] = "\u4E0B\u6B21\u542F\u52A8\u65F6\u4E0D\u518D\u63D0\u793A",
             ["Press [Select] to confirm"] = "\u6309 [Select] \u786E\u8BA4",
+            ["Stop detecting this as a game?"] = "\u4E0D\u518D\u5C06\u5176\u8BC6\u522B\u4E3A\u6E38\u620F\uFF1F",
+            ["Press [Select] again to confirm"] = "\u518D\u6B21\u6309 [Select] \u786E\u8BA4",
+            ["Hides the notification."] = "\u9690\u85CF\u8BE5\u63D0\u793A\u3002",
+            ["Press [Select] to hide this notification"] = "\u6309 [Select] \u9690\u85CF\u8BE5\u63D0\u793A",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -8139,6 +8167,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "\u4E0D\u518D\u5C07\u5176\u8FA8\u8B58\u70BA\u904A\u6232",
             ["No notification at the next start"] = "\u4E0B\u6B21\u555F\u52D5\u6642\u4E0D\u518D\u63D0\u793A",
             ["Press [Select] to confirm"] = "\u6309 [Select] \u78BA\u8A8D",
+            ["Stop detecting this as a game?"] = "\u4E0D\u518D\u5C07\u5176\u8FA8\u8B58\u70BA\u904A\u6232\uFF1F",
+            ["Press [Select] again to confirm"] = "\u518D\u6B21\u6309 [Select] \u78BA\u8A8D",
+            ["Hides the notification."] = "\u96B1\u85CF\u8A72\u63D0\u793A\u3002",
+            ["Press [Select] to hide this notification"] = "\u6309 [Select] \u96B1\u85CF\u8A72\u63D0\u793A",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -9151,6 +9183,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "Non rilevarlo pi\u00F9 come gioco",
             ["No notification at the next start"] = "Nessun avviso al prossimo avvio",
             ["Press [Select] to confirm"] = "[Select] per confermare",
+            ["Stop detecting this as a game?"] = "Non rilevarlo pi\u00F9 come gioco?",
+            ["Press [Select] again to confirm"] = "Premi di nuovo [Select]",
+            ["Hides the notification."] = "Nasconde l'avviso.",
+            ["Press [Select] to hide this notification"] = "[Select] nasconde questo avviso",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -10151,6 +10187,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "Parar de detetar como jogo",
             ["No notification at the next start"] = "Sem aviso no pr\u00F3ximo in\u00EDcio",
             ["Press [Select] to confirm"] = "[Select] para confirmar",
+            ["Stop detecting this as a game?"] = "Parar de detetar como jogo?",
+            ["Press [Select] again to confirm"] = "Pressione [Select] de novo",
+            ["Hides the notification."] = "Oculta o aviso.",
+            ["Press [Select] to hide this notification"] = "[Select] oculta este aviso",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -11167,6 +11207,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "\u30B2\u30FC\u30E0\u3068\u3057\u3066\u691C\u51FA\u3057\u306A\u3044",
             ["No notification at the next start"] = "\u6B21\u56DE\u306E\u8D77\u52D5\u6642\u306B\u901A\u77E5\u306A\u3057",
             ["Press [Select] to confirm"] = "[Select] \u3067\u78BA\u5B9A",
+            ["Stop detecting this as a game?"] = "\u30B2\u30FC\u30E0\u3068\u3057\u3066\u691C\u51FA\u3057\u307E\u305B\u3093\u304B\uFF1F",
+            ["Press [Select] again to confirm"] = "[Select] \u3092\u3082\u3046\u4E00\u5EA6\u62BC\u3059",
+            ["Hides the notification."] = "\u901A\u77E5\u3092\u975E\u8868\u793A\u306B\u3057\u307E\u3059\u3002",
+            ["Press [Select] to hide this notification"] = "[Select] \u3067\u3053\u306E\u901A\u77E5\u3092\u975E\u8868\u793A",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -12174,6 +12218,10 @@ namespace ClawTweaksCenter.Core
             ["Stop detecting this as a game"] = "Nie wykrywaj tego jako gry",
             ["No notification at the next start"] = "Brak powiadomienia przy kolejnym starcie",
             ["Press [Select] to confirm"] = "[Select] aby potwierdzi\u0107",
+            ["Stop detecting this as a game?"] = "Nie wykrywa\u0107 tego jako gry?",
+            ["Press [Select] again to confirm"] = "Naci\u015Bnij [Select] ponownie",
+            ["Hides the notification."] = "Ukrywa powiadomienie.",
+            ["Press [Select] to hide this notification"] = "[Select] ukrywa to powiadomienie",
         };
 
     }
