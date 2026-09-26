@@ -3304,6 +3304,7 @@ namespace ClawTweaksCenter
             var game = SelectedGame;
             if (game == null || LaunchOverlayOpen) return;
 
+            _launchHeroRequest.BeginPrompt(game);
             _launchTarget = game;
             _launchFocus = LaunchFocusPlay;
             _launchPrompt = game.Installed ? LaunchPrompt.Confirm : LaunchPrompt.ConfirmInstall;
@@ -4140,8 +4141,8 @@ namespace ClawTweaksCenter
         /// <summary>The SteamGridDB backdrop fetch currently in flight, and the game it belongs to.
         /// Not a cache - SteamGridDb keeps that - only a way for the two renders of one launch to
         /// share one request.</summary>
-        private Task<string> _launchHeroTask;
-        private GameEntry _launchHeroFor;
+        private readonly Library.LaunchHeroRequest _launchHeroRequest = new Library.LaunchHeroRequest(
+            game => Library.SteamGridDb.EnsureHeroAsync(game, CancellationToken.None));
 
         private void ApplyLaunchCover(GameEntry game, Image target, int decodeWidth)
         {
@@ -4190,13 +4191,7 @@ namespace ClawTweaksCenter
                     // would otherwise be started a second time against the same personal API quota.
                     // The task is kept, not the result, so the second render awaits the first fetch
                     // instead of racing it.
-                    if (_launchHeroTask == null || _launchHeroFor != game)
-                    {
-                        _launchHeroFor = game;
-                        _launchHeroTask = Library.SteamGridDb.EnsureHeroAsync(game, CancellationToken.None);
-                    }
-
-                    path = await _launchHeroTask.ConfigureAwait(true);
+                    path = await _launchHeroRequest.GetAsync(game).ConfigureAwait(true);
                     if (path != null) game.HeroPath = path;
                 }
 

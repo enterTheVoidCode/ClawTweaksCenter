@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -16,8 +18,8 @@ namespace ClawTweaksCenter.Library
     /// every start would therefore produce a history that quietly resets. They are harvested INTO this
     /// file instead, and this file is only ever added to.
     ///
-    /// The key is the normalised install folder, not the title: a title changes (editions, re-brands,
-    /// localisation), an install folder does not.
+    /// PC games use the normalised install folder; ROMs and hand-added apps use their stable IDs.
+    /// ROMs commonly share a folder, so its history cannot identify an individual game.
     /// </summary>
     public sealed class PlayHistory
     {
@@ -31,6 +33,11 @@ namespace ClawTweaksCenter.Library
             new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         private bool _dirty;
+        private readonly string _storePath;
+
+        public PlayHistory() : this(StorePath) { }
+
+        private PlayHistory(string storePath) => _storePath = storePath;
 
         public static string StorePath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -41,8 +48,8 @@ namespace ClawTweaksCenter.Library
         /// Beside the history rather than inside it: the history file is a published shape and
         /// this is bookkeeping.
         /// </summary>
-        private static string HarvestManifestPath => Path.Combine(
-            Path.GetDirectoryName(StorePath), "playharvest.json");
+        private string HarvestManifestPath => Path.Combine(
+            Path.GetDirectoryName(_storePath), "playharvest.json");
 
         private static string HelperLogDir => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -55,13 +62,15 @@ namespace ClawTweaksCenter.Library
             public string Exe { get; set; }
         }
 
-        public static PlayHistory Load()
+        public static PlayHistory Load() => Load(StorePath);
+
+        internal static PlayHistory Load(string storePath)
         {
-            var h = new PlayHistory();
+            var h = new PlayHistory(storePath);
             try
             {
-                if (!File.Exists(StorePath)) return h;
-                var records = JsonSerializer.Deserialize<List<Record>>(File.ReadAllText(StorePath));
+                if (!File.Exists(storePath)) return h;
+                var records = JsonSerializer.Deserialize<List<Record>>(File.ReadAllText(storePath));
                 if (records == null) return h;
                 foreach (var r in records)
                 {
@@ -81,7 +90,7 @@ namespace ClawTweaksCenter.Library
             if (!_dirty) return;
             try
             {
-                Directory.CreateDirectory(Path.GetDirectoryName(StorePath));
+                Directory.CreateDirectory(Path.GetDirectoryName(_storePath));
                 var records = new List<Record>();
                 foreach (var kv in _lastPlayed)
                 {
@@ -95,9 +104,9 @@ namespace ClawTweaksCenter.Library
                 // Write beside the target and move into place: an interrupted write of the file
                 // itself would leave a truncated JSON that fails to parse on the next start, and the
                 // whole history would be gone for a crash that had nothing to do with it.
-                string tmp = StorePath + ".tmp";
+                string tmp = _storePath + ".tmp";
                 File.WriteAllText(tmp, JsonSerializer.Serialize(records, new JsonSerializerOptions { WriteIndented = false }));
-                File.Move(tmp, StorePath, overwrite: true);
+                File.Move(tmp, _storePath, overwrite: true);
                 _dirty = false;
             }
             catch { }
@@ -111,9 +120,14 @@ namespace ClawTweaksCenter.Library
         public void Note(string installDir, DateTime whenLocal)
         {
             if (string.IsNullOrWhiteSpace(installDir)) return;
+            NoteKey(Normalize(installDir), whenLocal);
+        }
+
+        private void NoteKey(string key, DateTime whenLocal)
+        {
+            if (key == null) return;
             DateTime utc = whenLocal.ToUniversalTime();
             if (utc > DateTime.UtcNow.AddDays(1)) return; // a clock skewed into the future is not data
-            string key = Normalize(installDir);
             if (_lastPlayed.TryGetValue(key, out var existing) && existing >= utc) return;
             _lastPlayed[key] = utc;
             _dirty = true;
@@ -130,33 +144,26 @@ namespace ClawTweaksCenter.Library
         }
 
         /// <summary>
-        /// The history key for an entry: its install folder, or for an app the user added by hand
-        /// (which deliberately has NO install folder, see MiscStore.ToGameEntry) its stable Id with a
-        /// prefix no path can start with. Only a launch from the library writes such a key - nothing
-        /// else knows when a hand-added app ran.
+        /// Stable IDs identify ROMs that share a folder and apps with no install folder. The
+        /// prefixes cannot be mistaken for absolute paths and keep the stores' IDs separate.
         /// </summary>
         private const string MiscKeyPrefix = "misc:";
+        private const string PlayniteKeyPrefix = "playnite:";
 
         private static string KeyFor(GameEntry g)
         {
             if (g == null) return null;
             if (g.Store == GameStore.Misc)
                 return string.IsNullOrWhiteSpace(g.Id) ? null : MiscKeyPrefix + g.Id;
+            if (g.Store == GameStore.Playnite)
+                return string.IsNullOrWhiteSpace(g.Id) ? null : PlayniteKeyPrefix + g.Id;
             return string.IsNullOrWhiteSpace(g.InstallDir) ? null : Normalize(g.InstallDir);
         }
 
         /// <summary>Records a launch from the library, for any kind of entry.</summary>
         public void NoteLaunch(GameEntry game, DateTime whenLocal)
         {
-            if (game == null) return;
-            if (game.Store != GameStore.Misc) { Note(game.InstallDir, whenLocal); return; }
-
-            string key = KeyFor(game);
-            if (key == null) return;
-            DateTime utc = whenLocal.ToUniversalTime();
-            if (_lastPlayed.TryGetValue(key, out var existing) && existing >= utc) return;
-            _lastPlayed[key] = utc;
-            _dirty = true;
+            NoteKey(KeyFor(game), whenLocal);
         }
 
         public DateTime? LastPlayedFor(string installDir)
@@ -178,6 +185,17 @@ namespace ClawTweaksCenter.Library
         {
             foreach (var g in games)
             {
+                if (g != null && g.Store == GameStore.Playnite)
+                {
+                    string key = KeyFor(g);
+                    if (g.LastPlayed.HasValue) NoteKey(key, g.LastPlayed.Value);
+                    if (key != null && _lastPlayed.TryGetValue(key, out var utc) &&
+                        (!g.LastPlayed.HasValue || utc > g.LastPlayed.Value.ToUniversalTime()))
+                        g.LastPlayed = utc.ToLocalTime();
+                    // A legacy directory record cannot tell which ROM ran. Keep it for PC games,
+                    // but never copy its timestamp or executable onto individual ROMs.
+                    continue;
+                }
                 if (g != null && g.Store == GameStore.Misc)
                 {
                     string key = KeyFor(g);
@@ -219,6 +237,9 @@ namespace ClawTweaksCenter.Library
         /// of lines would be the expensive part of starting the library.
         /// </summary>
         public void HarvestHelperLogs(IReadOnlyList<GameEntry> games, CancellationToken ct)
+            => HarvestHelperLogs(games, ct, HelperLogDir);
+
+        internal void HarvestHelperLogs(IReadOnlyList<GameEntry> games, CancellationToken ct, string logDir)
         {
             if (games == null || games.Count == 0) return;
 
@@ -227,7 +248,6 @@ namespace ClawTweaksCenter.Library
                 if (!string.IsNullOrWhiteSpace(g?.InstallDir)) dirs.Add(Normalize(g.InstallDir));
             if (dirs.Count == 0) return;
 
-            string logDir = HelperLogDir;
             if (!Directory.Exists(logDir)) return;
 
             string[] files;
@@ -291,7 +311,11 @@ namespace ClawTweaksCenter.Library
                 catch { }
             }
 
-            SaveHarvestManifest(manifest);
+            // A durable stamp must never outrun the history it describes. If history replacement
+            // fails, SaveIfChanged leaves _dirty set and the logs must remain retryable next time,
+            // including after a restart has lost the harvested events held only in memory.
+            SaveIfChanged();
+            if (!_dirty) SaveHarvestManifest(manifest);
         }
 
         private sealed class HarvestManifest
@@ -302,12 +326,15 @@ namespace ClawTweaksCenter.Library
 
         private static string DirsKeyFor(List<string> dirs)
         {
-            var copy = new List<string>(dirs);
-            copy.Sort(StringComparer.OrdinalIgnoreCase);
-            return copy.Count + "|" + string.Join("|", copy).GetHashCode().ToString(CultureInfo.InvariantCulture);
+            // Persisted across processes: string.GetHashCode is randomized on every start.
+            // Canonicalize the set so case, source order and duplicate folders do not force reads.
+            var canonical = new SortedSet<string>(StringComparer.Ordinal);
+            foreach (string dir in dirs) canonical.Add(Normalize(dir).ToUpperInvariant());
+            byte[] bytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(canonical));
+            return "sha256:" + Convert.ToHexString(SHA256.HashData(bytes));
         }
 
-        private static HarvestManifest LoadHarvestManifest(List<string> dirs)
+        private HarvestManifest LoadHarvestManifest(List<string> dirs)
         {
             string key = DirsKeyFor(dirs);
             try
@@ -322,7 +349,7 @@ namespace ClawTweaksCenter.Library
             return new HarvestManifest { DirsKey = key };
         }
 
-        private static void SaveHarvestManifest(HarvestManifest m)
+        private void SaveHarvestManifest(HarvestManifest m)
         {
             try
             {
@@ -337,6 +364,7 @@ namespace ClawTweaksCenter.Library
         private static string Normalize(string path)
         {
             if (path != null && path.StartsWith(MiscKeyPrefix, StringComparison.Ordinal)) return path;
+            if (path != null && path.StartsWith(PlayniteKeyPrefix, StringComparison.Ordinal)) return path;
             try { return Path.GetFullPath(path).TrimEnd('\\', '/'); }
             catch { return (path ?? string.Empty).TrimEnd('\\', '/'); }
         }

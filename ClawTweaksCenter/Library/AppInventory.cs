@@ -239,12 +239,8 @@ namespace ClawTweaksCenter.Library
                     RedirectStandardError = true,
                     StandardOutputEncoding = Encoding.UTF8,
                 };
-                using var proc = Process.Start(psi);
-                if (proc == null) return null;
-                string outp = proc.StandardOutput.ReadToEnd();
-                proc.StandardError.ReadToEnd();
-                if (!proc.WaitForExit(timeoutMs)) { try { proc.Kill(); } catch { } return null; }
-                return outp;
+                var result = ClawTweaksCenter.Core.ProcessRunner.Run(psi, timeoutMs);
+                return result == null || result.TimedOut ? null : result.StandardOutput;
             }
             catch { return null; }
         }

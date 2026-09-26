@@ -11,3 +11,5 @@ Build/
 
 # Byte-cache from Tools/i18n. Created by running the generators, never part of the artefact.
 __pycache__/
+
+.agents/

@@ -88,6 +88,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="ClawTweaksCenter.Tests" />
     <!-- Xbox controller glyphs shown in the footer action bar (embedded as WPF resources). -->
     <Resource Include="Assets\xbox\*.png" />
     <!-- Device photos (background removed) for the Center menu's device-detection banner. -->

@@ -69,12 +69,10 @@ namespace ClawTweaksCenter.Core
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 };
-                using var proc = Process.Start(psi);
-                if (proc == null) return null;
-                string outp = proc.StandardOutput.ReadToEnd();
-                stderr = proc.StandardError.ReadToEnd();
-                if (!proc.WaitForExit(timeoutMs)) { try { proc.Kill(); } catch { } return null; }
-                return outp;
+                var result = ProcessRunner.Run(psi, timeoutMs);
+                if (result == null) return null;
+                stderr = result.StandardError;
+                return result.TimedOut ? null : result.StandardOutput;
             }
             catch { return null; }
         }
@@ -125,7 +123,7 @@ namespace ClawTweaksCenter.Core
         }
 
         /// <summary>One registration of the ClawTweaks package family as Windows currently sees it.</summary>
-        private sealed class FamilyEntry
+        internal sealed class FamilyEntry
         {
             public string FullName;
             public bool IsBundle;
@@ -182,16 +180,17 @@ namespace ClawTweaksCenter.Core
         /// delete the data. Measured 2026-08-04, not assumed.
         ///
         /// Files that cannot be read are skipped rather than aborting the backup — a partial copy is
-        /// worth more than none, and the caller is told what was missed.
+        /// worth more than none, but an incomplete backup must stop destructive repair.
         /// </summary>
-        private static bool BackupAppData(Action<string> log)
+        private static bool BackupAppData(InstallationOperations operations, Action<string> log)
         {
+            if (operations.BackupCompleted) return true;
             try
             {
-                string src = PackageDataFolder;
+                string src = operations.DataFolder;
                 if (!Directory.Exists(src)) return true;   // nothing to lose
 
-                string dst = AppDataBackupFolder;
+                string dst = operations.BackupFolder;
                 if (Directory.Exists(dst)) { try { Directory.Delete(dst, true); } catch { } }
                 Directory.CreateDirectory(dst);
 
@@ -211,7 +210,8 @@ namespace ClawTweaksCenter.Core
 
                 log?.Invoke("Backed up app data: " + copied + " file(s)" +
                             (skipped > 0 ? ", " + skipped + " could not be read" : "") + " → " + dst);
-                return skipped == 0;
+                operations.BackupCompleted = skipped == 0;
+                return operations.BackupCompleted;
             }
             catch (Exception ex)
             {
@@ -225,14 +225,14 @@ namespace ClawTweaksCenter.Core
         /// package has already written. Deliberately called before the Game Bar and the helper start,
         /// so nothing holds settings.dat open while it is restored. The backup is left on disk.
         /// </summary>
-        private static void RestoreAppData(Action<string> log)
+        private static void RestoreAppData(InstallationOperations operations, Action<string> log)
         {
             try
             {
-                string src = AppDataBackupFolder;
+                string src = operations.BackupFolder;
                 if (!Directory.Exists(src)) return;
 
-                string dst = PackageDataFolder;
+                string dst = operations.DataFolder;
                 Directory.CreateDirectory(dst);
 
                 int restored = 0, failed = 0;
@@ -254,7 +254,7 @@ namespace ClawTweaksCenter.Core
             }
             catch (Exception ex)
             {
-                log?.Invoke("Could not restore app data: " + ex.Message + " (backup kept at " + AppDataBackupFolder + ")");
+                log?.Invoke("Could not restore app data: " + ex.Message + " (backup kept at " + operations.BackupFolder + ")");
             }
         }
 
@@ -277,6 +277,22 @@ namespace ClawTweaksCenter.Core
             return true;
         }
 
+        internal delegate bool AddPackage(string packagePath, IEnumerable<string> dependencies,
+                                         Action<string> log, out string error);
+
+        // The repair flow owns file safety; Windows registration/deployment is the external boundary.
+        internal sealed class InstallationOperations
+        {
+            internal string DataFolder = PackageDataFolder;
+            internal string BackupFolder = AppDataBackupFolder;
+            internal Func<List<FamilyEntry>> Inspect = InspectFamily;
+            internal Func<string, Action<string>, bool> Remove = RemoveRegistration;
+            internal AddPackage Add = TryAddPackage;
+            internal bool BackupCompleted;
+        }
+
+        public enum FamilyRepairResult { NoChanges, RemovedRegistrations, BackupFailed }
+
         /// <summary>
         /// Pre-flight run before every install: looks for registrations that make the deployment's
         /// conflict check fail, and clears them.
@@ -295,12 +311,15 @@ namespace ClawTweaksCenter.Core
         /// Nothing happens when the family is empty or already matches — this costs one Get-AppxPackage
         /// on a normal install.
         /// </summary>
-        public static bool PrepareFamily(string packagePath, Action<string> log = null)
+        public static FamilyRepairResult PrepareFamily(string packagePath, Action<string> log = null)
+            => PrepareFamily(packagePath, new InstallationOperations(), log);
+
+        private static FamilyRepairResult PrepareFamily(string packagePath, InstallationOperations operations, Action<string> log)
         {
             bool removedAny = false;
             try
             {
-                var family = InspectFamily();
+                var family = operations.Inspect();
 
                 // Logged on every install, not only when something has to be cleaned. A field report
                 // that says "the install fails" is unanswerable without knowing what is registered —
@@ -310,7 +329,7 @@ namespace ClawTweaksCenter.Core
                     : "Existing registration(s): " + string.Join(", ", family.Select(e =>
                         e.FullName + " [" + (e.IsBundle ? "bundle" : "package") + ", " + e.Status + "]")));
 
-                if (family.Count == 0) return false;
+                if (family.Count == 0) return FamilyRepairResult.NoChanges;
 
                 bool installingBundle = packagePath != null &&
                     (packagePath.EndsWith(".msixbundle", StringComparison.OrdinalIgnoreCase) ||
@@ -328,12 +347,13 @@ namespace ClawTweaksCenter.Core
                         : "Found a registration in state '" + entry.Status + "' — an update cannot repair it.");
 
                     // Always secure the data first: a removal here really does delete it.
-                    if (!removedAny) BackupAppData(log);
-                    removedAny |= RemoveRegistration(entry.FullName, log);
+                    if (!removedAny && !BackupAppData(operations, log))
+                        return BackupFailure(log);
+                    removedAny |= operations.Remove(entry.FullName, log);
 
                     // Removing a bundle takes its payload package with it, so re-read rather than
                     // trying to remove an entry that no longer exists.
-                    if (InspectFamily().Count == 0) break;
+                    if (operations.Inspect().Count == 0) break;
                 }
             }
             catch (Exception ex)
@@ -341,26 +361,33 @@ namespace ClawTweaksCenter.Core
                 // Never block an install because the pre-flight itself stumbled.
                 log?.Invoke("Package family check skipped: " + ex.Message);
             }
-            return removedAny;
+            return removedAny ? FamilyRepairResult.RemovedRegistrations : FamilyRepairResult.NoChanges;
         }
 
         /// <summary>Clears every Main/Bundle registration of the family, keeping app data. Last resort
         /// after a conflict-check failure, where the only remedy is for the family to be empty.</summary>
-        private static bool CleanFamily(Action<string> log)
+        private static FamilyRepairResult CleanFamily(InstallationOperations operations, Action<string> log)
         {
-            var family = InspectFamily();
-            if (family.Count == 0) return false;
+            var family = operations.Inspect();
+            if (family.Count == 0) return FamilyRepairResult.NoChanges;
 
-            BackupAppData(log);
+            if (!BackupAppData(operations, log)) return BackupFailure(log);
             bool removedAny = false;
             // Bundles first: removing a bundle takes its payload package with it, so doing it the
             // other way round can leave an orphaned bundle record behind.
             foreach (var entry in family.OrderByDescending(e => e.IsBundle))
             {
-                if (InspectFamily().Any(e => string.Equals(e.FullName, entry.FullName, StringComparison.OrdinalIgnoreCase)))
-                    removedAny |= RemoveRegistration(entry.FullName, log);
+                if (operations.Inspect().Any(e => string.Equals(e.FullName, entry.FullName, StringComparison.OrdinalIgnoreCase)))
+                    removedAny |= operations.Remove(entry.FullName, log);
             }
-            return removedAny;
+            return removedAny ? FamilyRepairResult.RemovedRegistrations : FamilyRepairResult.NoChanges;
+        }
+
+        private static FamilyRepairResult BackupFailure(Action<string> log)
+        {
+            log?.Invoke("Install stopped: app data could not be fully backed up. Close ClawTweaks and " +
+                        "the Game Bar, then retry. No package registrations were removed by this repair.");
+            return FamilyRepairResult.BackupFailed;
         }
 
         // Deployment errors we can say something useful about. Everything else is reported verbatim.
@@ -368,14 +395,20 @@ namespace ClawTweaksCenter.Core
         private const string HresultOpenFailed = "0x80073CF0";     // the package file could not be opened
 
         public static bool Install(string packagePath, IEnumerable<string> dependencies, Action<string> log = null)
+            => Install(packagePath, dependencies, new InstallationOperations(), log);
+
+        internal static bool Install(string packagePath, IEnumerable<string> dependencies,
+                                     InstallationOperations operations, Action<string> log = null)
         {
             // Clear known-bad family state before deployment rather than reacting to its error.
-            bool removedRegistrations = PrepareFamily(packagePath, log);
+            var preparation = PrepareFamily(packagePath, operations, log);
+            if (preparation == FamilyRepairResult.BackupFailed) return false;
+            bool removedRegistrations = preparation == FamilyRepairResult.RemovedRegistrations;
 
-            bool ok = TryAddPackage(packagePath, dependencies, log, out string error);
+            bool ok = operations.Add(packagePath, dependencies, log, out string error);
             if (ok)
             {
-                if (removedRegistrations) RestoreAppData(log);
+                if (removedRegistrations) RestoreAppData(operations, log);
                 return true;
             }
 
@@ -385,10 +418,12 @@ namespace ClawTweaksCenter.Core
                 // remedy is an empty family, so clear it and try once more. The data is copied aside
                 // first, then put back, because a removal deletes it (see BackupAppData).
                 log?.Invoke("The package family conflicted with this update. Clearing it and retrying once…");
-                if (CleanFamily(log))
+                var cleanup = CleanFamily(operations, log);
+                if (cleanup == FamilyRepairResult.BackupFailed) return false;
+                if (cleanup == FamilyRepairResult.RemovedRegistrations)
                 {
-                    ok = TryAddPackage(packagePath, dependencies, log, out error);
-                    if (ok) { RestoreAppData(log); return true; }
+                    ok = operations.Add(packagePath, dependencies, log, out error);
+                    if (ok) { RestoreAppData(operations, log); return true; }
                 }
             }
             else if (error != null && error.IndexOf(HresultOpenFailed, StringComparison.OrdinalIgnoreCase) >= 0)
@@ -403,9 +438,9 @@ namespace ClawTweaksCenter.Core
                 {
                     log?.Invoke("Windows could not open the package from this folder. Retrying from a " +
                                 "machine-wide location…");
-                    if (TryAddPackage(retryPath, stagedDeps, log, out error))
+                    if (operations.Add(retryPath, stagedDeps, log, out error))
                     {
-                        if (removedRegistrations) RestoreAppData(log);
+                        if (removedRegistrations) RestoreAppData(operations, log);
                         return true;
                     }
                 }
@@ -487,16 +522,16 @@ namespace ClawTweaksCenter.Core
                     RedirectStandardError = true,
                 };
                 log?.Invoke("Installing package…");
-                using var proc = Process.Start(psi);
-                if (proc == null) return false;
-                string outp = proc.StandardOutput.ReadToEnd();
-                string err = proc.StandardError.ReadToEnd();
-                if (!proc.WaitForExit(300000)) { try { proc.Kill(); } catch { } log?.Invoke("Install timed out."); return false; }
-                if (proc.ExitCode != 0 || !string.IsNullOrWhiteSpace(err))
+                var result = ProcessRunner.Run(psi, 300000);
+                if (result == null) return false;
+                string outp = result.StandardOutput;
+                string err = result.StandardError;
+                if (result.TimedOut) { log?.Invoke("Install timed out."); return false; }
+                if (result.ExitCode != 0 || !string.IsNullOrWhiteSpace(err))
                 {
                     error = (string.IsNullOrWhiteSpace(err) ? outp : err).Trim();
                     log?.Invoke("Install error: " + error);
-                    return proc.ExitCode == 0;
+                    return result.ExitCode == 0;
                 }
                 log?.Invoke("Package installed.");
                 return true;

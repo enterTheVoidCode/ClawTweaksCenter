@@ -1,6 +1,5 @@
-﻿using System;
+using System;
 using System.Globalization;
-using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Threading;
 using Shared.Enums;
@@ -61,6 +60,7 @@ namespace ClawTweaksCenter
         /// a status push back within 4 s before it calls a bind "live").</summary>
         private static readonly TimeSpan PipeConnectTimeout = TimeSpan.FromSeconds(5);
 
+        private readonly Core.FooterPowerStatus _footerPowerStatus = new Core.FooterPowerStatus();
         private DispatcherTimer _footerStatusTimer;
         private bool _powerStatusInFlight;
         private DateTime _lastPipeAttemptUtc = DateTime.MinValue;
@@ -68,11 +68,19 @@ namespace ClawTweaksCenter
         private void StartFooterStatus()
         {
             UpdateFooterClock();
+            ApplyPowerStatus(null);
 
             if (_footerStatusTimer == null)
             {
                 _footerStatusTimer = new DispatcherTimer { Interval = FooterStatusInterval };
-                _footerStatusTimer.Tick += (_, __) => { UpdateFooterClock(); RequestPowerStatus(); };
+                _footerStatusTimer.Tick += (_, __) =>
+                {
+                    UpdateFooterClock();
+                    // Reclassify the last sample against the current AC line before awaiting the
+                    // helper. A connected pipe can time out without producing a fresh sample.
+                    ApplyPowerStatus(null);
+                    RequestPowerStatus();
+                };
             }
             _footerStatusTimer.Start();
 
@@ -92,10 +100,10 @@ namespace ClawTweaksCenter
         /// <summary>
         /// Asks the helper for the metrics bundle and draws the battery from it.
         ///
-        /// A missed answer LEAVES THE LAST READING UP. The helper restarts on every ClawTweaks
+        /// A missed answer LEAVES THE LAST METRICS UP. The helper restarts on every ClawTweaks
         /// update, and blanking the line for those few seconds would make a working footer flicker
-        /// between a value and nothing. It only clears when the pipe is actually down (below), which
-        /// is a state that lasts.
+        /// between a value and nothing. The normal tick still rechecks AC so an old charging sample
+        /// cannot mask an unplug. It clears when the pipe is actually down, which is a lasting state.
         /// </summary>
         private void RequestPowerStatus()
         {
@@ -160,73 +168,17 @@ namespace ClawTweaksCenter
             finally { _powerStatusInFlight = false; }
         }
 
-        /// <summary>
-        /// Reads the four fields the footer needs out of the helper's bundle.
-        ///
-        /// Hand-rolled, like every other pipe payload on this side (HelperPipeClient's own parser is
-        /// the precedent): the bundle is a flat object of numbers written by one printf-style line in
-        /// PerformanceManager, and pulling a JSON dependency in for it would be the larger change.
-        /// </summary>
         private void ApplyPowerStatus(string json)
         {
             if (FooterBattery == null) return;
-
-            double level = ReadNumber(json, "batteryLevel");
-            double remaining = ReadNumber(json, "timeRemaining");
-            double toFull = ReadNumber(json, "timeToFull");
-            bool charging = Regex.IsMatch(json, "\"isCharging\"\\s*:\\s*true", RegexOptions.IgnoreCase);
-
-            // A level of -1 is the helper's "no reading", and 0 on a running machine is the same
-            // thing wearing a plausible number. Neither is worth a line in the footer.
-            if (level <= 0)
+            if (_helperPipe?.IsConnected != true)
             {
                 FooterBattery.Visibility = Visibility.Collapsed;
                 return;
             }
-
-            string percent = ((int)Math.Round(level)).ToString(CultureInfo.CurrentCulture) + "%";
-            double seconds = charging ? toFull : remaining;
-
-            // Same shape as the widget's own tile: h:mm, seconds in, so the two surfaces agree to
-            // the minute rather than looking like two different measurements. Null when there is no
-            // estimate - a "--:--" next to a real percentage reads as a broken readout.
-            string clock = seconds > 0
-                ? ((int)(seconds / 3600)).ToString(CultureInfo.CurrentCulture)
-                  + ":" + ((int)((seconds % 3600) / 60)).ToString("D2", CultureInfo.CurrentCulture)
-                : null;
-
-            string text;
-            if (charging)
-            {
-                text = clock != null
-                    ? Core.Loc.F("{0} · charging · {1} h", percent, clock)
-                    : Core.Loc.F("{0} · charging", percent);
-            }
-            else if (Core.PowerLine.OnMains())
-            {
-                // Plugged in and taking nothing. Two different reasons, and the line says which:
-                // a full battery, or a charge limit holding it below full - which ClawTweaks itself
-                // sets, so "fully charged" at 80% would be a sentence this very product made false.
-                text = level >= 99
-                    ? Core.Loc.F("{0} · AC power · fully charged", percent)
-                    : Core.Loc.F("{0} · AC power · not charging", percent);
-            }
-            else
-            {
-                text = clock != null
-                    ? Core.Loc.F("{0} · discharging · {1} h", percent, clock)
-                    : Core.Loc.F("{0} · discharging", percent);
-            }
-
-            FooterBattery.Text = text;
-            FooterBattery.Visibility = Visibility.Visible;
-        }
-
-        private static double ReadNumber(string json, string key)
-        {
-            var m = Regex.Match(json, "\"" + Regex.Escape(key) + "\"\\s*:\\s*(-?[\\d.]+)");
-            if (!m.Success) return -1;
-            return double.TryParse(m.Groups[1].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double v) ? v : -1;
+            string text = _footerPowerStatus.Update(json, Core.PowerLine.OnMains());
+            FooterBattery.Text = text ?? "";
+            FooterBattery.Visibility = text == null ? Visibility.Collapsed : Visibility.Visible;
         }
 
         /// <summary>
