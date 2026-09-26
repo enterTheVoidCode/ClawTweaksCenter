@@ -60,11 +60,8 @@ namespace ClawTweaksCenter.Core
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                 };
-                using var proc = Process.Start(psi);
-                if (proc == null) return false;
-                string outp = proc.StandardOutput.ReadToEnd();
-                if (!proc.WaitForExit(20000)) { try { proc.Kill(); } catch { } return false; }
-                return !string.IsNullOrWhiteSpace(outp);
+                var result = ProcessRunner.Run(psi, 20000);
+                return result != null && !result.TimedOut && !string.IsNullOrWhiteSpace(result.StandardOutput);
             }
             catch { return false; }
         }

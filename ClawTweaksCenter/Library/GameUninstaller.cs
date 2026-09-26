@@ -206,7 +206,7 @@ namespace ClawTweaksCenter.Library
                 string winPs = Path.Combine(Environment.SystemDirectory, "WindowsPowerShell", "v1.0", "powershell.exe");
                 try
                 {
-                    using var proc = Process.Start(new ProcessStartInfo
+                    var process = ClawTweaksCenter.Core.ProcessRunner.Run(new ProcessStartInfo
                     {
                         FileName = File.Exists(winPs) ? winPs : "powershell.exe",
                         Arguments = "-NoProfile -NonInteractive -Command \"" + script + "\"",
@@ -214,13 +214,12 @@ namespace ClawTweaksCenter.Library
                         CreateNoWindow = true,
                         RedirectStandardOutput = true,
                         RedirectStandardError = true,
-                    });
-                    if (proc == null) return "powershell did not start";
-                    string err = proc.StandardError.ReadToEnd();
-                    proc.StandardOutput.ReadToEnd();
-                    if (!proc.WaitForExit(30 * 60 * 1000)) { try { proc.Kill(); } catch { } return "timed out"; }
-                    return proc.ExitCode == 0 && string.IsNullOrWhiteSpace(err) ? null
-                         : (string.IsNullOrWhiteSpace(err) ? "exit " + proc.ExitCode : err.Trim());
+                    }, 30 * 60 * 1000);
+                    if (process == null) return "powershell did not start";
+                    string err = process.StandardError;
+                    if (process.TimedOut) return "timed out";
+                    return process.ExitCode == 0 && string.IsNullOrWhiteSpace(err) ? null
+                         : (string.IsNullOrWhiteSpace(err) ? "exit " + process.ExitCode : err.Trim());
                 }
                 catch (Exception ex) { return ex.Message; }
             });
