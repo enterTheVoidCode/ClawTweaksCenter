@@ -425,6 +425,12 @@ namespace ClawTweaksCenter.Core
                 // without a manual Refresh. Fire-and-forget; RecomputeGating runs on each push.
                 _ = SettleStatusAsync();
 
+                // 🔴 COMPUTE IT FIRST. EssentialMode is normally set in RecomputeGating, which
+                // runs in this method's finally - i.e. AFTER the line below. On the first refresh
+                // it would still be its default false, the probe would be skipped, and the step
+                // would sit on "Checking Game Bar..." with nothing ever asking again.
+                RefreshEssentialMode();
+
                 // The Game Bar switch is not part of the status snapshot - nothing pushes it, so it
                 // has to be asked for. Only in Essential mode, where the step that shows it exists.
                 if (EssentialMode)
