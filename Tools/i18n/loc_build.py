@@ -159,10 +159,7 @@ OSD_KEYS = [
     'FPS limit is per game',
     'Activate a per-game profile and set it there.',
     'RTSS overlay is per game',
-    # The body is the WIDGET'S sentence, verbatim (GamingWidget.Display.cs). It replaced "Activate
-    # a per-game profile and pick it there.", which named the wrong missing step: the profile is
-    # usually already on and the unticked Perf. Overlay box is what blocks the change.
-    'Activate a per-game profile, tick Perf. Overlay, then pick RTSS.',
+    'Activate a per-game profile and pick it there.',
     # Refused because the tool is absent, not because of where the value would land.
     'RTSS is not installed',
     'Run Setup again to install it.',
