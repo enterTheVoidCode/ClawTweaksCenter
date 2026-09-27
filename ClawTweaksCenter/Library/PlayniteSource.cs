@@ -102,29 +102,33 @@ namespace ClawTweaksCenter.Library
             => Task.Run<IReadOnlyList<GameEntry>>(() => Scan(ct), ct);
 
         private static IReadOnlyList<GameEntry> Scan(CancellationToken ct)
+            => Scan(ct, LibraryDir, CachePath);
+
+        internal static IReadOnlyList<GameEntry> Scan(CancellationToken ct, string libraryDir, string cachePath)
         {
             var games = new List<GameEntry>();
             var art = new ArtIndex();
             var systemCounts = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             UsedCache = false;
-            if (!IsPresent) { LastArtIndex = art; LastSystems = Array.Empty<string>(); return games; }
+            if (!File.Exists(Path.Combine(libraryDir, "games.db")))
+            { LastArtIndex = art; LastSystems = Array.Empty<string>(); return games; }
 
             string work = null;
             try
             {
-                work = CopyAside(ct);
+                work = CopyAside(ct, libraryDir);
                 // Playnite holds its database with an EXCLUSIVE lock - measured: even opening it with
                 // FileShare.ReadWrite from our side fails while Playnite runs, because the sharing
                 // mode is decided by the FIRST opener. And Playnite is running exactly when it
                 // matters, since starting a ROM starts Playnite. Without the cache the ROM tab would
                 // simply be empty from then on, with nothing saying why.
-                if (work == null) return LoadCache(ref art);
+                if (work == null) return LoadCache(cachePath, ref art);
 
                 var platforms = LoadNames(Path.Combine(work, "platforms.db"));
                 var sources = LoadNames(Path.Combine(work, "sources.db"));
                 var emulators = PlayniteEmulators.LoadEmulators(work);
-                string filesRoot = Path.Combine(LibraryDir, "files");
+                string filesRoot = Path.Combine(libraryDir, "files");
 
                 using (var db = OpenRead(Path.Combine(work, "games.db")))
                 {
@@ -191,16 +195,20 @@ namespace ClawTweaksCenter.Library
                 }
             }
             catch (OperationCanceledException) { throw; }
-            catch { /* a Playnite that cannot be read is a missing source, not a failure */ }
+            catch
+            {
+                // Only a complete read replaces the snapshot. A partial result cannot tell us
+                // which ROMs were deleted, so retain the last successful games and artwork.
+                art = new ArtIndex();
+                return LoadCache(cachePath, ref art);
+            }
             finally
             {
                 if (work != null) { try { Directory.Delete(work, true); } catch { } }
             }
 
-            // A read that produced nothing is a read that failed in a way we did not catch - keep the
-            // cache rather than replacing a working library with an empty one.
-            if (games.Count == 0) return LoadCache(ref art);
-
+            // Zero ROMs is a valid result: the user may have removed the last ROM, and the live
+            // art index can still contain covers for PC games found by our other store sources.
             var systems = new List<string>(systemCounts.Keys);
             systems.Sort((a, b) =>
             {
@@ -210,7 +218,7 @@ namespace ClawTweaksCenter.Library
 
             LastArtIndex = art;
             LastSystems = systems;
-            SaveCache(games, systems, art);
+            SaveCache(cachePath, games, systems, art);
             return games;
         }
 
@@ -281,7 +289,7 @@ namespace ClawTweaksCenter.Library
         /// LiteDB writes to a file it opens, even for a query, and the file it writes to here is a
         /// throwaway.
         /// </summary>
-        private static string CopyAside(CancellationToken ct)
+        private static string CopyAside(CancellationToken ct, string libraryDir)
         {
             string dir = Path.Combine(Path.GetTempPath(), "ClawTweaksCenter", "playnite-" + Guid.NewGuid().ToString("N"));
             try
@@ -290,8 +298,8 @@ namespace ClawTweaksCenter.Library
                 foreach (string name in new[] { "games.db", "platforms.db", "sources.db", "emulators.db" })
                 {
                     ct.ThrowIfCancellationRequested();
-                    string src = Path.Combine(LibraryDir, name);
-                    if (!File.Exists(src)) continue;
+                    string src = Path.Combine(libraryDir, name);
+                    if (name != "games.db" && !File.Exists(src)) continue;
                     // Fully qualified: LiteDB ships its own FileMode enum, and an unqualified name
                     // here binds to that one instead of System.IO.
                     using (var input = new FileStream(src, System.IO.FileMode.Open, FileAccess.Read, FileShare.ReadWrite))
@@ -345,7 +353,7 @@ namespace ClawTweaksCenter.Library
             public bool IsDir { get; set; }
         }
 
-        private static void SaveCache(List<GameEntry> games, List<string> systems, ArtIndex art)
+        private static void SaveCache(string cachePath, List<GameEntry> games, List<string> systems, ArtIndex art)
         {
             try
             {
@@ -371,24 +379,24 @@ namespace ClawTweaksCenter.Library
                 foreach (var kv in art.ByInstallDir) file.Art.Add(new CacheArt { Key = kv.Key, Path = kv.Value, IsDir = true });
                 foreach (var kv in art.ByTitle) file.Art.Add(new CacheArt { Key = kv.Key, Path = kv.Value, IsDir = false });
 
-                Directory.CreateDirectory(Path.GetDirectoryName(CachePath));
+                Directory.CreateDirectory(Path.GetDirectoryName(cachePath));
                 // Beside, then move: an interrupted write of the file itself leaves JSON that will not
                 // parse, and the next start would look like Playnite had gone missing.
-                string tmp = CachePath + ".tmp";
+                string tmp = cachePath + ".tmp";
                 File.WriteAllText(tmp, System.Text.Json.JsonSerializer.Serialize(file));
-                File.Move(tmp, CachePath, overwrite: true);
+                File.Move(tmp, cachePath, overwrite: true);
             }
             catch { }
         }
 
-        private static IReadOnlyList<GameEntry> LoadCache(ref ArtIndex art)
+        private static IReadOnlyList<GameEntry> LoadCache(string cachePath, ref ArtIndex art)
         {
             var games = new List<GameEntry>();
             try
             {
-                if (!File.Exists(CachePath)) { LastArtIndex = art; LastSystems = Array.Empty<string>(); return games; }
+                if (!File.Exists(cachePath)) { LastArtIndex = art; LastSystems = Array.Empty<string>(); return games; }
 
-                var file = System.Text.Json.JsonSerializer.Deserialize<CacheFile>(File.ReadAllText(CachePath));
+                var file = System.Text.Json.JsonSerializer.Deserialize<CacheFile>(File.ReadAllText(cachePath));
                 if (file?.Roms == null) { LastArtIndex = art; LastSystems = Array.Empty<string>(); return games; }
 
                 foreach (var r in file.Roms)
@@ -420,7 +428,7 @@ namespace ClawTweaksCenter.Library
 
                 LastArtIndex = art;
                 LastSystems = file.Systems ?? new List<string>();
-                UsedCache = games.Count > 0;
+                UsedCache = true;
             }
             catch
             {
@@ -435,17 +443,15 @@ namespace ClawTweaksCenter.Library
         {
             var map = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
             if (!File.Exists(file)) return map;
-            try
-            {
-                using (var db = OpenRead(file))
-                    foreach (string collection in db.GetCollectionNames())
-                        foreach (var doc in db.GetCollection(collection).FindAll())
-                        {
-                            string name = Text(doc, "Name");
-                            if (!string.IsNullOrWhiteSpace(name)) map[doc["_id"].ToString()] = name;
-                        }
-            }
-            catch { }
+            // An absent optional database is empty; a present but unreadable one makes ROM
+            // classification unreliable and must reach Scan's cache fallback.
+            using (var db = OpenRead(file))
+                foreach (string collection in db.GetCollectionNames())
+                    foreach (var doc in db.GetCollection(collection).FindAll())
+                    {
+                        string name = Text(doc, "Name");
+                        if (!string.IsNullOrWhiteSpace(name)) map[doc["_id"].ToString()] = name;
+                    }
             return map;
         }
 

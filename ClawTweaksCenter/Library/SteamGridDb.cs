@@ -1,9 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -18,9 +17,9 @@ namespace ClawTweaksCenter.Library
     /// key is a credential in a public binary, the quota is charged per key, and the first person to
     /// extract and abuse it takes the feature away from everyone. See CenterSettings.SteamGridDbApiKey.
     ///
-    /// Every result is cached on disk, including the misses. Without caching the failures, a library
-    /// with twenty unmatched games would re-ask for all twenty on every single start - which is how a
-    /// key gets rate-limited by its own owner.
+    /// Successful images are cached on disk. Confirmed misses last for the current app session so
+    /// unmatched games do not repeatedly spend quota, but new artwork is discovered on a later start.
+    /// Failed requests remain retryable, including legacy empty entries that may record an outage.
     /// </summary>
     /// <summary>One art option offered by the manual picker (CenterMenuWindow.GameMenu.cs).</summary>
     public sealed class ArtCandidate
@@ -45,13 +44,8 @@ namespace ClawTweaksCenter.Library
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ClawTweaks", "Center", "artcache");
 
-        private static string IndexPath => Path.Combine(CacheDir, "index.json");
-
-        // title key -> cached file name, or empty string for "asked, nothing found".
-        private static Dictionary<string, string> _index;
-        private static readonly object IndexLock = new object();
-
         private static readonly HttpClient Http = CreateClient();
+        private static readonly SteamGridDbCache AutomaticArt = new SteamGridDbCache(Http, CacheDir);
 
         private static HttpClient CreateClient()
         {
@@ -60,251 +54,13 @@ namespace ClawTweaksCenter.Library
             return client;
         }
 
-        private static Dictionary<string, string> Index
-        {
-            get
-            {
-                lock (IndexLock)
-                {
-                    if (_index != null) return _index;
-                    _index = new Dictionary<string, string>(StringComparer.Ordinal);
-                    try
-                    {
-                        if (File.Exists(IndexPath))
-                        {
-                            var loaded = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(IndexPath));
-                            if (loaded != null) _index = new Dictionary<string, string>(loaded, StringComparer.Ordinal);
-                        }
-                    }
-                    catch { }
-                    return _index;
-                }
-            }
-        }
+        /// <summary>Fills missing covers sequentially and reports progress as they arrive.</summary>
+        public static Task FetchMissingAsync(IReadOnlyList<GameEntry> games, CancellationToken ct, Action onProgress)
+            => AutomaticArt.FetchMissingAsync(games, Core.CenterSettings.SteamGridDbApiKey, ct, onProgress);
 
-        private static void SaveIndex()
-        {
-            try
-            {
-                Directory.CreateDirectory(CacheDir);
-                string tmp = IndexPath + ".tmp";
-                lock (IndexLock) File.WriteAllText(tmp, JsonSerializer.Serialize(_index));
-                File.Move(tmp, IndexPath, overwrite: true);
-            }
-            catch { }
-        }
-
-        /// <summary>
-        /// Fills in covers for everything still without one, and reports progress so the grid can
-        /// redraw as they arrive rather than after the last request.
-        ///
-        /// Concurrency is deliberately ONE. This is somebody's personal API quota, not a CDN - a fan
-        /// of parallel requests would finish a few seconds sooner and is exactly the traffic pattern
-        /// that gets a key throttled.
-        /// </summary>
-        public static async Task FetchMissingAsync(IReadOnlyList<GameEntry> games, CancellationToken ct, Action onProgress)
-        {
-            if (!HasKey || games == null) return;
-
-            string key = Core.CenterSettings.SteamGridDbApiKey.Trim();
-            bool changed = false;
-            int found = 0;
-
-            foreach (var game in games)
-            {
-                ct.ThrowIfCancellationRequested();
-                if (game?.ArtPath != null) continue;
-
-                string titleKey = PlayniteSource.NormalizeTitle(game.Title);
-                if (titleKey.Length == 0) continue;
-
-                string cachedName;
-                lock (IndexLock) Index.TryGetValue(titleKey, out cachedName);
-
-                if (cachedName != null)
-                {
-                    // Empty means "asked before, nothing there" - do not ask again.
-                    if (cachedName.Length == 0) continue;
-                    string cachedPath = Path.Combine(CacheDir, cachedName);
-                    if (File.Exists(cachedPath)) { game.ArtPath = cachedPath; found++; continue; }
-                }
-
-                string file = null;
-                try { file = await DownloadCoverAsync(key, game.Title, titleKey, ct).ConfigureAwait(false); }
-                catch (OperationCanceledException) { throw; }
-                catch { }
-
-                lock (IndexLock) Index[titleKey] = file ?? string.Empty;
-                changed = true;
-
-                if (file != null)
-                {
-                    game.ArtPath = Path.Combine(CacheDir, file);
-                    found++;
-                    if (found % 3 == 0) onProgress?.Invoke();
-                }
-            }
-
-            if (changed) SaveIndex();
-            if (found > 0) onProgress?.Invoke();
-        }
-
-        #region Hero backdrops
-
-        // Kept in its OWN index file rather than as a second column in index.json: that file is
-        // already on disk on every machine that has ever fetched a cover, and widening its shape
-        // would mean every existing installation reading it back as garbage or losing it.
-        private static string HeroIndexPath => Path.Combine(CacheDir, "heroindex.json");
-
-        private static Dictionary<string, string> _heroIndex;
-        private static readonly object HeroIndexLock = new object();
-
-        private static Dictionary<string, string> HeroIndex
-        {
-            get
-            {
-                lock (HeroIndexLock)
-                {
-                    if (_heroIndex != null) return _heroIndex;
-                    _heroIndex = new Dictionary<string, string>(StringComparer.Ordinal);
-                    try
-                    {
-                        if (File.Exists(HeroIndexPath))
-                        {
-                            var loaded = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(HeroIndexPath));
-                            if (loaded != null) _heroIndex = new Dictionary<string, string>(loaded, StringComparer.Ordinal);
-                        }
-                    }
-                    catch { }
-                    return _heroIndex;
-                }
-            }
-        }
-
-        private static void SaveHeroIndex()
-        {
-            try
-            {
-                Directory.CreateDirectory(CacheDir);
-                string tmp = HeroIndexPath + ".tmp";
-                lock (HeroIndexLock) File.WriteAllText(tmp, JsonSerializer.Serialize(_heroIndex));
-                File.Move(tmp, HeroIndexPath, overwrite: true);
-            }
-            catch { }
-        }
-
-        /// <summary>
-        /// The wide backdrop for one game, from cache or - once, ever - from SteamGridDB.
-        ///
-        /// ON DEMAND, AND THAT IS THE WHOLE DESIGN. Covers are fetched in a sweep because every one
-        /// of them is on screen at once; a backdrop is seen by exactly one game at a time, the one
-        /// being started. Sweeping for them would spend somebody's personal API quota on a hundred
-        /// pictures to show one - so the first launch of a game fetches its backdrop, every launch
-        /// after that reads the file.
-        ///
-        /// A MISS IS CACHED TOO, as an empty entry, for the same reason FetchMissingAsync does it:
-        /// without that, a game SteamGridDB has no backdrop for would ask again on every single
-        /// launch, forever.
-        ///
-        /// Steam's own local hero always wins and never reaches this method - see
-        /// GameArt.FindSteamHero. This is for the stores that cache nothing: Epic, Xbox, Ubisoft, EA,
-        /// Battle.net, GOG.
-        /// </summary>
-        public static async Task<string> EnsureHeroAsync(GameEntry game, CancellationToken ct)
-        {
-            if (game == null || !HasKey) return null;
-
-            string titleKey = PlayniteSource.NormalizeTitle(game.Title);
-            if (titleKey.Length == 0) return null;
-
-            string cachedName;
-            lock (HeroIndexLock) HeroIndex.TryGetValue(titleKey, out cachedName);
-            if (cachedName != null)
-            {
-                if (cachedName.Length == 0) return null;
-                string cachedPath = Path.Combine(CacheDir, cachedName);
-                if (File.Exists(cachedPath)) return cachedPath;
-                // The index said yes and the file is gone (a cleared cache folder). Fall through and
-                // fetch it again rather than returning a path that will decode to nothing.
-            }
-
-            string file = null;
-            try { file = await DownloadHeroAsync(Core.CenterSettings.SteamGridDbApiKey.Trim(), game.Title, titleKey, ct).ConfigureAwait(false); }
-            catch (OperationCanceledException) { return null; }   // NOT cached as a miss: nothing was learned
-            catch { }
-
-            lock (HeroIndexLock) HeroIndex[titleKey] = file ?? string.Empty;
-            SaveHeroIndex();
-
-            return file == null ? null : Path.Combine(CacheDir, file);
-        }
-
-        private static async Task<string> DownloadHeroAsync(string key, string title, string titleKey, CancellationToken ct)
-        {
-            int? id = await SearchGameIdAsync(key, title, ct, strict: true).ConfigureAwait(false);
-            if (id == null) return null;
-
-            // 1920x620 is the shape Steam itself caches, so a backdrop from here and one from Steam
-            // crop identically behind the launch screen.
-            using var request = new HttpRequestMessage(HttpMethod.Get,
-                ApiBase + "heroes/game/" + id.Value + "?dimensions=1920x620&types=static&limit=1");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-
-            using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) return null;
-
-            string url = null;
-            using (var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false)))
-            {
-                if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array) return null;
-                foreach (var hero in data.EnumerateArray())
-                    if (hero.TryGetProperty("url", out var u) && u.ValueKind == JsonValueKind.String) { url = u.GetString(); break; }
-            }
-            if (url == null) return null;
-
-            byte[] bytes;
-            using (var image = await Http.GetAsync(url, ct).ConfigureAwait(false))
-            {
-                if (!image.IsSuccessStatusCode) return null;
-                bytes = await image.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
-            }
-            if (bytes.Length == 0) return null;
-
-            // "hero_" prefixed so a backdrop and a cover for the same game cannot collide on one
-            // file name - both are named after the title key.
-            string ext = url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? ".png" : ".jpg";
-            string name = "hero_" + titleKey + ext;
-            Directory.CreateDirectory(CacheDir);
-            File.WriteAllBytes(Path.Combine(CacheDir, name), bytes);
-            return name;
-        }
-
-        #endregion
-
-        private static async Task<string> DownloadCoverAsync(string key, string title, string titleKey, CancellationToken ct)
-        {
-            int? id = await SearchGameIdAsync(key, title, ct, strict: true).ConfigureAwait(false);
-            if (id == null) return null;
-
-            string url = await FirstVerticalGridAsync(key, id.Value, ct).ConfigureAwait(false);
-            if (url == null) return null;
-
-            byte[] bytes;
-            using (var response = await Http.GetAsync(url, ct).ConfigureAwait(false))
-            {
-                if (!response.IsSuccessStatusCode) return null;
-                bytes = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
-            }
-            if (bytes.Length == 0) return null;
-
-            // Named after the title key, not after the remote file: two games can be served the same
-            // image name, and the key is what we look it up by anyway.
-            string ext = url.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ? ".png" : ".jpg";
-            string name = titleKey + ext;
-            Directory.CreateDirectory(CacheDir);
-            File.WriteAllBytes(Path.Combine(CacheDir, name), bytes);
-            return name;
-        }
+        /// <summary>Fetches one wide backdrop on demand. Steam's local hero still wins at the caller.</summary>
+        public static Task<string> EnsureHeroAsync(GameEntry game, CancellationToken ct)
+            => AutomaticArt.EnsureHeroAsync(game, Core.CenterSettings.SteamGridDbApiKey, ct);
 
         /// <summary>
         /// strict=true is the silent auto-fill's rule: first result only, and only when the name
@@ -313,13 +69,13 @@ namespace ClawTweaksCenter.Library
         /// unattended there, a person is looking at the result and can retype the query, so the plain
         /// top autocomplete hit is offered even when the names do not match exactly.
         /// </summary>
-        private static async Task<int?> SearchGameIdAsync(string key, string title, CancellationToken ct, bool strict)
+        internal static async Task<int?> SearchGameIdAsync(HttpClient http, string key, string title, CancellationToken ct, bool strict)
         {
             using var request = new HttpRequestMessage(HttpMethod.Get,
                 ApiBase + "search/autocomplete/" + Uri.EscapeDataString(title));
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
 
-            using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
+            using var response = await http.SendAsync(request, ct).ConfigureAwait(false);
             string body = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
 
             // Logged only on the manual picker's path (strict=false) - the silent background sweep
@@ -328,14 +84,22 @@ namespace ClawTweaksCenter.Library
             // it did. This is the search that had "no results" with no visible reason.
             if (!strict) LogArtSearch("autocomplete '" + title + "' -> " + (int)response.StatusCode + " " + Truncate(body, 500));
 
-            if (!response.IsSuccessStatusCode) return null;
+            if (strict) response.EnsureSuccessStatusCode();
+            else if (!response.IsSuccessStatusCode) return null;
 
             JsonDocument doc;
             try { doc = JsonDocument.Parse(body); }
-            catch (Exception ex) { if (!strict) LogArtSearch("autocomplete JSON parse failed: " + ex.Message); return null; }
+            catch (Exception ex)
+            {
+                if (strict) throw;
+                LogArtSearch("autocomplete JSON parse failed: " + ex.Message);
+                return null;
+            }
             using (doc)
             {
-                if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+                JsonElement data;
+                if (strict) data = SuccessfulData(doc.RootElement);
+                else if (!doc.RootElement.TryGetProperty("data", out data) || data.ValueKind != JsonValueKind.Array)
                 {
                     if (!strict) LogArtSearch("autocomplete response has no 'data' array");
                     return null;
@@ -349,6 +113,12 @@ namespace ClawTweaksCenter.Library
                 foreach (var entry in data.EnumerateArray())
                 {
                     seen++;
+                    if (strict && (entry.ValueKind != JsonValueKind.Object ||
+                        !entry.TryGetProperty("id", out var validId) || validId.ValueKind != JsonValueKind.Number ||
+                        !validId.TryGetInt32(out int number) || number <= 0 ||
+                        !entry.TryGetProperty("name", out var validName) || validName.ValueKind != JsonValueKind.String ||
+                        string.IsNullOrWhiteSpace(validName.GetString())))
+                        throw new InvalidDataException("SteamGridDB returned an invalid game result.");
                     if (!entry.TryGetProperty("id", out var idProp) || !idProp.TryGetInt32(out int id)) continue;
                     if (!strict) { LogArtSearch("autocomplete matched id=" + id + " (of " + seen + "+ candidates)"); return id; }
                     if (!entry.TryGetProperty("name", out var nameProp)) continue;
@@ -359,30 +129,21 @@ namespace ClawTweaksCenter.Library
             }
         }
 
+        // Automatic lookups may cache absence only after a successful, well-formed API response.
+        // The manual picker retains its existing forgiving parsing and empty-page behavior.
+        internal static JsonElement SuccessfulData(JsonElement root)
+        {
+            if (root.ValueKind != JsonValueKind.Object ||
+                !root.TryGetProperty("success", out var success) || success.ValueKind != JsonValueKind.True ||
+                !root.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+                throw new InvalidDataException("SteamGridDB did not return a successful data array.");
+            return data;
+        }
+
         private static void LogArtSearch(string message) => Core.InstallLog.Write("[ArtPicker] " + message);
 
         private static string Truncate(string s, int max) =>
             string.IsNullOrEmpty(s) || s.Length <= max ? s : s.Substring(0, max) + "…";
-
-        private static async Task<string> FirstVerticalGridAsync(string key, int gameId, CancellationToken ct)
-        {
-            // 600x900 only: that is the shape every tile in this library is drawn at, and asking the
-            // API to filter costs nothing compared to downloading a banner and discovering it is wide.
-            using var request = new HttpRequestMessage(HttpMethod.Get,
-                ApiBase + "grids/game/" + gameId + "?dimensions=600x900&types=static&limit=1");
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
-
-            using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) return null;
-
-            using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
-            if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array) return null;
-
-            foreach (var grid in data.EnumerateArray())
-                if (grid.TryGetProperty("url", out var url) && url.ValueKind == JsonValueKind.String)
-                    return url.GetString();
-            return null;
-        }
 
         /// <summary>
         /// The manual art picker's search: takes whatever text the user typed (pre-filled with the
@@ -424,7 +185,7 @@ namespace ClawTweaksCenter.Library
             LogArtSearch("search '" + query + "'");
 
             int? id;
-            try { id = await SearchGameIdAsync(key, query, ct, strict: false).ConfigureAwait(false); }
+            try { id = await SearchGameIdAsync(Http, key, query, ct, strict: false).ConfigureAwait(false); }
             catch (OperationCanceledException) { throw; }
             // Both catches used to be silent - an exception here (a DNS failure, a timed-out
             // connection, TLS) looked EXACTLY like "found nothing", and that ambiguity was the reason

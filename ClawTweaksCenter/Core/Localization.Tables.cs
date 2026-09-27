@@ -1060,6 +1060,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "{0} ist nicht installiert, daher sind die Schritte ausgeblendet.",
             ["RTSS is not installed"] = "RTSS ist nicht installiert",
             ["Run Setup again to install it."] = "Setup erneut ausf\u00FChren, um es zu installieren.",
+            ["Paused"] = "Pausiert",
+            ["Queued"] = "Wartend",
+            ["Back to Steam"] = "Zur\u00FCck zu Steam",
+            ["Steam has taken over. The download shows in Steam."] = "Steam hat \u00FCbernommen. Der Download erscheint unter Steam.",
+            ["Open Steam to manage this download."] = "\u00D6ffne Steam, um diesen Download zu verwalten.",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2091,6 +2096,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "{0} n'est pas install\u00E9, ses \u00E9tapes sont donc masqu\u00E9es.",
             ["RTSS is not installed"] = "RTSS n'est pas install\u00E9",
             ["Run Setup again to install it."] = "Relancez l'installation pour l'installer.",
+            ["Paused"] = "En pause",
+            ["Queued"] = "En attente",
+            ["Back to Steam"] = "Retour \u00E0 Steam",
+            ["Steam has taken over. The download shows in Steam."] = "Steam a pris le relais. Le t\u00E9l\u00E9chargement appara\u00EEt dans Steam.",
+            ["Open Steam to manage this download."] = "Ouvrez Steam pour g\u00E9rer ce t\u00E9l\u00E9chargement.",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3127,6 +3137,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "{0}\uC774(\uAC00) \uC124\uCE58\uB418\uC9C0 \uC54A\uC544 \uD574\uB2F9 \uB2E8\uACC4\uB97C \uC228\uACBC\uC2B5\uB2C8\uB2E4.",
             ["RTSS is not installed"] = "RTSS\uAC00 \uC124\uCE58\uB418\uC5B4 \uC788\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4",
             ["Run Setup again to install it."] = "\uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC744 \uB2E4\uC2DC \uC2E4\uD589\uD574 \uC124\uCE58\uD558\uC138\uC694.",
+            ["Paused"] = "\uC77C\uC2DC \uC911\uC9C0",
+            ["Queued"] = "\uB300\uAE30 \uC911",
+            ["Back to Steam"] = "Steam\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30",
+            ["Steam has taken over. The download shows in Steam."] = "Steam\uC774 \uC774\uC5B4\uC11C \uCC98\uB9AC\uD569\uB2C8\uB2E4. \uB2E4\uC6B4\uB85C\uB4DC\uB294 Steam\uC5D0 \uD45C\uC2DC\uB429\uB2C8\uB2E4.",
+            ["Open Steam to manage this download."] = "Steam\uC744 \uC5F4\uC5B4 \uC774 \uB2E4\uC6B4\uB85C\uB4DC\uB97C \uAD00\uB9AC\uD558\uC138\uC694.",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4160,6 +4175,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "{0} no est\u00E1 instalado, as\u00ED que sus pasos est\u00E1n ocultos.",
             ["RTSS is not installed"] = "RTSS no est\u00E1 instalado",
             ["Run Setup again to install it."] = "Vuelve a ejecutar el instalador para instalarlo.",
+            ["Paused"] = "En pausa",
+            ["Queued"] = "En cola",
+            ["Back to Steam"] = "Volver a Steam",
+            ["Steam has taken over. The download shows in Steam."] = "Steam se encarga. La descarga aparece en Steam.",
+            ["Open Steam to manage this download."] = "Abre Steam para gestionar esta descarga.",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -5197,6 +5217,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "{0} \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D, \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0435\u0433\u043E \u0448\u0430\u0433\u0438 \u0441\u043A\u0440\u044B\u0442\u044B.",
             ["RTSS is not installed"] = "RTSS \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D",
             ["Run Setup again to install it."] = "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443 \u0441\u043D\u043E\u0432\u0430, \u0447\u0442\u043E\u0431\u044B \u0435\u0433\u043E \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C.",
+            ["Paused"] = "\u041F\u0430\u0443\u0437\u0430",
+            ["Queued"] = "\u0412 \u043E\u0447\u0435\u0440\u0435\u0434\u0438",
+            ["Back to Steam"] = "\u041D\u0430\u0437\u0430\u0434 \u0432 Steam",
+            ["Steam has taken over. The download shows in Steam."] = "Steam \u0432\u0437\u044F\u043B \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u0435. \u0417\u0430\u0433\u0440\u0443\u0437\u043A\u0430 \u0432\u0438\u0434\u043D\u0430 \u0432 Steam.",
+            ["Open Steam to manage this download."] = "\u041E\u0442\u043A\u0440\u043E\u0439\u0442\u0435 Steam \u0434\u043B\u044F \u0443\u043F\u0440\u0430\u0432\u043B\u0435\u043D\u0438\u044F \u0437\u0430\u0433\u0440\u0443\u0437\u043A\u043E\u0439.",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -6225,6 +6250,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "\u03A4\u03BF {0} \u03B4\u03B5\u03BD \u03B5\u03AF\u03BD\u03B1\u03B9 \u03B5\u03B3\u03BA\u03B1\u03C4\u03B5\u03C3\u03C4\u03B7\u03BC\u03AD\u03BD\u03BF, \u03BF\u03C0\u03CC\u03C4\u03B5 \u03C4\u03B1 \u03B2\u03AE\u03BC\u03B1\u03C4\u03AC \u03C4\u03BF\u03C5 \u03B5\u03AF\u03BD\u03B1\u03B9 \u03BA\u03C1\u03C5\u03BC\u03BC\u03AD\u03BD\u03B1.",
             ["RTSS is not installed"] = "\u03A4\u03BF RTSS \u03B4\u03B5\u03BD \u03B5\u03AF\u03BD\u03B1\u03B9 \u03B5\u03B3\u03BA\u03B1\u03C4\u03B5\u03C3\u03C4\u03B7\u03BC\u03AD\u03BD\u03BF",
             ["Run Setup again to install it."] = "\u0395\u03BA\u03C4\u03B5\u03BB\u03AD\u03C3\u03C4\u03B5 \u03BE\u03B1\u03BD\u03AC \u03C4\u03B7\u03BD \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7 \u03B3\u03B9\u03B1 \u03BD\u03B1 \u03C4\u03BF \u03B5\u03B3\u03BA\u03B1\u03C4\u03B1\u03C3\u03C4\u03AE\u03C3\u03B5\u03C4\u03B5.",
+            ["Paused"] = "\u03A3\u03B5 \u03C0\u03B1\u03CD\u03C3\u03B7",
+            ["Queued"] = "\u03A3\u03B5 \u03B1\u03BD\u03B1\u03BC\u03BF\u03BD\u03AE",
+            ["Back to Steam"] = "\u03A0\u03AF\u03C3\u03C9 \u03C3\u03C4\u03BF Steam",
+            ["Steam has taken over. The download shows in Steam."] = "\u03A4\u03BF Steam \u03B1\u03BD\u03AD\u03BB\u03B1\u03B2\u03B5. \u0397 \u03BB\u03AE\u03C8\u03B7 \u03C6\u03B1\u03AF\u03BD\u03B5\u03C4\u03B1\u03B9 \u03C3\u03C4\u03BF Steam.",
+            ["Open Steam to manage this download."] = "\u0391\u03BD\u03BF\u03AF\u03BE\u03C4\u03B5 \u03C4\u03BF Steam \u03B3\u03B9\u03B1 \u03BD\u03B1 \u03B4\u03B9\u03B1\u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03B5\u03AF\u03C4\u03B5 \u03C4\u03B7 \u03BB\u03AE\u03C8\u03B7.",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -7258,6 +7288,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "\u672A\u5B89\u88C5 {0}\uFF0C\u56E0\u6B64\u76F8\u5173\u6B65\u9AA4\u5DF2\u9690\u85CF\u3002",
             ["RTSS is not installed"] = "\u672A\u5B89\u88C5 RTSS",
             ["Run Setup again to install it."] = "\u91CD\u65B0\u8FD0\u884C\u5B89\u88C5\u7A0B\u5E8F\u5373\u53EF\u5B89\u88C5\u3002",
+            ["Paused"] = "\u5DF2\u6682\u505C",
+            ["Queued"] = "\u5DF2\u6392\u961F",
+            ["Back to Steam"] = "\u8FD4\u56DE Steam",
+            ["Steam has taken over. The download shows in Steam."] = "Steam \u5DF2\u63A5\u624B\u3002\u4E0B\u8F7D\u4F1A\u663E\u793A\u5728 Steam \u4E2D\u3002",
+            ["Open Steam to manage this download."] = "\u6253\u5F00 Steam \u7BA1\u7406\u6B64\u4E0B\u8F7D\u3002",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -8291,6 +8326,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "\u672A\u5B89\u88DD {0}\uFF0C\u56E0\u6B64\u76F8\u95DC\u6B65\u9A5F\u5DF2\u96B1\u85CF\u3002",
             ["RTSS is not installed"] = "\u672A\u5B89\u88DD RTSS",
             ["Run Setup again to install it."] = "\u91CD\u65B0\u57F7\u884C\u5B89\u88DD\u7A0B\u5F0F\u5373\u53EF\u5B89\u88DD\u3002",
+            ["Paused"] = "\u5DF2\u66AB\u505C",
+            ["Queued"] = "\u5DF2\u6392\u968A",
+            ["Back to Steam"] = "\u8FD4\u56DE Steam",
+            ["Steam has taken over. The download shows in Steam."] = "Steam \u5DF2\u63A5\u624B\u3002\u4E0B\u8F09\u6703\u986F\u793A\u5728 Steam \u4E2D\u3002",
+            ["Open Steam to manage this download."] = "\u958B\u555F Steam \u7BA1\u7406\u6B64\u4E0B\u8F09\u3002",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -9322,6 +9362,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "{0} non \u00E8 installato, quindi i suoi passaggi sono nascosti.",
             ["RTSS is not installed"] = "RTSS non \u00E8 installato",
             ["Run Setup again to install it."] = "Riesegui il programma di installazione per installarlo.",
+            ["Paused"] = "In pausa",
+            ["Queued"] = "In coda",
+            ["Back to Steam"] = "Torna a Steam",
+            ["Steam has taken over. The download shows in Steam."] = "Steam ha preso il controllo. Il download compare in Steam.",
+            ["Open Steam to manage this download."] = "Apri Steam per gestire questo download.",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -10341,6 +10386,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "{0} n\u00E3o est\u00E1 instalado, ent\u00E3o os passos dele ficam ocultos.",
             ["RTSS is not installed"] = "O RTSS n\u00E3o est\u00E1 instalado",
             ["Run Setup again to install it."] = "Execute o instalador de novo para instal\u00E1-lo.",
+            ["Paused"] = "Em pausa",
+            ["Queued"] = "Na fila",
+            ["Back to Steam"] = "Voltar ao Steam",
+            ["Steam has taken over. The download shows in Steam."] = "O Steam assumiu. O download aparece no Steam.",
+            ["Open Steam to manage this download."] = "Abra o Steam para gerenciar este download.",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -11376,6 +11426,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "{0} \u304C\u672A\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u306E\u305F\u3081\u3001\u305D\u306E\u624B\u9806\u306F\u975E\u8868\u793A\u3067\u3059\u3002",
             ["RTSS is not installed"] = "RTSS \u304C\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3055\u308C\u3066\u3044\u307E\u305B\u3093",
             ["Run Setup again to install it."] = "\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u5B9F\u884C\u3057\u76F4\u3059\u3068\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3067\u304D\u307E\u3059\u3002",
+            ["Paused"] = "\u4E00\u6642\u505C\u6B62",
+            ["Queued"] = "\u5F85\u6A5F\u4E2D",
+            ["Back to Steam"] = "Steam \u306B\u623B\u308B",
+            ["Steam has taken over. The download shows in Steam."] = "Steam \u304C\u5F15\u304D\u7D99\u304E\u307E\u3057\u305F\u3002\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u306F Steam \u306B\u8868\u793A\u3055\u308C\u307E\u3059\u3002",
+            ["Open Steam to manage this download."] = "Steam \u3092\u958B\u3044\u3066\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u3092\u7BA1\u7406\u3057\u307E\u3059\u3002",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -12402,6 +12457,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed, so its steps are hidden."] = "{0} nie jest zainstalowany, wi\u0119c jego kroki s\u0105 ukryte.",
             ["RTSS is not installed"] = "RTSS nie jest zainstalowany",
             ["Run Setup again to install it."] = "Uruchom instalator ponownie, aby go zainstalowa\u0107.",
+            ["Paused"] = "Wstrzymano",
+            ["Queued"] = "W kolejce",
+            ["Back to Steam"] = "Wr\u00F3\u0107 do Steam",
+            ["Steam has taken over. The download shows in Steam."] = "Steam przej\u0105\u0142 pobieranie. Wida\u0107 je w Steam.",
+            ["Open Steam to manage this download."] = "Otw\u00F3rz Steam, aby zarz\u0105dza\u0107 pobieraniem.",
         };
 
     }

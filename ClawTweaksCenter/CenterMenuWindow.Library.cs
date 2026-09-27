@@ -1027,7 +1027,7 @@ namespace ClawTweaksCenter
         /// Epic library would otherwise read an incomplete list as a broken one. Saying which stores
         /// are covered is the difference between a limit and a bug.
         ///
-        /// The second is any download in flight, with its percentage. It sits here rather than on the
+        /// The second is any unfinished download, with its state. It sits here rather than on the
         /// tile because it is the answer to "did my press do anything", and that answer has to be in
         /// a fixed place - hunting for one cover among eight hundred is not an answer.
         /// </summary>
@@ -1045,11 +1045,11 @@ namespace ClawTweaksCenter
 
             foreach (var g in _library.ForGroup(LibraryGroup.NotInstalled))
             {
-                if (!g.Downloading) continue;
-                // No percentage: Steam does not write one while it downloads (GameEntry.Downloading).
+                if (!g.DownloadPending) continue;
+                // No live percentage: Steam does not reliably update its byte counts mid-download.
                 stack.Children.Add(new TextBlock
                 {
-                    Text = g.Title + "  ·  " + Core.Loc.T("Downloading") + "…",
+                    Text = g.Title + "  ·  " + DownloadStatusLabel(g),
                     FontSize = 13,
                     FontWeight = FontWeights.SemiBold,
                     Foreground = UiHelpers.Accent,
@@ -1060,6 +1060,14 @@ namespace ClawTweaksCenter
 
             return stack;
         }
+
+        internal static string DownloadStatusLabel(GameEntry game) => game.DownloadStatus switch
+        {
+            SteamDownloadStatus.Downloading => Core.Loc.T("Downloading") + "…",
+            SteamDownloadStatus.Paused => Core.Loc.T("Paused"),
+            SteamDownloadStatus.Queued => Core.Loc.T("Queued"),
+            _ => Core.Loc.T("Not installed"),
+        };
 
         /// <summary>
         /// The second level under ROMs: one chip per console, plus an "All systems" entry in front.
@@ -1312,9 +1320,7 @@ namespace ClawTweaksCenter
             // hours come from the account and are real even for a game that lives on another machine
             // - but "12 h" with no explanation on a game that is not there reads as a fault.
             if (!g.Installed)
-                parts.Add(g.Downloading
-                    ? Core.Loc.T("Downloading") + "…"
-                    : Core.Loc.T("Not installed"));
+                parts.Add(g.DownloadPending ? DownloadStatusLabel(g) : Core.Loc.T("Not installed"));
 
             string played = Library.SteamPlaytime.Format(g.PlaytimeMinutes);
             if (played != null) parts.Add(played);
@@ -3304,6 +3310,7 @@ namespace ClawTweaksCenter
             var game = SelectedGame;
             if (game == null || LaunchOverlayOpen) return;
 
+            _launchHeroRequest.BeginPrompt(game);
             _launchTarget = game;
             _launchFocus = LaunchFocusPlay;
             _launchPrompt = game.Installed ? LaunchPrompt.Confirm : LaunchPrompt.ConfirmInstall;
@@ -3332,7 +3339,7 @@ namespace ClawTweaksCenter
 
             // Already downloading: there is nothing to ask for, so this opens the queue instead of
             // asking Steam to install something it is already installing.
-            string uri = game.Downloading
+            string uri = game.DownloadPending
                 ? "steam://open/downloads"
                 : "steam://install/" + game.Id;
 
@@ -3352,9 +3359,9 @@ namespace ClawTweaksCenter
         // Steam on a timer for no reason is the shape this file has refused twice.
         //
         // It does NOT rescan the library every tick. A tick re-reads ONE manifest per watched app
-        // (SteamSource.IsFullyInstalled); the full rescan - nine stores, the owned list, the cover
+        // (SteamSource.GetDownloadStatus); the full rescan - nine stores, the owned list, the cover
         // warm-up - runs exactly when something CHANGED: a manifest appeared for an expected install,
-        // or a download finished. That is also why the tile carries no figure to refresh.
+        // or a transfer changes state. That is also why the tile carries no figure to refresh.
         private DispatcherTimer _downloadWatch;
         private readonly HashSet<string> _expectedSteamInstalls = new HashSet<string>(StringComparer.Ordinal);
         private DateTime _expectedSteamInstallsUntil = DateTime.MinValue;
@@ -3375,7 +3382,7 @@ namespace ClawTweaksCenter
         /// stops it when there is not. Idempotent, so calling it once too often costs nothing.</summary>
         private void ArmDownloadWatch()
         {
-            bool anything = _library.Games.Any(g => g.Downloading)
+            bool anything = _library.Games.Any(g => g.DownloadPending)
                             || (_expectedSteamInstalls.Count > 0 && DateTime.UtcNow < _expectedSteamInstallsUntil);
             if (!anything)
             {
@@ -3391,7 +3398,7 @@ namespace ClawTweaksCenter
             if (!_downloadWatch.IsEnabled)
             {
                 Core.InstallLog.Write("[Downloads] watching: " +
-                    string.Join(", ", _library.Games.Where(g => g.Downloading).Select(g => g.Title)
+                    string.Join(", ", _library.Games.Where(g => g.DownloadPending).Select(g => g.Title)
                                               .Concat(_expectedSteamInstalls.Select(id => "expected " + id))));
                 _downloadWatch.Start();
             }
@@ -3402,20 +3409,21 @@ namespace ClawTweaksCenter
             if (_libraryScanning) return;
 
             bool changed = false;
-            foreach (var g in _library.Games.Where(g => g.Downloading).ToList())
+            foreach (var g in _library.Games.Where(g => g.DownloadPending).ToList())
             {
-                bool? ready = Library.SteamSource.IsFullyInstalled(g.Id);
+                SteamDownloadStatus? status = Library.SteamSource.GetDownloadStatus(g.Id);
                 // null = the manifest is gone: the user cancelled the download in Steam. That is a
                 // change too - the band must come off the shelf.
-                if (ready != false)
+                if (status != g.DownloadStatus)
                 {
-                    Core.InstallLog.Write("[Downloads] " + g.Title + (ready == true ? " finished" : " vanished"));
+                    Core.InstallLog.Write("[Downloads] " + g.Title + " changed to "
+                                          + (status?.ToString() ?? "missing"));
                     changed = true;
                 }
             }
             foreach (string id in _expectedSteamInstalls.ToList())
             {
-                if (Library.SteamSource.IsFullyInstalled(id) == null) continue;
+                if (Library.SteamSource.GetDownloadStatus(id) == null) continue;
                 Core.InstallLog.Write("[Downloads] expected install " + id + " has a manifest now");
                 _expectedSteamInstalls.Remove(id);
                 changed = true;
@@ -3432,15 +3440,15 @@ namespace ClawTweaksCenter
         }
 
         /// <summary>
-        /// Closes the hand-over screen and goes to Recent, where the download now sits at the front
-        /// with its band (user, 2026-09-15). The rescan that used to be here is the watcher's job:
+        /// Closes the hand-over screen and goes to Steam, where the download appears with its status.
+        /// The rescan that used to be here is the watcher's job:
         /// ExpectSteamDownload is armed before this screen is even drawn, and it runs the full scan
         /// the moment Steam writes the manifest.
         /// </summary>
-        private void BackToRecentFromInstall()
+        private void BackToSteamFromInstall()
         {
             ClearLaunchOverlay();
-            SetLibraryGroup(LibraryGroup.Recent);
+            SetLibraryGroup(LibraryGroup.Steam);
         }
 
         /// <summary>A on the confirmation: this is where the game actually starts.</summary>
@@ -3754,14 +3762,16 @@ namespace ClawTweaksCenter
                     }
                     break;
                 case LaunchPrompt.ConfirmInstall:
-                    head = (game != null && game.Downloading)
-                        ? Core.Loc.F("{0} is downloading", title)
+                    head = game != null && game.DownloadPending
+                        ? title + " · " + DownloadStatusLabel(game)
                         : Core.Loc.F("Install {0}?", title);
-                    sub = "Steam asks you where to put it.";
+                    sub = game != null && game.DownloadPending
+                        ? Core.Loc.T("Open Steam to manage this download.")
+                        : Core.Loc.T("Steam asks you where to put it.");
                     break;
                 case LaunchPrompt.InstallHandedOver:
                     head = title;
-                    sub = "Steam has taken over. The download shows in Recent.";
+                    sub = Core.Loc.T("Steam has taken over. The download shows in Steam.");
                     break;
                 default:
                     head = Core.Loc.F("Could not start {0}.", title);
@@ -4140,8 +4150,8 @@ namespace ClawTweaksCenter
         /// <summary>The SteamGridDB backdrop fetch currently in flight, and the game it belongs to.
         /// Not a cache - SteamGridDb keeps that - only a way for the two renders of one launch to
         /// share one request.</summary>
-        private Task<string> _launchHeroTask;
-        private GameEntry _launchHeroFor;
+        private readonly Library.LaunchHeroRequest _launchHeroRequest = new Library.LaunchHeroRequest(
+            game => Library.SteamGridDb.EnsureHeroAsync(game, CancellationToken.None));
 
         private void ApplyLaunchCover(GameEntry game, Image target, int decodeWidth)
         {
@@ -4190,13 +4200,7 @@ namespace ClawTweaksCenter
                     // would otherwise be started a second time against the same personal API quota.
                     // The task is kept, not the result, so the second render awaits the first fetch
                     // instead of racing it.
-                    if (_launchHeroTask == null || _launchHeroFor != game)
-                    {
-                        _launchHeroFor = game;
-                        _launchHeroTask = Library.SteamGridDb.EnsureHeroAsync(game, CancellationToken.None);
-                    }
-
-                    path = await _launchHeroTask.ConfigureAwait(true);
+                    path = await _launchHeroRequest.GetAsync(game).ConfigureAwait(true);
                     if (path != null) game.HeroPath = path;
                 }
 
@@ -5219,7 +5223,7 @@ namespace ClawTweaksCenter
                         break;
                     case LaunchPrompt.ConfirmInstall:
                         AddAction(PadButton.A,
-                                  _launchTarget != null && _launchTarget.Downloading ? "Open Steam" : "Install",
+                                  _launchTarget != null && _launchTarget.DownloadPending ? "Open Steam" : "Install",
                                   true, ConfirmInstallNow);
                         AddAction(PadButton.B, "Cancel", true, ClearLaunchOverlay);
                         // The wiki and OptiClick apply to a game you own, installed or not - deciding
@@ -5227,7 +5231,7 @@ namespace ClawTweaksCenter
                         AddLaunchOptiActions();
                         break;
                     case LaunchPrompt.InstallHandedOver:
-                        AddAction(PadButton.A, "Back to Recent", true, BackToRecentFromInstall);
+                        AddAction(PadButton.A, "Back to Steam", true, BackToSteamFromInstall);
                         AddAction(PadButton.B, "Back", true, ClearLaunchOverlay);
                         break;
                     case LaunchPrompt.Running:
@@ -5454,7 +5458,7 @@ namespace ClawTweaksCenter
 
             var badge = BuildProfileBadge(game.Profiles);
             if (badge != null) content.Children.Add(badge);
-            if (game.Downloading) content.Children.Add(BuildDownloadingBand());
+            if (game.DownloadPending) content.Children.Add(BuildDownloadingBand(game));
 
             if (glass)
             {
@@ -5498,31 +5502,31 @@ namespace ClawTweaksCenter
         }
 
         /// <summary>
-        /// The band along the bottom of a cover while Steam installs the game: a word and a bar that
-        /// moves. INDETERMINATE ON PURPOSE - Steam writes no progress figure anywhere on disk while
-        /// it downloads (see GameEntry.Downloading), so a bar with a position would be invented.
-        /// The band is what tells "downloading" from "not installed" on a shelf of covers.
+        /// The band along the bottom of a cover while Steam installs the game. Its progress bar
+        /// animates only while the transfer is running; paused and queued installs show text alone.
+        /// Steam does not report a reliable live percentage through the manifest.
         /// </summary>
-        private static Border BuildDownloadingBand()
+        private static Border BuildDownloadingBand(GameEntry game)
         {
             var stack = new StackPanel();
             stack.Children.Add(new TextBlock
             {
-                Text = Core.Loc.T("Downloading") + "\u2026",
+                Text = CenterMenuWindow.DownloadStatusLabel(game),
                 FontSize = 12,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = Brushes.White,
                 Margin = new Thickness(8, 4, 8, 3),
             });
-            stack.Children.Add(new ProgressBar
-            {
-                IsIndeterminate = true,
-                Height = 4,
-                BorderThickness = new Thickness(0),
-                Background = new SolidColorBrush(Color.FromArgb(0x50, 0xFF, 0xFF, 0xFF)),
-                Foreground = UiHelpers.Accent,
-                Margin = new Thickness(8, 0, 8, 6),
-            });
+            if (game.Downloading)
+                stack.Children.Add(new ProgressBar
+                {
+                    IsIndeterminate = true,
+                    Height = 4,
+                    BorderThickness = new Thickness(0),
+                    Background = new SolidColorBrush(Color.FromArgb(0x50, 0xFF, 0xFF, 0xFF)),
+                    Foreground = UiHelpers.Accent,
+                    Margin = new Thickness(8, 0, 8, 6),
+                });
             return new Border
             {
                 Background = new SolidColorBrush(Color.FromArgb(0xB4, 0x00, 0x00, 0x00)),

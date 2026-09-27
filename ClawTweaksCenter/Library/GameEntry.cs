@@ -26,6 +26,9 @@ namespace ClawTweaksCenter.Library
         Misc,
     }
 
+    /// <summary>Steam's local manifest state for an unfinished install.</summary>
+    public enum SteamDownloadStatus { None, Queued, Downloading, Paused }
+
     /// <summary>
     /// One installed game, as far as we can know it WITHOUT logging into anything: everything here
     /// comes from files the store already wrote to this machine.
@@ -104,23 +107,23 @@ namespace ClawTweaksCenter.Library
         /// fully-installed - see DownloadTotalBytes). They belong on the same shelf because they
         /// answer the same question: this is a game you have that you cannot start yet.
         ///
-        /// EVERY OTHER GROUPING FILTERS THESE OUT. A shelf of covers is a shelf of things to play,
-        /// and an entry that cannot be played does not belong in Recent, in All, or under its store.
+        /// Recent and All contain playable games; the Steam shelf also shows unfinished Steam
+        /// installs so their state remains visible alongside the rest of the Steam library.
         /// </summary>
         public bool Installed { get; set; } = true;
 
         /// <summary>
-        /// Steam is installing this one right now: a manifest exists and StateFlags is not yet
-        /// "fully installed". Steam only.
+        /// Steam's state for an unfinished install. None also means an owned title with no manifest.
         ///
-        /// ⚠️ THIS IS THE WHOLE SIGNAL - THERE IS NO PERCENTAGE. Measured on 2026-09-15 with a
-        /// 3.7 GB install: the manifest was written three times in total - at 0 %, at 0 % with the
-        /// totals filled in, and at 100 % three minutes later. BytesDownloaded is never updated in
-        /// between, the downloading folder is preallocated to full size in the first seconds, and
-        /// content_log.txt carries state words but no figures. A bar that moves would have to come
-        /// from Steam's undocumented client interface; this flag comes from a file.
+        /// There is no reliable live percentage. In a measured 3.7 GB install, BytesDownloaded
+        /// was not updated between the start and finish, and the downloading folder was preallocated
+        /// to full size. The manifest does report whether an update is currently running, allowing
+        /// this state to change when Steam suspends or resumes it.
         /// </summary>
-        public bool Downloading { get; set; }
+        public SteamDownloadStatus DownloadStatus { get; set; }
+
+        public bool Downloading => DownloadStatus == SteamDownloadStatus.Downloading;
+        public bool DownloadPending => DownloadStatus != SteamDownloadStatus.None;
 
         /// <summary>Download progress, where the store reports it. Both 0 means "not downloading" or
         /// "no figures" - only Steam fills these in, out of the same manifest the entry came from.
