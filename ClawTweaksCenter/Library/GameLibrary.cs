@@ -391,18 +391,17 @@ namespace ClawTweaksCenter.Library
         /// </summary>
         public IReadOnlyList<GameEntry> ForGroup(LibraryGroup group, string system)
         {
-            // NOT INSTALLED IS THE ONE TAB THAT WANTS THE OTHERS. Everything below it works on
-            // `playable`, so an entry that cannot be started cannot leak onto a shelf that offers to
-            // start it - one filter in one place rather than a condition in nine branches.
+            // Recent, All and the other stores only show playable entries. Steam also shows its
+            // unfinished installs so users can check their state without leaving the store shelf.
             // HIDDEN GAMES ARE ON NO SHELF, this one included. Filtered once, here, so no tab can
             // forget it; the entries stay in Games, which is what Library settings lists them from.
             var shown = Games.Where(g => !g.IsHidden).ToList();
 
             if (group == LibraryGroup.NotInstalled)
                 return shown.Where(g => !g.Installed)
-                            // Downloads first: they are the ones with something happening, and the
-                            // ones the user just pressed a button to cause.
-                            .OrderByDescending(g => g.DownloadTotalBytes > 0)
+                            // Unfinished transfers first; owned games with no manifest follow.
+                            .OrderByDescending(g => g.DownloadPending)
+                            .ThenByDescending(g => g.DownloadTotalBytes > 0)
                             .ThenBy(g => g.Title, StringComparer.CurrentCultureIgnoreCase)
                             .ToList();
 
@@ -410,7 +409,8 @@ namespace ClawTweaksCenter.Library
 
             switch (group)
             {
-                case LibraryGroup.Steam: return playable.Where(g => g.Store == GameStore.Steam).ToList();
+                case LibraryGroup.Steam: return shown.Where(g => g.Store == GameStore.Steam
+                                                               && (g.Installed || g.DownloadPending)).ToList();
                 case LibraryGroup.Epic: return playable.Where(g => g.Store == GameStore.Epic).ToList();
                 case LibraryGroup.Xbox: return playable.Where(g => g.Store == GameStore.Xbox).ToList();
                 case LibraryGroup.Misc: return playable.Where(g => g.Store == GameStore.Misc).ToList();
@@ -432,22 +432,16 @@ namespace ClawTweaksCenter.Library
                     // Misc is out for a second reason on top of the ROM one: these are tools, and
                     // a shelf meant to hold "what you were playing" should not fill up with the fan
                     // curve editor you open more often than any game.
-                    //
-                    // A DOWNLOAD LEADS THE SHELF (user, 2026-09-15). It is the one thing on the
-                    // machine that is happening right now, and the user pressed a button to cause
-                    // it. Not playable, so it is added in front of the playable list rather than
-                    // filtered out of it, and it does not eat into RecentLimit.
-                    var downloading = shown.Where(g => g.Downloading).ToList();
-                    // ...unless the user asked for them (Show own apps in Recent). Their only
+                    // Own apps appear only when requested (Show own apps in Recent). Their only
                     // timestamp is a start from this library, so they merge with the store
                     // timestamps on one date order.
                     bool ownApps = Core.CenterSettings.ShowOwnAppsInRecent;
-                    downloading.AddRange(playable.Where(g => g.LastPlayed.HasValue
-                                                          && g.Store != GameStore.Playnite
-                                                          && (ownApps || g.Store != GameStore.Misc))
-                                                 .OrderByDescending(g => g.LastPlayed.Value)
-                                                 .Take(RecentLimit));
-                    return downloading;
+                    return playable.Where(g => g.LastPlayed.HasValue
+                                            && g.Store != GameStore.Playnite
+                                            && (ownApps || g.Store != GameStore.Misc))
+                                   .OrderByDescending(g => g.LastPlayed.Value)
+                                   .Take(RecentLimit)
+                                   .ToList();
                 // "All" means the PC library - installed GAMES. ROMs are hundreds of entries with
                 // their own tab and would bury the installed games they sit next to; Misc is not
                 // games at all.

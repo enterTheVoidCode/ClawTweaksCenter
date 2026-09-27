@@ -37,10 +37,13 @@ namespace ClawTweaksCenter.Library
             "2805730", // Proton 9.0
         };
 
-        /// <summary>StateFlags bit 2 (value 4) is "fully installed". Anything else is a download in
-        /// progress, an update, or a stub - listing those means offering to start a game that is not
-        /// there yet.</summary>
+        /// <summary>Steam appmanifest StateFlags bits. The Running bit distinguishes an active
+        /// transfer from a queued or suspended one; Steam can suspend a started download without
+        /// setting its separate Paused bit.</summary>
         private const int StateFlagFullyInstalled = 4;
+        private const int StateFlagUpdateRunning = 256;
+        private const int StateFlagUpdatePaused = 512;
+        private const int StateFlagUpdateStarted = 1024;
 
         /// <summary>Where Steam itself is, per the registry. NOT a hardcoded Program Files (x86) path:
         /// Steam installs anywhere, and on a handheld it very often is not on C:.</summary>
@@ -197,12 +200,12 @@ namespace ClawTweaksCenter.Library
         }
 
         /// <summary>
-        /// One manifest, re-read: null when Steam has no manifest for the app in any library, false
-        /// while it is downloading, true once StateFlags says fully installed. This is what the
+        /// One manifest, re-read: null when Steam has no manifest for the app in any library; None
+        /// once fully installed; otherwise the current transfer state. This is what the
         /// download watcher polls - a full ScanAsync every few seconds would re-read nine stores and
         /// re-fetch the owned list to answer a question one file answers.
         /// </summary>
-        public static bool? IsFullyInstalled(string appId)
+        public static SteamDownloadStatus? GetDownloadStatus(string appId)
         {
             try
             {
@@ -213,10 +216,10 @@ namespace ClawTweaksCenter.Library
                     string manifest = Path.Combine(lib, "steamapps", "appmanifest_" + appId + ".acf");
                     if (!File.Exists(manifest)) continue;
                     var app = Deserialize(manifest);
-                    if (app == null) return false;
+                    if (app == null) return SteamDownloadStatus.Queued;
                     if (!int.TryParse(ValueOf(app, "StateFlags"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int flags))
                         flags = 0;
-                    return (flags & StateFlagFullyInstalled) != 0;
+                    return DownloadStatusFromFlags(flags);
                 }
             }
             catch { }
@@ -244,9 +247,8 @@ namespace ClawTweaksCenter.Library
 
                 // AN UNFINISHED MANIFEST IS NOT NOTHING. It used to be discarded here, and that left
                 // a game the user had just told Steam to install invisible in both directions: gone
-                // from the owned list the moment the manifest appeared, and not yet in the Steam tab.
-                // It is kept, marked not-installed, and carries its byte counts so the Not Installed
-                // tab can say how far along it is.
+                // from the owned list the moment the manifest appeared. It is kept, marked
+                // not-installed, and shown on the Steam shelf with its current transfer state.
                 //
                 // The folder is only required for a game claiming to be READY. A download that has
                 // just been queued has a manifest and no folder yet, and demanding one would hide
@@ -259,7 +261,7 @@ namespace ClawTweaksCenter.Library
                     Id = appId,
                     Store = GameStore.Steam,
                     Installed = ready,
-                    Downloading = !ready,
+                    DownloadStatus = DownloadStatusFromFlags(flags),
                     DownloadedBytes = Bytes(ValueOf(app, "BytesDownloaded")),
                     DownloadTotalBytes = Bytes(ValueOf(app, "BytesToDownload")),
                     Title = string.IsNullOrWhiteSpace(name) ? installDir : name,
@@ -272,6 +274,15 @@ namespace ClawTweaksCenter.Library
                 };
             }
             catch { return null; }
+        }
+
+        private static SteamDownloadStatus DownloadStatusFromFlags(int flags)
+        {
+            if ((flags & StateFlagFullyInstalled) != 0) return SteamDownloadStatus.None;
+            if ((flags & StateFlagUpdateRunning) != 0) return SteamDownloadStatus.Downloading;
+            if ((flags & (StateFlagUpdatePaused | StateFlagUpdateStarted)) != 0)
+                return SteamDownloadStatus.Paused;
+            return SteamDownloadStatus.Queued;
         }
 
         private static long Bytes(string raw)
