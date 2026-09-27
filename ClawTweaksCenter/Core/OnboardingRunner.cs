@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Shared.Enums;
@@ -167,14 +167,20 @@ namespace ClawTweaksCenter.Core
                 if (declined)
                 {
                     EssentialTitle = Loc.T("ClawTweaks Essential");
+                    // 🔴 POINT AT SETUP, NOT AT A DOWNLOAD. This used to read "Install usbip-win2
+                    // to switch", which sends somebody off to find a kernel driver on their own.
+                    // Setup fetches every tool it needs and knows which versions go together; a
+                    // hand-installed one is how we get a machine nobody can support.
                     EssentialDetail = toolsMissing
-                        ? Loc.F("You chose the hardware controller during setup. Install {0} to switch.", _essentialMissing)
+                        ? Loc.T("You chose the hardware controller during setup. Run the ClawTweaks setup again to add the virtual controller.")
                         : Loc.T("You chose the hardware controller during setup.");
                 }
                 else
                 {
                     EssentialTitle = Loc.T("Virtual controller not available");
-                    EssentialDetail = Loc.F("{0} is not installed, so its steps are hidden.", _essentialMissing);
+                    // The tool is named because it is the diagnosis, but the instruction is
+                    // still Setup - see the note above.
+                    EssentialDetail = Loc.F("{0} is not installed. Run the ClawTweaks setup again to add it.", _essentialMissing);
                 }
             }
 

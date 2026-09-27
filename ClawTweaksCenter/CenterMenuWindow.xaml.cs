@@ -1234,36 +1234,31 @@ namespace ClawTweaksCenter
         private void RenderOnboarding()
         {
             BeginContent(centred: false);
-            ContentHost.Children.Add(UiHelpers.Title("Onboarding"));
-            ContentHost.Children.Add(UiHelpers.Body(
-                "Helps set the most important ClawTweaks settings."));
 
-            // Shown unconditionally: HidHide and usbip install kernel drivers that Windows only loads on
-            // the next boot (the two tools flagged NeedsReboot in PrerequisiteGuide). Without the restart
-            // the steps below can fail for a reason that looks nothing like "reboot pending", so the note
-            // is cheaper than the support round-trip.
-            ContentHost.Children.Add(new Border
-            {
-                Background = Tint(UiHelpers.Warn, 0x22),
-                BorderBrush = Tint(UiHelpers.Warn, 0x99),
-                BorderThickness = new Thickness(1),
-                CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(12, 8, 12, 8),
-                Margin = new Thickness(0, 0, 0, 14),
-                HorizontalAlignment = HorizontalAlignment.Left,
-                Child = new TextBlock
-                {
-                    Text = "⚠  If HidHide or usbip was just installed, restart the device before running these steps.",
-                    FontSize = 14,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = UiHelpers.Warn,
-                    TextWrapping = TextWrapping.Wrap,
-                },
-            });
+            // 🔴 THE HEADING AND THE EDITION NOTE SHARE ONE ROW. Title, subtitle and the note used
+            // to be three full-width blocks stacked on top of each other, which pushed the steps -
+            // the only thing on this page anyone can act on - most of the way down the screen. The
+            // note is a statement about the machine, so it belongs beside the heading, not in the
+            // reading path to the steps.
+            //
+            // There USED to be a fourth block above it: "if HidHide or usbip was just installed,
+            // restart the device". It predates the Inno setup, which installs those drivers itself
+            // and asks for the restart on the spot. It was also the one string on this page still
+            // hard-coded in English, so it showed untranslated in every other language.
+            var onbHeader = new Grid { Margin = new Thickness(0, 0, 0, 14) };
+            onbHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            onbHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var onbHeadText = new StackPanel();
+            onbHeadText.Children.Add(UiHelpers.Title("Onboarding"));
+            onbHeadText.Children.Add(UiHelpers.Body(
+                "Helps set the most important ClawTweaks settings."));
+            Grid.SetColumn(onbHeadText, 0);
+            onbHeader.Children.Add(onbHeadText);
 
             // ClawTweaks Essential: two of the five steps are gone, and a page that quietly loses
-            // half of itself is its own kind of confusing. Amber like the reboot note above, and for
-            // the same reason - this is a statement about the machine, not a warning.
+            // half of itself is its own kind of confusing. Amber because this is a statement about
+            // the machine, not a warning.
             if (_onboarding.EssentialMode)
             {
                 var essStack = new StackPanel();
@@ -1281,18 +1276,27 @@ namespace ClawTweaksCenter
                     FontSize = 13, Foreground = UiHelpers.Subtle,
                     TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0),
                 });
-                ContentHost.Children.Add(new Border
+                var essBox = new Border
                 {
                     Background = Tint(UiHelpers.Warn, 0x18),
                     BorderBrush = Tint(UiHelpers.Warn, 0x99),
                     BorderThickness = new Thickness(1),
                     CornerRadius = new CornerRadius(8),
                     Padding = new Thickness(12, 8, 12, 8),
-                    Margin = new Thickness(0, 0, 0, 14),
-                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Margin = new Thickness(18, 4, 0, 0),
+                    // Narrow on purpose. Auto width would let one long sentence eat the row and
+                    // squeeze the heading; at this width the detail wraps to two or three lines,
+                    // which is what a side note should look like.
+                    MaxWidth = 300,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Top,
                     Child = essStack,
-                });
+                };
+                Grid.SetColumn(essBox, 1);
+                onbHeader.Children.Add(essBox);
             }
+
+            ContentHost.Children.Add(onbHeader);
 
             if (_onboarding.IsConnecting)
             {
