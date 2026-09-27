@@ -1058,6 +1058,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "Du hast im Setup den Hardware-Controller gew\u00E4hlt. Installiere {0}, um zu wechseln.",
             ["You chose the hardware controller during setup."] = "Du hast im Setup den Hardware-Controller gew\u00E4hlt.",
             ["{0} is not installed, so its steps are hidden."] = "{0} ist nicht installiert, daher sind die Schritte ausgeblendet.",
+            ["RTSS is not installed"] = "RTSS ist nicht installiert",
+            ["Run Setup again to install it."] = "Setup erneut ausf\u00FChren, um es zu installieren.",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "Spielprofil aktivieren, Perf. Overlay ankreuzen, dann RTSS w\u00E4hlen.",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2087,6 +2090,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "Vous avez choisi la manette mat\u00E9rielle lors de l'installation. Installez {0} pour changer.",
             ["You chose the hardware controller during setup."] = "Vous avez choisi la manette mat\u00E9rielle lors de l'installation.",
             ["{0} is not installed, so its steps are hidden."] = "{0} n'est pas install\u00E9, ses \u00E9tapes sont donc masqu\u00E9es.",
+            ["RTSS is not installed"] = "RTSS n'est pas install\u00E9",
+            ["Run Setup again to install it."] = "Relancez l'installation pour l'installer.",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "Activez un profil par jeu, cochez Perf. Overlay, puis choisissez RTSS.",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3121,6 +3127,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "\uC124\uCE58 \uC2DC \uD558\uB4DC\uC6E8\uC5B4 \uCEE8\uD2B8\uB864\uB7EC\uB97C \uC120\uD0DD\uD588\uC2B5\uB2C8\uB2E4. \uBC14\uAFB8\uB824\uBA74 {0}\uC744(\uB97C) \uC124\uCE58\uD558\uC138\uC694.",
             ["You chose the hardware controller during setup."] = "\uC124\uCE58 \uC2DC \uD558\uB4DC\uC6E8\uC5B4 \uCEE8\uD2B8\uB864\uB7EC\uB97C \uC120\uD0DD\uD588\uC2B5\uB2C8\uB2E4.",
             ["{0} is not installed, so its steps are hidden."] = "{0}\uC774(\uAC00) \uC124\uCE58\uB418\uC9C0 \uC54A\uC544 \uD574\uB2F9 \uB2E8\uACC4\uB97C \uC228\uACBC\uC2B5\uB2C8\uB2E4.",
+            ["RTSS is not installed"] = "RTSS\uAC00 \uC124\uCE58\uB418\uC5B4 \uC788\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4",
+            ["Run Setup again to install it."] = "\uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC744 \uB2E4\uC2DC \uC2E4\uD589\uD574 \uC124\uCE58\uD558\uC138\uC694.",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "\uAC8C\uC784\uBCC4 \uD504\uB85C\uD544\uC744 \uCF1C\uACE0 Perf. Overlay\uB97C \uCCB4\uD06C\uD55C \uB4A4 RTSS\uB97C \uC120\uD0DD\uD558\uC138\uC694.",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4152,6 +4161,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "Elegiste el mando por hardware durante la instalaci\u00F3n. Instala {0} para cambiar.",
             ["You chose the hardware controller during setup."] = "Elegiste el mando por hardware durante la instalaci\u00F3n.",
             ["{0} is not installed, so its steps are hidden."] = "{0} no est\u00E1 instalado, as\u00ED que sus pasos est\u00E1n ocultos.",
+            ["RTSS is not installed"] = "RTSS no est\u00E1 instalado",
+            ["Run Setup again to install it."] = "Vuelve a ejecutar el instalador para instalarlo.",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "Activa un perfil por juego, marca Perf. Overlay y elige RTSS.",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -5187,6 +5199,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "\u041F\u0440\u0438 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0435 \u0432\u044B \u0432\u044B\u0431\u0440\u0430\u043B\u0438 \u0430\u043F\u043F\u0430\u0440\u0430\u0442\u043D\u044B\u0439 \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440. \u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0435 {0}, \u0447\u0442\u043E\u0431\u044B \u043F\u0435\u0440\u0435\u043A\u043B\u044E\u0447\u0438\u0442\u044C\u0441\u044F.",
             ["You chose the hardware controller during setup."] = "\u041F\u0440\u0438 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0435 \u0432\u044B \u0432\u044B\u0431\u0440\u0430\u043B\u0438 \u0430\u043F\u043F\u0430\u0440\u0430\u0442\u043D\u044B\u0439 \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440.",
             ["{0} is not installed, so its steps are hidden."] = "{0} \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D, \u043F\u043E\u044D\u0442\u043E\u043C\u0443 \u0435\u0433\u043E \u0448\u0430\u0433\u0438 \u0441\u043A\u0440\u044B\u0442\u044B.",
+            ["RTSS is not installed"] = "RTSS \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D",
+            ["Run Setup again to install it."] = "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443 \u0441\u043D\u043E\u0432\u0430, \u0447\u0442\u043E\u0431\u044B \u0435\u0433\u043E \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C.",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0438\u0433\u0440\u044B, \u043E\u0442\u043C\u0435\u0442\u044C\u0442\u0435 Perf. Overlay \u0438 \u0432\u044B\u0431\u0435\u0440\u0438\u0442\u0435 RTSS.",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -6213,6 +6228,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "\u0395\u03C0\u03B9\u03BB\u03AD\u03BE\u03B1\u03C4\u03B5 \u03C4\u03BF \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03C5\u03BB\u03B9\u03BA\u03BF\u03CD \u03C3\u03C4\u03B7\u03BD \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7. \u0395\u03B3\u03BA\u03B1\u03C4\u03B1\u03C3\u03C4\u03AE\u03C3\u03C4\u03B5 {0} \u03B3\u03B9\u03B1 \u03B1\u03BB\u03BB\u03B1\u03B3\u03AE.",
             ["You chose the hardware controller during setup."] = "\u0395\u03C0\u03B9\u03BB\u03AD\u03BE\u03B1\u03C4\u03B5 \u03C4\u03BF \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03C5\u03BB\u03B9\u03BA\u03BF\u03CD \u03C3\u03C4\u03B7\u03BD \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7.",
             ["{0} is not installed, so its steps are hidden."] = "\u03A4\u03BF {0} \u03B4\u03B5\u03BD \u03B5\u03AF\u03BD\u03B1\u03B9 \u03B5\u03B3\u03BA\u03B1\u03C4\u03B5\u03C3\u03C4\u03B7\u03BC\u03AD\u03BD\u03BF, \u03BF\u03C0\u03CC\u03C4\u03B5 \u03C4\u03B1 \u03B2\u03AE\u03BC\u03B1\u03C4\u03AC \u03C4\u03BF\u03C5 \u03B5\u03AF\u03BD\u03B1\u03B9 \u03BA\u03C1\u03C5\u03BC\u03BC\u03AD\u03BD\u03B1.",
+            ["RTSS is not installed"] = "\u03A4\u03BF RTSS \u03B4\u03B5\u03BD \u03B5\u03AF\u03BD\u03B1\u03B9 \u03B5\u03B3\u03BA\u03B1\u03C4\u03B5\u03C3\u03C4\u03B7\u03BC\u03AD\u03BD\u03BF",
+            ["Run Setup again to install it."] = "\u0395\u03BA\u03C4\u03B5\u03BB\u03AD\u03C3\u03C4\u03B5 \u03BE\u03B1\u03BD\u03AC \u03C4\u03B7\u03BD \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7 \u03B3\u03B9\u03B1 \u03BD\u03B1 \u03C4\u03BF \u03B5\u03B3\u03BA\u03B1\u03C4\u03B1\u03C3\u03C4\u03AE\u03C3\u03B5\u03C4\u03B5.",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "\u0395\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03B9\u03AE\u03C3\u03C4\u03B5 \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB \u03B1\u03BD\u03AC \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9, \u03B5\u03C0\u03B9\u03BB\u03AD\u03BE\u03C4\u03B5 Perf. Overlay \u03BA\u03B1\u03B9 \u03BC\u03B5\u03C4\u03AC RTSS.",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -7244,6 +7262,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "\u4F60\u5728\u5B89\u88C5\u65F6\u9009\u4E86\u786C\u4EF6\u624B\u67C4\u3002\u5B89\u88C5 {0} \u5373\u53EF\u5207\u6362\u3002",
             ["You chose the hardware controller during setup."] = "\u4F60\u5728\u5B89\u88C5\u65F6\u9009\u4E86\u786C\u4EF6\u624B\u67C4\u3002",
             ["{0} is not installed, so its steps are hidden."] = "\u672A\u5B89\u88C5 {0}\uFF0C\u56E0\u6B64\u76F8\u5173\u6B65\u9AA4\u5DF2\u9690\u85CF\u3002",
+            ["RTSS is not installed"] = "\u672A\u5B89\u88C5 RTSS",
+            ["Run Setup again to install it."] = "\u91CD\u65B0\u8FD0\u884C\u5B89\u88C5\u7A0B\u5E8F\u5373\u53EF\u5B89\u88C5\u3002",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "\u542F\u7528\u5355\u6E38\u620F\u914D\u7F6E\uFF0C\u52FE\u9009 Perf. Overlay\uFF0C\u518D\u9009\u62E9 RTSS\u3002",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -8275,6 +8296,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "\u4F60\u5728\u5B89\u88DD\u6642\u9078\u4E86\u786C\u9AD4\u624B\u628A\u3002\u5B89\u88DD {0} \u5373\u53EF\u5207\u63DB\u3002",
             ["You chose the hardware controller during setup."] = "\u4F60\u5728\u5B89\u88DD\u6642\u9078\u4E86\u786C\u9AD4\u624B\u628A\u3002",
             ["{0} is not installed, so its steps are hidden."] = "\u672A\u5B89\u88DD {0}\uFF0C\u56E0\u6B64\u76F8\u95DC\u6B65\u9A5F\u5DF2\u96B1\u85CF\u3002",
+            ["RTSS is not installed"] = "\u672A\u5B89\u88DD RTSS",
+            ["Run Setup again to install it."] = "\u91CD\u65B0\u57F7\u884C\u5B89\u88DD\u7A0B\u5F0F\u5373\u53EF\u5B89\u88DD\u3002",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "\u555F\u7528\u55AE\u904A\u6232\u8A2D\u5B9A\u6A94\uFF0C\u52FE\u9078 Perf. Overlay\uFF0C\u518D\u9078\u64C7 RTSS\u3002",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -9304,6 +9328,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "Hai scelto il controller hardware durante l'installazione. Installa {0} per cambiare.",
             ["You chose the hardware controller during setup."] = "Hai scelto il controller hardware durante l'installazione.",
             ["{0} is not installed, so its steps are hidden."] = "{0} non \u00E8 installato, quindi i suoi passaggi sono nascosti.",
+            ["RTSS is not installed"] = "RTSS non \u00E8 installato",
+            ["Run Setup again to install it."] = "Riesegui il programma di installazione per installarlo.",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "Attiva un profilo per gioco, spunta Perf. Overlay, poi scegli RTSS.",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -10321,6 +10348,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "Voc\u00EA escolheu o controle por hardware na instala\u00E7\u00E3o. Instale {0} para trocar.",
             ["You chose the hardware controller during setup."] = "Voc\u00EA escolheu o controle por hardware na instala\u00E7\u00E3o.",
             ["{0} is not installed, so its steps are hidden."] = "{0} n\u00E3o est\u00E1 instalado, ent\u00E3o os passos dele ficam ocultos.",
+            ["RTSS is not installed"] = "O RTSS n\u00E3o est\u00E1 instalado",
+            ["Run Setup again to install it."] = "Execute o instalador de novo para instal\u00E1-lo.",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "Ative um perfil por jogo, marque Perf. Overlay e escolha o RTSS.",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -11354,6 +11384,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u6642\u306B\u30CF\u30FC\u30C9\u30A6\u30A7\u30A2\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u3092\u9078\u3073\u307E\u3057\u305F\u3002{0} \u3092\u5165\u308C\u308C\u3070\u5207\u308A\u66FF\u3048\u3089\u308C\u307E\u3059\u3002",
             ["You chose the hardware controller during setup."] = "\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u6642\u306B\u30CF\u30FC\u30C9\u30A6\u30A7\u30A2\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u3092\u9078\u3073\u307E\u3057\u305F\u3002",
             ["{0} is not installed, so its steps are hidden."] = "{0} \u304C\u672A\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u306E\u305F\u3081\u3001\u305D\u306E\u624B\u9806\u306F\u975E\u8868\u793A\u3067\u3059\u3002",
+            ["RTSS is not installed"] = "RTSS \u304C\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3055\u308C\u3066\u3044\u307E\u305B\u3093",
+            ["Run Setup again to install it."] = "\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u5B9F\u884C\u3057\u76F4\u3059\u3068\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3067\u304D\u307E\u3059\u3002",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "\u30B2\u30FC\u30E0\u3054\u3068\u306E\u30D7\u30ED\u30D5\u30A1\u30A4\u30EB\u3092\u6709\u52B9\u306B\u3057\u3001Perf. Overlay \u3092\u30C1\u30A7\u30C3\u30AF\u3057\u3066\u304B\u3089 RTSS \u3092\u9078\u3073\u307E\u3059\u3002",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -12378,6 +12411,9 @@ namespace ClawTweaksCenter.Core
             ["You chose the hardware controller during setup. Install {0} to switch."] = "Podczas instalacji wybra\u0142e\u015B kontroler sprz\u0119towy. Zainstaluj {0}, aby prze\u0142\u0105czy\u0107.",
             ["You chose the hardware controller during setup."] = "Podczas instalacji wybra\u0142e\u015B kontroler sprz\u0119towy.",
             ["{0} is not installed, so its steps are hidden."] = "{0} nie jest zainstalowany, wi\u0119c jego kroki s\u0105 ukryte.",
+            ["RTSS is not installed"] = "RTSS nie jest zainstalowany",
+            ["Run Setup again to install it."] = "Uruchom instalator ponownie, aby go zainstalowa\u0107.",
+            ["Activate a per-game profile, tick Perf. Overlay, then pick RTSS."] = "W\u0142\u0105cz profil gry, zaznacz Perf. Overlay, potem wybierz RTSS.",
         };
 
     }

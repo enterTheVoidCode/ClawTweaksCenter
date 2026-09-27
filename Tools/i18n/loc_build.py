@@ -152,13 +152,20 @@ OSD_KEYS = [
     'Game profile created',
     'Open the Game Bar to set TDP, fan and controller settings for it.',
     'Not detected as a game any more',
-    'Undo in Game Bar > Settings > Game detection',
+    # The undo line is SHARED with the card above and is therefore NOT repeated here. Listing it
+    # twice is what broke every OSD card in 0.4.0.56 - see the duplicate check in write_osd_tables.
     # The two settings the global profile may no longer carry (0.4.0.53). Shown as a card because
     # the same refusal reaches the Game Bar widget, CTW Center and the native Quick Panel.
     'FPS limit is per game',
     'Activate a per-game profile and set it there.',
     'RTSS overlay is per game',
-    'Activate a per-game profile and pick it there.',
+    # The body is the WIDGET'S sentence, verbatim (GamingWidget.Display.cs). It replaced "Activate
+    # a per-game profile and pick it there.", which named the wrong missing step: the profile is
+    # usually already on and the unticked Perf. Overlay box is what blocks the change.
+    'Activate a per-game profile, tick Perf. Overlay, then pick RTSS.',
+    # Refused because the tool is absent, not because of where the value would land.
+    'RTSS is not installed',
+    'Run Setup again to install it.',
 ]
 
 # TSV column -> the C# field name for that language's dictionary. The order here is the order the
@@ -528,6 +535,19 @@ def build_osd(keys, tables, check):
     """-> (exit code, message). Skips cleanly when the sibling repo is not checked out."""
     if not os.path.isdir(INNO_REPO):
         return 0, 'OSD: sibling repo not found - skipped.'
+
+    # 🔴 A KEY LISTED TWICE IS A BROKEN BUILD, NOT A HARMLESS REPEAT. The emitted table is a
+    # C# collection initializer, and a duplicate key makes its static constructor throw
+    # ArgumentException - which surfaces as a TypeInitializationException on the FIRST lookup and
+    # takes down every card that is not individually wrapped in a try/catch. Measured 2026-09-27:
+    # 'Undo in Game Bar > Settings > Game detection' appeared under two cards in OSD_KEYS, and from
+    # then on no OSD notification appeared at all while the confirm card, which does wrap its
+    # lookup, kept working in English. Nothing about the symptom points at a word list.
+    seen = set()
+    repeated = sorted(set(k for k in OSD_KEYS if k in seen or seen.add(k)))
+    if repeated:
+        return 1, ('OSD: %d key(s) appear more than once in OSD_KEYS, which emits a duplicate '
+                   'dictionary key and throws at runtime: %s' % (len(repeated), repeated))
 
     unknown = [k for k in OSD_KEYS if k not in keys]
     if unknown:
