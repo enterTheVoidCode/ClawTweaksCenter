@@ -3138,7 +3138,14 @@ namespace ClawTweaksCenter
                 foreach (var t in new[] { hidhide, rtss, usbip, pawnio })
                     LogDetail($"  {t.Name}: installed={t.Installed} ({t.Detail})");
 
-                var missingTools = new[] { hidhide, usbip, rtss, pawnio }.Where(t => !t.Installed).ToList();
+                // Only what this edition needs holds the install back - see InstallToolPolicy. A
+                // ClawTweaks Essential machine has no usbip, HidHide or RTSS on purpose.
+                SetupToolChoices.Invalidate();
+                foreach (var t in new[] { hidhide, usbip, rtss, pawnio })
+                    if (!t.Installed && !InstallToolPolicy.Blocks(t))
+                        LogDetail($"  {t.Name}: not required for this install ({InstallToolPolicy.WhyNotRequired(t)})");
+
+                var missingTools = new[] { hidhide, usbip, rtss, pawnio }.Where(InstallToolPolicy.Blocks).ToList();
                 if (missingTools.Count > 0)
                 {
                     // Hand over and stop. Not a failure — there is simply something the user has to do
@@ -3147,7 +3154,7 @@ namespace ClawTweaksCenter
                     ShowMissingPrerequisites(build, missingTools);
                     return;
                 }
-                Log("Required tools (HidHide, RTSS, usbip, PawnIO) already installed.");
+                Log("Required tools present.");
 
                 // The signing certificate. Same shape: check, and hand over if it isn't trusted yet.
                 string cer = CertInstaller.FindSiblingCer();

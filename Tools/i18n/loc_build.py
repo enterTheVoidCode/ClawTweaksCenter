@@ -82,6 +82,11 @@ OSD_KEYS = [
     'Switch back with the Mode tile',
     'Hardware gamepad is back',
     'Controller not restored',
+    # the outdated-usbip card (helper UsbipUpgrade) and the restore after the reboot
+    'usbip update required',
+    'Controller is in hardware mode.',
+    'Install usbip {0}, then restart.',
+    'Virtual controller restored',
     'It stays in DInput mode',
     # the hardware-mouse card and the mode confirmations
     'HW Mouse ON \u2014 controller paused. Click the HW Mouse tile or press the keyboard hotkey to return.',

@@ -1060,6 +1060,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "{0} ist nicht installiert. Starte das ClawTweaks-Setup erneut, um es hinzuzuf\u00FCgen.",
             ["RTSS is not installed"] = "RTSS ist nicht installiert",
             ["Run Setup again to install it."] = "Setup erneut ausf\u00FChren, um es zu installieren.",
+            ["Required tools present."] = "Ben\u00F6tigte Tools vorhanden.",
+            ["usbip update required"] = "usbip-Update erforderlich",
+            ["Controller is in hardware mode."] = "Controller ist im Hardware-Modus.",
+            ["Install usbip {0}, then restart."] = "Installiere usbip {0} und starte neu.",
+            ["Virtual controller restored"] = "Virtueller Controller wiederhergestellt",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2091,6 +2096,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "{0} n'est pas install\u00E9. Relancez l'installation de ClawTweaks pour l'ajouter.",
             ["RTSS is not installed"] = "RTSS n'est pas install\u00E9",
             ["Run Setup again to install it."] = "Relancez l'installation pour l'installer.",
+            ["Required tools present."] = "Outils requis pr\u00E9sents.",
+            ["usbip update required"] = "Mise \u00E0 jour d'usbip requise",
+            ["Controller is in hardware mode."] = "La manette est en mode mat\u00E9riel.",
+            ["Install usbip {0}, then restart."] = "Installez usbip {0}, puis red\u00E9marrez.",
+            ["Virtual controller restored"] = "Manette virtuelle r\u00E9tablie",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3127,6 +3137,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "{0}\uC774(\uAC00) \uC124\uCE58\uB418\uC5B4 \uC788\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4. ClawTweaks \uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC744 \uB2E4\uC2DC \uC2E4\uD589\uD558\uBA74 \uCD94\uAC00\uB429\uB2C8\uB2E4.",
             ["RTSS is not installed"] = "RTSS\uAC00 \uC124\uCE58\uB418\uC5B4 \uC788\uC9C0 \uC54A\uC2B5\uB2C8\uB2E4",
             ["Run Setup again to install it."] = "\uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC744 \uB2E4\uC2DC \uC2E4\uD589\uD574 \uC124\uCE58\uD558\uC138\uC694.",
+            ["Required tools present."] = "\uD544\uC694\uD55C \uB3C4\uAD6C\uAC00 \uC788\uC2B5\uB2C8\uB2E4.",
+            ["usbip update required"] = "usbip \uC5C5\uB370\uC774\uD2B8 \uD544\uC694",
+            ["Controller is in hardware mode."] = "\uCEE8\uD2B8\uB864\uB7EC\uAC00 \uD558\uB4DC\uC6E8\uC5B4 \uBAA8\uB4DC\uC785\uB2C8\uB2E4.",
+            ["Install usbip {0}, then restart."] = "usbip {0}\uC744(\uB97C) \uC124\uCE58\uD55C \uB4A4 \uB2E4\uC2DC \uC2DC\uC791\uD558\uC138\uC694.",
+            ["Virtual controller restored"] = "\uAC00\uC0C1 \uCEE8\uD2B8\uB864\uB7EC \uBCF5\uC6D0\uB428",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4160,6 +4175,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "{0} no est\u00E1 instalado. Vuelve a ejecutar el instalador de ClawTweaks para a\u00F1adirlo.",
             ["RTSS is not installed"] = "RTSS no est\u00E1 instalado",
             ["Run Setup again to install it."] = "Vuelve a ejecutar el instalador para instalarlo.",
+            ["Required tools present."] = "Herramientas necesarias presentes.",
+            ["usbip update required"] = "Actualizaci\u00F3n de usbip necesaria",
+            ["Controller is in hardware mode."] = "El mando est\u00E1 en modo hardware.",
+            ["Install usbip {0}, then restart."] = "Instala usbip {0} y reinicia.",
+            ["Virtual controller restored"] = "Mando virtual restaurado",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -5197,6 +5217,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "{0} \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D. \u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0449\u0438\u043A ClawTweaks \u0435\u0449\u0451 \u0440\u0430\u0437, \u0447\u0442\u043E\u0431\u044B \u0435\u0433\u043E \u0434\u043E\u0431\u0430\u0432\u0438\u0442\u044C.",
             ["RTSS is not installed"] = "RTSS \u043D\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D",
             ["Run Setup again to install it."] = "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043A\u0443 \u0441\u043D\u043E\u0432\u0430, \u0447\u0442\u043E\u0431\u044B \u0435\u0433\u043E \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C.",
+            ["Required tools present."] = "\u041D\u0435\u043E\u0431\u0445\u043E\u0434\u0438\u043C\u044B\u0435 \u0438\u043D\u0441\u0442\u0440\u0443\u043C\u0435\u043D\u0442\u044B \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u044B.",
+            ["usbip update required"] = "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043E\u0431\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 usbip",
+            ["Controller is in hardware mode."] = "\u041A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u0432 \u0430\u043F\u043F\u0430\u0440\u0430\u0442\u043D\u043E\u043C \u0440\u0435\u0436\u0438\u043C\u0435.",
+            ["Install usbip {0}, then restart."] = "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0435 usbip {0} \u0438 \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u0435 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E.",
+            ["Virtual controller restored"] = "\u0412\u0438\u0440\u0442\u0443\u0430\u043B\u044C\u043D\u044B\u0439 \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -6225,6 +6250,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "\u03A4\u03BF {0} \u03B4\u03B5\u03BD \u03B5\u03AF\u03BD\u03B1\u03B9 \u03B5\u03B3\u03BA\u03B1\u03C4\u03B5\u03C3\u03C4\u03B7\u03BC\u03AD\u03BD\u03BF. \u0395\u03BA\u03C4\u03B5\u03BB\u03AD\u03C3\u03C4\u03B5 \u03BE\u03B1\u03BD\u03AC \u03C4\u03B7\u03BD \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7 \u03C4\u03BF\u03C5 ClawTweaks \u03B3\u03B9\u03B1 \u03BD\u03B1 \u03C0\u03C1\u03BF\u03C3\u03C4\u03B5\u03B8\u03B5\u03AF.",
             ["RTSS is not installed"] = "\u03A4\u03BF RTSS \u03B4\u03B5\u03BD \u03B5\u03AF\u03BD\u03B1\u03B9 \u03B5\u03B3\u03BA\u03B1\u03C4\u03B5\u03C3\u03C4\u03B7\u03BC\u03AD\u03BD\u03BF",
             ["Run Setup again to install it."] = "\u0395\u03BA\u03C4\u03B5\u03BB\u03AD\u03C3\u03C4\u03B5 \u03BE\u03B1\u03BD\u03AC \u03C4\u03B7\u03BD \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7 \u03B3\u03B9\u03B1 \u03BD\u03B1 \u03C4\u03BF \u03B5\u03B3\u03BA\u03B1\u03C4\u03B1\u03C3\u03C4\u03AE\u03C3\u03B5\u03C4\u03B5.",
+            ["Required tools present."] = "\u03A4\u03B1 \u03B1\u03C0\u03B1\u03B9\u03C4\u03BF\u03CD\u03BC\u03B5\u03BD\u03B1 \u03B5\u03C1\u03B3\u03B1\u03BB\u03B5\u03AF\u03B1 \u03C5\u03C0\u03AC\u03C1\u03C7\u03BF\u03C5\u03BD.",
+            ["usbip update required"] = "\u0391\u03C0\u03B1\u03B9\u03C4\u03B5\u03AF\u03C4\u03B1\u03B9 \u03B5\u03BD\u03B7\u03BC\u03AD\u03C1\u03C9\u03C3\u03B7 \u03C4\u03BF\u03C5 usbip",
+            ["Controller is in hardware mode."] = "\u03A4\u03BF \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03B5\u03AF\u03BD\u03B1\u03B9 \u03C3\u03B5 \u03BB\u03B5\u03B9\u03C4\u03BF\u03C5\u03C1\u03B3\u03AF\u03B1 \u03C5\u03BB\u03B9\u03BA\u03BF\u03CD.",
+            ["Install usbip {0}, then restart."] = "\u0395\u03B3\u03BA\u03B1\u03C4\u03B1\u03C3\u03C4\u03AE\u03C3\u03C4\u03B5 \u03C4\u03BF usbip {0} \u03BA\u03B1\u03B9 \u03BA\u03AC\u03BD\u03C4\u03B5 \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7.",
+            ["Virtual controller restored"] = "\u03A4\u03BF \u03B5\u03B9\u03BA\u03BF\u03BD\u03B9\u03BA\u03CC \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03B5\u03C0\u03B1\u03BD\u03AE\u03BB\u03B8\u03B5",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -7258,6 +7288,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "\u672A\u5B89\u88C5 {0}\u3002\u91CD\u65B0\u8FD0\u884C ClawTweaks \u5B89\u88C5\u7A0B\u5E8F\u5373\u53EF\u6DFB\u52A0\u3002",
             ["RTSS is not installed"] = "\u672A\u5B89\u88C5 RTSS",
             ["Run Setup again to install it."] = "\u91CD\u65B0\u8FD0\u884C\u5B89\u88C5\u7A0B\u5E8F\u5373\u53EF\u5B89\u88C5\u3002",
+            ["Required tools present."] = "\u6240\u9700\u5DE5\u5177\u5DF2\u5C31\u7EEA\u3002",
+            ["usbip update required"] = "\u9700\u8981\u66F4\u65B0 usbip",
+            ["Controller is in hardware mode."] = "\u624B\u67C4\u5904\u4E8E\u786C\u4EF6\u6A21\u5F0F\u3002",
+            ["Install usbip {0}, then restart."] = "\u5B89\u88C5 usbip {0}\uFF0C\u7136\u540E\u91CD\u542F\u3002",
+            ["Virtual controller restored"] = "\u865A\u62DF\u624B\u67C4\u5DF2\u6062\u590D",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -8291,6 +8326,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "\u672A\u5B89\u88DD {0}\u3002\u91CD\u65B0\u57F7\u884C ClawTweaks \u5B89\u88DD\u7A0B\u5F0F\u5373\u53EF\u65B0\u589E\u3002",
             ["RTSS is not installed"] = "\u672A\u5B89\u88DD RTSS",
             ["Run Setup again to install it."] = "\u91CD\u65B0\u57F7\u884C\u5B89\u88DD\u7A0B\u5F0F\u5373\u53EF\u5B89\u88DD\u3002",
+            ["Required tools present."] = "\u6240\u9700\u5DE5\u5177\u5DF2\u5C31\u7DD2\u3002",
+            ["usbip update required"] = "\u9700\u8981\u66F4\u65B0 usbip",
+            ["Controller is in hardware mode."] = "\u63A7\u5236\u5668\u8655\u65BC\u786C\u9AD4\u6A21\u5F0F\u3002",
+            ["Install usbip {0}, then restart."] = "\u5B89\u88DD usbip {0}\uFF0C\u7136\u5F8C\u91CD\u65B0\u555F\u52D5\u3002",
+            ["Virtual controller restored"] = "\u865B\u64EC\u63A7\u5236\u5668\u5DF2\u6062\u5FA9",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -9322,6 +9362,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "{0} non \u00E8 installato. Riesegui il programma di installazione di ClawTweaks per aggiungerlo.",
             ["RTSS is not installed"] = "RTSS non \u00E8 installato",
             ["Run Setup again to install it."] = "Riesegui il programma di installazione per installarlo.",
+            ["Required tools present."] = "Strumenti richiesti presenti.",
+            ["usbip update required"] = "Aggiornamento di usbip necessario",
+            ["Controller is in hardware mode."] = "Il controller \u00E8 in modalit\u00E0 hardware.",
+            ["Install usbip {0}, then restart."] = "Installa usbip {0}, poi riavvia.",
+            ["Virtual controller restored"] = "Controller virtuale ripristinato",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -10341,6 +10386,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "{0} n\u00E3o est\u00E1 instalado. Execute o instalador do ClawTweaks de novo para adicion\u00E1-lo.",
             ["RTSS is not installed"] = "O RTSS n\u00E3o est\u00E1 instalado",
             ["Run Setup again to install it."] = "Execute o instalador de novo para instal\u00E1-lo.",
+            ["Required tools present."] = "Ferramentas necess\u00E1rias presentes.",
+            ["usbip update required"] = "Atualiza\u00E7\u00E3o do usbip necess\u00E1ria",
+            ["Controller is in hardware mode."] = "O controle est\u00E1 no modo hardware.",
+            ["Install usbip {0}, then restart."] = "Instale o usbip {0} e reinicie.",
+            ["Virtual controller restored"] = "Controle virtual restaurado",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -11376,6 +11426,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "{0} \u304C\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3055\u308C\u3066\u3044\u307E\u305B\u3093\u3002ClawTweaks \u306E\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u5B9F\u884C\u3057\u76F4\u3059\u3068\u8FFD\u52A0\u3067\u304D\u307E\u3059\u3002",
             ["RTSS is not installed"] = "RTSS \u304C\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3055\u308C\u3066\u3044\u307E\u305B\u3093",
             ["Run Setup again to install it."] = "\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u5B9F\u884C\u3057\u76F4\u3059\u3068\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3067\u304D\u307E\u3059\u3002",
+            ["Required tools present."] = "\u5FC5\u8981\u306A\u30C4\u30FC\u30EB\u304C\u3042\u308A\u307E\u3059\u3002",
+            ["usbip update required"] = "usbip \u306E\u66F4\u65B0\u304C\u5FC5\u8981\u3067\u3059",
+            ["Controller is in hardware mode."] = "\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u306F\u30CF\u30FC\u30C9\u30A6\u30A7\u30A2\u30E2\u30FC\u30C9\u3067\u3059\u3002",
+            ["Install usbip {0}, then restart."] = "usbip {0} \u3092\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3057\u3066\u518D\u8D77\u52D5\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+            ["Virtual controller restored"] = "\u4EEE\u60F3\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u3092\u5FA9\u5143\u3057\u307E\u3057\u305F",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -12402,6 +12457,11 @@ namespace ClawTweaksCenter.Core
             ["{0} is not installed. Run the ClawTweaks setup again to add it."] = "{0} nie jest zainstalowany. Uruchom instalator ClawTweaks ponownie, aby go doda\u0107.",
             ["RTSS is not installed"] = "RTSS nie jest zainstalowany",
             ["Run Setup again to install it."] = "Uruchom instalator ponownie, aby go zainstalowa\u0107.",
+            ["Required tools present."] = "Wymagane narz\u0119dzia s\u0105 obecne.",
+            ["usbip update required"] = "Wymagana aktualizacja usbip",
+            ["Controller is in hardware mode."] = "Kontroler jest w trybie sprz\u0119towym.",
+            ["Install usbip {0}, then restart."] = "Zainstaluj usbip {0} i uruchom ponownie.",
+            ["Virtual controller restored"] = "Przywr\u00F3cono wirtualny kontroler",
         };
 
     }
