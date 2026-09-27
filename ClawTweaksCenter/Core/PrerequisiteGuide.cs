@@ -89,7 +89,7 @@ namespace ClawTweaksCenter.Core
             // struct grew again (serial[] plus wsk_events) so libviiper's IOCTL fails, and our CLI
             // fallback carries the mount. Verified on-device 2026-09-07 — "Attached" in 45 ms, not
             // "AlreadyAttached", 450 ms total, three hours with a single attach and no bugcheck.
-            PageUrl = "https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.8.0",
+            PageUrl = "https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.8.1",
             // The release page offers exactly two assets and lists them ALPHABETICALLY, which puts
             // arm64 ABOVE x64 — so the first download link on the page is the wrong one for the Claw.
             // Picking it fails LATE and confusingly: the installer runs, copies every file, and only
@@ -107,7 +107,7 @@ namespace ClawTweaksCenter.Core
             // an error, made worse by ToolDetect then accepting its 'usbipd' service as proof; both
             // fixed.) Since the winget hints are gone from this screen altogether, nothing here can
             // point at the wrong package any more.
-            WhatToGet = "Take USBip-0.9.8.0-x64.exe from this page. The link opens version 0.9.8.0 " +
+            WhatToGet = "Take USBip-0.9.8.1-x64.exe from this page. The link opens version 0.9.8.1 " +
                         "deliberately — it is the version ClawTweaks supports.",
             Warning = "Do not download the ARM version, and do not take an older usbip release: " +
                       "below 0.9.8.0 the device blue-screens while the virtual controller runs.",

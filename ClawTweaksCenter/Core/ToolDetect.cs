@@ -276,16 +276,24 @@ namespace ClawTweaksCenter.Core
 
         #region helpers
         /// <summary>
-        /// The ONE usbip-win2 version ClawTweaks runs on. Min and max are the same number on purpose —
-        /// the Inno setup pins it identically, and this is the value it installs.
+        /// The usbip-win2 versions ClawTweaks runs on. TWO of them since 2026-09-27, and only for as
+        /// long as the transition lasts:
+        ///   0.9.8.0 — three weeks in the field and verified on a device; what the setup shipped.
+        ///   0.9.8.1 — what the setup installs from now on, taken for the open rumble problem.
+        /// A machine that keeps the older one still has a WORKING virtual controller, so telling its
+        /// owner the install is unsupported would be false and would cost them the pad for nothing.
+        /// Below Min the machine bugchecks; above Max we have verified nothing. To collapse this back
+        /// to a single pin, set both to the same string.
         /// </summary>
-        public const string SupportedUsbipVersion = "0.9.8.0";
+        public const string MinSupportedUsbipVersion = "0.9.8.0";
+        public const string MaxSupportedUsbipVersion = "0.9.8.1";
 
-        /// <summary>Kept for anything that still reads it. Same number: there is one supported version.</summary>
-        public const string MaxSupportedUsbipVersion = SupportedUsbipVersion;
+        /// <summary>What the ClawTweaks setup installs — the version to NAME when telling someone what
+        /// to get. Not the same question as which versions are accepted.</summary>
+        public const string SupportedUsbipVersion = MaxSupportedUsbipVersion;
 
         /// <summary>First usbip-win2 we have not verified — see <see cref="UnsupportedUsbipVersion"/>.</summary>
-        public const string MinBrokenUsbipVersion = "0.9.8.1";
+        public const string MinBrokenUsbipVersion = "0.9.8.2";
 
         /// <summary>
         /// Returns the installed usbip version string when it is one we do NOT run on — too old or too
@@ -315,16 +323,17 @@ namespace ClawTweaksCenter.Core
             string raw = ReadUsbipVersion();
             if (string.IsNullOrWhiteSpace(raw)) return null;
             if (!Version.TryParse(raw.Trim(), out var found)) return null;
-            if (!Version.TryParse(SupportedUsbipVersion, out var want)) return null;
-            return found == want ? null : raw.Trim();
+            if (!Version.TryParse(MinSupportedUsbipVersion, out var min)) return null;
+            if (!Version.TryParse(MaxSupportedUsbipVersion, out var max)) return null;
+            return (found >= min && found <= max) ? null : raw.Trim();
         }
 
         /// <summary>True when the installed usbip is OLDER than the one we support — the crashing
         /// side. Only meaningful when <see cref="UnsupportedUsbipVersion"/> returned something.</summary>
         private static bool UsbipIsTooOld(string raw) =>
             Version.TryParse(raw, out var found) &&
-            Version.TryParse(SupportedUsbipVersion, out var want) &&
-            found < want;
+            Version.TryParse(MinSupportedUsbipVersion, out var min) &&
+            found < min;
 
         /// <summary>
         /// usbip's version, from the CLI binary's file version first (it is the artefact that actually
