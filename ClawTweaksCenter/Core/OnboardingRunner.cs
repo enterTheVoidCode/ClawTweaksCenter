@@ -68,11 +68,11 @@ namespace ClawTweaksCenter.Core
             new OnboardingStep { Title = "Disable MSI Center M" },
             new OnboardingStep { Title = "Enable virtual controller" },
             new OnboardingStep { Title = "Add ClawTweaks to the Game Bar" },
-            new OnboardingStep { Title = "Activate Game Bar auto-jump" },
+            new OnboardingStep { Title = "Activate Game Bar auto-jump", Hidden = true },   // retired 2026-09-28
             // ⚠️ THE USER'S OWN WORDING, near enough verbatim (2026-09-26). Do not "improve" it
             // into a description of the mechanism - the step says what it does for you, not what
             // registry value it writes.
-            new OnboardingStep { Title = "Always open the last Game Bar widget" },
+            new OnboardingStep { Title = "Always open the last Game Bar widget", Hidden = true },   // retired 2026-09-28
         };
 
         public event Action StepsChanged;
@@ -185,10 +185,12 @@ namespace ClawTweaksCenter.Core
             }
 
             Steps[StepVirtualController].Hidden = EssentialMode;
-            Steps[StepAutoJump].Hidden = EssentialMode;
-            // The two are alternatives, never both: auto-jump taps RB with the virtual pad, this
-            // one changes Game Bar's own behaviour and needs no pad at all.
-            Steps[StepGameBarHome].Hidden = !EssentialMode;
+            // Both retired (2026-09-28). ClawTweaks takes Game Bar's first slot and the helper hands
+            // controller input to it on every open, in virtual and hardware mode, so neither the
+            // auto-jump nor Game Bar's "open the last widget" switch has anything left to do. Kept as
+            // hidden steps so the step indexes and the helper contract stay unchanged.
+            Steps[StepAutoJump].Hidden = true;
+            Steps[StepGameBarHome].Hidden = true;
         }
 
         private void Notify() => StepsChanged?.Invoke();
