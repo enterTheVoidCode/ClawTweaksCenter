@@ -179,6 +179,8 @@ namespace ClawTweaksCenter.Audio
         private static int _idleTicks;
         private static Task _warmTask;
         private static bool _musicWanted;
+        private static int _musicWantedFlag;   // _musicWanted, readable without the gate
+        private static int _opening;           // 1 while OpenOutputOffThread runs
         private static int _playCount;
 
         /// <summary>Mirrors CenterSettings.InterfaceSounds, so a press does not read the registry.</summary>
@@ -202,6 +204,10 @@ namespace ClawTweaksCenter.Audio
                 {
                     try { LoadFiles(); }
                     catch (Exception ex) { LogOnce("load", "[Sound] reading the sound files failed: " + ex.Message); }
+                    // Open the device here, not on the first press. Right after a boot, creating the
+                    // WASAPI stream took long enough on the UI thread that the first D-pad press of
+                    // the session read as a frozen library (user, 2026-09-28).
+                    if (EffectsEnabled || Volatile.Read(ref _musicWantedFlag) != 0) OpenOutputOffThread();
                     // After loading, so music asked for before the files were read starts now.
                     lock (Gate) ApplyMusicLocked();
                 });
@@ -213,9 +219,14 @@ namespace ClawTweaksCenter.Audio
             if (!EffectsEnabled) return;
             Interlocked.Increment(ref _playCount);
 
+            // Play runs on the UI thread, inside the pad handler. If the warm-up or a device reopen
+            // holds the gate, this press stays silent instead of waiting - a missing click is
+            // invisible, a stalled press is not.
+            bool taken = false;
             try
             {
-                lock (Gate)
+                Monitor.TryEnter(Gate, ref taken);
+                if (!taken) return;
                 {
                     var now = DateTime.UtcNow;
                     if (LastPlayed.TryGetValue(sound, out var last) && now - last < RepeatGuard) return;
@@ -239,6 +250,7 @@ namespace ClawTweaksCenter.Audio
                 }
             }
             catch (Exception ex) { LogOnce("play", "[Sound] playing an effect failed: " + ex.Message); }
+            finally { if (taken) Monitor.Exit(Gate); }
         }
 
         private static float GainFor(string fileName)
@@ -264,6 +276,7 @@ namespace ClawTweaksCenter.Audio
                     bool cutTheTail = immediate && !playing && _music != null && !_music.IsSilent;
                     if (_musicWanted == playing && !cutTheTail) return;
                     _musicWanted = playing;
+                    Volatile.Write(ref _musicWantedFlag, playing ? 1 : 0);
                     if (!playing && immediate) { _music?.StopNow(); return; }
                     ApplyMusicLocked();
                 }
@@ -305,27 +318,62 @@ namespace ClawTweaksCenter.Audio
         }
 
         #region Output
+        /// <summary>
+        /// True when the stream is open. NEVER opens it on the caller's thread: callers hold the gate
+        /// and are usually the UI thread, and creating a WASAPI stream can take a noticeable time -
+        /// right after boot most of all. A missing stream schedules an open in the background and
+        /// this call stays silent; the next sound finds it ready.
+        /// </summary>
         private static bool EnsureOutputLocked()
         {
             if (_output != null) return true;
-            try
-            {
-                _mixer = new MixingSampleProvider(MixFormat) { ReadFully = true };
-                _output = new WasapiOut(AudioClientShareMode.Shared, true, LatencyMs);
-                _output.PlaybackStopped += OnPlaybackStopped;
-                _output.Init(_mixer);
+            OpenOutputOffThread();
+            return false;
+        }
 
-                // The music provider belonged to the old mixer. It keeps its track and position and
-                // joins the new one.
-                if (_music != null) _mixer.AddMixerInput(_music);
-                return true;
-            }
-            catch (Exception ex)
+        /// <summary>Builds mixer and stream WITHOUT the gate, then publishes them under it. One open
+        /// at a time; a second call while one runs does nothing.</summary>
+        private static void OpenOutputOffThread()
+        {
+            if (Interlocked.CompareExchange(ref _opening, 1, 0) != 0) return;
+            ThreadPool.QueueUserWorkItem(_ =>
             {
-                LogOnce("device", "[Sound] no audio output: " + ex.Message);
-                DisposeOutputLocked();
-                return false;
-            }
+                try
+                {
+                    lock (Gate) { if (_output != null) return; }
+
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    MixingSampleProvider mixer = null;
+                    WasapiOut output = null;
+                    try
+                    {
+                        mixer = new MixingSampleProvider(MixFormat) { ReadFully = true };
+                        output = new WasapiOut(AudioClientShareMode.Shared, true, LatencyMs);
+                        output.Init(mixer);
+                    }
+                    catch (Exception ex)
+                    {
+                        LogOnce("device", "[Sound] no audio output: " + ex.Message);
+                        try { output?.Dispose(); } catch { }
+                        return;
+                    }
+
+                    lock (Gate)
+                    {
+                        if (_output != null) { try { output.Dispose(); } catch { } return; }
+                        _mixer = mixer;
+                        _output = output;
+                        _output.PlaybackStopped += OnPlaybackStopped;
+                        // The music provider belonged to the old mixer. It keeps its track and
+                        // position and joins the new one.
+                        if (_music != null) _mixer.AddMixerInput(_music);
+                        ApplyMusicLocked();
+                    }
+                    LogOnce("opened", "[Sound] audio output opened in " + sw.ElapsedMilliseconds + " ms (off the UI thread)");
+                }
+                catch (Exception ex) { LogOnce("device", "[Sound] no audio output: " + ex.Message); }
+                finally { Volatile.Write(ref _opening, 0); }
+            });
         }
 
         /// <summary>A stopped stream WITH an exception is a lost device - headphones unplugged, the
