@@ -1065,6 +1065,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "Controller ist im Hardware-Modus.",
             ["Install usbip {0}, then restart."] = "Installiere usbip {0} und starte neu.",
             ["Virtual controller restored"] = "Virtueller Controller wiederhergestellt",
+            ["CTW Game detection"] = "CTW Spieleerkennung",
+            ["Create Profile later or Mute"] = "Profil sp\u00E4ter anlegen oder stummschalten",
+            ["Global profile / Not a game"] = "Globales Profil / Kein Spiel",
+            ["Press [Select] for options"] = "[Select] f\u00FCr Optionen",
+            ["Game - use global profile"] = "Spiel - globales Profil nutzen",
+            ["Turn on a profile later in the Game Bar"] = "Profil sp\u00E4ter in der Game Bar einschalten",
+            ["Not a game - mute"] = "Kein Spiel - stummschalten",
+            ["Game - global profile active"] = "Spiel - globales Profil aktiv",
+            ["Turn on a profile in the Game Bar"] = "Profil in der Game Bar einschalten",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2101,6 +2110,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "La manette est en mode mat\u00E9riel.",
             ["Install usbip {0}, then restart."] = "Installez usbip {0}, puis red\u00E9marrez.",
             ["Virtual controller restored"] = "Manette virtuelle r\u00E9tablie",
+            ["CTW Game detection"] = "CTW D\u00E9tection des jeux",
+            ["Create Profile later or Mute"] = "Cr\u00E9er le profil plus tard ou masquer",
+            ["Global profile / Not a game"] = "Profil global / Pas un jeu",
+            ["Press [Select] for options"] = "[Select] pour les options",
+            ["Game - use global profile"] = "Jeu - profil global",
+            ["Turn on a profile later in the Game Bar"] = "Activer un profil plus tard dans la Game Bar",
+            ["Not a game - mute"] = "Pas un jeu - masquer",
+            ["Game - global profile active"] = "Jeu - profil global actif",
+            ["Turn on a profile in the Game Bar"] = "Activer un profil dans la Game Bar",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3142,6 +3160,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "\uCEE8\uD2B8\uB864\uB7EC\uAC00 \uD558\uB4DC\uC6E8\uC5B4 \uBAA8\uB4DC\uC785\uB2C8\uB2E4.",
             ["Install usbip {0}, then restart."] = "usbip {0}\uC744(\uB97C) \uC124\uCE58\uD55C \uB4A4 \uB2E4\uC2DC \uC2DC\uC791\uD558\uC138\uC694.",
             ["Virtual controller restored"] = "\uAC00\uC0C1 \uCEE8\uD2B8\uB864\uB7EC \uBCF5\uC6D0\uB428",
+            ["CTW Game detection"] = "CTW \uAC8C\uC784 \uAC10\uC9C0",
+            ["Create Profile later or Mute"] = "\uB098\uC911\uC5D0 \uD504\uB85C\uD544 \uB9CC\uB4E4\uAE30 \uB610\uB294 \uC74C\uC18C\uAC70",
+            ["Global profile / Not a game"] = "\uC804\uC5ED \uD504\uB85C\uD544 / \uAC8C\uC784 \uC544\uB2D8",
+            ["Press [Select] for options"] = "[Select]\uB85C \uC635\uC158 \uBCF4\uAE30",
+            ["Game - use global profile"] = "\uAC8C\uC784 - \uC804\uC5ED \uD504\uB85C\uD544 \uC0AC\uC6A9",
+            ["Turn on a profile later in the Game Bar"] = "\uB098\uC911\uC5D0 Game Bar\uC5D0\uC11C \uD504\uB85C\uD544 \uCF1C\uAE30",
+            ["Not a game - mute"] = "\uAC8C\uC784 \uC544\uB2D8 - \uC74C\uC18C\uAC70",
+            ["Game - global profile active"] = "\uAC8C\uC784 - \uC804\uC5ED \uD504\uB85C\uD544 \uC801\uC6A9",
+            ["Turn on a profile in the Game Bar"] = "Game Bar\uC5D0\uC11C \uD504\uB85C\uD544 \uCF1C\uAE30",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4180,6 +4207,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "El mando est\u00E1 en modo hardware.",
             ["Install usbip {0}, then restart."] = "Instala usbip {0} y reinicia.",
             ["Virtual controller restored"] = "Mando virtual restaurado",
+            ["CTW Game detection"] = "CTW Detecci\u00F3n de juegos",
+            ["Create Profile later or Mute"] = "Crear perfil m\u00E1s tarde o silenciar",
+            ["Global profile / Not a game"] = "Perfil global / No es un juego",
+            ["Press [Select] for options"] = "[Select] para opciones",
+            ["Game - use global profile"] = "Juego - usar perfil global",
+            ["Turn on a profile later in the Game Bar"] = "Activa un perfil luego en la Game Bar",
+            ["Not a game - mute"] = "No es un juego - silenciar",
+            ["Game - global profile active"] = "Juego - perfil global activo",
+            ["Turn on a profile in the Game Bar"] = "Activa un perfil en la Game Bar",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -5222,6 +5258,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "\u041A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u0432 \u0430\u043F\u043F\u0430\u0440\u0430\u0442\u043D\u043E\u043C \u0440\u0435\u0436\u0438\u043C\u0435.",
             ["Install usbip {0}, then restart."] = "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u0435 usbip {0} \u0438 \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u0435 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E.",
             ["Virtual controller restored"] = "\u0412\u0438\u0440\u0442\u0443\u0430\u043B\u044C\u043D\u044B\u0439 \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D",
+            ["CTW Game detection"] = "CTW \u0420\u0430\u0441\u043F\u043E\u0437\u043D\u0430\u0432\u0430\u043D\u0438\u0435 \u0438\u0433\u0440",
+            ["Create Profile later or Mute"] = "\u0421\u043E\u0437\u0434\u0430\u0442\u044C \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u043F\u043E\u0437\u0436\u0435 \u0438\u043B\u0438 \u043E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u044C",
+            ["Global profile / Not a game"] = "\u041E\u0431\u0449\u0438\u0439 \u043F\u0440\u043E\u0444\u0438\u043B\u044C / \u041D\u0435 \u0438\u0433\u0440\u0430",
+            ["Press [Select] for options"] = "[Select] \u2014 \u0432\u0430\u0440\u0438\u0430\u043D\u0442\u044B",
+            ["Game - use global profile"] = "\u0418\u0433\u0440\u0430 - \u043E\u0431\u0449\u0438\u0439 \u043F\u0440\u043E\u0444\u0438\u043B\u044C",
+            ["Turn on a profile later in the Game Bar"] = "\u041F\u0440\u043E\u0444\u0438\u043B\u044C \u043C\u043E\u0436\u043D\u043E \u0432\u043A\u043B\u044E\u0447\u0438\u0442\u044C \u043F\u043E\u0437\u0436\u0435 \u0432 Game Bar",
+            ["Not a game - mute"] = "\u041D\u0435 \u0438\u0433\u0440\u0430 - \u043E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u044C",
+            ["Game - global profile active"] = "\u0418\u0433\u0440\u0430 - \u0430\u043A\u0442\u0438\u0432\u0435\u043D \u043E\u0431\u0449\u0438\u0439 \u043F\u0440\u043E\u0444\u0438\u043B\u044C",
+            ["Turn on a profile in the Game Bar"] = "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0432 Game Bar",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -6255,6 +6300,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "\u03A4\u03BF \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03B5\u03AF\u03BD\u03B1\u03B9 \u03C3\u03B5 \u03BB\u03B5\u03B9\u03C4\u03BF\u03C5\u03C1\u03B3\u03AF\u03B1 \u03C5\u03BB\u03B9\u03BA\u03BF\u03CD.",
             ["Install usbip {0}, then restart."] = "\u0395\u03B3\u03BA\u03B1\u03C4\u03B1\u03C3\u03C4\u03AE\u03C3\u03C4\u03B5 \u03C4\u03BF usbip {0} \u03BA\u03B1\u03B9 \u03BA\u03AC\u03BD\u03C4\u03B5 \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7.",
             ["Virtual controller restored"] = "\u03A4\u03BF \u03B5\u03B9\u03BA\u03BF\u03BD\u03B9\u03BA\u03CC \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03B5\u03C0\u03B1\u03BD\u03AE\u03BB\u03B8\u03B5",
+            ["CTW Game detection"] = "CTW \u0391\u03BD\u03AF\u03C7\u03BD\u03B5\u03C5\u03C3\u03B7 \u03C0\u03B1\u03B9\u03C7\u03BD\u03B9\u03B4\u03B9\u03CE\u03BD",
+            ["Create Profile later or Mute"] = "\u03A0\u03C1\u03BF\u03C6\u03AF\u03BB \u03B1\u03C1\u03B3\u03CC\u03C4\u03B5\u03C1\u03B1 \u03AE \u03C3\u03AF\u03B3\u03B1\u03C3\u03B7",
+            ["Global profile / Not a game"] = "\u0393\u03B5\u03BD\u03B9\u03BA\u03CC \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB / \u038C\u03C7\u03B9 \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9",
+            ["Press [Select] for options"] = "[Select] \u03B3\u03B9\u03B1 \u03B5\u03C0\u03B9\u03BB\u03BF\u03B3\u03AD\u03C2",
+            ["Game - use global profile"] = "\u03A0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9 - \u03B3\u03B5\u03BD\u03B9\u03BA\u03CC \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB",
+            ["Turn on a profile later in the Game Bar"] = "\u0395\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03AF\u03B7\u03C3\u03B7 \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB \u03B1\u03C1\u03B3\u03CC\u03C4\u03B5\u03C1\u03B1 \u03C3\u03C4\u03BF Game Bar",
+            ["Not a game - mute"] = "\u038C\u03C7\u03B9 \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9 - \u03C3\u03AF\u03B3\u03B1\u03C3\u03B7",
+            ["Game - global profile active"] = "\u03A0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9 - \u03B5\u03BD\u03B5\u03C1\u03B3\u03CC \u03B3\u03B5\u03BD\u03B9\u03BA\u03CC \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB",
+            ["Turn on a profile in the Game Bar"] = "\u0395\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03AF\u03B7\u03C3\u03B7 \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB \u03C3\u03C4\u03BF Game Bar",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -7293,6 +7347,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "\u624B\u67C4\u5904\u4E8E\u786C\u4EF6\u6A21\u5F0F\u3002",
             ["Install usbip {0}, then restart."] = "\u5B89\u88C5 usbip {0}\uFF0C\u7136\u540E\u91CD\u542F\u3002",
             ["Virtual controller restored"] = "\u865A\u62DF\u624B\u67C4\u5DF2\u6062\u590D",
+            ["CTW Game detection"] = "CTW \u6E38\u620F\u68C0\u6D4B",
+            ["Create Profile later or Mute"] = "\u7A0D\u540E\u521B\u5EFA\u914D\u7F6E\u6587\u4EF6\u6216\u9759\u97F3",
+            ["Global profile / Not a game"] = "\u5168\u5C40\u914D\u7F6E / \u4E0D\u662F\u6E38\u620F",
+            ["Press [Select] for options"] = "\u6309 [Select] \u67E5\u770B\u9009\u9879",
+            ["Game - use global profile"] = "\u6E38\u620F - \u4F7F\u7528\u5168\u5C40\u914D\u7F6E",
+            ["Turn on a profile later in the Game Bar"] = "\u7A0D\u540E\u5728 Game Bar \u4E2D\u542F\u7528\u914D\u7F6E",
+            ["Not a game - mute"] = "\u4E0D\u662F\u6E38\u620F - \u9759\u97F3",
+            ["Game - global profile active"] = "\u6E38\u620F - \u5168\u5C40\u914D\u7F6E\u751F\u6548",
+            ["Turn on a profile in the Game Bar"] = "\u5728 Game Bar \u4E2D\u542F\u7528\u914D\u7F6E",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -8331,6 +8394,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "\u63A7\u5236\u5668\u8655\u65BC\u786C\u9AD4\u6A21\u5F0F\u3002",
             ["Install usbip {0}, then restart."] = "\u5B89\u88DD usbip {0}\uFF0C\u7136\u5F8C\u91CD\u65B0\u555F\u52D5\u3002",
             ["Virtual controller restored"] = "\u865B\u64EC\u63A7\u5236\u5668\u5DF2\u6062\u5FA9",
+            ["CTW Game detection"] = "CTW \u904A\u6232\u5075\u6E2C",
+            ["Create Profile later or Mute"] = "\u7A0D\u5F8C\u5EFA\u7ACB\u8A2D\u5B9A\u6A94\u6216\u975C\u97F3",
+            ["Global profile / Not a game"] = "\u5168\u57DF\u8A2D\u5B9A\u6A94 / \u4E0D\u662F\u904A\u6232",
+            ["Press [Select] for options"] = "\u6309 [Select] \u67E5\u770B\u9078\u9805",
+            ["Game - use global profile"] = "\u904A\u6232 - \u4F7F\u7528\u5168\u57DF\u8A2D\u5B9A\u6A94",
+            ["Turn on a profile later in the Game Bar"] = "\u7A0D\u5F8C\u5728 Game Bar \u4E2D\u555F\u7528\u8A2D\u5B9A\u6A94",
+            ["Not a game - mute"] = "\u4E0D\u662F\u904A\u6232 - \u975C\u97F3",
+            ["Game - global profile active"] = "\u904A\u6232 - \u5168\u57DF\u8A2D\u5B9A\u6A94\u751F\u6548",
+            ["Turn on a profile in the Game Bar"] = "\u5728 Game Bar \u4E2D\u555F\u7528\u8A2D\u5B9A\u6A94",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -9367,6 +9439,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "Il controller \u00E8 in modalit\u00E0 hardware.",
             ["Install usbip {0}, then restart."] = "Installa usbip {0}, poi riavvia.",
             ["Virtual controller restored"] = "Controller virtuale ripristinato",
+            ["CTW Game detection"] = "CTW Rilevamento giochi",
+            ["Create Profile later or Mute"] = "Crea il profilo pi\u00F9 tardi o silenzia",
+            ["Global profile / Not a game"] = "Profilo globale / Non \u00E8 un gioco",
+            ["Press [Select] for options"] = "[Select] per le opzioni",
+            ["Game - use global profile"] = "Gioco - profilo globale",
+            ["Turn on a profile later in the Game Bar"] = "Attiva un profilo pi\u00F9 tardi nella Game Bar",
+            ["Not a game - mute"] = "Non \u00E8 un gioco - silenzia",
+            ["Game - global profile active"] = "Gioco - profilo globale attivo",
+            ["Turn on a profile in the Game Bar"] = "Attiva un profilo nella Game Bar",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -10391,6 +10472,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "O controle est\u00E1 no modo hardware.",
             ["Install usbip {0}, then restart."] = "Instale o usbip {0} e reinicie.",
             ["Virtual controller restored"] = "Controle virtual restaurado",
+            ["CTW Game detection"] = "CTW Detec\u00E7\u00E3o de jogos",
+            ["Create Profile later or Mute"] = "Criar perfil depois ou silenciar",
+            ["Global profile / Not a game"] = "Perfil global / N\u00E3o \u00E9 jogo",
+            ["Press [Select] for options"] = "[Select] para op\u00E7\u00F5es",
+            ["Game - use global profile"] = "Jogo - usar perfil global",
+            ["Turn on a profile later in the Game Bar"] = "Ative um perfil depois na Game Bar",
+            ["Not a game - mute"] = "N\u00E3o \u00E9 jogo - silenciar",
+            ["Game - global profile active"] = "Jogo - perfil global ativo",
+            ["Turn on a profile in the Game Bar"] = "Ative um perfil na Game Bar",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -11431,6 +11521,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u306F\u30CF\u30FC\u30C9\u30A6\u30A7\u30A2\u30E2\u30FC\u30C9\u3067\u3059\u3002",
             ["Install usbip {0}, then restart."] = "usbip {0} \u3092\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3057\u3066\u518D\u8D77\u52D5\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
             ["Virtual controller restored"] = "\u4EEE\u60F3\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u3092\u5FA9\u5143\u3057\u307E\u3057\u305F",
+            ["CTW Game detection"] = "CTW \u30B2\u30FC\u30E0\u691C\u51FA",
+            ["Create Profile later or Mute"] = "\u5F8C\u3067\u30D7\u30ED\u30D5\u30A1\u30A4\u30EB\u4F5C\u6210\u3001\u307E\u305F\u306F\u30DF\u30E5\u30FC\u30C8",
+            ["Global profile / Not a game"] = "\u30B0\u30ED\u30FC\u30D0\u30EB / \u30B2\u30FC\u30E0\u3067\u306F\u306A\u3044",
+            ["Press [Select] for options"] = "[Select] \u3067\u30AA\u30D7\u30B7\u30E7\u30F3",
+            ["Game - use global profile"] = "\u30B2\u30FC\u30E0 - \u30B0\u30ED\u30FC\u30D0\u30EB\u3092\u4F7F\u7528",
+            ["Turn on a profile later in the Game Bar"] = "\u5F8C\u3067 Game Bar \u3067\u30D7\u30ED\u30D5\u30A1\u30A4\u30EB\u3092\u30AA\u30F3",
+            ["Not a game - mute"] = "\u30B2\u30FC\u30E0\u3067\u306F\u306A\u3044 - \u30DF\u30E5\u30FC\u30C8",
+            ["Game - global profile active"] = "\u30B2\u30FC\u30E0 - \u30B0\u30ED\u30FC\u30D0\u30EB\u9069\u7528\u4E2D",
+            ["Turn on a profile in the Game Bar"] = "Game Bar \u3067\u30D7\u30ED\u30D5\u30A1\u30A4\u30EB\u3092\u30AA\u30F3",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -12462,6 +12561,15 @@ namespace ClawTweaksCenter.Core
             ["Controller is in hardware mode."] = "Kontroler jest w trybie sprz\u0119towym.",
             ["Install usbip {0}, then restart."] = "Zainstaluj usbip {0} i uruchom ponownie.",
             ["Virtual controller restored"] = "Przywr\u00F3cono wirtualny kontroler",
+            ["CTW Game detection"] = "CTW Wykrywanie gier",
+            ["Create Profile later or Mute"] = "Utw\u00F3rz profil p\u00F3\u017Aniej lub wycisz",
+            ["Global profile / Not a game"] = "Profil globalny / To nie gra",
+            ["Press [Select] for options"] = "[Select] \u2013 opcje",
+            ["Game - use global profile"] = "Gra - profil globalny",
+            ["Turn on a profile later in the Game Bar"] = "W\u0142\u0105cz profil p\u00F3\u017Aniej w Game Bar",
+            ["Not a game - mute"] = "To nie gra - wycisz",
+            ["Game - global profile active"] = "Gra - aktywny profil globalny",
+            ["Turn on a profile in the Game Bar"] = "W\u0142\u0105cz profil w Game Bar",
         };
 
     }

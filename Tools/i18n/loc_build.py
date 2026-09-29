@@ -153,6 +153,16 @@ OSD_KEYS = [
     'Press [Select] again to confirm',
     'Hides the notification.',
     'Undo in Game Bar > Settings > Game detection',
+    # The select menu (2026-09-29): [Start] = a game on the global profile, [Select] = mute.
+    'CTW Game detection',
+    'Create Profile later or Mute',
+    'Global profile / Not a game',
+    'Press [Select] for options',
+    'Game - use global profile',
+    'Turn on a profile later in the Game Bar',
+    'Not a game - mute',
+    'Game - global profile active',
+    'Turn on a profile in the Game Bar',
     # ... and what the answer led to.
     'Game profile created',
     'Open the Game Bar to set TDP, fan and controller settings for it.',
