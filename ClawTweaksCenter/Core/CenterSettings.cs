@@ -263,6 +263,33 @@ namespace ClawTweaksCenter.Core
         }
 
         /// <summary>
+        /// The installer's "a restart is still owed" note, written on a FIRST install only
+        /// (RestartRequiredSince, local time of the install). Since 2026-09-29 the installer no longer
+        /// restarts on a first install: it starts Center straight into onboarding, and the restart is
+        /// asked for there, after MSI Center M is off (user: the FPS capture is usually gone on the first
+        /// boot after the install, and the first game is then not detected).
+        ///
+        /// Answered from the BOOT TIME, not from a flag somebody has to clear: once Windows has started
+        /// after the install, the restart happened - however the user did it. Contract with
+        /// ClawTweaksInstaller.iss; the value name cannot change on one side alone.
+        /// </summary>
+        public static bool RestartRequired
+        {
+            get
+            {
+                DateTime? since = ReadUtc("RestartRequiredSince");
+                if (since == null) return false;
+                DateTime bootUtc = DateTime.UtcNow - TimeSpan.FromMilliseconds(Environment.TickCount64);
+                if (bootUtc > since.Value)
+                {
+                    WriteString("RestartRequiredSince", string.Empty);
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        /// <summary>
         /// What Center does once a game has been started.
         ///
         /// Both of the non-closing options are safe, which is worth writing down because the launch

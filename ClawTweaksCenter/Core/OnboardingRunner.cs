@@ -60,12 +60,32 @@ namespace ClawTweaksCenter.Core
         /// the auto-jump already does the job.</summary>
         public const int StepGameBarHome = 5;
 
+        /// <summary>The restart the installer no longer does on a first install (2026-09-29). Shown only
+        /// while CenterSettings.RestartRequired says one is owed AND MSI Center M is off - the restart
+        /// has to come AFTER Center M, because that is the change the first boot trips over.
+        /// Not run by the runner: the window sends the helper's own PowerAction "reboot" (the same
+        /// verb as the power tile), see RestartRequested.</summary>
+        public const int StepRestart = 6;
+
+        /// <summary>The order the steps are SHOWN in, which is not the list order (user, 2026-09-29).
+        /// The indexes above are a contract with the helper and the UI and stay as they are; only the
+        /// screen changes. MSI Center M comes last because the restart follows it directly.</summary>
+        private static readonly int[] DisplayOrder =
+        {
+            StepHwHealth, StepAddToBar, StepCenterM, StepVirtualController,
+            StepAutoJump, StepGameBarHome, StepRestart,
+        };
+
+        /// <summary>Raised when the restart step is run. The window owns the pipe call and its error
+        /// card, exactly as for the power tile.</summary>
+        public event Action RestartRequested;
+
         public HelperPipeClient PipeClient { get; }
 
         public IReadOnlyList<OnboardingStep> Steps { get; } = new List<OnboardingStep>
         {
             new OnboardingStep { Title = "Check hardware controller health" },
-            new OnboardingStep { Title = "Disable MSI Center M" },
+            new OnboardingStep { Title = "Disable MSI Center M (a one-time restart may be needed if no FPS are detected)" },
             new OnboardingStep { Title = "Enable virtual controller" },
             new OnboardingStep { Title = "Add ClawTweaks to the Game Bar" },
             new OnboardingStep { Title = "Activate Game Bar auto-jump", Hidden = true },   // retired 2026-09-28
@@ -73,6 +93,7 @@ namespace ClawTweaksCenter.Core
             // into a description of the mechanism - the step says what it does for you, not what
             // registry value it writes.
             new OnboardingStep { Title = "Always open the last Game Bar widget", Hidden = true },   // retired 2026-09-28
+            new OnboardingStep { Title = "Restart required", Hidden = true },
         };
 
         public event Action StepsChanged;
@@ -127,7 +148,7 @@ namespace ClawTweaksCenter.Core
             get
             {
                 var list = new List<int>();
-                for (int i = 0; i < Steps.Count; i++)
+                foreach (int i in DisplayOrder)
                     if (!Steps[i].Hidden) list.Add(i);
                 return list;
             }
@@ -184,7 +205,12 @@ namespace ClawTweaksCenter.Core
                 }
             }
 
-            Steps[StepVirtualController].Hidden = EssentialMode;
+            // 🔴 NOT PART OF ONBOARDING ANY MORE (user, 2026-09-29). Onboarding now runs BEFORE the
+            // restart, and on a Full install the usbip driver is not live until that restart - the
+            // step could only fail. The user switches the virtual controller on in the widget
+            // afterwards. An update never passes through here, so a controller that is already
+            // running is not touched.
+            Steps[StepVirtualController].Hidden = true;
             // Both retired (2026-09-28). ClawTweaks takes Game Bar's first slot and the helper hands
             // controller input to it on every open, in virtual and hardware mode, so neither the
             // auto-jump nor Game Bar's "open the last widget" switch has anything left to do. Kept as
@@ -328,15 +354,16 @@ namespace ClawTweaksCenter.Core
                 // Adding CTW to the Game Bar has nothing to do with the virtual pad anyway. In
                 // Essential mode the real prerequisite is the one before it: a healthy controller
                 // and Center M out of the way.
-                bool ready = EssentialMode
-                    ? (HwOk && _centerMRunning != true)
-                    : (_verifiedThisSession || _controllerEnabled == true);
+                //
+                // 🔴 AND NOW THE SAME IN BOTH MODES (2026-09-29): the virtual-controller step left
+                // onboarding, and MSI Center M moved to the end, so neither can be the prerequisite.
+                // What is left is the one thing adding a widget genuinely needs: a working controller
+                // to click with.
+                bool ready = HwOk;
                 if (!ready)
                 {
                     bar.State = OnboardingStepState.Pending; bar.Actionable = false;
-                    bar.Detail = EssentialMode
-                        ? "Disable MSI Center M first."
-                        : "Enable the virtual controller first.";
+                    bar.Detail = "Check the controller first.";
                 }
                 else if (_favorited == true)
                 {
@@ -406,6 +433,14 @@ namespace ClawTweaksCenter.Core
                     else if (aj.State != OnboardingStepState.Ok) aj.Detail = "Enter the slot ClawTweaks sits at, then Run.";
                 }
             }
+
+            // Step 6 — the restart. Appears once Center M is off on a machine that still owes the
+            // installer its restart. Always runnable; there is nothing to gate it on.
+            var rs = Steps[StepRestart];
+            rs.Hidden = !(_centerMRunning == false && CenterSettings.RestartRequired);
+            rs.State = OnboardingStepState.Pending;
+            rs.Actionable = true;
+            rs.Detail = "Restart your device to finish the setup.";
 
             Notify();
         }
@@ -508,6 +543,7 @@ namespace ClawTweaksCenter.Core
                 case StepAddToBar: await RunCheckPresenceAsync().ConfigureAwait(false); break;
                 case StepAutoJump: RunAutoJump(); break;
                 case StepGameBarHome: await RunGameBarHomeAsync(log).ConfigureAwait(false); break;
+                case StepRestart: RestartRequested?.Invoke(); break;
             }
         }
 

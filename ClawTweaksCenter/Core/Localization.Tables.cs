@@ -178,7 +178,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "Nicht rechtzeitig best\u00E4tigt.",
             ["Did not enable in time."] = "Nicht rechtzeitig aktiviert.",
             ["Different device"] = "Anderes Ger\u00E4t",
-            ["Disable MSI Center M"] = "MSI Center M abschalten",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "MSI Center M abschalten (einmaliger Neustart evtl. notwendig, falls keine FPS erkannt werden)",
             ["Disable MSI Center M first."] = "Erst MSI Center M abschalten.",
             ["Disabled"] = "Aus",
             ["Do I have to switch MSI Center M off?"] = "Muss ich MSI Center M abschalten?",
@@ -1074,6 +1074,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "Kein Spiel - stummschalten",
             ["Game - global profile active"] = "Spiel - globales Profil aktiv",
             ["Turn on a profile in the Game Bar"] = "Profil in der Game Bar einschalten",
+            ["Restart required"] = "Neustart erforderlich",
+            ["Restart your device to finish the setup."] = "Starte dein Ger\u00E4t neu, um die Einrichtung abzuschlie\u00DFen.",
+            ["Restart now"] = "Jetzt neu starten",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -1221,7 +1224,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "Pas confirm\u00E9 \u00E0 temps.",
             ["Did not enable in time."] = "Pas activ\u00E9 \u00E0 temps.",
             ["Different device"] = "Autre appareil",
-            ["Disable MSI Center M"] = "D\u00E9sactiver MSI Center M",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "D\u00E9sactiver MSI Center M (un red\u00E9marrage unique peut \u00EAtre n\u00E9cessaire si aucun FPS n'est d\u00E9tect\u00E9)",
             ["Disable MSI Center M first."] = "D\u00E9sactivez d'abord MSI Center M.",
             ["Disabled"] = "D\u00E9sactiv\u00E9",
             ["Do I have to switch MSI Center M off?"] = "Dois-je d\u00E9sactiver MSI Center M ?",
@@ -2119,6 +2122,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "Pas un jeu - masquer",
             ["Game - global profile active"] = "Jeu - profil global actif",
             ["Turn on a profile in the Game Bar"] = "Activer un profil dans la Game Bar",
+            ["Restart required"] = "Red\u00E9marrage requis",
+            ["Restart your device to finish the setup."] = "Red\u00E9marrez votre appareil pour terminer la configuration.",
+            ["Restart now"] = "Red\u00E9marrer maintenant",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -2266,7 +2272,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "\uC81C\uB54C \uD655\uC778\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.",
             ["Did not enable in time."] = "\uC81C\uB54C \uD65C\uC131\uD654\uB418\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.",
             ["Different device"] = "\uB2E4\uB978 \uC7A5\uCE58",
-            ["Disable MSI Center M"] = "MSI Center M \uBE44\uD65C\uC131\uD654",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "MSI Center M \uBE44\uD65C\uC131\uD654 (FPS\uAC00 \uAC10\uC9C0\uB418\uC9C0 \uC54A\uC73C\uBA74 \uD55C \uBC88 \uC7AC\uC2DC\uC791\uD574\uC57C \uD560 \uC218 \uC788\uC74C)",
             ["Disable MSI Center M first."] = "\uBA3C\uC800 MSI Center M\uC744 \uB044\uC138\uC694.",
             ["Disabled"] = "\uC0AC\uC6A9 \uC548 \uD568",
             ["Do I have to switch MSI Center M off?"] = "MSI Center M\uC744 \uAEBC\uC57C \uD558\uB098\uC694?",
@@ -3169,6 +3175,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "\uAC8C\uC784 \uC544\uB2D8 - \uC74C\uC18C\uAC70",
             ["Game - global profile active"] = "\uAC8C\uC784 - \uC804\uC5ED \uD504\uB85C\uD544 \uC801\uC6A9",
             ["Turn on a profile in the Game Bar"] = "Game Bar\uC5D0\uC11C \uD504\uB85C\uD544 \uCF1C\uAE30",
+            ["Restart required"] = "\uC7AC\uC2DC\uC791 \uD544\uC694",
+            ["Restart your device to finish the setup."] = "\uC124\uC815\uC744 \uB9C8\uCE58\uB824\uBA74 \uAE30\uAE30\uB97C \uB2E4\uC2DC \uC2DC\uC791\uD558\uC138\uC694.",
+            ["Restart now"] = "\uC9C0\uAE08 \uB2E4\uC2DC \uC2DC\uC791",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -3316,7 +3325,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "No confirm\u00F3 a tiempo.",
             ["Did not enable in time."] = "No se activ\u00F3 a tiempo.",
             ["Different device"] = "Otro dispositivo",
-            ["Disable MSI Center M"] = "Desactivar MSI Center M",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "Desactivar MSI Center M (puede ser necesario reiniciar una vez si no se detectan FPS)",
             ["Disable MSI Center M first."] = "Desactiva antes MSI Center M.",
             ["Disabled"] = "Desactivado",
             ["Do I have to switch MSI Center M off?"] = "\u00BFTengo que desactivar MSI Center M?",
@@ -4216,6 +4225,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "No es un juego - silenciar",
             ["Game - global profile active"] = "Juego - perfil global activo",
             ["Turn on a profile in the Game Bar"] = "Activa un perfil en la Game Bar",
+            ["Restart required"] = "Reinicio necesario",
+            ["Restart your device to finish the setup."] = "Reinicia tu dispositivo para terminar la configuraci\u00F3n.",
+            ["Restart now"] = "Reiniciar ahora",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -4363,7 +4375,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "\u041D\u0435 \u043F\u043E\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u043B \u0432\u043E\u0432\u0440\u0435\u043C\u044F.",
             ["Did not enable in time."] = "\u041D\u0435 \u0432\u043A\u043B\u044E\u0447\u0438\u043B\u0441\u044F \u0432\u043E\u0432\u0440\u0435\u043C\u044F.",
             ["Different device"] = "\u0414\u0440\u0443\u0433\u043E\u0435 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E",
-            ["Disable MSI Center M"] = "\u041E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u044C MSI Center M",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "\u041E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u044C MSI Center M (\u0435\u0441\u043B\u0438 FPS \u043D\u0435 \u043E\u043F\u0440\u0435\u0434\u0435\u043B\u044F\u044E\u0442\u0441\u044F, \u043C\u043E\u0436\u0435\u0442 \u043F\u043E\u0442\u0440\u0435\u0431\u043E\u0432\u0430\u0442\u044C\u0441\u044F \u043E\u0434\u043D\u0430 \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0430)",
             ["Disable MSI Center M first."] = "\u0421\u043D\u0430\u0447\u0430\u043B\u0430 \u043E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u0435 MSI Center M.",
             ["Disabled"] = "\u041E\u0442\u043A\u043B\u044E\u0447\u0435\u043D\u043E",
             ["Do I have to switch MSI Center M off?"] = "\u041D\u0443\u0436\u043D\u043E \u043B\u0438 \u0432\u044B\u043A\u043B\u044E\u0447\u0430\u0442\u044C MSI Center M?",
@@ -5267,6 +5279,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "\u041D\u0435 \u0438\u0433\u0440\u0430 - \u043E\u0442\u043A\u043B\u044E\u0447\u0438\u0442\u044C",
             ["Game - global profile active"] = "\u0418\u0433\u0440\u0430 - \u0430\u043A\u0442\u0438\u0432\u0435\u043D \u043E\u0431\u0449\u0438\u0439 \u043F\u0440\u043E\u0444\u0438\u043B\u044C",
             ["Turn on a profile in the Game Bar"] = "\u0412\u043A\u043B\u044E\u0447\u0438\u0442\u0435 \u043F\u0440\u043E\u0444\u0438\u043B\u044C \u0432 Game Bar",
+            ["Restart required"] = "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0430",
+            ["Restart your device to finish the setup."] = "\u041F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u0435 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E, \u0447\u0442\u043E\u0431\u044B \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0443.",
+            ["Restart now"] = "\u041F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0435\u0439\u0447\u0430\u0441",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -5413,7 +5428,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "\u0394\u03B5\u03BD \u03B5\u03C0\u03B9\u03B2\u03B5\u03B2\u03B1\u03B9\u03CE\u03B8\u03B7\u03BA\u03B5 \u03B5\u03B3\u03BA\u03B1\u03AF\u03C1\u03C9\u03C2.",
             ["Did not enable in time."] = "\u0394\u03B5\u03BD \u03B5\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03B9\u03AE\u03B8\u03B7\u03BA\u03B5 \u03B5\u03B3\u03BA\u03B1\u03AF\u03C1\u03C9\u03C2.",
             ["Different device"] = "\u0386\u03BB\u03BB\u03B7 \u03C3\u03C5\u03C3\u03BA\u03B5\u03C5\u03AE",
-            ["Disable MSI Center M"] = "\u0391\u03C0\u03B5\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03AF\u03B7\u03C3\u03B7 \u03C4\u03BF\u03C5 MSI Center M",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "\u0391\u03C0\u03B5\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03AF\u03B7\u03C3\u03B7 \u03C4\u03BF\u03C5 MSI Center M (\u03BC\u03C0\u03BF\u03C1\u03B5\u03AF \u03BD\u03B1 \u03C7\u03C1\u03B5\u03B9\u03B1\u03C3\u03C4\u03B5\u03AF \u03BC\u03AF\u03B1 \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7 \u03B1\u03BD \u03B4\u03B5\u03BD \u03B5\u03BD\u03C4\u03BF\u03C0\u03AF\u03B6\u03BF\u03BD\u03C4\u03B1\u03B9 FPS)",
             ["Disable MSI Center M first."] = "\u0391\u03C0\u03B5\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03B9\u03AE\u03C3\u03C4\u03B5 \u03C0\u03C1\u03CE\u03C4\u03B1 \u03C4\u03BF MSI Center M.",
             ["Disabled"] = "\u0391\u03BD\u03B5\u03BD\u03B5\u03C1\u03B3\u03CC",
             ["Do I have to switch MSI Center M off?"] = "\u03A0\u03C1\u03AD\u03C0\u03B5\u03B9 \u03BD\u03B1 \u03BA\u03BB\u03B5\u03AF\u03C3\u03C9 \u03C4\u03BF MSI Center M;",
@@ -6309,6 +6324,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "\u038C\u03C7\u03B9 \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9 - \u03C3\u03AF\u03B3\u03B1\u03C3\u03B7",
             ["Game - global profile active"] = "\u03A0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9 - \u03B5\u03BD\u03B5\u03C1\u03B3\u03CC \u03B3\u03B5\u03BD\u03B9\u03BA\u03CC \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB",
             ["Turn on a profile in the Game Bar"] = "\u0395\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03AF\u03B7\u03C3\u03B7 \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB \u03C3\u03C4\u03BF Game Bar",
+            ["Restart required"] = "\u0391\u03C0\u03B1\u03B9\u03C4\u03B5\u03AF\u03C4\u03B1\u03B9 \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7",
+            ["Restart your device to finish the setup."] = "\u0395\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03B9\u03BD\u03AE\u03C3\u03C4\u03B5 \u03C4\u03B7 \u03C3\u03C5\u03C3\u03BA\u03B5\u03C5\u03AE \u03C3\u03B1\u03C2 \u03B3\u03B9\u03B1 \u03BD\u03B1 \u03BF\u03BB\u03BF\u03BA\u03BB\u03B7\u03C1\u03C9\u03B8\u03B5\u03AF \u03B7 \u03C1\u03CD\u03B8\u03BC\u03B9\u03C3\u03B7.",
+            ["Restart now"] = "\u0395\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7 \u03C4\u03CE\u03C1\u03B1",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -6456,7 +6474,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "\u672A\u80FD\u53CA\u65F6\u786E\u8BA4\u3002",
             ["Did not enable in time."] = "\u672A\u80FD\u53CA\u65F6\u542F\u7528\u3002",
             ["Different device"] = "\u53E6\u4E00\u53F0\u8BBE\u5907",
-            ["Disable MSI Center M"] = "\u505C\u7528 MSI Center M",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "\u505C\u7528 MSI Center M\uFF08\u5982\u679C\u68C0\u6D4B\u4E0D\u5230 FPS\uFF0C\u53EF\u80FD\u9700\u8981\u91CD\u542F\u4E00\u6B21\uFF09",
             ["Disable MSI Center M first."] = "\u8BF7\u5148\u505C\u7528 MSI Center M\u3002",
             ["Disabled"] = "\u5DF2\u5173\u95ED",
             ["Do I have to switch MSI Center M off?"] = "\u5FC5\u987B\u5173\u6389 MSI Center M \u5417\uFF1F",
@@ -7356,6 +7374,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "\u4E0D\u662F\u6E38\u620F - \u9759\u97F3",
             ["Game - global profile active"] = "\u6E38\u620F - \u5168\u5C40\u914D\u7F6E\u751F\u6548",
             ["Turn on a profile in the Game Bar"] = "\u5728 Game Bar \u4E2D\u542F\u7528\u914D\u7F6E",
+            ["Restart required"] = "\u9700\u8981\u91CD\u542F",
+            ["Restart your device to finish the setup."] = "\u91CD\u542F\u8BBE\u5907\u4EE5\u5B8C\u6210\u8BBE\u7F6E\u3002",
+            ["Restart now"] = "\u7ACB\u5373\u91CD\u542F",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -7503,7 +7524,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "\u672A\u80FD\u53CA\u6642\u78BA\u8A8D\u3002",
             ["Did not enable in time."] = "\u672A\u80FD\u53CA\u6642\u555F\u7528\u3002",
             ["Different device"] = "\u53E6\u4E00\u53F0\u88DD\u7F6E",
-            ["Disable MSI Center M"] = "\u505C\u7528 MSI Center M",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "\u505C\u7528 MSI Center M\uFF08\u5982\u679C\u5075\u6E2C\u4E0D\u5230 FPS\uFF0C\u53EF\u80FD\u9700\u8981\u91CD\u65B0\u555F\u52D5\u4E00\u6B21\uFF09",
             ["Disable MSI Center M first."] = "\u8ACB\u5148\u505C\u7528 MSI Center M\u3002",
             ["Disabled"] = "\u5DF2\u95DC\u9589",
             ["Do I have to switch MSI Center M off?"] = "\u5FC5\u9808\u95DC\u6389 MSI Center M \u55CE\uFF1F",
@@ -8403,6 +8424,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "\u4E0D\u662F\u904A\u6232 - \u975C\u97F3",
             ["Game - global profile active"] = "\u904A\u6232 - \u5168\u57DF\u8A2D\u5B9A\u6A94\u751F\u6548",
             ["Turn on a profile in the Game Bar"] = "\u5728 Game Bar \u4E2D\u555F\u7528\u8A2D\u5B9A\u6A94",
+            ["Restart required"] = "\u9700\u8981\u91CD\u65B0\u555F\u52D5",
+            ["Restart your device to finish the setup."] = "\u91CD\u65B0\u555F\u52D5\u88DD\u7F6E\u4EE5\u5B8C\u6210\u8A2D\u5B9A\u3002",
+            ["Restart now"] = "\u7ACB\u5373\u91CD\u65B0\u555F\u52D5",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -8549,7 +8573,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "Nessuna conferma in tempo.",
             ["Did not enable in time."] = "Non attivato in tempo.",
             ["Different device"] = "Dispositivo diverso",
-            ["Disable MSI Center M"] = "Disattiva MSI Center M",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "Disattiva MSI Center M (potrebbe servire un riavvio se non vengono rilevati FPS)",
             ["Disable MSI Center M first."] = "Disattiva prima MSI Center M.",
             ["Disabled"] = "Disattivato",
             ["Do I have to switch MSI Center M off?"] = "Devo spegnere MSI Center M?",
@@ -9448,6 +9472,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "Non \u00E8 un gioco - silenzia",
             ["Game - global profile active"] = "Gioco - profilo globale attivo",
             ["Turn on a profile in the Game Bar"] = "Attiva un profilo nella Game Bar",
+            ["Restart required"] = "Riavvio necessario",
+            ["Restart your device to finish the setup."] = "Riavvia il dispositivo per completare la configurazione.",
+            ["Restart now"] = "Riavvia ora",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -9591,7 +9618,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "N\u00E3o confirmou a tempo.",
             ["Did not enable in time."] = "N\u00E3o ativou a tempo.",
             ["Different device"] = "Dispositivo diferente",
-            ["Disable MSI Center M"] = "Desativar o MSI Center M",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "Desativar o MSI Center M (pode ser necess\u00E1rio reiniciar uma vez se nenhum FPS for detectado)",
             ["Disable MSI Center M first."] = "Desative o MSI Center M primeiro.",
             ["Disabled"] = "Desativado",
             ["Do I have to switch MSI Center M off?"] = "Preciso desligar o MSI Center M?",
@@ -10481,6 +10508,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "N\u00E3o \u00E9 jogo - silenciar",
             ["Game - global profile active"] = "Jogo - perfil global ativo",
             ["Turn on a profile in the Game Bar"] = "Ative um perfil na Game Bar",
+            ["Restart required"] = "Reinicializa\u00E7\u00E3o necess\u00E1ria",
+            ["Restart your device to finish the setup."] = "Reinicie o dispositivo para concluir a configura\u00E7\u00E3o.",
+            ["Restart now"] = "Reiniciar agora",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -10628,7 +10658,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "\u6642\u9593\u5185\u306B\u78BA\u8A8D\u3055\u308C\u307E\u305B\u3093\u3067\u3057\u305F\u3002",
             ["Did not enable in time."] = "\u6642\u9593\u5185\u306B\u6709\u52B9\u306B\u306A\u308A\u307E\u305B\u3093\u3067\u3057\u305F\u3002",
             ["Different device"] = "\u5225\u306E\u30C7\u30D0\u30A4\u30B9",
-            ["Disable MSI Center M"] = "MSI Center M \u3092\u7121\u52B9\u5316",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "MSI Center M \u3092\u7121\u52B9\u5316\uFF08FPS \u304C\u691C\u51FA\u3055\u308C\u306A\u3044\u5834\u5408\u3001\u4E00\u5EA6\u518D\u8D77\u52D5\u304C\u5FC5\u8981\u306A\u5834\u5408\u304C\u3042\u308A\u307E\u3059\uFF09",
             ["Disable MSI Center M first."] = "\u5148\u306B MSI Center M \u3092\u7121\u52B9\u306B\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
             ["Disabled"] = "\u7121\u52B9",
             ["Do I have to switch MSI Center M off?"] = "MSI Center M \u306F\u5207\u308B\u5FC5\u8981\u304C\u3042\u308A\u307E\u3059\u304B\uFF1F",
@@ -11530,6 +11560,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "\u30B2\u30FC\u30E0\u3067\u306F\u306A\u3044 - \u30DF\u30E5\u30FC\u30C8",
             ["Game - global profile active"] = "\u30B2\u30FC\u30E0 - \u30B0\u30ED\u30FC\u30D0\u30EB\u9069\u7528\u4E2D",
             ["Turn on a profile in the Game Bar"] = "Game Bar \u3067\u30D7\u30ED\u30D5\u30A1\u30A4\u30EB\u3092\u30AA\u30F3",
+            ["Restart required"] = "\u518D\u8D77\u52D5\u304C\u5FC5\u8981\u3067\u3059",
+            ["Restart your device to finish the setup."] = "\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u5B8C\u4E86\u3059\u308B\u306B\u306F\u30C7\u30D0\u30A4\u30B9\u3092\u518D\u8D77\u52D5\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+            ["Restart now"] = "\u4ECA\u3059\u3050\u518D\u8D77\u52D5",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -11674,7 +11707,7 @@ namespace ClawTweaksCenter.Core
             ["Did not confirm in time."] = "Brak potwierdzenia na czas.",
             ["Did not enable in time."] = "Nie w\u0142\u0105czy\u0142o si\u0119 na czas.",
             ["Different device"] = "Inne urz\u0105dzenie",
-            ["Disable MSI Center M"] = "Wy\u0142\u0105cz MSI Center M",
+            ["Disable MSI Center M (a one-time restart may be needed if no FPS are detected)"] = "Wy\u0142\u0105cz MSI Center M (jednorazowy restart mo\u017Ce by\u0107 potrzebny, je\u015Bli FPS nie s\u0105 wykrywane)",
             ["Disable MSI Center M first."] = "Najpierw wy\u0142\u0105cz MSI Center M.",
             ["Disabled"] = "Wy\u0142\u0105czone",
             ["Do I have to switch MSI Center M off?"] = "Czy musz\u0119 wy\u0142\u0105czy\u0107 MSI Center M?",
@@ -12570,6 +12603,9 @@ namespace ClawTweaksCenter.Core
             ["Not a game - mute"] = "To nie gra - wycisz",
             ["Game - global profile active"] = "Gra - aktywny profil globalny",
             ["Turn on a profile in the Game Bar"] = "W\u0142\u0105cz profil w Game Bar",
+            ["Restart required"] = "Wymagane ponowne uruchomienie",
+            ["Restart your device to finish the setup."] = "Uruchom urz\u0105dzenie ponownie, aby doko\u0144czy\u0107 konfiguracj\u0119.",
+            ["Restart now"] = "Uruchom ponownie teraz",
         };
 
     }

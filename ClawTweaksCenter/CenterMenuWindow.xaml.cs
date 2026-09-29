@@ -194,6 +194,9 @@ namespace ClawTweaksCenter
             ApplyBackgroundImage();
             ApplyFooterChrome();
 
+            // The restart step: the helper's own PowerAction verb, like the power tile - it also hands
+            // the controller back and writes the clean-shutdown marker before Windows goes down.
+            _onboarding.RestartRequested += () => Dispatcher.Invoke(() => SendPowerAction("reboot"));
             _onboarding.StepsChanged += () => Dispatcher.Invoke(() =>
             {
                 if (_view == View.Onboarding && !_confirming && !_busy) RenderOnboarding();
@@ -1334,6 +1337,10 @@ namespace ClawTweaksCenter
             // outline (D-pad moves it, A runs it — see MoveSelection / RefreshActionBar).
             var onbGrid = new UniformGrid { Columns = 2 };
             ContentHost.Children.Add(onbGrid);
+            // The restart card sits BELOW the grid, full width - it is the last thing to do, not one
+            // step among others. It is still the last VISIBLE step, so the D-pad reaches it by position
+            // like every other card (Down/Right from the last row clamps onto it).
+            FrameworkElement restartCard = null;
 
             for (int pos = 0; pos < visible.Count; pos++)
             {
@@ -1381,9 +1388,12 @@ namespace ClawTweaksCenter
                 row.Children.Add(textStack);
 
                 bool enabled = step.Actionable && !working && !_onboarding.IsConnecting;
+                bool isRestart = index == OnboardingRunner.StepRestart;
                 var runBtn = new Button
                 {
-                    Content = Core.Loc.T(working ? "Working…" : (index == OnboardingRunner.StepAddToBar ? "Check" : "Run")),
+                    Content = Core.Loc.T(working ? "Working…"
+                        : isRestart ? "Restart now"
+                        : (index == OnboardingRunner.StepAddToBar ? "Check" : "Run")),
                     Style = (Style)Application.Current.Resources["SetupButton"],
                     IsEnabled = enabled,
                     Opacity = enabled ? 1.0 : 0.4,
@@ -1434,8 +1444,35 @@ namespace ClawTweaksCenter
                     Child = row,
                 };
                 if (selectedCard) _onbSelectedCard = card;
+
+                if (isRestart)
+                {
+                    // Prominent on purpose (user, 2026-09-29): no number, bigger title, accent frame,
+                    // tinted background. It is what finishes the install.
+                    textStack.Children.Clear();
+                    textStack.Children.Add(new TextBlock
+                    {
+                        Text = "⟳  " + Core.Loc.T(step.Title), FontSize = 20, FontWeight = FontWeights.SemiBold,
+                        Foreground = UiHelpers.Text, TextWrapping = TextWrapping.Wrap,
+                    });
+                    textStack.Children.Add(new TextBlock
+                    {
+                        Text = Core.Loc.T(step.Detail), FontSize = 15, Foreground = UiHelpers.Text,
+                        TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0),
+                    });
+                    statusEl.Visibility = Visibility.Collapsed;
+                    runBtn.MinWidth = 150;
+                    card.Background = Tint(UiHelpers.Accent, 0x22);
+                    card.BorderBrush = UiHelpers.Accent;
+                    card.BorderThickness = new Thickness(selectedCard ? 3 : 1);
+                    card.Padding = new Thickness(20, 16, 20, 16);
+                    card.Margin = new Thickness(0, 8, 10, 10);
+                    restartCard = card;
+                    continue;
+                }
                 onbGrid.Children.Add(card);
             }
+            if (restartCard != null) ContentHost.Children.Add(restartCard);
 
 
             _onbSelectedCard?.BringIntoView();
@@ -2317,7 +2354,7 @@ namespace ClawTweaksCenter
                 var sel = (_onbSelectedIndex >= 0 && _onbSelectedIndex < _onboarding.Steps.Count)
                     ? _onboarding.Steps[_onbSelectedIndex] : null;
                 bool canRun = sel != null && sel.Actionable && !_onboarding.IsConnecting;
-                AddAction(PadButton.A, "Run", canRun, () => _ = _onboarding.RunStepAsync(_onbSelectedIndex, msg => Dispatcher.Invoke(RenderOnboarding)));
+                AddAction(PadButton.A, _onbSelectedIndex == OnboardingRunner.StepRestart ? "Restart now" : "Run", canRun, () => _ = _onboarding.RunStepAsync(_onbSelectedIndex, msg => Dispatcher.Invoke(RenderOnboarding)));
                 AddAction(PadButton.Y, "Refresh status", !_onboarding.IsConnecting, () => _ = _onboarding.RefreshStatusAsync(msg => Dispatcher.Invoke(RenderOnboarding)));
                 // The two buttons under the last step are mouse targets; on a handheld the same two
                 // destinations have to be reachable from the pad, so the library gets a chip and B
