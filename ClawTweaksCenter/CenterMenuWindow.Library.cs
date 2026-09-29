@@ -2476,6 +2476,7 @@ namespace ClawTweaksCenter
             LibraryRoot.Children.Clear();
             LibraryRoot.RowDefinitions.Clear();
             _settingsRows.Clear();
+            _artKeyStatusPinned = false;
 
             var stack = new StackPanel
             {
@@ -2486,10 +2487,12 @@ namespace ClawTweaksCenter
             stack.Children.Add(new TextBlock
             {
                 Text = Core.Loc.T("Library settings"),
-                FontSize = 26,
+                // 22 and 10, not 26 and 16 (user, 2026-09-29): the screen ran out of height and the
+                // vertical centring clipped this title and the hint line at the bottom evenly.
+                FontSize = 22,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
-                Margin = new Thickness(0, 0, 0, 16),
+                Margin = new Thickness(0, 0, 0, 10),
             });
 
             // Columns, because stacked rows ran off the bottom of an eight-inch panel and the key row
@@ -2527,26 +2530,33 @@ namespace ClawTweaksCenter
             pairs.Children.Add(BuildSettingRow(SettingsHiddenGamesRow, "Hidden games", null, HiddenGamesSummary()));
             stack.Children.Add(pairs);
 
+            // ONE LINE (user, 2026-09-29): the box sits to the RIGHT of the title instead of under it,
+            // and the status moved to the hint line at the bottom. Stacked, this row was three lines
+            // tall and the reason the screen no longer fit.
             var keyRow = BuildSettingRow(SettingsKeyRow, "SteamGridDB key", null, null);
-            var keyStack = (StackPanel)((Grid)keyRow.Child).Children[0];
+            var keyGrid = (Grid)keyRow.Child;
             _artKeyBox = new TextBox
             {
                 Text = Core.CenterSettings.SteamGridDbApiKey,
                 FontSize = 15,
-                Padding = new Thickness(8, 6, 8, 6),
-                Margin = new Thickness(0, 8, 0, 0),
+                Width = 260,
+                Padding = new Thickness(8, 3, 8, 3),
+                Margin = new Thickness(12, 0, 0, 0),
+                VerticalAlignment = VerticalAlignment.Center,
             };
-            keyStack.Children.Add(_artKeyBox);
+            Grid.SetColumn(_artKeyBox, 1);
+            keyGrid.Children.Add(_artKeyBox);
             _artKeyStatus = new TextBlock
             {
                 Text = Core.Loc.T(Library.SteamGridDb.HasKey
                     ? "Set. Covers are downloaded for games with none." : "Not set."),
-                FontSize = 13,
+                FontSize = 14,
                 Foreground = UiHelpers.Subtle,
-                Margin = new Thickness(0, 6, 0, 0),
+                Margin = new Thickness(16, 0, 0, 0),
                 TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 420,
+                Visibility = Visibility.Collapsed,
             };
-            keyStack.Children.Add(_artKeyStatus);
 
             // HALF THE WIDTH, on the left (user, 2026-09-12). It is still the last row and still its
             // own line - it holds a text box, and a box shoulder to shoulder with a switch is a row
@@ -2571,15 +2581,22 @@ namespace ClawTweaksCenter
             //
             // The height is reserved whether or not there is anything to say, so walking the grid
             // does not shift the screen underneath the cursor.
+            //
+            // The SteamGridDB key status shares this line, on the right: shown while the key row is
+            // selected, and always while a check is running or a key was rejected.
             _settingsHint = new TextBlock
             {
                 FontSize = 14,
                 Foreground = UiHelpers.Subtle,
                 TextWrapping = TextWrapping.Wrap,
-                MinHeight = 36,
-                Margin = new Thickness(0, 10, 0, 0),
             };
-            stack.Children.Add(_settingsHint);
+            var hintLine = new Grid { MinHeight = 36, Margin = new Thickness(0, 6, 0, 0) };
+            hintLine.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            hintLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            hintLine.Children.Add(_settingsHint);
+            Grid.SetColumn(_artKeyStatus, 1);
+            hintLine.Children.Add(_artKeyStatus);
+            stack.Children.Add(hintLine);
 
             LibraryRoot.Children.Add(stack);
             ApplySettingsSelection();
@@ -2630,8 +2647,10 @@ namespace ClawTweaksCenter
                 Child = grid,
                 Background = UiHelpers.Card,
                 CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(16, 12, 16, 12),
-                Margin = new Thickness(0, 0, 10, 10),
+                // 9/8, not 12/10 (user, 2026-09-29) - with the one-line key row this is what lets
+                // the whole screen fit without scrolling.
+                Padding = new Thickness(16, 9, 16, 9),
+                Margin = new Thickness(0, 0, 8, 8),
                 BorderThickness = new Thickness(2),
                 BorderBrush = Brushes.Transparent,
                 Cursor = System.Windows.Input.Cursors.Hand,
@@ -2689,6 +2708,23 @@ namespace ClawTweaksCenter
                 _settingsHint.Text = IsSettingLockedInFse(_settingsIndex)
                     ? Core.Loc.T("Fixed while Center is the Windows full-screen start app.")
                     : Core.Loc.T(SettingDescription(_settingsIndex));
+
+            if (_artKeyStatus != null && !_artKeyStatusPinned)
+                _artKeyStatus.Visibility = _settingsIndex == SettingsKeyRow ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        /// <summary>
+        /// Key check result on the hint line. Pinned visible, whatever row is selected: it answers
+        /// something the user just did, and a rejected key keeps the screen open to say so.
+        /// </summary>
+        private bool _artKeyStatusPinned;
+
+        private void ShowArtKeyStatus(string text)
+        {
+            if (_artKeyStatus == null) return;
+            _artKeyStatus.Text = text;
+            _artKeyStatusPinned = true;
+            _artKeyStatus.Visibility = Visibility.Visible;
         }
 
         /// <summary>
@@ -3169,11 +3205,11 @@ namespace ClawTweaksCenter
                 return;
             }
 
-            if (_artKeyStatus != null) _artKeyStatus.Text = "Checking…";
+            ShowArtKeyStatus("Checking…");
             bool ok = await Library.SteamGridDb.VerifyKeyAsync(key, CancellationToken.None);
             if (!ok)
             {
-                if (_artKeyStatus != null) _artKeyStatus.Text = "That key was rejected.";
+                ShowArtKeyStatus("That key was rejected.");
                 return;
             }
 
