@@ -121,6 +121,12 @@ namespace ClawTweaksCenter.Library
 
             AddScaling(p, lines);
 
+            // Intel frame generation: 0 is off, otherwise the multiplier is the value plus one -
+            // the same mapping as GameStartCard.FormatFrameGeneration, so the launch screen and the
+            // game-start card say the same thing for the same profile.
+            int frameGen = p.Int("IntelFrameGeneration");
+            if (frameGen > 0) Add(lines, "Frame generation", (frameGen + 1) + "x");
+
             if (p.Bool("HDREnabled") == true) Add(lines, "HDR", "On");
         }
 
