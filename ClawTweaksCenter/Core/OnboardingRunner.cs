@@ -85,7 +85,7 @@ namespace ClawTweaksCenter.Core
         public IReadOnlyList<OnboardingStep> Steps { get; } = new List<OnboardingStep>
         {
             new OnboardingStep { Title = "Check hardware controller health" },
-            new OnboardingStep { Title = "Disable MSI Center M (a one-time restart may be needed if no FPS are detected)" },
+            new OnboardingStep { Title = "Disable MSI Center M" },
             new OnboardingStep { Title = "Enable virtual controller" },
             new OnboardingStep { Title = "Add ClawTweaks to the Game Bar" },
             new OnboardingStep { Title = "Activate Game Bar auto-jump", Hidden = true },   // retired 2026-09-28
