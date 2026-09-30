@@ -1083,7 +1083,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "Das Spiel muss ggf. neu gestartet werden, damit der FPS-Cap greift.",
             ["Restart the game to see the RTSS overlay."] = "Starte das Spiel neu, um das RTSS-Overlay zu sehen.",
             ["The built-in overlay is shown until then."] = "Bis dahin wird das eingebaute Overlay angezeigt.",
-            ["After the restart, change the FPS cap in-game."] = "Nach dem Neustart kannst du den FPS-Cap im Spiel \u00E4ndern.",
+            ["After the restart, you can change the FPS cap in-game"] = "Nach dem Neustart kannst du den FPS-Cap im Spiel \u00E4ndern,",
+            ["and turn it off and back on."] = "deaktivieren und wieder aktivieren.",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2138,7 +2139,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "Red\u00E9marre le jeu si la limite FPS ne s'applique pas.",
             ["Restart the game to see the RTSS overlay."] = "Red\u00E9marre le jeu pour voir l'overlay RTSS.",
             ["The built-in overlay is shown until then."] = "D'ici l\u00E0, l'overlay int\u00E9gr\u00E9 est affich\u00E9.",
-            ["After the restart, change the FPS cap in-game."] = "Apr\u00E8s le red\u00E9marrage, modifie la limite FPS en jeu.",
+            ["After the restart, you can change the FPS cap in-game"] = "Apr\u00E8s le red\u00E9marrage, tu peux modifier la limite FPS en jeu,",
+            ["and turn it off and back on."] = "la d\u00E9sactiver et la r\u00E9activer.",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3198,7 +3200,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "FPS \uC81C\uD55C\uC774 \uC801\uC6A9\uB418\uC9C0 \uC54A\uC73C\uBA74 \uAC8C\uC784\uC744 \uB2E4\uC2DC \uC2DC\uC791\uD558\uC138\uC694.",
             ["Restart the game to see the RTSS overlay."] = "RTSS \uC624\uBC84\uB808\uC774\uB97C \uBCF4\uB824\uBA74 \uAC8C\uC784\uC744 \uB2E4\uC2DC \uC2DC\uC791\uD558\uC138\uC694.",
             ["The built-in overlay is shown until then."] = "\uADF8\uB54C\uAE4C\uC9C0 \uAE30\uBCF8 \uC624\uBC84\uB808\uC774\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.",
-            ["After the restart, change the FPS cap in-game."] = "\uB2E4\uC2DC \uC2DC\uC791\uD55C \uD6C4\uC5D0\uB294 \uAC8C\uC784 \uC911\uC5D0 FPS \uC81C\uD55C\uC744 \uBCC0\uACBD\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+            ["After the restart, you can change the FPS cap in-game"] = "\uB2E4\uC2DC \uC2DC\uC791\uD55C \uD6C4\uC5D0\uB294 \uAC8C\uC784 \uC911\uC5D0 FPS \uC81C\uD55C\uC744 \uBCC0\uACBD\uD558\uACE0",
+            ["and turn it off and back on."] = "\uB044\uACE0 \uB2E4\uC2DC \uCF24 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4255,7 +4258,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "Reinicia el juego si el l\u00EDmite de FPS no se aplica.",
             ["Restart the game to see the RTSS overlay."] = "Reinicia el juego para ver el overlay de RTSS.",
             ["The built-in overlay is shown until then."] = "Hasta entonces se muestra el overlay integrado.",
-            ["After the restart, change the FPS cap in-game."] = "Tras reiniciar, cambia el l\u00EDmite de FPS dentro del juego.",
+            ["After the restart, you can change the FPS cap in-game"] = "Tras reiniciar, puedes cambiar el l\u00EDmite de FPS en el juego,",
+            ["and turn it off and back on."] = "desactivarlo y volver a activarlo.",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -5316,7 +5320,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "\u041F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u0442\u0438 \u0438\u0433\u0440\u0443, \u0435\u0441\u043B\u0438 \u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0438\u0435 FPS \u043D\u0435 \u043F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u0441\u044F.",
             ["Restart the game to see the RTSS overlay."] = "\u041F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u0442\u0438 \u0438\u0433\u0440\u0443, \u0447\u0442\u043E\u0431\u044B \u0443\u0432\u0438\u0434\u0435\u0442\u044C \u043E\u0432\u0435\u0440\u043B\u0435\u0439 RTSS.",
             ["The built-in overlay is shown until then."] = "\u0414\u043E \u044D\u0442\u043E\u0433\u043E \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0430\u0435\u0442\u0441\u044F \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0439 \u043E\u0432\u0435\u0440\u043B\u0435\u0439.",
-            ["After the restart, change the FPS cap in-game."] = "\u041F\u043E\u0441\u043B\u0435 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u043A\u0430 \u043C\u0435\u043D\u044F\u0439 \u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0438\u0435 FPS \u043F\u0440\u044F\u043C\u043E \u0432 \u0438\u0433\u0440\u0435.",
+            ["After the restart, you can change the FPS cap in-game"] = "\u041F\u043E\u0441\u043B\u0435 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u043A\u0430 \u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0438\u0435 FPS \u043C\u043E\u0436\u043D\u043E \u043C\u0435\u043D\u044F\u0442\u044C \u0432 \u0438\u0433\u0440\u0435,",
+            ["and turn it off and back on."] = "\u043E\u0442\u043A\u043B\u044E\u0447\u0430\u0442\u044C \u0438 \u0441\u043D\u043E\u0432\u0430 \u0432\u043A\u043B\u044E\u0447\u0430\u0442\u044C.",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -6368,7 +6373,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "\u0395\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B5 \u03C4\u03BF \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9 \u03B1\u03BD \u03B4\u03B5\u03BD \u03B5\u03C6\u03B1\u03C1\u03BC\u03BF\u03C3\u03C4\u03B5\u03AF \u03C4\u03BF \u03CC\u03C1\u03B9\u03BF FPS.",
             ["Restart the game to see the RTSS overlay."] = "\u0395\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B5 \u03C4\u03BF \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9 \u03B3\u03B9\u03B1 \u03BD\u03B1 \u03B4\u03B5\u03B9\u03C2 \u03C4\u03BF overlay \u03C4\u03BF\u03C5 RTSS.",
             ["The built-in overlay is shown until then."] = "\u039C\u03AD\u03C7\u03C1\u03B9 \u03C4\u03CC\u03C4\u03B5 \u03B5\u03BC\u03C6\u03B1\u03BD\u03AF\u03B6\u03B5\u03C4\u03B1\u03B9 \u03C4\u03BF \u03B5\u03BD\u03C3\u03C9\u03BC\u03B1\u03C4\u03C9\u03BC\u03AD\u03BD\u03BF overlay.",
-            ["After the restart, change the FPS cap in-game."] = "\u039C\u03B5\u03C4\u03AC \u03C4\u03B7\u03BD \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7, \u03AC\u03BB\u03BB\u03B1\u03BE\u03B5 \u03C4\u03BF \u03CC\u03C1\u03B9\u03BF FPS \u03BC\u03AD\u03C3\u03B1 \u03C3\u03C4\u03BF \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9.",
+            ["After the restart, you can change the FPS cap in-game"] = "\u039C\u03B5\u03C4\u03AC \u03C4\u03B7\u03BD \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7, \u03BC\u03C0\u03BF\u03C1\u03B5\u03AF\u03C2 \u03BD\u03B1 \u03B1\u03BB\u03BB\u03AC\u03BE\u03B5\u03B9\u03C2 \u03C4\u03BF \u03CC\u03C1\u03B9\u03BF FPS \u03C3\u03C4\u03BF \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9,",
+            ["and turn it off and back on."] = "\u03BD\u03B1 \u03C4\u03BF \u03B1\u03C0\u03B5\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03B9\u03AE\u03C3\u03B5\u03B9\u03C2 \u03BA\u03B1\u03B9 \u03BD\u03B1 \u03C4\u03BF \u03B5\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03B9\u03AE\u03C3\u03B5\u03B9\u03C2 \u03BE\u03B1\u03BD\u03AC.",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -7425,7 +7431,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "\u5982\u679C FPS \u4E0A\u9650\u672A\u751F\u6548\uFF0C\u8BF7\u91CD\u65B0\u542F\u52A8\u6E38\u620F\u3002",
             ["Restart the game to see the RTSS overlay."] = "\u91CD\u65B0\u542F\u52A8\u6E38\u620F\u4EE5\u663E\u793A RTSS \u53E0\u52A0\u5C42\u3002",
             ["The built-in overlay is shown until then."] = "\u5728\u6B64\u4E4B\u524D\u663E\u793A\u5185\u7F6E\u53E0\u52A0\u5C42\u3002",
-            ["After the restart, change the FPS cap in-game."] = "\u91CD\u65B0\u542F\u52A8\u540E\uFF0C\u53EF\u5728\u6E38\u620F\u4E2D\u66F4\u6539 FPS \u4E0A\u9650\u3002",
+            ["After the restart, you can change the FPS cap in-game"] = "\u91CD\u65B0\u542F\u52A8\u540E\uFF0C\u53EF\u5728\u6E38\u620F\u4E2D\u66F4\u6539 FPS \u4E0A\u9650\uFF0C",
+            ["and turn it off and back on."] = "\u4E5F\u53EF\u5173\u95ED\u540E\u91CD\u65B0\u5F00\u542F\u3002",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -8482,7 +8489,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "\u5982\u679C FPS \u4E0A\u9650\u672A\u751F\u6548\uFF0C\u8ACB\u91CD\u65B0\u555F\u52D5\u904A\u6232\u3002",
             ["Restart the game to see the RTSS overlay."] = "\u91CD\u65B0\u555F\u52D5\u904A\u6232\u4EE5\u986F\u793A RTSS \u758A\u52A0\u5C64\u3002",
             ["The built-in overlay is shown until then."] = "\u5728\u6B64\u4E4B\u524D\u986F\u793A\u5167\u5EFA\u758A\u52A0\u5C64\u3002",
-            ["After the restart, change the FPS cap in-game."] = "\u91CD\u65B0\u555F\u52D5\u5F8C\uFF0C\u53EF\u5728\u904A\u6232\u4E2D\u8B8A\u66F4 FPS \u4E0A\u9650\u3002",
+            ["After the restart, you can change the FPS cap in-game"] = "\u91CD\u65B0\u555F\u52D5\u5F8C\uFF0C\u53EF\u5728\u904A\u6232\u4E2D\u8B8A\u66F4 FPS \u4E0A\u9650\uFF0C",
+            ["and turn it off and back on."] = "\u4E5F\u53EF\u95DC\u9589\u5F8C\u91CD\u65B0\u958B\u555F\u3002",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -9537,7 +9545,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "Riavvia il gioco se il limite FPS non viene applicato.",
             ["Restart the game to see the RTSS overlay."] = "Riavvia il gioco per vedere l'overlay di RTSS.",
             ["The built-in overlay is shown until then."] = "Fino ad allora viene mostrato l'overlay integrato.",
-            ["After the restart, change the FPS cap in-game."] = "Dopo il riavvio, cambia il limite FPS durante il gioco.",
+            ["After the restart, you can change the FPS cap in-game"] = "Dopo il riavvio puoi modificare il limite FPS in gioco,",
+            ["and turn it off and back on."] = "disattivarlo e riattivarlo.",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -10580,7 +10589,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "Reinicie o jogo se o limite de FPS n\u00E3o for aplicado.",
             ["Restart the game to see the RTSS overlay."] = "Reinicie o jogo para ver a sobreposi\u00E7\u00E3o do RTSS.",
             ["The built-in overlay is shown until then."] = "At\u00E9 l\u00E1, a sobreposi\u00E7\u00E3o integrada \u00E9 exibida.",
-            ["After the restart, change the FPS cap in-game."] = "Ap\u00F3s reiniciar, altere o limite de FPS durante o jogo.",
+            ["After the restart, you can change the FPS cap in-game"] = "Ap\u00F3s reiniciar, voc\u00EA pode alterar o limite de FPS no jogo,",
+            ["and turn it off and back on."] = "desativ\u00E1-lo e reativ\u00E1-lo.",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -11639,7 +11649,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "FPS \u4E0A\u9650\u304C\u9069\u7528\u3055\u308C\u306A\u3044\u5834\u5408\u306F\u3001\u30B2\u30FC\u30E0\u3092\u518D\u8D77\u52D5\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
             ["Restart the game to see the RTSS overlay."] = "RTSS \u30AA\u30FC\u30D0\u30FC\u30EC\u30A4\u3092\u8868\u793A\u3059\u308B\u306B\u306F\u30B2\u30FC\u30E0\u3092\u518D\u8D77\u52D5\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
             ["The built-in overlay is shown until then."] = "\u305D\u308C\u307E\u3067\u306F\u5185\u8535\u30AA\u30FC\u30D0\u30FC\u30EC\u30A4\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002",
-            ["After the restart, change the FPS cap in-game."] = "\u518D\u8D77\u52D5\u5F8C\u306F\u3001\u30B2\u30FC\u30E0\u4E2D\u306B FPS \u4E0A\u9650\u3092\u5909\u66F4\u3067\u304D\u307E\u3059\u3002",
+            ["After the restart, you can change the FPS cap in-game"] = "\u518D\u8D77\u52D5\u5F8C\u306F\u3001\u30B2\u30FC\u30E0\u4E2D\u306B FPS \u4E0A\u9650\u3092\u5909\u66F4\u3057\u305F\u308A\u3001",
+            ["and turn it off and back on."] = "\u30AA\u30D5\u306B\u3057\u3066\u518D\u3073\u30AA\u30F3\u306B\u3057\u305F\u308A\u3067\u304D\u307E\u3059\u3002",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -12689,7 +12700,8 @@ namespace ClawTweaksCenter.Core
             ["Restart the game if the FPS cap does not apply."] = "Uruchom gr\u0119 ponownie, je\u015Bli limit FPS nie zadzia\u0142a.",
             ["Restart the game to see the RTSS overlay."] = "Uruchom gr\u0119 ponownie, aby zobaczy\u0107 nak\u0142adk\u0119 RTSS.",
             ["The built-in overlay is shown until then."] = "Do tego czasu wy\u015Bwietlana jest wbudowana nak\u0142adka.",
-            ["After the restart, change the FPS cap in-game."] = "Po ponownym uruchomieniu zmieniaj limit FPS w grze.",
+            ["After the restart, you can change the FPS cap in-game"] = "Po ponownym uruchomieniu mo\u017Cesz zmienia\u0107 limit FPS w grze,",
+            ["and turn it off and back on."] = "wy\u0142\u0105cza\u0107 go i ponownie w\u0142\u0105cza\u0107.",
         };
 
     }

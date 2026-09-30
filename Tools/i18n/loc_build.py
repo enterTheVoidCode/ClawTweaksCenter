@@ -108,7 +108,8 @@ OSD_KEYS = [
     # the RTSS whitelist card: a game that was not on RTSS's list when it started (2026-09-30)
     'RTSS profile created',
     'Restart the game if the FPS cap does not apply.',
-    'After the restart, change the FPS cap in-game.',
+    'After the restart, you can change the FPS cap in-game',
+    'and turn it off and back on.',
     'Restart the game to see the RTSS overlay.',
     'The built-in overlay is shown until then.',
     # the native Quick Panel's labels, values and hints (user, 2026-09-16). Keys in [brackets] are
