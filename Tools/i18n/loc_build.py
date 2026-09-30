@@ -105,6 +105,12 @@ OSD_KEYS = [
     # the fallback card when the button is pressed without the virtual controller
     'Game Bar opened instead',
     'Quick Settings need the virtual controller',
+    # the RTSS whitelist card: a game that was not on RTSS's list when it started (2026-09-30)
+    'RTSS profile created',
+    'Restart the game if the FPS cap does not apply.',
+    'After the restart, change the FPS cap in-game.',
+    'Restart the game to see the RTSS overlay.',
+    'The built-in overlay is shown until then.',
     # the native Quick Panel's labels, values and hints (user, 2026-09-16). Keys in [brackets] are
     # controller buttons and sticks - the bracket is part of the key and stays in every language.
     'Brightness', 'Volume', 'muted',

@@ -1079,6 +1079,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "Jetzt neu starten",
             ["Controller or LED not working after the restart? Do an EC reset."] = "Controller oder LED gehen nach dem Neustart nicht? Mach einen EC-Reset.",
             ["Scan the code for MSI's EC reset guide."] = "Scanne den Code f\u00FCr MSIs Anleitung zum EC-Reset.",
+            ["RTSS profile created"] = "RTSS-Profil erstellt",
+            ["Restart the game if the FPS cap does not apply."] = "Das Spiel muss ggf. neu gestartet werden, damit der FPS-Cap greift.",
+            ["Restart the game to see the RTSS overlay."] = "Starte das Spiel neu, um das RTSS-Overlay zu sehen.",
+            ["The built-in overlay is shown until then."] = "Bis dahin wird das eingebaute Overlay angezeigt.",
+            ["After the restart, change the FPS cap in-game."] = "Nach dem Neustart kannst du den FPS-Cap im Spiel \u00E4ndern.",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2129,6 +2134,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "Red\u00E9marrer maintenant",
             ["Controller or LED not working after the restart? Do an EC reset."] = "Manette ou LED inactives apr\u00E8s le red\u00E9marrage ? Faites une r\u00E9initialisation de l'EC.",
             ["Scan the code for MSI's EC reset guide."] = "Scannez le code pour le guide de r\u00E9initialisation EC de MSI.",
+            ["RTSS profile created"] = "Profil RTSS cr\u00E9\u00E9",
+            ["Restart the game if the FPS cap does not apply."] = "Red\u00E9marre le jeu si la limite FPS ne s'applique pas.",
+            ["Restart the game to see the RTSS overlay."] = "Red\u00E9marre le jeu pour voir l'overlay RTSS.",
+            ["The built-in overlay is shown until then."] = "D'ici l\u00E0, l'overlay int\u00E9gr\u00E9 est affich\u00E9.",
+            ["After the restart, change the FPS cap in-game."] = "Apr\u00E8s le red\u00E9marrage, modifie la limite FPS en jeu.",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3184,6 +3194,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "\uC9C0\uAE08 \uB2E4\uC2DC \uC2DC\uC791",
             ["Controller or LED not working after the restart? Do an EC reset."] = "\uC7AC\uC2DC\uC791 \uD6C4 \uCEE8\uD2B8\uB864\uB7EC\uB098 LED\uAC00 \uC791\uB3D9\uD558\uC9C0 \uC54A\uB098\uC694? EC \uB9AC\uC14B\uC744 \uD558\uC138\uC694.",
             ["Scan the code for MSI's EC reset guide."] = "\uCF54\uB4DC\uB97C \uC2A4\uCE94\uD574 MSI\uC758 EC \uB9AC\uC14B \uAC00\uC774\uB4DC\uB97C \uC5EC\uC138\uC694.",
+            ["RTSS profile created"] = "RTSS \uD504\uB85C\uD544\uC774 \uC0DD\uC131\uB418\uC5C8\uC2B5\uB2C8\uB2E4",
+            ["Restart the game if the FPS cap does not apply."] = "FPS \uC81C\uD55C\uC774 \uC801\uC6A9\uB418\uC9C0 \uC54A\uC73C\uBA74 \uAC8C\uC784\uC744 \uB2E4\uC2DC \uC2DC\uC791\uD558\uC138\uC694.",
+            ["Restart the game to see the RTSS overlay."] = "RTSS \uC624\uBC84\uB808\uC774\uB97C \uBCF4\uB824\uBA74 \uAC8C\uC784\uC744 \uB2E4\uC2DC \uC2DC\uC791\uD558\uC138\uC694.",
+            ["The built-in overlay is shown until then."] = "\uADF8\uB54C\uAE4C\uC9C0 \uAE30\uBCF8 \uC624\uBC84\uB808\uC774\uAC00 \uD45C\uC2DC\uB429\uB2C8\uB2E4.",
+            ["After the restart, change the FPS cap in-game."] = "\uB2E4\uC2DC \uC2DC\uC791\uD55C \uD6C4\uC5D0\uB294 \uAC8C\uC784 \uC911\uC5D0 FPS \uC81C\uD55C\uC744 \uBCC0\uACBD\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4236,6 +4251,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "Reiniciar ahora",
             ["Controller or LED not working after the restart? Do an EC reset."] = "\u00BFEl mando o el LED no funcionan tras reiniciar? Haz un reinicio del EC.",
             ["Scan the code for MSI's EC reset guide."] = "Escanea el c\u00F3digo para ver la gu\u00EDa de reinicio del EC de MSI.",
+            ["RTSS profile created"] = "Perfil de RTSS creado",
+            ["Restart the game if the FPS cap does not apply."] = "Reinicia el juego si el l\u00EDmite de FPS no se aplica.",
+            ["Restart the game to see the RTSS overlay."] = "Reinicia el juego para ver el overlay de RTSS.",
+            ["The built-in overlay is shown until then."] = "Hasta entonces se muestra el overlay integrado.",
+            ["After the restart, change the FPS cap in-game."] = "Tras reiniciar, cambia el l\u00EDmite de FPS dentro del juego.",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -5292,6 +5312,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "\u041F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0435\u0439\u0447\u0430\u0441",
             ["Controller or LED not working after the restart? Do an EC reset."] = "\u041A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u0438\u043B\u0438 \u043F\u043E\u0434\u0441\u0432\u0435\u0442\u043A\u0430 \u043D\u0435 \u0440\u0430\u0431\u043E\u0442\u0430\u044E\u0442 \u043F\u043E\u0441\u043B\u0435 \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0438? \u0421\u0434\u0435\u043B\u0430\u0439\u0442\u0435 \u0441\u0431\u0440\u043E\u0441 EC.",
             ["Scan the code for MSI's EC reset guide."] = "\u041E\u0442\u0441\u043A\u0430\u043D\u0438\u0440\u0443\u0439\u0442\u0435 \u043A\u043E\u0434, \u0447\u0442\u043E\u0431\u044B \u043E\u0442\u043A\u0440\u044B\u0442\u044C \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044E MSI \u043F\u043E \u0441\u0431\u0440\u043E\u0441\u0443 EC.",
+            ["RTSS profile created"] = "\u041F\u0440\u043E\u0444\u0438\u043B\u044C RTSS \u0441\u043E\u0437\u0434\u0430\u043D",
+            ["Restart the game if the FPS cap does not apply."] = "\u041F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u0442\u0438 \u0438\u0433\u0440\u0443, \u0435\u0441\u043B\u0438 \u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0438\u0435 FPS \u043D\u0435 \u043F\u0440\u0438\u043C\u0435\u043D\u0438\u0442\u0441\u044F.",
+            ["Restart the game to see the RTSS overlay."] = "\u041F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u0442\u0438 \u0438\u0433\u0440\u0443, \u0447\u0442\u043E\u0431\u044B \u0443\u0432\u0438\u0434\u0435\u0442\u044C \u043E\u0432\u0435\u0440\u043B\u0435\u0439 RTSS.",
+            ["The built-in overlay is shown until then."] = "\u0414\u043E \u044D\u0442\u043E\u0433\u043E \u043E\u0442\u043E\u0431\u0440\u0430\u0436\u0430\u0435\u0442\u0441\u044F \u0432\u0441\u0442\u0440\u043E\u0435\u043D\u043D\u044B\u0439 \u043E\u0432\u0435\u0440\u043B\u0435\u0439.",
+            ["After the restart, change the FPS cap in-game."] = "\u041F\u043E\u0441\u043B\u0435 \u043F\u0435\u0440\u0435\u0437\u0430\u043F\u0443\u0441\u043A\u0430 \u043C\u0435\u043D\u044F\u0439 \u043E\u0433\u0440\u0430\u043D\u0438\u0447\u0435\u043D\u0438\u0435 FPS \u043F\u0440\u044F\u043C\u043E \u0432 \u0438\u0433\u0440\u0435.",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -6339,6 +6364,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "\u0395\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7 \u03C4\u03CE\u03C1\u03B1",
             ["Controller or LED not working after the restart? Do an EC reset."] = "\u03A4\u03BF \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03AE \u03C4\u03BF LED \u03B4\u03B5\u03BD \u03BB\u03B5\u03B9\u03C4\u03BF\u03C5\u03C1\u03B3\u03B5\u03AF \u03BC\u03B5\u03C4\u03AC \u03C4\u03B7\u03BD \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7; \u039A\u03AC\u03BD\u03C4\u03B5 \u03B5\u03C0\u03B1\u03BD\u03B1\u03C6\u03BF\u03C1\u03AC EC.",
             ["Scan the code for MSI's EC reset guide."] = "\u03A3\u03B1\u03C1\u03CE\u03C3\u03C4\u03B5 \u03C4\u03BF\u03BD \u03BA\u03C9\u03B4\u03B9\u03BA\u03CC \u03B3\u03B9\u03B1 \u03C4\u03BF\u03BD \u03BF\u03B4\u03B7\u03B3\u03CC \u03B5\u03C0\u03B1\u03BD\u03B1\u03C6\u03BF\u03C1\u03AC\u03C2 EC \u03C4\u03B7\u03C2 MSI.",
+            ["RTSS profile created"] = "\u0394\u03B7\u03BC\u03B9\u03BF\u03C5\u03C1\u03B3\u03AE\u03B8\u03B7\u03BA\u03B5 \u03C0\u03C1\u03BF\u03C6\u03AF\u03BB RTSS",
+            ["Restart the game if the FPS cap does not apply."] = "\u0395\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B5 \u03C4\u03BF \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9 \u03B1\u03BD \u03B4\u03B5\u03BD \u03B5\u03C6\u03B1\u03C1\u03BC\u03BF\u03C3\u03C4\u03B5\u03AF \u03C4\u03BF \u03CC\u03C1\u03B9\u03BF FPS.",
+            ["Restart the game to see the RTSS overlay."] = "\u0395\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B5 \u03C4\u03BF \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9 \u03B3\u03B9\u03B1 \u03BD\u03B1 \u03B4\u03B5\u03B9\u03C2 \u03C4\u03BF overlay \u03C4\u03BF\u03C5 RTSS.",
+            ["The built-in overlay is shown until then."] = "\u039C\u03AD\u03C7\u03C1\u03B9 \u03C4\u03CC\u03C4\u03B5 \u03B5\u03BC\u03C6\u03B1\u03BD\u03AF\u03B6\u03B5\u03C4\u03B1\u03B9 \u03C4\u03BF \u03B5\u03BD\u03C3\u03C9\u03BC\u03B1\u03C4\u03C9\u03BC\u03AD\u03BD\u03BF overlay.",
+            ["After the restart, change the FPS cap in-game."] = "\u039C\u03B5\u03C4\u03AC \u03C4\u03B7\u03BD \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7, \u03AC\u03BB\u03BB\u03B1\u03BE\u03B5 \u03C4\u03BF \u03CC\u03C1\u03B9\u03BF FPS \u03BC\u03AD\u03C3\u03B1 \u03C3\u03C4\u03BF \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9.",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -7391,6 +7421,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "\u7ACB\u5373\u91CD\u542F",
             ["Controller or LED not working after the restart? Do an EC reset."] = "\u91CD\u542F\u540E\u624B\u67C4\u6216\u706F\u5149\u4E0D\u5DE5\u4F5C\uFF1F\u8BF7\u6267\u884C EC \u91CD\u7F6E\u3002",
             ["Scan the code for MSI's EC reset guide."] = "\u626B\u63CF\u4E8C\u7EF4\u7801\u67E5\u770B MSI \u7684 EC \u91CD\u7F6E\u6307\u5357\u3002",
+            ["RTSS profile created"] = "\u5DF2\u521B\u5EFA RTSS \u914D\u7F6E\u6587\u4EF6",
+            ["Restart the game if the FPS cap does not apply."] = "\u5982\u679C FPS \u4E0A\u9650\u672A\u751F\u6548\uFF0C\u8BF7\u91CD\u65B0\u542F\u52A8\u6E38\u620F\u3002",
+            ["Restart the game to see the RTSS overlay."] = "\u91CD\u65B0\u542F\u52A8\u6E38\u620F\u4EE5\u663E\u793A RTSS \u53E0\u52A0\u5C42\u3002",
+            ["The built-in overlay is shown until then."] = "\u5728\u6B64\u4E4B\u524D\u663E\u793A\u5185\u7F6E\u53E0\u52A0\u5C42\u3002",
+            ["After the restart, change the FPS cap in-game."] = "\u91CD\u65B0\u542F\u52A8\u540E\uFF0C\u53EF\u5728\u6E38\u620F\u4E2D\u66F4\u6539 FPS \u4E0A\u9650\u3002",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -8443,6 +8478,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "\u7ACB\u5373\u91CD\u65B0\u555F\u52D5",
             ["Controller or LED not working after the restart? Do an EC reset."] = "\u91CD\u65B0\u555F\u52D5\u5F8C\u63A7\u5236\u5668\u6216\u71C8\u5149\u7121\u6CD5\u904B\u4F5C\uFF1F\u8ACB\u57F7\u884C EC \u91CD\u8A2D\u3002",
             ["Scan the code for MSI's EC reset guide."] = "\u6383\u63CF QR \u78BC\u67E5\u770B MSI \u7684 EC \u91CD\u8A2D\u6307\u5357\u3002",
+            ["RTSS profile created"] = "\u5DF2\u5EFA\u7ACB RTSS \u8A2D\u5B9A\u6A94",
+            ["Restart the game if the FPS cap does not apply."] = "\u5982\u679C FPS \u4E0A\u9650\u672A\u751F\u6548\uFF0C\u8ACB\u91CD\u65B0\u555F\u52D5\u904A\u6232\u3002",
+            ["Restart the game to see the RTSS overlay."] = "\u91CD\u65B0\u555F\u52D5\u904A\u6232\u4EE5\u986F\u793A RTSS \u758A\u52A0\u5C64\u3002",
+            ["The built-in overlay is shown until then."] = "\u5728\u6B64\u4E4B\u524D\u986F\u793A\u5167\u5EFA\u758A\u52A0\u5C64\u3002",
+            ["After the restart, change the FPS cap in-game."] = "\u91CD\u65B0\u555F\u52D5\u5F8C\uFF0C\u53EF\u5728\u904A\u6232\u4E2D\u8B8A\u66F4 FPS \u4E0A\u9650\u3002",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -9493,6 +9533,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "Riavvia ora",
             ["Controller or LED not working after the restart? Do an EC reset."] = "Controller o LED non funzionano dopo il riavvio? Esegui un reset dell'EC.",
             ["Scan the code for MSI's EC reset guide."] = "Scansiona il codice per la guida MSI al reset dell'EC.",
+            ["RTSS profile created"] = "Profilo RTSS creato",
+            ["Restart the game if the FPS cap does not apply."] = "Riavvia il gioco se il limite FPS non viene applicato.",
+            ["Restart the game to see the RTSS overlay."] = "Riavvia il gioco per vedere l'overlay di RTSS.",
+            ["The built-in overlay is shown until then."] = "Fino ad allora viene mostrato l'overlay integrato.",
+            ["After the restart, change the FPS cap in-game."] = "Dopo il riavvio, cambia il limite FPS durante il gioco.",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -10531,6 +10576,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "Reiniciar agora",
             ["Controller or LED not working after the restart? Do an EC reset."] = "Controle ou LED n\u00E3o funcionam ap\u00F3s reiniciar? Fa\u00E7a um reset do EC.",
             ["Scan the code for MSI's EC reset guide."] = "Escaneie o c\u00F3digo para ver o guia de reset do EC da MSI.",
+            ["RTSS profile created"] = "Perfil do RTSS criado",
+            ["Restart the game if the FPS cap does not apply."] = "Reinicie o jogo se o limite de FPS n\u00E3o for aplicado.",
+            ["Restart the game to see the RTSS overlay."] = "Reinicie o jogo para ver a sobreposi\u00E7\u00E3o do RTSS.",
+            ["The built-in overlay is shown until then."] = "At\u00E9 l\u00E1, a sobreposi\u00E7\u00E3o integrada \u00E9 exibida.",
+            ["After the restart, change the FPS cap in-game."] = "Ap\u00F3s reiniciar, altere o limite de FPS durante o jogo.",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -11585,6 +11635,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "\u4ECA\u3059\u3050\u518D\u8D77\u52D5",
             ["Controller or LED not working after the restart? Do an EC reset."] = "\u518D\u8D77\u52D5\u5F8C\u306B\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u3084LED\u304C\u52D5\u4F5C\u3057\u306A\u3044\u5834\u5408\u306F\u3001EC\u30EA\u30BB\u30C3\u30C8\u3092\u884C\u3063\u3066\u304F\u3060\u3055\u3044\u3002",
             ["Scan the code for MSI's EC reset guide."] = "\u30B3\u30FC\u30C9\u3092\u30B9\u30AD\u30E3\u30F3\u3057\u3066 MSI \u306E EC \u30EA\u30BB\u30C3\u30C8\u30AC\u30A4\u30C9\u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
+            ["RTSS profile created"] = "RTSS \u30D7\u30ED\u30D5\u30A1\u30A4\u30EB\u3092\u4F5C\u6210\u3057\u307E\u3057\u305F",
+            ["Restart the game if the FPS cap does not apply."] = "FPS \u4E0A\u9650\u304C\u9069\u7528\u3055\u308C\u306A\u3044\u5834\u5408\u306F\u3001\u30B2\u30FC\u30E0\u3092\u518D\u8D77\u52D5\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+            ["Restart the game to see the RTSS overlay."] = "RTSS \u30AA\u30FC\u30D0\u30FC\u30EC\u30A4\u3092\u8868\u793A\u3059\u308B\u306B\u306F\u30B2\u30FC\u30E0\u3092\u518D\u8D77\u52D5\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+            ["The built-in overlay is shown until then."] = "\u305D\u308C\u307E\u3067\u306F\u5185\u8535\u30AA\u30FC\u30D0\u30FC\u30EC\u30A4\u304C\u8868\u793A\u3055\u308C\u307E\u3059\u3002",
+            ["After the restart, change the FPS cap in-game."] = "\u518D\u8D77\u52D5\u5F8C\u306F\u3001\u30B2\u30FC\u30E0\u4E2D\u306B FPS \u4E0A\u9650\u3092\u5909\u66F4\u3067\u304D\u307E\u3059\u3002",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -12630,6 +12685,11 @@ namespace ClawTweaksCenter.Core
             ["Restart now"] = "Uruchom ponownie teraz",
             ["Controller or LED not working after the restart? Do an EC reset."] = "Kontroler lub LED nie dzia\u0142a po ponownym uruchomieniu? Wykonaj reset EC.",
             ["Scan the code for MSI's EC reset guide."] = "Zeskanuj kod, aby otworzy\u0107 instrukcj\u0119 MSI dotycz\u0105c\u0105 resetu EC.",
+            ["RTSS profile created"] = "Utworzono profil RTSS",
+            ["Restart the game if the FPS cap does not apply."] = "Uruchom gr\u0119 ponownie, je\u015Bli limit FPS nie zadzia\u0142a.",
+            ["Restart the game to see the RTSS overlay."] = "Uruchom gr\u0119 ponownie, aby zobaczy\u0107 nak\u0142adk\u0119 RTSS.",
+            ["The built-in overlay is shown until then."] = "Do tego czasu wy\u015Bwietlana jest wbudowana nak\u0142adka.",
+            ["After the restart, change the FPS cap in-game."] = "Po ponownym uruchomieniu zmieniaj limit FPS w grze.",
         };
 
     }
