@@ -162,7 +162,7 @@
                      With the chips up they are centred in a taller row and the margin is slack. -->
                 <TextBlock x:Name="FooterBattery" Grid.Column="0"
                            VerticalAlignment="Center" Margin="28,7,8,7"
-                           FontSize="12" Foreground="{StaticResource SubtleTextBrush}"
+                           FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource SubtleTextBrush}"
                            Visibility="Collapsed" />
 
                 <!-- ONE line, never two (user, 2026-09-21): a chip that does not fit is left out
@@ -187,7 +187,7 @@
                             VerticalAlignment="Center" Margin="0,0,24,0" />
                     <TextBlock x:Name="FooterClock"
                                VerticalAlignment="Center"
-                               FontSize="12" Foreground="{StaticResource SubtleTextBrush}" />
+                               FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource SubtleTextBrush}" />
                 </StackPanel>
             </Grid>
         </Border>

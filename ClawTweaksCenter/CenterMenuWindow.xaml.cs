@@ -1234,6 +1234,65 @@ namespace ClawTweaksCenter
         /// individually by the user. A step whose target the helper reports as already satisfied (e.g.
         /// Center M already off, from some other change entirely) shows done with its run button
         /// greyed out, instead of blindly offering to redo something that's already correct.</summary>
+        /// <summary>
+        /// The EC-reset note under the restart card (user, 2026-09-30): what to do if the controller
+        /// or the LED do not come back after the restart, plus a QR code to MSI's EC-reset guide.
+        ///
+        /// The QR is an image we ship, not one we generate - Assets\onboarding\ec-reset-qr.png. Until
+        /// that file is in the build the note shows without it rather than with an empty box, so a
+        /// missing asset costs the picture and nothing else.
+        /// </summary>
+        private static FrameworkElement BuildEcResetHint()
+        {
+            var grid = new Grid { Margin = new Thickness(0, 12, 0, 0) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            text.Children.Add(new TextBlock
+            {
+                Text = "⚠  " + Core.Loc.T("Controller or LED not working after the restart? Do an EC reset."),
+                FontSize = 14, Foreground = UiHelpers.Warn, TextWrapping = TextWrapping.Wrap,
+            });
+            grid.Children.Add(text);
+
+            System.Windows.Media.Imaging.BitmapImage qr = null;
+            try
+            {
+                qr = new System.Windows.Media.Imaging.BitmapImage();
+                qr.BeginInit();
+                qr.UriSource = new Uri("pack://application:,,,/Assets/onboarding/ec-reset-qr.png", UriKind.Absolute);
+                qr.CacheOption = System.Windows.Media.Imaging.BitmapCacheOption.OnLoad;
+                qr.EndInit();
+                qr.Freeze();
+            }
+            catch { qr = null; }   // not shipped yet - the note stands on its own
+
+            if (qr != null)
+            {
+                text.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T("Scan the code for MSI's EC reset guide."),
+                    FontSize = 13, Foreground = UiHelpers.Subtle, TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 4, 0, 0),
+                });
+
+                // White quiet zone around it: a phone camera reads a QR code on a dark card badly.
+                var image = new System.Windows.Controls.Image { Source = qr, Width = 120, Height = 120, Stretch = Stretch.Uniform };
+                RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.NearestNeighbor);
+                var frame = new Border
+                {
+                    Background = Brushes.White, CornerRadius = new CornerRadius(6),
+                    Padding = new Thickness(6), Margin = new Thickness(16, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center, Child = image,
+                };
+                Grid.SetColumn(frame, 1);
+                grid.Children.Add(frame);
+            }
+
+            return grid;
+        }
+
         private void RenderOnboarding()
         {
             BeginContent(centred: false);
@@ -1460,6 +1519,7 @@ namespace ClawTweaksCenter
                         Text = Core.Loc.T(step.Detail), FontSize = 15, Foreground = UiHelpers.Text,
                         TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0),
                     });
+                    textStack.Children.Add(BuildEcResetHint());
                     statusEl.Visibility = Visibility.Collapsed;
                     runBtn.MinWidth = 150;
                     card.Background = Tint(UiHelpers.Accent, 0x22);

@@ -1077,6 +1077,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "Neustart erforderlich",
             ["Restart your device to finish the setup."] = "Starte dein Ger\u00E4t neu, um die Einrichtung abzuschlie\u00DFen.",
             ["Restart now"] = "Jetzt neu starten",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "Controller oder LED gehen nach dem Neustart nicht? Mach einen EC-Reset.",
+            ["Scan the code for MSI's EC reset guide."] = "Scanne den Code f\u00FCr MSIs Anleitung zum EC-Reset.",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2125,6 +2127,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "Red\u00E9marrage requis",
             ["Restart your device to finish the setup."] = "Red\u00E9marrez votre appareil pour terminer la configuration.",
             ["Restart now"] = "Red\u00E9marrer maintenant",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "Manette ou LED inactives apr\u00E8s le red\u00E9marrage ? Faites une r\u00E9initialisation de l'EC.",
+            ["Scan the code for MSI's EC reset guide."] = "Scannez le code pour le guide de r\u00E9initialisation EC de MSI.",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3178,6 +3182,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "\uC7AC\uC2DC\uC791 \uD544\uC694",
             ["Restart your device to finish the setup."] = "\uC124\uC815\uC744 \uB9C8\uCE58\uB824\uBA74 \uAE30\uAE30\uB97C \uB2E4\uC2DC \uC2DC\uC791\uD558\uC138\uC694.",
             ["Restart now"] = "\uC9C0\uAE08 \uB2E4\uC2DC \uC2DC\uC791",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "\uC7AC\uC2DC\uC791 \uD6C4 \uCEE8\uD2B8\uB864\uB7EC\uB098 LED\uAC00 \uC791\uB3D9\uD558\uC9C0 \uC54A\uB098\uC694? EC \uB9AC\uC14B\uC744 \uD558\uC138\uC694.",
+            ["Scan the code for MSI's EC reset guide."] = "\uCF54\uB4DC\uB97C \uC2A4\uCE94\uD574 MSI\uC758 EC \uB9AC\uC14B \uAC00\uC774\uB4DC\uB97C \uC5EC\uC138\uC694.",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4228,6 +4234,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "Reinicio necesario",
             ["Restart your device to finish the setup."] = "Reinicia tu dispositivo para terminar la configuraci\u00F3n.",
             ["Restart now"] = "Reiniciar ahora",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "\u00BFEl mando o el LED no funcionan tras reiniciar? Haz un reinicio del EC.",
+            ["Scan the code for MSI's EC reset guide."] = "Escanea el c\u00F3digo para ver la gu\u00EDa de reinicio del EC de MSI.",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -5282,6 +5290,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "\u0422\u0440\u0435\u0431\u0443\u0435\u0442\u0441\u044F \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0430",
             ["Restart your device to finish the setup."] = "\u041F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u0435 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E, \u0447\u0442\u043E\u0431\u044B \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C \u043D\u0430\u0441\u0442\u0440\u043E\u0439\u043A\u0443.",
             ["Restart now"] = "\u041F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u0441\u0435\u0439\u0447\u0430\u0441",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "\u041A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u0438\u043B\u0438 \u043F\u043E\u0434\u0441\u0432\u0435\u0442\u043A\u0430 \u043D\u0435 \u0440\u0430\u0431\u043E\u0442\u0430\u044E\u0442 \u043F\u043E\u0441\u043B\u0435 \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u043A\u0438? \u0421\u0434\u0435\u043B\u0430\u0439\u0442\u0435 \u0441\u0431\u0440\u043E\u0441 EC.",
+            ["Scan the code for MSI's EC reset guide."] = "\u041E\u0442\u0441\u043A\u0430\u043D\u0438\u0440\u0443\u0439\u0442\u0435 \u043A\u043E\u0434, \u0447\u0442\u043E\u0431\u044B \u043E\u0442\u043A\u0440\u044B\u0442\u044C \u0438\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044E MSI \u043F\u043E \u0441\u0431\u0440\u043E\u0441\u0443 EC.",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -6327,6 +6337,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "\u0391\u03C0\u03B1\u03B9\u03C4\u03B5\u03AF\u03C4\u03B1\u03B9 \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7",
             ["Restart your device to finish the setup."] = "\u0395\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03B9\u03BD\u03AE\u03C3\u03C4\u03B5 \u03C4\u03B7 \u03C3\u03C5\u03C3\u03BA\u03B5\u03C5\u03AE \u03C3\u03B1\u03C2 \u03B3\u03B9\u03B1 \u03BD\u03B1 \u03BF\u03BB\u03BF\u03BA\u03BB\u03B7\u03C1\u03C9\u03B8\u03B5\u03AF \u03B7 \u03C1\u03CD\u03B8\u03BC\u03B9\u03C3\u03B7.",
             ["Restart now"] = "\u0395\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7 \u03C4\u03CE\u03C1\u03B1",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "\u03A4\u03BF \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF \u03AE \u03C4\u03BF LED \u03B4\u03B5\u03BD \u03BB\u03B5\u03B9\u03C4\u03BF\u03C5\u03C1\u03B3\u03B5\u03AF \u03BC\u03B5\u03C4\u03AC \u03C4\u03B7\u03BD \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7; \u039A\u03AC\u03BD\u03C4\u03B5 \u03B5\u03C0\u03B1\u03BD\u03B1\u03C6\u03BF\u03C1\u03AC EC.",
+            ["Scan the code for MSI's EC reset guide."] = "\u03A3\u03B1\u03C1\u03CE\u03C3\u03C4\u03B5 \u03C4\u03BF\u03BD \u03BA\u03C9\u03B4\u03B9\u03BA\u03CC \u03B3\u03B9\u03B1 \u03C4\u03BF\u03BD \u03BF\u03B4\u03B7\u03B3\u03CC \u03B5\u03C0\u03B1\u03BD\u03B1\u03C6\u03BF\u03C1\u03AC\u03C2 EC \u03C4\u03B7\u03C2 MSI.",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -7377,6 +7389,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "\u9700\u8981\u91CD\u542F",
             ["Restart your device to finish the setup."] = "\u91CD\u542F\u8BBE\u5907\u4EE5\u5B8C\u6210\u8BBE\u7F6E\u3002",
             ["Restart now"] = "\u7ACB\u5373\u91CD\u542F",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "\u91CD\u542F\u540E\u624B\u67C4\u6216\u706F\u5149\u4E0D\u5DE5\u4F5C\uFF1F\u8BF7\u6267\u884C EC \u91CD\u7F6E\u3002",
+            ["Scan the code for MSI's EC reset guide."] = "\u626B\u63CF\u4E8C\u7EF4\u7801\u67E5\u770B MSI \u7684 EC \u91CD\u7F6E\u6307\u5357\u3002",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -8427,6 +8441,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "\u9700\u8981\u91CD\u65B0\u555F\u52D5",
             ["Restart your device to finish the setup."] = "\u91CD\u65B0\u555F\u52D5\u88DD\u7F6E\u4EE5\u5B8C\u6210\u8A2D\u5B9A\u3002",
             ["Restart now"] = "\u7ACB\u5373\u91CD\u65B0\u555F\u52D5",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "\u91CD\u65B0\u555F\u52D5\u5F8C\u63A7\u5236\u5668\u6216\u71C8\u5149\u7121\u6CD5\u904B\u4F5C\uFF1F\u8ACB\u57F7\u884C EC \u91CD\u8A2D\u3002",
+            ["Scan the code for MSI's EC reset guide."] = "\u6383\u63CF QR \u78BC\u67E5\u770B MSI \u7684 EC \u91CD\u8A2D\u6307\u5357\u3002",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -9475,6 +9491,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "Riavvio necessario",
             ["Restart your device to finish the setup."] = "Riavvia il dispositivo per completare la configurazione.",
             ["Restart now"] = "Riavvia ora",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "Controller o LED non funzionano dopo il riavvio? Esegui un reset dell'EC.",
+            ["Scan the code for MSI's EC reset guide."] = "Scansiona il codice per la guida MSI al reset dell'EC.",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -10511,6 +10529,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "Reinicializa\u00E7\u00E3o necess\u00E1ria",
             ["Restart your device to finish the setup."] = "Reinicie o dispositivo para concluir a configura\u00E7\u00E3o.",
             ["Restart now"] = "Reiniciar agora",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "Controle ou LED n\u00E3o funcionam ap\u00F3s reiniciar? Fa\u00E7a um reset do EC.",
+            ["Scan the code for MSI's EC reset guide."] = "Escaneie o c\u00F3digo para ver o guia de reset do EC da MSI.",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -11563,6 +11583,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "\u518D\u8D77\u52D5\u304C\u5FC5\u8981\u3067\u3059",
             ["Restart your device to finish the setup."] = "\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u5B8C\u4E86\u3059\u308B\u306B\u306F\u30C7\u30D0\u30A4\u30B9\u3092\u518D\u8D77\u52D5\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
             ["Restart now"] = "\u4ECA\u3059\u3050\u518D\u8D77\u52D5",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "\u518D\u8D77\u52D5\u5F8C\u306B\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u3084LED\u304C\u52D5\u4F5C\u3057\u306A\u3044\u5834\u5408\u306F\u3001EC\u30EA\u30BB\u30C3\u30C8\u3092\u884C\u3063\u3066\u304F\u3060\u3055\u3044\u3002",
+            ["Scan the code for MSI's EC reset guide."] = "\u30B3\u30FC\u30C9\u3092\u30B9\u30AD\u30E3\u30F3\u3057\u3066 MSI \u306E EC \u30EA\u30BB\u30C3\u30C8\u30AC\u30A4\u30C9\u3092\u958B\u3044\u3066\u304F\u3060\u3055\u3044\u3002",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -12606,6 +12628,8 @@ namespace ClawTweaksCenter.Core
             ["Restart required"] = "Wymagane ponowne uruchomienie",
             ["Restart your device to finish the setup."] = "Uruchom urz\u0105dzenie ponownie, aby doko\u0144czy\u0107 konfiguracj\u0119.",
             ["Restart now"] = "Uruchom ponownie teraz",
+            ["Controller or LED not working after the restart? Do an EC reset."] = "Kontroler lub LED nie dzia\u0142a po ponownym uruchomieniu? Wykonaj reset EC.",
+            ["Scan the code for MSI's EC reset guide."] = "Zeskanuj kod, aby otworzy\u0107 instrukcj\u0119 MSI dotycz\u0105c\u0105 resetu EC.",
         };
 
     }
