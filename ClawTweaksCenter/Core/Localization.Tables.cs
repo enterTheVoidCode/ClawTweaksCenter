@@ -1242,6 +1242,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "Starte das Setup erneut, um Fehlendes zu erg\u00E4nzen.",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "Deinstalliere ClawTweaks Core unter Einstellungen > Apps > Installierte Apps.",
             ["MSI Center M is switched back on."] = "MSI Center M wird wieder eingeschaltet.",
+            ["Update usbip first (virtual controller driver)"] = "Zuerst usbip aktualisieren (Treiber f\u00FCr den virtuellen Controller)",
+            ["Download and install usbip {0}, then restart."] = "Lade usbip {0} herunter, installiere es und starte neu.",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "usbip {0} ist installiert. Diese ClawTweaks-Version braucht {1}.",
+            ["Download usbip {0}"] = "usbip {0} herunterladen",
+            ["No virtual controller needed?"] = "Keinen virtuellen Controller n\u00F6tig?",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "Ein neues Setup kann ClawTweaks Essential ohne usbip installieren.",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "Deinstalliere zuerst ClawTweaks, usbip und HidHide, dann starte das neue Setup.",
+            ["Open the release page"] = "Release-Seite \u00F6ffnen",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2455,6 +2463,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "Relancez l'installation pour ajouter ce qui manque.",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "D\u00E9sinstallez ClawTweaks Core dans Param\u00E8tres > Applications > Applications install\u00E9es.",
             ["MSI Center M is switched back on."] = "MSI Center M est r\u00E9activ\u00E9.",
+            ["Update usbip first (virtual controller driver)"] = "Mettez d'abord usbip \u00E0 jour (pilote de la manette virtuelle)",
+            ["Download and install usbip {0}, then restart."] = "T\u00E9l\u00E9chargez et installez usbip {0}, puis red\u00E9marrez.",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "usbip {0} est install\u00E9. Cette version de ClawTweaks n\u00E9cessite {1}.",
+            ["Download usbip {0}"] = "T\u00E9l\u00E9charger usbip {0}",
+            ["No virtual controller needed?"] = "Pas besoin de manette virtuelle ?",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "Une nouvelle installation peut installer ClawTweaks Essential sans usbip.",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "D\u00E9sinstallez d'abord ClawTweaks, usbip et HidHide, puis lancez la nouvelle installation.",
+            ["Open the release page"] = "Ouvrir la page de la version",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3673,6 +3689,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "\uBE60\uC9C4 \uD56D\uBAA9\uC744 \uCD94\uAC00\uD558\uB824\uBA74 \uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC744 \uB2E4\uC2DC \uC2E4\uD589\uD558\uC138\uC694.",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "\uC124\uC815 > \uC571 > \uC124\uCE58\uB41C \uC571\uC5D0\uC11C ClawTweaks Core\uB97C \uC81C\uAC70\uD558\uC138\uC694.",
             ["MSI Center M is switched back on."] = "MSI Center M\uC774 \uB2E4\uC2DC \uCF1C\uC9D1\uB2C8\uB2E4.",
+            ["Update usbip first (virtual controller driver)"] = "\uBA3C\uC800 usbip \uC5C5\uB370\uC774\uD2B8 (\uAC00\uC0C1 \uCEE8\uD2B8\uB864\uB7EC \uB4DC\uB77C\uC774\uBC84)",
+            ["Download and install usbip {0}, then restart."] = "usbip {0}\uC744(\uB97C) \uB2E4\uC6B4\uB85C\uB4DC\uD574 \uC124\uCE58\uD55C \uB4A4 \uC7AC\uC2DC\uC791\uD558\uC138\uC694.",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "usbip {0}\uC774(\uAC00) \uC124\uCE58\uB418\uC5B4 \uC788\uC2B5\uB2C8\uB2E4. \uC774 ClawTweaks \uBC84\uC804\uC740 {1}\uC774(\uAC00) \uD544\uC694\uD569\uB2C8\uB2E4.",
+            ["Download usbip {0}"] = "usbip {0} \uB2E4\uC6B4\uB85C\uB4DC",
+            ["No virtual controller needed?"] = "\uAC00\uC0C1 \uCEE8\uD2B8\uB864\uB7EC\uAC00 \uD544\uC694 \uC5C6\uB098\uC694?",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "\uC0C8 \uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC73C\uB85C usbip \uC5C6\uC774 ClawTweaks Essential\uC744 \uC124\uCE58\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\uBA3C\uC800 ClawTweaks, usbip, HidHide\uB97C \uC81C\uAC70\uD55C \uB4A4 \uC0C8 \uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC744 \uC2E4\uD589\uD558\uC138\uC694.",
+            ["Open the release page"] = "\uB9B4\uB9AC\uC2A4 \uD398\uC774\uC9C0 \uC5F4\uAE30",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4888,6 +4912,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "Vuelve a ejecutar el instalador para a\u00F1adir lo que falta.",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "Desinstala ClawTweaks Core en Configuraci\u00F3n > Aplicaciones > Aplicaciones instaladas.",
             ["MSI Center M is switched back on."] = "MSI Center M se vuelve a activar.",
+            ["Update usbip first (virtual controller driver)"] = "Actualiza primero usbip (controlador del mando virtual)",
+            ["Download and install usbip {0}, then restart."] = "Descarga e instala usbip {0} y reinicia.",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "usbip {0} est\u00E1 instalado. Esta versi\u00F3n de ClawTweaks necesita {1}.",
+            ["Download usbip {0}"] = "Descargar usbip {0}",
+            ["No virtual controller needed?"] = "\u00BFNo necesitas el mando virtual?",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "Una nueva instalaci\u00F3n puede instalar ClawTweaks Essential sin usbip.",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "Desinstala primero ClawTweaks, usbip y HidHide y luego ejecuta la nueva instalaci\u00F3n.",
+            ["Open the release page"] = "Abrir la p\u00E1gina de la versi\u00F3n",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -6107,6 +6139,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "\u0417\u0430\u043F\u0443\u0441\u0442\u0438\u0442\u0435 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0449\u0438\u043A \u0441\u043D\u043E\u0432\u0430, \u0447\u0442\u043E\u0431\u044B \u0434\u043E\u0431\u0430\u0432\u0438\u0442\u044C \u043D\u0435\u0434\u043E\u0441\u0442\u0430\u044E\u0449\u0435\u0435.",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "\u0423\u0434\u0430\u043B\u0438\u0442\u0435 ClawTweaks Core \u0432 \u0440\u0430\u0437\u0434\u0435\u043B\u0435 \u041F\u0430\u0440\u0430\u043C\u0435\u0442\u0440\u044B > \u041F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F > \u0423\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u043D\u044B\u0435 \u043F\u0440\u0438\u043B\u043E\u0436\u0435\u043D\u0438\u044F.",
             ["MSI Center M is switched back on."] = "MSI Center M \u0441\u043D\u043E\u0432\u0430 \u0432\u043A\u043B\u044E\u0447\u0430\u0435\u0442\u0441\u044F.",
+            ["Update usbip first (virtual controller driver)"] = "\u0421\u043D\u0430\u0447\u0430\u043B\u0430 \u043E\u0431\u043D\u043E\u0432\u0438 usbip (\u0434\u0440\u0430\u0439\u0432\u0435\u0440 \u0432\u0438\u0440\u0442\u0443\u0430\u043B\u044C\u043D\u043E\u0433\u043E \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440\u0430)",
+            ["Download and install usbip {0}, then restart."] = "\u0421\u043A\u0430\u0447\u0430\u0439 \u0438 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438 usbip {0}, \u0437\u0430\u0442\u0435\u043C \u043F\u0435\u0440\u0435\u0437\u0430\u0433\u0440\u0443\u0437\u0438 \u0443\u0441\u0442\u0440\u043E\u0439\u0441\u0442\u0432\u043E.",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "\u0423\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D usbip {0}. \u042D\u0442\u043E\u0439 \u0432\u0435\u0440\u0441\u0438\u0438 ClawTweaks \u043D\u0443\u0436\u0435\u043D {1}.",
+            ["Download usbip {0}"] = "\u0421\u043A\u0430\u0447\u0430\u0442\u044C usbip {0}",
+            ["No virtual controller needed?"] = "\u0412\u0438\u0440\u0442\u0443\u0430\u043B\u044C\u043D\u044B\u0439 \u043A\u043E\u043D\u0442\u0440\u043E\u043B\u043B\u0435\u0440 \u043D\u0435 \u043D\u0443\u0436\u0435\u043D?",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "\u041D\u043E\u0432\u044B\u0439 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0449\u0438\u043A \u043C\u043E\u0436\u0435\u0442 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C ClawTweaks Essential \u0431\u0435\u0437 usbip.",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\u0421\u043D\u0430\u0447\u0430\u043B\u0430 \u0443\u0434\u0430\u043B\u0438 ClawTweaks, usbip \u0438 HidHide, \u0437\u0430\u0442\u0435\u043C \u0437\u0430\u043F\u0443\u0441\u0442\u0438 \u043D\u043E\u0432\u044B\u0439 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0449\u0438\u043A.",
+            ["Open the release page"] = "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443 \u0440\u0435\u043B\u0438\u0437\u0430",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -7317,6 +7357,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "\u0395\u03BA\u03C4\u03B5\u03BB\u03AD\u03C3\u03C4\u03B5 \u03BE\u03B1\u03BD\u03AC \u03C4\u03B7\u03BD \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7 \u03B3\u03B9\u03B1 \u03BD\u03B1 \u03C0\u03C1\u03BF\u03C3\u03B8\u03AD\u03C3\u03B5\u03C4\u03B5 \u03CC,\u03C4\u03B9 \u03BB\u03B5\u03AF\u03C0\u03B5\u03B9.",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "\u0391\u03C0\u03B5\u03B3\u03BA\u03B1\u03C4\u03B1\u03C3\u03C4\u03AE\u03C3\u03C4\u03B5 \u03C4\u03BF ClawTweaks Core \u03B1\u03C0\u03CC \u03A1\u03C5\u03B8\u03BC\u03AF\u03C3\u03B5\u03B9\u03C2 > \u0395\u03C6\u03B1\u03C1\u03BC\u03BF\u03B3\u03AD\u03C2 > \u0395\u03B3\u03BA\u03B1\u03C4\u03B5\u03C3\u03C4\u03B7\u03BC\u03AD\u03BD\u03B5\u03C2 \u03B5\u03C6\u03B1\u03C1\u03BC\u03BF\u03B3\u03AD\u03C2.",
             ["MSI Center M is switched back on."] = "\u03A4\u03BF MSI Center M \u03B5\u03BD\u03B5\u03C1\u03B3\u03BF\u03C0\u03BF\u03B9\u03B5\u03AF\u03C4\u03B1\u03B9 \u03BE\u03B1\u03BD\u03AC.",
+            ["Update usbip first (virtual controller driver)"] = "\u0395\u03BD\u03B7\u03BC\u03AD\u03C1\u03C9\u03C3\u03B5 \u03C0\u03C1\u03CE\u03C4\u03B1 \u03C4\u03BF usbip (\u03BF\u03B4\u03B7\u03B3\u03CC\u03C2 \u03B5\u03B9\u03BA\u03BF\u03BD\u03B9\u03BA\u03BF\u03CD \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03B7\u03C1\u03AF\u03BF\u03C5)",
+            ["Download and install usbip {0}, then restart."] = "\u039A\u03B1\u03C4\u03AD\u03B2\u03B1\u03C3\u03B5 \u03BA\u03B1\u03B9 \u03B5\u03B3\u03BA\u03B1\u03C4\u03AD\u03C3\u03C4\u03B7\u03C3\u03B5 \u03C4\u03BF usbip {0} \u03BA\u03B1\u03B9 \u03BA\u03AC\u03BD\u03B5 \u03B5\u03C0\u03B1\u03BD\u03B5\u03BA\u03BA\u03AF\u03BD\u03B7\u03C3\u03B7.",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "\u0395\u03AF\u03BD\u03B1\u03B9 \u03B5\u03B3\u03BA\u03B1\u03C4\u03B5\u03C3\u03C4\u03B7\u03BC\u03AD\u03BD\u03BF \u03C4\u03BF usbip {0}. \u0391\u03C5\u03C4\u03AE \u03B7 \u03AD\u03BA\u03B4\u03BF\u03C3\u03B7 \u03C4\u03BF\u03C5 ClawTweaks \u03C7\u03C1\u03B5\u03B9\u03AC\u03B6\u03B5\u03C4\u03B1\u03B9 \u03C4\u03BF {1}.",
+            ["Download usbip {0}"] = "\u039B\u03AE\u03C8\u03B7 usbip {0}",
+            ["No virtual controller needed?"] = "\u0394\u03B5\u03BD \u03C7\u03C1\u03B5\u03B9\u03AC\u03B6\u03B5\u03C3\u03B1\u03B9 \u03B5\u03B9\u03BA\u03BF\u03BD\u03B9\u03BA\u03CC \u03C7\u03B5\u03B9\u03C1\u03B9\u03C3\u03C4\u03AE\u03C1\u03B9\u03BF;",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "\u039C\u03B9\u03B1 \u03BD\u03AD\u03B1 \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7 \u03BC\u03C0\u03BF\u03C1\u03B5\u03AF \u03BD\u03B1 \u03B5\u03B3\u03BA\u03B1\u03C4\u03B1\u03C3\u03C4\u03AE\u03C3\u03B5\u03B9 \u03C4\u03BF ClawTweaks Essential \u03C7\u03C9\u03C1\u03AF\u03C2 usbip.",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\u0391\u03C0\u03B5\u03B3\u03BA\u03B1\u03C4\u03AD\u03C3\u03C4\u03B7\u03C3\u03B5 \u03C0\u03C1\u03CE\u03C4\u03B1 \u03C4\u03BF ClawTweaks, \u03C4\u03BF usbip \u03BA\u03B1\u03B9 \u03C4\u03BF HidHide \u03BA\u03B1\u03B9 \u03BC\u03B5\u03C4\u03AC \u03C4\u03C1\u03AD\u03BE\u03B5 \u03C4\u03B7 \u03BD\u03AD\u03B1 \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7.",
+            ["Open the release page"] = "\u0386\u03BD\u03BF\u03B9\u03B3\u03BC\u03B1 \u03C3\u03B5\u03BB\u03AF\u03B4\u03B1\u03C2 \u03AD\u03BA\u03B4\u03BF\u03C3\u03B7\u03C2",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -8532,6 +8580,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "\u518D\u6B21\u8FD0\u884C\u5B89\u88C5\u7A0B\u5E8F\u5373\u53EF\u8865\u4E0A\u7F3A\u5C11\u7684\u90E8\u5206\u3002",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "\u5728 \u8BBE\u7F6E > \u5E94\u7528 > \u5DF2\u5B89\u88C5\u7684\u5E94\u7528 \u4E2D\u5378\u8F7D ClawTweaks Core\u3002",
             ["MSI Center M is switched back on."] = "MSI Center M \u4F1A\u91CD\u65B0\u5F00\u542F\u3002",
+            ["Update usbip first (virtual controller driver)"] = "\u8BF7\u5148\u66F4\u65B0 usbip\uFF08\u865A\u62DF\u624B\u67C4\u9A71\u52A8\uFF09",
+            ["Download and install usbip {0}, then restart."] = "\u4E0B\u8F7D\u5E76\u5B89\u88C5 usbip {0}\uFF0C\u7136\u540E\u91CD\u542F\u3002",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "\u5DF2\u5B89\u88C5 usbip {0}\u3002\u6B64\u7248\u672C\u7684 ClawTweaks \u9700\u8981 {1}\u3002",
+            ["Download usbip {0}"] = "\u4E0B\u8F7D usbip {0}",
+            ["No virtual controller needed?"] = "\u4E0D\u9700\u8981\u865A\u62DF\u624B\u67C4\uFF1F",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "\u65B0\u7684\u5B89\u88C5\u7A0B\u5E8F\u53EF\u4EE5\u5728\u4E0D\u5B89\u88C5 usbip \u7684\u60C5\u51B5\u4E0B\u5B89\u88C5 ClawTweaks Essential\u3002",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\u5148\u5378\u8F7D ClawTweaks\u3001usbip \u548C HidHide\uFF0C\u518D\u8FD0\u884C\u65B0\u7684\u5B89\u88C5\u7A0B\u5E8F\u3002",
+            ["Open the release page"] = "\u6253\u5F00\u53D1\u5E03\u9875\u9762",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -9747,6 +9803,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "\u518D\u6B21\u57F7\u884C\u5B89\u88DD\u7A0B\u5F0F\u5373\u53EF\u88DC\u4E0A\u7F3A\u5C11\u7684\u90E8\u5206\u3002",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "\u5728 \u8A2D\u5B9A > \u61C9\u7528\u7A0B\u5F0F > \u5DF2\u5B89\u88DD\u7684\u61C9\u7528\u7A0B\u5F0F \u4E2D\u89E3\u9664\u5B89\u88DD ClawTweaks Core\u3002",
             ["MSI Center M is switched back on."] = "MSI Center M \u6703\u91CD\u65B0\u958B\u555F\u3002",
+            ["Update usbip first (virtual controller driver)"] = "\u8ACB\u5148\u66F4\u65B0 usbip\uFF08\u865B\u64EC\u63A7\u5236\u5668\u9A45\u52D5\u7A0B\u5F0F\uFF09",
+            ["Download and install usbip {0}, then restart."] = "\u4E0B\u8F09\u4E26\u5B89\u88DD usbip {0}\uFF0C\u7136\u5F8C\u91CD\u65B0\u555F\u52D5\u3002",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "\u5DF2\u5B89\u88DD usbip {0}\u3002\u6B64\u7248\u672C\u7684 ClawTweaks \u9700\u8981 {1}\u3002",
+            ["Download usbip {0}"] = "\u4E0B\u8F09 usbip {0}",
+            ["No virtual controller needed?"] = "\u4E0D\u9700\u8981\u865B\u64EC\u63A7\u5236\u5668\uFF1F",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "\u65B0\u7684\u5B89\u88DD\u7A0B\u5F0F\u53EF\u4EE5\u5728\u4E0D\u5B89\u88DD usbip \u7684\u60C5\u6CC1\u4E0B\u5B89\u88DD ClawTweaks Essential\u3002",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\u5148\u89E3\u9664\u5B89\u88DD ClawTweaks\u3001usbip \u548C HidHide\uFF0C\u518D\u57F7\u884C\u65B0\u7684\u5B89\u88DD\u7A0B\u5F0F\u3002",
+            ["Open the release page"] = "\u958B\u555F\u767C\u5E03\u9801\u9762",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -10960,6 +11024,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "Esegui di nuovo il setup per aggiungere ci\u00F2 che manca.",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "Disinstalla ClawTweaks Core in Impostazioni > App > App installate.",
             ["MSI Center M is switched back on."] = "MSI Center M viene riattivato.",
+            ["Update usbip first (virtual controller driver)"] = "Aggiorna prima usbip (driver del controller virtuale)",
+            ["Download and install usbip {0}, then restart."] = "Scarica e installa usbip {0}, poi riavvia.",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "\u00C8 installato usbip {0}. Questa versione di ClawTweaks richiede {1}.",
+            ["Download usbip {0}"] = "Scarica usbip {0}",
+            ["No virtual controller needed?"] = "Non ti serve il controller virtuale?",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "Un nuovo setup pu\u00F2 installare ClawTweaks Essential senza usbip.",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "Disinstalla prima ClawTweaks, usbip e HidHide, poi avvia il nuovo setup.",
+            ["Open the release page"] = "Apri la pagina della release",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -12161,6 +12233,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "Execute o instalador de novo para adicionar o que falta.",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "Desinstale o ClawTweaks Core em Configura\u00E7\u00F5es > Aplicativos > Aplicativos instalados.",
             ["MSI Center M is switched back on."] = "O MSI Center M \u00E9 reativado.",
+            ["Update usbip first (virtual controller driver)"] = "Atualize o usbip primeiro (driver do controle virtual)",
+            ["Download and install usbip {0}, then restart."] = "Baixe e instale o usbip {0} e reinicie.",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "O usbip {0} est\u00E1 instalado. Esta vers\u00E3o do ClawTweaks precisa do {1}.",
+            ["Download usbip {0}"] = "Baixar usbip {0}",
+            ["No virtual controller needed?"] = "N\u00E3o precisa do controle virtual?",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "Uma nova instala\u00E7\u00E3o pode instalar o ClawTweaks Essential sem usbip.",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "Desinstale primeiro o ClawTweaks, o usbip e o HidHide e depois execute a nova instala\u00E7\u00E3o.",
+            ["Open the release page"] = "Abrir a p\u00E1gina da vers\u00E3o",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -13378,6 +13458,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "\u8DB3\u308A\u306A\u3044\u3082\u306E\u306F\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u518D\u5B9F\u884C\u3057\u3066\u8FFD\u52A0\u3057\u307E\u3059\u3002",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "\u8A2D\u5B9A > \u30A2\u30D7\u30EA > \u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3055\u308C\u3066\u3044\u308B\u30A2\u30D7\u30EA \u3067 ClawTweaks Core \u3092\u30A2\u30F3\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3057\u307E\u3059\u3002",
             ["MSI Center M is switched back on."] = "MSI Center M \u306F\u518D\u3073\u30AA\u30F3\u306B\u306A\u308A\u307E\u3059\u3002",
+            ["Update usbip first (virtual controller driver)"] = "\u307E\u305A usbip \u3092\u66F4\u65B0\uFF08\u4EEE\u60F3\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u306E\u30C9\u30E9\u30A4\u30D0\u30FC\uFF09",
+            ["Download and install usbip {0}, then restart."] = "usbip {0} \u3092\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9\u3057\u3066\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3057\u3001\u518D\u8D77\u52D5\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "usbip {0} \u304C\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3055\u308C\u3066\u3044\u307E\u3059\u3002\u3053\u306E ClawTweaks \u306B\u306F {1} \u304C\u5FC5\u8981\u3067\u3059\u3002",
+            ["Download usbip {0}"] = "usbip {0} \u3092\u30C0\u30A6\u30F3\u30ED\u30FC\u30C9",
+            ["No virtual controller needed?"] = "\u4EEE\u60F3\u30B3\u30F3\u30C8\u30ED\u30FC\u30E9\u30FC\u306F\u4E0D\u8981\u3067\u3059\u304B\uFF1F",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "\u65B0\u3057\u3044\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3067 usbip \u306A\u3057\u306E ClawTweaks Essential \u3092\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3067\u304D\u307E\u3059\u3002",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\u5148\u306B ClawTweaks\u3001usbip\u3001HidHide \u3092\u30A2\u30F3\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3057\u3066\u304B\u3089\u3001\u65B0\u3057\u3044\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
+            ["Open the release page"] = "\u30EA\u30EA\u30FC\u30B9\u30DA\u30FC\u30B8\u3092\u958B\u304F",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -14586,6 +14674,14 @@ namespace ClawTweaksCenter.Core
             ["Run the setup again to add what is missing."] = "Uruchom instalator ponownie, aby doda\u0107 brakuj\u0105ce elementy.",
             ["Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps."] = "Odinstaluj ClawTweaks Core w Ustawienia > Aplikacje > Zainstalowane aplikacje.",
             ["MSI Center M is switched back on."] = "MSI Center M zostaje ponownie w\u0142\u0105czony.",
+            ["Update usbip first (virtual controller driver)"] = "Najpierw zaktualizuj usbip (sterownik wirtualnego kontrolera)",
+            ["Download and install usbip {0}, then restart."] = "Pobierz i zainstaluj usbip {0}, a potem uruchom ponownie.",
+            ["usbip {0} is installed. This ClawTweaks version needs {1}."] = "Zainstalowany jest usbip {0}. Ta wersja ClawTweaks wymaga {1}.",
+            ["Download usbip {0}"] = "Pobierz usbip {0}",
+            ["No virtual controller needed?"] = "Nie potrzebujesz wirtualnego kontrolera?",
+            ["A new setup can install ClawTweaks Essential without usbip."] = "Nowy instalator mo\u017Ce zainstalowa\u0107 ClawTweaks Essential bez usbip.",
+            ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "Najpierw odinstaluj ClawTweaks, usbip i HidHide, a potem uruchom nowy instalator.",
+            ["Open the release page"] = "Otw\u00F3rz stron\u0119 wydania",
         };
 
     }

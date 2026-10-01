@@ -1002,5 +1002,9 @@
         // Reply to Extra "CommunityApplyPreset" (Center's Library): "ok" / "ok-running" on success,
         // otherwise "error=<reason>". APPENDED - this enum is ordinal and mirrored from the helper.
         CommunityApplyResult,           // string
+        // Opt-out of the RTSS whitelist: true = RTSS's Global profile hooks every game again
+        // (EnableHooking=1). Default false. Helper-owned, set from the widget's settings flyout.
+        // APPENDED - ordinal, mirrored in the Center repo.
+        Settings_RtssDefaultHooking,    // bool
     }
 }

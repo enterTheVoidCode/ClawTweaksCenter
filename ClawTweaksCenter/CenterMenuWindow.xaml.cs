@@ -2727,9 +2727,15 @@ namespace ClawTweaksCenter
             var missing = _prereqTools;
             if (missing == null) return;
 
-            var root = BuildHandoffScreen(
-                "Install the missing prerequisites",
-                "Download each one from the vendor and run their installer, then re-check.");
+            // Only an outdated usbip in the way: this is an update, not a missing install, and the
+            // screen says so (Doku/PLAN_Release_0.4.1_Widget_Rollout.md in the app repo).
+            bool onlyUsbipUpdate = missing.All(t => t.Outdated);
+            var root = onlyUsbipUpdate
+                ? BuildHandoffScreen("Update usbip first (virtual controller driver)",
+                    Core.Loc.F("Download and install usbip {0}, then restart.", ToolDetect.SupportedUsbipVersion))
+                : BuildHandoffScreen(
+                    "Install the missing prerequisites",
+                    "Download each one from the vendor and run their installer, then re-check.");
 
             // HidHide and usbip install KERNEL DRIVERS, and a kernel driver does not exist until the
             // machine restarts. Skipping this leaves the user in the worst possible state: everything
@@ -2785,6 +2791,13 @@ namespace ClawTweaksCenter
                 // leftover registry entries with no driver binary — which reads as installed to a lot of
                 // other software and needs a reinstall + reboot to actually clear.
                 bool broken = tool.Detail != null && tool.Detail.StartsWith("BROKEN", StringComparison.Ordinal);
+                if (tool.Outdated)
+                    stack.Children.Add(new TextBlock
+                    {
+                        Text = tool.Detail, FontSize = 14, FontWeight = FontWeights.SemiBold,
+                        Foreground = UiHelpers.Warn, TextWrapping = TextWrapping.Wrap,
+                        Margin = new Thickness(0, 6, 0, 0),
+                    });
                 if (broken)
                     stack.Children.Add(new TextBlock
                     {
@@ -2793,7 +2806,22 @@ namespace ClawTweaksCenter
                         Margin = new Thickness(0, 6, 0, 0),
                     });
 
-                if (info != null)
+                if (info != null && tool.Outdated && info.DirectUrl != null)
+                {
+                    // Update case: the installer link straight away, the release page as fallback.
+                    var direct = new Button
+                    {
+                        Content = Core.Loc.F("Download usbip {0}", ToolDetect.SupportedUsbipVersion),
+                        Style = (Style)Application.Current.Resources["SetupButton"],
+                        MinWidth = 190,
+                        HorizontalAlignment = HorizontalAlignment.Left,
+                        Margin = new Thickness(0, 10, 0, 0),
+                    };
+                    string directUrl = info.DirectUrl;
+                    direct.Click += (_, __) => PrerequisiteGuide.OpenPage(directUrl);
+                    stack.Children.Add(direct);
+                }
+                else if (info != null)
                 {
                     stack.Children.Add(new TextBlock
                     {
@@ -2852,6 +2880,50 @@ namespace ClawTweaksCenter
                 root.Children.Add(card);
             }
 
+            // The way out for anyone who does not want the virtual controller at all: ClawTweaks
+            // Essential through the new setup. Only next to the usbip update - elsewhere it is noise.
+            if (missing.Any(t => t.Outdated))
+            {
+                var ess = new StackPanel();
+                ess.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T("No virtual controller needed?"),
+                    FontSize = 18, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Text,
+                });
+                ess.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T("A new setup can install ClawTweaks Essential without usbip."),
+                    FontSize = 14, Foreground = UiHelpers.Subtle,
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 6, 0, 0),
+                });
+                ess.Children.Add(new TextBlock
+                {
+                    Text = Core.Loc.T("Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."),
+                    FontSize = 14, Foreground = UiHelpers.Subtle,
+                    TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 2, 0, 0),
+                });
+                var rel = new Button
+                {
+                    Content = Core.Loc.T("Open the release page"),
+                    Style = (Style)Application.Current.Resources["SetupButton"],
+                    MinWidth = 190,
+                    HorizontalAlignment = HorizontalAlignment.Left,
+                    Margin = new Thickness(0, 10, 0, 0),
+                };
+                rel.Click += (_, __) => PrerequisiteGuide.OpenPage(PrerequisiteGuide.AppReleaseUrl);
+                ess.Children.Add(rel);
+                root.Children.Add(new Border
+                {
+                    Background = UiHelpers.Card,
+                    CornerRadius = new CornerRadius(12),
+                    Margin = new Thickness(0, 0, 0, 12),
+                    BorderBrush = UiHelpers.Subtle,
+                    BorderThickness = new Thickness(1),
+                    Padding = new Thickness(20, 16, 20, 16),
+                    Child = ess,
+                });
+            }
+
             root.Children.Add(BuildRecheckButton(build, "Re-check and continue"));
             StopInstallAndShow(root, build, "Re-check tools");
             _prereqSelectedCard?.BringIntoView();
@@ -2890,7 +2962,10 @@ namespace ClawTweaksCenter
         {
             if (_prereqTools == null || _prereqSelectedIndex < 0 || _prereqSelectedIndex >= _prereqTools.Count)
                 return null;
-            return PrerequisiteGuide.For(_prereqTools[_prereqSelectedIndex].Name)?.PageUrl;
+            var tool = _prereqTools[_prereqSelectedIndex];
+            var info = PrerequisiteGuide.For(tool.Name);
+            // A on an outdated usbip opens the installer itself, the same link as its button.
+            return tool.Outdated && info?.DirectUrl != null ? info.DirectUrl : info?.PageUrl;
         }
 
         /// <summary>

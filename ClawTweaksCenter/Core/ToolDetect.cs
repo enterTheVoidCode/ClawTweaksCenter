@@ -12,6 +12,11 @@ namespace ClawTweaksCenter.Core
         public string Name { get; set; }
         public bool Installed { get; set; }
         public string Detail { get; set; }   // where it was found, or why it's considered missing
+
+        /// <summary>Installed, crash-free, but older than this ClawTweaks needs - an update, not a
+        /// repair. Only usbip sets it (0.9.8.0 under the 0.9.8.1 pin). The screen then offers the
+        /// direct download instead of the generic install text.</summary>
+        public bool Outdated { get; set; }
     }
 
     /// <summary>
@@ -128,11 +133,18 @@ namespace ClawTweaksCenter.Core
                         Installed = false,
                         // Two sides, two consequences, and they must not be described with one
                         // sentence: too old CRASHES the machine, too new is merely unverified.
-                        Detail = UsbipIsTooOld(wrong)
+                        // Three sides now: below MinCrashFree the machine bugchecks; between that and
+                        // the pin it works but this build's helper will not mount on it (0.9.8.0 under
+                        // the 0.9.8.1 pin, 2026-10-01); above Max it is unverified.
+                        Detail = UsbipCrashes(wrong)
                             ? Loc.F("UNSUPPORTED VERSION: usbip {0} is installed, ClawTweaks needs {1}. Older versions crash the device with a blue screen while the virtual controller is running, so ClawTweaks will not start it. Run the ClawTweaks setup, or install {1} from the link on this page, and reboot.",
+                                    wrong, SupportedUsbipVersion)
+                            : UsbipIsTooOld(wrong)
+                            ? Loc.F("usbip {0} is installed. This ClawTweaks version needs {1}.",
                                     wrong, SupportedUsbipVersion)
                             : Loc.F("UNSUPPORTED VERSION: usbip {0} is installed, ClawTweaks needs {1}. Uninstall usbip, install {1} from the link on this page, and reboot.",
                                     wrong, SupportedUsbipVersion),
+                        Outdated = UsbipIsTooOld(wrong) && !UsbipCrashes(wrong),
                     };
 
                 return Ok("usbip", $"UDE driver service '{svc}' registered");
@@ -285,7 +297,14 @@ namespace ClawTweaksCenter.Core
         /// Below Min the machine bugchecks; above Max we have verified nothing. To collapse this back
         /// to a single pin, set both to the same string.
         /// </summary>
-        public const string MinSupportedUsbipVersion = "0.9.8.0";
+        /// ⚠️ 2026-10-01: Min raised to 0.9.8.1 - ONE version again, matching the helper's
+        /// UsbipWin2Version pin. The 0.4.1 helper does not mount on 0.9.8.0, so Center holds the widget
+        /// install there and offers the usbip download first (Doku/PLAN_Release_0.4.1_Widget_Rollout.md
+        /// in the app repo). 0.9.8.0 does not crash - see MinCrashFreeUsbipVersion for that line.
+        public const string MinSupportedUsbipVersion = "0.9.8.1";
+        /// <summary>Below this the machine bugchecks with the virtual controller (0.9.7.7, issue #172).
+        /// Between this and MinSupported usbip merely needs an update.</summary>
+        public const string MinCrashFreeUsbipVersion = "0.9.8.0";
         public const string MaxSupportedUsbipVersion = "0.9.8.1";
 
         /// <summary>What the ClawTweaks setup installs — the version to NAME when telling someone what
@@ -333,6 +352,12 @@ namespace ClawTweaksCenter.Core
         private static bool UsbipIsTooOld(string raw) =>
             Version.TryParse(raw, out var found) &&
             Version.TryParse(MinSupportedUsbipVersion, out var min) &&
+            found < min;
+
+        /// <summary>True when the installed usbip is below the crash-free line - the bugcheck side.</summary>
+        private static bool UsbipCrashes(string raw) =>
+            Version.TryParse(raw, out var found) &&
+            Version.TryParse(MinCrashFreeUsbipVersion, out var min) &&
             found < min;
 
         /// <summary>

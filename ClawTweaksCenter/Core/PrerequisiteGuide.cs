@@ -53,7 +53,13 @@ namespace ClawTweaksCenter.Core
             /// warning buried in a paragraph is a warning nobody sees.
             /// </summary>
             public string Warning;
+            /// <summary>The installer itself, for the update case (Outdated). Opened in the browser
+            /// like any other link - Center still downloads and runs nothing.</summary>
+            public string DirectUrl;
         }
+
+        /// <summary>The app release with the setup - where a ClawTweaks Essential install starts.</summary>
+        public const string AppReleaseUrl = "https://github.com/enterTheVoidCode/ClawTweaks/releases/latest";
 
         public static readonly ToolInfo HidHide = new ToolInfo
         {
@@ -90,6 +96,7 @@ namespace ClawTweaksCenter.Core
             // fallback carries the mount. Verified on-device 2026-09-07 — "Attached" in 45 ms, not
             // "AlreadyAttached", 450 ms total, three hours with a single attach and no bugcheck.
             PageUrl = "https://github.com/vadimgrn/usbip-win2/releases/tag/v.0.9.8.1",
+            DirectUrl = "https://github.com/vadimgrn/usbip-win2/releases/download/v.0.9.8.1/USBip-0.9.8.1-x64.exe",
             // The release page offers exactly two assets and lists them ALPHABETICALLY, which puts
             // arm64 ABOVE x64 — so the first download link on the page is the wrong one for the Claw.
             // Picking it fails LATE and confusingly: the installer runs, copies every file, and only
