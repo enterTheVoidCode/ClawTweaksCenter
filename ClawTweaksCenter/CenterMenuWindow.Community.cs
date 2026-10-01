@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -16,8 +16,8 @@ namespace ClawTweaksCenter
     /// Community presets in the Library, ported from the Game Bar widget
     /// (XboxGamingBar/Features/GamePresets/GamingWidget.Community*.cs).
     ///
-    /// WHERE IT LIVES. A banner above the cover on the launch screen (BuildCommunityBanner), reached
-    /// by pressing up from Play. A opens a full overlay — a GameMenuOverlay state of its own, exactly
+    /// WHERE IT LIVES. A column under the cover on the launch screen (BuildCommunityPanel), beside
+    /// the achievements, with a button in the row below (BuildCommunityButton). A opens a full overlay — a GameMenuOverlay state of its own, exactly
     /// like the achievements list, so it reuses the whole overlay plumbing (render switch, back,
     /// direction and action-bar dispatch in CenterMenuWindow.GameMenu.cs). Inside it there is a small
     /// screen machine (<see cref="CommunityScreen"/>): the list of shared presets, a rating form, a
@@ -31,15 +31,15 @@ namespace ClawTweaksCenter
     ///     Function.CommunitySubmitResult / CommunityRateResult / CommunityIdentityResult — the same
     ///     round-trip shape the driver check uses (RequestWithResultAsync).
     ///
-    /// NOT HERE, on purpose (user, 2026-10-01): APPLYING a shared preset to the game's own settings.
-    /// That is a later, separate task — the overlay shows and rates presets and lets you share one,
-    /// but does not overwrite a game's profile. See the handover doc.
+    /// APPLYING a preset (A on a card) goes through the helper too: it writes the game's per-game
+    /// profile by exe path (Program.CommunityApply.cs in the dev repo) - power fields only, like the
+    /// widget. Center never writes a profile file itself.
     ///
     /// Full design + contract: Doku/HANDOVER_2026-10-01_Community_Presets_Library.md.
     /// </summary>
     public partial class CenterMenuWindow
     {
-        private enum CommunityScreen { List, Rate, Create, Keyboard, Message }
+        private enum CommunityScreen { List, Rate, Create, Keyboard, Message, Apply }
 
         private CommunityScreen _communityScreen = CommunityScreen.List;
         private GameEntry _communityGame;
@@ -88,10 +88,13 @@ namespace ClawTweaksCenter
 
             _communityGame = game;
             _communityFromLaunch = true;
+            _communityOffsets.Clear();
+            _lastCommunityScreen = null;
             _communityScreen = CommunityScreen.List;
             _communityIndex = 0;
             _communityNote = null;
-            _communityList = CommunityPresets.ForGame(game);
+            _communityAllDevices = false;
+            RefreshCommunityList();
 
             StopCommunitySlideshow();   // the banner's timer has no screen to draw to now
 
@@ -99,9 +102,39 @@ namespace ClawTweaksCenter
             RenderGameMenuOverlay();
             RefreshActionBar();
 
-            // The identity and a fresh index land asynchronously; both redraw the list when they do.
+            // The identity and a FRESH index land asynchronously; both redraw the list when they do.
+            // Forced: opening the list is the moment someone wants the newest ratings, and the cached
+            // file can be up to MaxAge old (user, 2026-10-01: a rating the widget showed was missing).
             EnsureCommunityIdentity();
-            EnsureCommunityIndexThenRedraw(forceRefresh: false);
+            EnsureCommunityIndexThenRedraw(forceRefresh: true);
+        }
+
+        /// <summary>Default OFF: the list opens on presets measured on this kind of Claw, because watts
+        /// and frame rates do not carry across models. X shows the rest (user, 2026-10-01).</summary>
+        private bool _communityAllDevices;
+
+        /// <summary>Every preset for the game, before the device filter - for the "you already shared"
+        /// check and the count of the hidden ones.</summary>
+        private List<CommunityPresets.Preset> _communityListAll = new List<CommunityPresets.Preset>();
+
+        private void RefreshCommunityList()
+        {
+            _communityListAll = _communityGame != null ? CommunityPresets.ForGame(_communityGame)
+                                                       : new List<CommunityPresets.Preset>();
+            string mine = !string.IsNullOrEmpty(_communityDevice) ? _communityDevice : CommunityPresets.DeviceCode();
+            _communityList = _communityAllDevices
+                ? _communityListAll
+                : _communityListAll.Where(p => CommunityPresets.SameDeviceFamily(p, mine)).ToList();
+        }
+
+        private void ToggleCommunityAllDevices()
+        {
+            ResetCommunityScroll(CommunityScreen.List);
+            _communityAllDevices = !_communityAllDevices;
+            RefreshCommunityList();
+            _communityIndex = 0;
+            RenderGameMenuOverlay();
+            RefreshActionBar();
         }
 
         /// <summary>B on the top-level list, when the overlay was opened from the launch screen.</summary>
@@ -117,6 +150,14 @@ namespace ClawTweaksCenter
         /// <summary>B, routed here from GameMenuBack for the Community overlay.</summary>
         private void CommunityBack()
         {
+            if (_communityChipEditIndex >= 0)
+            {
+                _communityChipEditIndex = -1;
+            _communityRowRestBorder.Clear();
+                ApplyCommunitySelection();
+                RefreshActionBar();
+                return;
+            }
             switch (_communityScreen)
             {
                 case CommunityScreen.Keyboard:
@@ -125,6 +166,7 @@ namespace ClawTweaksCenter
                 case CommunityScreen.Rate:
                 case CommunityScreen.Create:
                 case CommunityScreen.Message:
+                case CommunityScreen.Apply:
                     _communityScreen = CommunityScreen.List;
                     _communityIndex = 0;
                     _communityNote = null;
@@ -144,15 +186,42 @@ namespace ClawTweaksCenter
         /// the other overlays' lists, so this only builds.</summary>
         private void RenderCommunityOverlay()
         {
+            // THE SCROLL POSITION SURVIVES A RE-RENDER OF THE SAME SCREEN. Picking a chip redraws the
+            // whole form (rows appear and disappear with the answer), and a fresh ScrollViewer starts at
+            // the top: the view jumped up while the cursor stayed on a row far below, and Left/Right then
+            // changed a row nobody could see (user, 2026-10-01: "the focus jumps up, left/right do not
+            // work"). Kept only for the same screen - a new screen starts at its top.
+            // Remembered PER SCREEN, so coming back from the keyboard lands where the form was left.
+            if (_communityScroller != null && _lastCommunityScreen.HasValue)
+                _communityOffsets[_lastCommunityScreen.Value] = _communityScroller.VerticalOffset;
+            _lastCommunityScreen = _communityScreen;
+            double keepOffset = _communityOffsets.TryGetValue(_communityScreen, out double o) ? o : 0;
+
             switch (_communityScreen)
             {
                 case CommunityScreen.Rate:     RenderCommunityRate();     break;
                 case CommunityScreen.Create:   RenderCommunityCreate();   break;
                 case CommunityScreen.Keyboard: RenderCommunityKeyboard(); break;
                 case CommunityScreen.Message:  RenderCommunityMessage();  break;
+                case CommunityScreen.Apply:    RenderCommunityApply();    break;
                 default:                        RenderCommunityList();     break;
             }
+
+            if (keepOffset > 0 && _communityScroller != null)
+            {
+                var sv = _communityScroller;
+                sv.ScrollToVerticalOffset(keepOffset);
+                // Again after layout: before it, the extent is zero and the offset is clamped to 0.
+                Dispatcher.BeginInvoke(new Action(() => sv.ScrollToVerticalOffset(keepOffset)),
+                                       System.Windows.Threading.DispatcherPriority.Loaded);
+            }
         }
+
+        private CommunityScreen? _lastCommunityScreen;
+        private readonly Dictionary<CommunityScreen, double> _communityOffsets = new Dictionary<CommunityScreen, double>();
+
+        /// <summary>A screen opened FRESH starts at its top - only a redraw or a return keeps the offset.</summary>
+        private void ResetCommunityScroll(CommunityScreen screen) => _communityOffsets.Remove(screen);
 
         private void ClearCommunityRows()
         {
@@ -160,7 +229,96 @@ namespace ClawTweaksCenter
             _communityRowActions.Clear();
             _communityRowLabels.Clear();
             _communityChipRows.Clear();
+            _communityRowAlt.Clear();
+            _communityFilledRows.Clear();
+            _communityRowHints.Clear();
+            _communityPartner.Clear();
+            _communityChipEditIndex = -1;
             _communityScroller = null;
+        }
+
+        /// <summary>Two rows drawn side by side (FPS | TDP, Stars | Comment): each index maps to its
+        /// partner, so Left/Right can cross between them when neither half needs Left/Right itself.</summary>
+        private readonly Dictionary<int, int> _communityPartner = new Dictionary<int, int>();
+
+        /// <summary>
+        /// A chip row that sits in a side-by-side pair does NOT take Left/Right on sight - in a pair
+        /// those keys move between the two columns (user, 2026-10-01). A enters this choosing state,
+        /// Left/Right then pick a chip, and A or B leave it. -1 = nobody is choosing. A full-width chip
+        /// row is unaffected: there Left/Right have nothing else to do.
+        /// </summary>
+        private int _communityChipEditIndex = -1;
+
+        /// <summary>A row's outline when the cursor is NOT on it - the expander row keeps a subtle
+        /// one. Rows without an entry rest without an outline.</summary>
+        private readonly Dictionary<int, Brush> _communityRowRestBorder = new Dictionary<int, Brush>();
+
+        private bool ChipNeedsEdit(int index) => _communityChipRows.ContainsKey(index) && _communityPartner.ContainsKey(index);
+
+        /// <summary>The "set" and "still open" marks for a required field: a green check, an amber ring.</summary>
+        private const string GlyphFieldSet = "\uE73E";    // CheckMark
+        private const string GlyphFieldOpen = "\uEA3A";   // CircleRing
+        private static readonly Brush FieldOpenBrush = Frozen(Color.FromRgb(0xF0, 0xB4, 0x29));
+
+        /// <summary>
+        /// Puts two already registered rows side by side, to save height (user, 2026-10-01). The left
+        /// one must have been created first, so the cursor order still reads left before right.
+        /// </summary>
+        private UIElement CommunityPair(Border left, Border right)
+        {
+            int li = (int)left.Tag, ri = (int)right.Tag;
+            _communityPartner[li] = ri;
+            _communityPartner[ri] = li;
+            foreach (var b in new[] { left, right }) { b.MinWidth = 0; b.MaxWidth = double.PositiveInfinity; }
+            var grid = new Grid { Width = 720, Margin = new Thickness(0, left.Margin.Top, 0, left.Margin.Bottom) };
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(12) });
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            left.Margin = new Thickness(0); right.Margin = new Thickness(0);
+            Grid.SetColumn(left, 0); Grid.SetColumn(right, 2);
+            grid.Children.Add(left); grid.Children.Add(right);
+            return grid;
+        }
+
+        /// <summary>The button hints of a row, shown only while that row has the cursor.</summary>
+        private readonly Dictionary<int, UIElement> _communityRowHints = new Dictionary<int, UIElement>();
+
+        /// <summary>A second verb on a row, on Y - the preset card's "Rate" beside A's "Use".</summary>
+        private readonly Dictionary<int, (string Label, Action Run)> _communityRowAlt =
+            new Dictionary<int, (string Label, Action Run)>();
+
+        /// <summary>Rows drawn as filled buttons - their focus outline is white, since the accent outline
+        /// would vanish against an accent-coloured fill.</summary>
+        private readonly HashSet<int> _communityFilledRows = new HashSet<int>();
+
+        /// <summary>The fill of the community's own action buttons (share, submit, apply). Green, the
+        /// colour the widget's confirm buttons use, and never the accent the preset figures are drawn in -
+        /// which is what made "Share your preset" read as one more preset.</summary>
+        private static readonly Brush CommunityShareFill = Frozen(Color.FromRgb(0x2E, 0x7D, 0x32));
+
+        private static Brush Frozen(Color c) { var b = new SolidColorBrush(c); b.Freeze(); return b; }
+
+        /// <summary>Text on a filled (selected) chip: near-black on the light accent. White on light
+        /// blue was hard to read (user, 2026-10-01).</summary>
+        private static readonly Brush ChipActiveText = Frozen(Color.FromRgb(0x10, 0x14, 0x1A));
+
+        /// <summary>A filled, centred button on this overlay's own cursor.</summary>
+        private Border AddCommunityButton(string title, string actionLabel, Action run, Brush fill,
+                                          double topMargin = 0, double bottomMargin = 10)
+        {
+            var text = new TextBlock
+            {
+                Text = title,
+                FontSize = 17,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = Brushes.White,
+                HorizontalAlignment = HorizontalAlignment.Center,
+                TextWrapping = TextWrapping.Wrap,
+            };
+            var row = RegisterCommunityRow(text, run, true, topMargin, bottomMargin, null, actionLabel);
+            row.Background = fill;
+            _communityFilledRows.Add(_communityRows.Count - 1);
+            return row;
         }
 
         // ════════════════════════════════════ the list ══════════════════════════════════════════
@@ -185,7 +343,7 @@ namespace ClawTweaksCenter
             // same game from the same machine is noise, and the honest answer is to point at the one
             // that is already there (the widget does the same).
             bool haveOwn = !string.IsNullOrEmpty(_communityAuthorId)
-                           && _communityList.Any(p => p.IsOwn(_communityAuthorId));
+                           && _communityListAll.Any(p => p.IsOwn(_communityAuthorId));
             if (haveOwn)
                 panel.Children.Add(new Border
                 {
@@ -199,16 +357,24 @@ namespace ClawTweaksCenter
                     MaxWidth = 720,
                 });
             else
-                panel.Children.Add(AddCommunityActionRow(
-                    "",
-                    Core.Loc.T("Share your preset"),
-                    Core.Loc.T("Post your settings for this game to the community."),
-                    Core.Loc.T("Share"),
-                    OpenCommunityCreate,
-                    live: true));
+                // A filled button, not a row: next to the preset cards it read as one more preset
+                // (user, 2026-10-01).
+                panel.Children.Add(AddCommunityButton(Core.Loc.T("Share your preset"), Core.Loc.T("Share"),
+                                                      OpenCommunityCreate, CommunityShareFill, bottomMargin: 16));
 
             foreach (var p in _communityList)
                 panel.Children.Add(BuildCommunityCard(p));
+
+            int hidden = _communityListAll.Count - _communityList.Count;
+            if (!_communityAllDevices && hidden > 0)
+            {
+                var more = (FrameworkElement)CommunityPadHint(PadButton.X,
+                    hidden == 1 ? Core.Loc.T("1 more from other devices")
+                                : Core.Loc.F("{0} more from other devices", hidden));
+                more.HorizontalAlignment = HorizontalAlignment.Center;
+                more.Margin = new Thickness(0, 4, 0, 0);
+                panel.Children.Add(more);
+            }
 
             _communityScroller = new ScrollViewer
             {
@@ -228,17 +394,28 @@ namespace ClawTweaksCenter
         {
             if (!CommunityPresets.Loaded) return Core.Loc.T("Loading shared presets…");
             int n = _communityList.Count;
+            if (!_communityAllDevices)
+                return n == 0 ? Core.Loc.T("No preset for your Claw yet.")
+                     : n == 1 ? Core.Loc.T("1 preset for your Claw.")
+                     : Core.Loc.F("{0} presets for your Claw.", n);
             return n == 0 ? Core.Loc.T("No one has shared a preset for this game yet.")
-                 : n == 1 ? Core.Loc.T("1 shared preset for this game.")
-                 : Core.Loc.F("{0} shared presets for this game.", n);
+                 : n == 1 ? Core.Loc.T("1 preset on all devices.")
+                 : Core.Loc.F("{0} presets on all devices.", n);
         }
 
-        /// <summary>One read-only card plus, when it is not your own, a selectable Rate row under it.
-        /// The card itself is not selectable: there is nothing to do TO it — it is the thing you read,
-        /// and the one action it offers (rate) is its own row so the footer can name it.</summary>
+        /// <summary>
+        /// One preset card, and the card IS the selectable row (user, 2026-10-01). A adopts the preset
+        /// into this game's profile; Y rates it. The rating prompt used to be a full-size row under
+        /// every card ("Be the first to rate this") and outweighed the preset it belonged to - it is a
+        /// small line inside the card now, with the two buttons spelled out.
+        /// </summary>
         private FrameworkElement BuildCommunityCard(CommunityPresets.Preset p)
         {
             bool own = p.IsOwn(_communityAuthorId);
+            // ⚠ NOT ON YOUR OWN PRESET, and not on a published-only entry with no thread to rate against.
+            // The helper refuses a self-rating too; this only spares the round trip. Without the rule the
+            // first rating on every preset is five stars from its author.
+            bool canRate = !own && HasThread(p);
             var stack = new StackPanel();
 
             // The two figures the whole feature exists for: how fast it ran and what it cost.
@@ -277,36 +454,24 @@ namespace ClawTweaksCenter
                     stack.Children.Add(CommunityLine(line, UiHelpers.Subtle, 12));
             }
 
-            var card = new Border
-            {
-                Child = stack,
-                Background = UiHelpers.Card,
-                BorderBrush = own ? UiHelpers.Ok : Brushes.Transparent,
-                BorderThickness = new Thickness(own ? 1 : 0),
-                CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(16, 12, 16, own || HasThread(p) ? 8 : 12),
-                Margin = new Thickness(0, 0, 0, HasThread(p) && !own ? 2 : 10),
-                MinWidth = 620,
-                MaxWidth = 720,
-            };
+            if (canRate && stars == null)
+                stack.Children.Add(CommunityLine(Core.Loc.T("Not rated yet"), UiHelpers.Subtle, 12));
 
-            // ⚠ NOT ON YOUR OWN PRESET, and not on a published-only entry with no thread to rate against.
-            // The helper refuses a self-rating too; this only spares the round trip. Without the rule the
-            // first rating on every preset is five stars from its author.
-            if (own || !HasThread(p)) return card;
+            // What A and Y do here, drawn with the footer's own button artwork, and ONLY on the focused
+            // card (user, 2026-10-01: "[A] …" written out on every card was hard to read). Hidden, not
+            // collapsed, so moving the cursor does not make the list below it jump.
+            var hints = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+            hints.Children.Add(CommunityPadHint(PadButton.A, Core.Loc.T("Use this preset")));
+            if (canRate) hints.Children.Add(CommunityPadHint(PadButton.Y, Core.Loc.T("Rate")));
+            hints.Visibility = Visibility.Hidden;
+            stack.Children.Add(hints);
 
-            var wrap = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center };
-            wrap.Children.Add(card);
-            wrap.Children.Add(AddCommunityActionRow(
-                "",
-                stars == null ? Core.Loc.T("Be the first to rate this") : Core.Loc.T("Rate this preset"),
-                null,
-                Core.Loc.T("Rate"),
-                () => OpenCommunityRate(p),
-                live: true,
-                topMargin: 0,
-                bottomMargin: 10));
-            return wrap;
+            var row = RegisterCommunityRow(stack, () => OpenCommunityApply(p), live: true,
+                topMargin: 0, bottomMargin: 10, chip: null, actionLabel: Core.Loc.T("Use this preset"));
+            int index = _communityRows.Count - 1;
+            _communityRowHints[index] = hints;
+            if (canRate) _communityRowAlt[index] = (Core.Loc.T("Rate"), () => OpenCommunityRate(p));
+            return row;
         }
 
         private static bool HasThread(CommunityPresets.Preset p) => !string.IsNullOrEmpty(p.Get("threadId"));
@@ -317,7 +482,7 @@ namespace ClawTweaksCenter
             void Add(string label, string key, string suffix = "")
             {
                 string v = p.Get(key);
-                if (!string.IsNullOrEmpty(v)) d.Add((label.Length > 0 ? label + " " : "") + CommunityPresets.Display(key, v) + suffix);
+                if (!string.IsNullOrEmpty(v)) d.Add((label.Length > 1 ? Core.Loc.T(label) + " " : label.Length > 0 ? label + " " : "") + CommunityPresets.Display(key, v) + suffix);
             }
             Add("", "resolution");
             Add("preset", "graphicsPreset");
@@ -326,7 +491,8 @@ namespace ClawTweaksCenter
             Add("frame gen", "frameGen");
             Add("x", "frameGenFactor");
             Add("CPU boost", "cpuBoostMode");
-            Add("cap", "fpsLimit", " fps");
+            Add("cap", "fpsLimit", " FPS");
+            Add("", "fpsCapMode");
             return string.Join("  ·  ", d);
         }
 
@@ -336,7 +502,7 @@ namespace ClawTweaksCenter
             void Add(string label, string key)
             {
                 string v = p.Get(key);
-                if (!string.IsNullOrEmpty(v)) g.Add(label + " " + v);
+                if (!string.IsNullOrEmpty(v)) g.Add(Core.Loc.T(label) + " " + v);
             }
             Add("textures", "texture");
             Add("shadows", "shadows");
@@ -351,7 +517,7 @@ namespace ClawTweaksCenter
 
         private UIElement CommunityHead(string title, string status)
         {
-            var head = new StackPanel { Margin = new Thickness(0, 0, 0, 12) };
+            var head = new StackPanel { Margin = new Thickness(0, 32, 0, 12) };
             head.Children.Add(new TextBlock
             {
                 Text = title,
@@ -398,7 +564,8 @@ namespace ClawTweaksCenter
         /// <summary>A selectable action row (icon, title, subtitle, named action on the right). Returns
         /// the border so a caller can wrap it; registers it with this overlay's own cursor.</summary>
         private Border AddCommunityActionRow(string glyph, string title, string subtitle, string actionLabel,
-                                             Action run, bool live, double topMargin = 0, double bottomMargin = 10)
+                                             Action run, bool live, double topMargin = 0, double bottomMargin = 10,
+                                             Brush iconBrush = null)
         {
             var left = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             left.Children.Add(new TextBlock
@@ -423,7 +590,7 @@ namespace ClawTweaksCenter
                 Text = glyph,
                 FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
                 FontSize = 20,
-                Foreground = live ? UiHelpers.Text : UiHelpers.Subtle,
+                Foreground = iconBrush ?? (live ? UiHelpers.Text : UiHelpers.Subtle),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 VerticalAlignment = VerticalAlignment.Center,
             };
@@ -443,7 +610,9 @@ namespace ClawTweaksCenter
         /// choice on the rating and sharing forms — the same shape the game menu's split rows use, but
         /// on this overlay's own cursor.</summary>
         private Border AddCommunityChipRow(string title, string[] labels, bool[] enabled,
-                                           Func<int> get, Action<int> set)
+                                           Func<int> get, Action<int> set,
+                                           string glyph = null, Brush glyphBrush = null,
+                                           Action run = null, string actionLabel = null)
         {
             var titleBlock = new TextBlock
             {
@@ -462,14 +631,27 @@ namespace ClawTweaksCenter
             }
 
             var grid = new Grid();
+            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            if (glyph != null)
+                grid.Children.Add(new TextBlock
+                {
+                    Text = glyph,
+                    FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                    FontSize = 18,
+                    Foreground = glyphBrush ?? UiHelpers.Text,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 10, 0),
+                });
+            Grid.SetColumn(titleBlock, 1);
             grid.Children.Add(titleBlock);
-            Grid.SetColumn(chips, 1);
+            Grid.SetColumn(chips, 2);
             grid.Children.Add(chips);
 
-            return RegisterCommunityRow(grid, run: null, live: true, topMargin: 0, bottomMargin: 10,
-                chip: new CommunityChipRow { Count = labels.Length, Get = get, Set = set }, actionLabel: null);
+            // A chip row with an A action too: Left/Right pick a common value, A types any other.
+            return RegisterCommunityRow(grid, run: run, live: true, topMargin: 0, bottomMargin: 10,
+                chip: new CommunityChipRow { Count = labels.Length, Get = get, Set = set }, actionLabel: actionLabel);
         }
 
         private static Border CommunityChip(string text, bool active, bool enabled) => new Border
@@ -481,7 +663,7 @@ namespace ClawTweaksCenter
             BorderBrush = active ? UiHelpers.Accent : UiHelpers.Subtle,
             Background = active ? UiHelpers.Accent : Brushes.Transparent,
             Opacity = enabled ? 1.0 : 0.45,
-            Child = new TextBlock { Text = text, FontSize = 13, Foreground = active ? Brushes.White : UiHelpers.Subtle },
+            Child = new TextBlock { Text = text, FontSize = 13, FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal, Foreground = active ? ChipActiveText : UiHelpers.Subtle },
         };
 
         private Border RegisterCommunityRow(UIElement content, Action run, bool live,
@@ -521,10 +703,27 @@ namespace ClawTweaksCenter
         private void ApplyCommunitySelection()
         {
             for (int i = 0; i < _communityRows.Count; i++)
-                _communityRows[i].BorderBrush = i == _communityIndex ? UiHelpers.Accent : Brushes.Transparent;
+                _communityRows[i].BorderBrush = i != _communityIndex
+                    ? (_communityRowRestBorder.TryGetValue(i, out var rest) ? rest : Brushes.Transparent)
+                    : i == _communityChipEditIndex ? FieldOpenBrush
+                    : _communityFilledRows.Contains(i) ? Brushes.White : UiHelpers.Accent;
+
+            foreach (var kv in _communityRowHints)
+                kv.Value.Visibility = kv.Key == _communityIndex ? Visibility.Visible : Visibility.Hidden;
 
             if (_communityIndex >= 0 && _communityIndex < _communityRows.Count)
-                _communityRows[_communityIndex].BringIntoView();
+            {
+                var target = _communityRows[_communityIndex];
+                target.BringIntoView();
+                // After a re-render the rows are not laid out yet and BringIntoView does nothing - so
+                // ask again once layout has run.
+                // Background runs after the Loaded-priority scroll restore in RenderCommunityOverlay,
+                // so the restored offset is the starting point and this only nudges when needed.
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    if (_communityRows.Contains(target)) target.BringIntoView();
+                }), System.Windows.Threading.DispatcherPriority.Background);
+            }
         }
 
         // ════════════════════════════════════ input ════════════════════════════════════════════
@@ -534,9 +733,12 @@ namespace ClawTweaksCenter
         {
             if (_communityScreen == CommunityScreen.Keyboard) { MoveCommunityKeyboard(dir); return; }
 
-            // Left/Right pick a chip on a chip row.
+            // Left/Right pick a chip on a chip row - at once on a full-width one, only after A on one
+            // that sits in a pair.
+            bool editingHere = _communityChipEditIndex == _communityIndex;
             if ((dir == PadButton.Left || dir == PadButton.Right)
-                && _communityChipRows.TryGetValue(_communityIndex, out var chip))
+                && _communityChipRows.TryGetValue(_communityIndex, out var chip)
+                && (!ChipNeedsEdit(_communityIndex) || editingHere))
             {
                 int next = chip.Get() + (dir == PadButton.Right ? 1 : -1);
                 if (next < 0 || next >= chip.Count) return;
@@ -546,11 +748,29 @@ namespace ClawTweaksCenter
                 return;
             }
 
+            // Left/Right cross a side-by-side pair - only when neither half is a chip row, because a
+            // chip row needs Left/Right for its own answer.
+            // While choosing on a paired chip row, Up/Down do nothing - A or B finish first.
+            if (editingHere) return;
+            bool lateralPair = _communityPartner.TryGetValue(_communityIndex, out int partner);
+            if ((dir == PadButton.Left || dir == PadButton.Right) && lateralPair)
+            {
+                if ((dir == PadButton.Right) == (partner > _communityIndex))
+                {
+                    _communityIndex = partner;
+                    ApplyCommunitySelection();
+                    RefreshActionBar();
+                }
+                return;
+            }
+
             if (dir != PadButton.Up && dir != PadButton.Down) return;
             if (_communityRows.Count == 0) return;
 
             int step = dir == PadButton.Down ? 1 : -1;
             int target = _communityIndex;
+            // Up/Down leave a lateral pair as ONE row: start from the half on the side of travel.
+            if (lateralPair) target = step > 0 ? Math.Max(_communityIndex, partner) : Math.Min(_communityIndex, partner);
             // Skip rows that have no action and no chips (read-only spacers should never happen, but a
             // dead stop is better than a cursor that lands on nothing).
             for (int i = 0; i < _communityRows.Count; i++)
@@ -570,6 +790,13 @@ namespace ClawTweaksCenter
         {
             if (_communityScreen == CommunityScreen.Keyboard) { PressCommunityKey(); return; }
             if (_communityIndex < 0 || _communityIndex >= _communityRowActions.Count) return;
+            if (ChipNeedsEdit(_communityIndex) && _communityRowActions[_communityIndex] == null)
+            {
+                _communityChipEditIndex = _communityChipEditIndex == _communityIndex ? -1 : _communityIndex;
+                ApplyCommunitySelection();
+                RefreshActionBar();
+                return;
+            }
             _communityRowActions[_communityIndex]?.Invoke();
         }
 
@@ -593,7 +820,16 @@ namespace ClawTweaksCenter
             }
 
             string label = FocusedCommunityLabel();
+            if (ChipNeedsEdit(_communityIndex) && label == null)
+                label = _communityChipEditIndex == _communityIndex ? Core.Loc.T("Done") : Core.Loc.T("Change");
             if (!string.IsNullOrEmpty(label)) AddAction(PadButton.A, label, true, ActivateCommunityRow);
+            // Y on a card is BOUND but has no footer chip: the focused card shows it already, and the
+            // same verb twice on one screen was too much (user, 2026-10-01).
+            if (_communityRowAlt.TryGetValue(_communityIndex, out var alt))
+                _liveActions[PadButton.Y] = () => alt.Run();
+            if (_communityScreen == CommunityScreen.List)
+                AddAction(PadButton.X, _communityAllDevices ? Core.Loc.T("Your Claw only") : Core.Loc.T("All devices"),
+                          true, ToggleCommunityAllDevices);
             AddAction(PadButton.B, Core.Loc.T("Back"), true, CommunityBack);
         }
 
@@ -606,7 +842,7 @@ namespace ClawTweaksCenter
                 {
                     // Only if the overlay is still the Community list on this same game.
                     if (_gameMenuOverlay != GameMenuOverlay.Community || _communityGame == null) return;
-                    _communityList = CommunityPresets.ForGame(_communityGame);
+                    RefreshCommunityList();
                     if (_communityScreen == CommunityScreen.List) { RenderGameMenuOverlay(); RefreshActionBar(); }
                 }), System.Threading.Tasks.TaskScheduler.Default);
         }
@@ -635,7 +871,7 @@ namespace ClawTweaksCenter
                 {
                     if (_gameMenuOverlay == GameMenuOverlay.Community && _communityScreen == CommunityScreen.List)
                     {
-                        _communityList = _communityGame != null ? CommunityPresets.ForGame(_communityGame) : _communityList;
+                        if (_communityGame != null) RefreshCommunityList();
                         RenderGameMenuOverlay();
                         RefreshActionBar();
                     }

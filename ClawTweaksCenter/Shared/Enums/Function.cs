@@ -999,5 +999,8 @@
         CommunitySubmitResult,          // string
         // Reply to Extra "CommunityRate": "" on success, otherwise the refusal reason.
         CommunityRateResult,            // string
+        // Reply to Extra "CommunityApplyPreset" (Center's Library): "ok" / "ok-running" on success,
+        // otherwise "error=<reason>". APPENDED - this enum is ordinal and mirrored from the helper.
+        CommunityApplyResult,           // string
     }
 }

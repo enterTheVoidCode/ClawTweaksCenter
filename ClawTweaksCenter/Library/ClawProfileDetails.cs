@@ -85,7 +85,8 @@ namespace ClawTweaksCenter.Library
             public string TdpW = "";
             public string CpuBoostMode = "";   // "0".."6"
             public string OsPowerMode = "";    // "efficiency" / "balanced" / "performance"
-            public string FpsLimit = "";       // the RTSS cap, the schema's fpsLimit
+            public string FpsLimit = "";       // the active cap, the schema's fpsLimit
+            public string FpsCapMode = "";     // "intel" / "rtss" - schema v2, which limiter it is on
             public string Resolution = "";
         }
 
@@ -117,12 +118,15 @@ namespace ClawTweaksCenter.Library
                 case 2: f.OsPowerMode = "performance"; break;
             }
 
-            // The schema's fpsLimit is the RTSS cap specifically (FpsCapMode 1 is the Intel axis and
-            // lives in IntelFpsTier, which the post does not carry). Same split as FpsCap above.
-            if (p.Int("FpsCapMode") != 1)
+            // The active cap and WHICH limiter it is on (schema v2 carries both). FpsCapMode 1 is the
+            // Intel axis and lives in IntelFpsTier; anything else is RTSS in FPSLimit. Same split as
+            // FpsCap above. Before v2 an Intel cap could not be shared at all.
+            bool intelCap = p.Int("FpsCapMode") == 1;
+            int limit = intelCap ? p.Int("IntelFpsTier") : p.Int("FPSLimit");
+            if (limit > 0)
             {
-                int limit = p.Int("FPSLimit");
-                if (limit > 0) f.FpsLimit = limit.ToString(CultureInfo.InvariantCulture);
+                f.FpsLimit = limit.ToString(CultureInfo.InvariantCulture);
+                f.FpsCapMode = intelCap ? "intel" : "rtss";
             }
 
             string res = p.Text("Resolution");
@@ -304,6 +308,12 @@ namespace ClawTweaksCenter.Library
             if (m1 != null) Add(lines, "M1", m1);
             if (m2 != null) Add(lines, "M2", m2);
 
+            // Every other button the profile remaps (user, 2026-10-01: Brotato showed M1/M2 and not
+            // its stick-click -> D-pad remap). They live together in ControllerGamepadMapping, a JSON
+            // object of source button -> the same mapping blob M1/M2 use.
+            foreach (var (source, target) in GamepadRemaps(p.Text("ControllerGamepadMapping")))
+                Add(lines, source, target);
+
             int gyro = p.Int("ControllerGyroTarget");
             if (gyro > 0) Add(lines, "Gyro", GyroTarget(gyro));
 
@@ -349,9 +359,10 @@ namespace ClawTweaksCenter.Library
             "Xbox Button",
         };
 
-        private static string Button(Reader p, string element)
+        private static string Button(Reader p, string element) => ButtonFromBlob(p.Text(element));
+
+        private static string ButtonFromBlob(string json)
         {
-            string json = p.Text(element);
             if (string.IsNullOrWhiteSpace(json)) return null;
 
             int type = JsonInt(json, "Type");
@@ -371,6 +382,55 @@ namespace ClawTweaksCenter.Library
             return action < GamepadActionNames.Length
                 ? GamepadActionNames[action]
                 : Core.Loc.F("Action {0}", action);
+        }
+
+        /// <summary>
+        /// The remaps in ControllerGamepadMapping, as (source button, what it does now). A button mapped
+        /// to itself or to Disabled is not a remap worth a line. Broken JSON yields nothing rather than
+        /// a wrong line - this panel only reports.
+        /// </summary>
+        private static IEnumerable<(string Source, string Target)> GamepadRemaps(string json)
+        {
+            var result = new List<(string, string)>();
+            if (string.IsNullOrWhiteSpace(json)) return result;
+            try
+            {
+                using var doc = System.Text.Json.JsonDocument.Parse(json);
+                if (doc.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object) return result;
+                foreach (var prop in doc.RootElement.EnumerateObject())
+                {
+                    string target = ButtonFromBlob(prop.Value.GetRawText());
+                    if (target == null) continue;
+                    string source = SourceButtonName(prop.Name);
+                    if (string.Equals(source, target, StringComparison.OrdinalIgnoreCase)) continue;
+                    result.Add((source, target));
+                }
+            }
+            catch { }
+            return result;
+        }
+
+        /// <summary>The widget's key names ("LSClick", "DPadUp") in the same spelling as
+        /// GamepadActionNames, so source and target of a line read alike.</summary>
+        private static string SourceButtonName(string key)
+        {
+            switch (key)
+            {
+                case "LSClick": return "LS Click";
+                case "RSClick": return "RS Click";
+                case "DPadUp": case "DpadUp": return "D-Pad Up";
+                case "DPadDown": case "DpadDown": return "D-Pad Down";
+                case "DPadLeft": case "DpadLeft": return "D-Pad Left";
+                case "DPadRight": case "DpadRight": return "D-Pad Right";
+                case "View": case "Back": return "Select";
+                case "Menu": return "Start";
+                case "Guide": return "Xbox Button";
+                default:
+                    // "LSUp" -> "LS Up", like GamepadActionNames.
+                    if (key.Length > 2 && (key.StartsWith("LS") || key.StartsWith("RS")))
+                        return key.Substring(0, 2) + " " + key.Substring(2);
+                    return key;
+            }
         }
 
         /// <summary>A single integer out of the mapping blob. Deliberately not a JSON parser: the

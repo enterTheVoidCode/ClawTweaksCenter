@@ -3655,8 +3655,8 @@ namespace ClawTweaksCenter
         #region The one thing on the launch screen that takes focus
         private const int LaunchFocusPlay = 0;
         private const int LaunchFocusAchievements = 1;
-        // Above Play: the community-presets banner (CenterMenuWindow.Community.Forms.cs). Up from Play
-        // reaches it, down returns to Play; it is present on the confirm screen even with no presets,
+        // The community pill in the top right corner of the launch screen
+        // (CenterMenuWindow.Community.Forms.cs). Present on the confirm screen even with no presets,
         // because sharing the first one is why it is there.
         private const int LaunchFocusCommunity = 2;
 
@@ -3675,28 +3675,41 @@ namespace ClawTweaksCenter
         /// </summary>
         private int _launchFocus;
 
-        /// <summary>Up and down through the stack that takes focus: the community banner above the
-        /// cover, Play, then the achievements row below it. Left and right do nothing - there is
-        /// nothing beside any of them, and on a launch screen a stray direction that moves the answer
-        /// is worse than one that is ignored.</summary>
+        /// <summary>Play, the community banner (top right) and the achievements row (under the cover).
+        /// Every other direction is ignored - on a launch screen a stray direction that moves the
+        /// answer is worse than one that is ignored.</summary>
         private void MoveLaunchSelection(PadButton dir)
         {
             if (_launchPrompt != LaunchPrompt.Confirm) return;
-            if (dir != PadButton.Up && dir != PadButton.Down) return;
 
-            // The reachable targets, top to bottom. Built from what is actually on screen so a game
-            // with no achievements - or, later, a prompt with no banner - simply has fewer stops.
-            var order = new List<int>();
-            if (LaunchCommunityBannerLive) order.Add(LaunchFocusCommunity);
-            order.Add(LaunchFocusPlay);
-            if (LaunchAchievementsRowLive) order.Add(LaunchFocusAchievements);
+            // The community pill sits in the top right corner; the achievements row under the cover.
+            // Right (or Up) from Play reach the pill - its drawn D-pad says Right - Left or Down come
+            // back; Down from Play reaches the achievements row and Up returns.
+            // RIGHT OPENS THE PRESETS STRAIGHT AWAY (user, 2026-10-01) - the pill's drawn D-pad says
+            // Right, and a press that only moves an outline would need a second one for nothing.
+            if (dir == PadButton.Right && LaunchCommunityBannerLive)
+            {
+                OpenCommunityFromLaunch(_launchTarget);
+                return;
+            }
 
-            int cur = order.IndexOf(_launchFocus);
-            if (cur < 0) cur = order.IndexOf(LaunchFocusPlay);
-            int next = cur + (dir == PadButton.Down ? 1 : -1);
-            if (next < 0 || next >= order.Count || order[next] == _launchFocus) return;
+            int next = _launchFocus;
+            if (_launchFocus == LaunchFocusPlay)
+            {
+                if ((dir == PadButton.Up || dir == PadButton.Right) && LaunchCommunityBannerLive) next = LaunchFocusCommunity;
+                else if (dir == PadButton.Down && LaunchAchievementsRowLive) next = LaunchFocusAchievements;
+            }
+            else if (_launchFocus == LaunchFocusCommunity)
+            {
+                if (dir == PadButton.Down || dir == PadButton.Left) next = LaunchFocusPlay;
+            }
+            else if (_launchFocus == LaunchFocusAchievements)
+            {
+                if (dir == PadButton.Up) next = LaunchFocusPlay;
+            }
+            if (next == _launchFocus) return;
 
-            _launchFocus = order[next];
+            _launchFocus = next;
             ApplyLaunchFocusVisuals();
             RefreshActionBar();
         }
@@ -3880,11 +3893,6 @@ namespace ClawTweaksCenter
                 MaxWidth = 720,
             };
 
-            // ABOVE THE COVER: the community-presets banner, reached with up from Play. Built first so
-            // it is the top child of the stack; on the confirm screen only.
-            if (_launchPrompt == LaunchPrompt.Confirm && game != null)
-                stack.Children.Add(BuildCommunityBanner(game));
-
             var cover = new Image
             {
                 Height = coverHeight,
@@ -4055,17 +4063,25 @@ namespace ClawTweaksCenter
             sides.Children.Add(stack);
 
             var details = game == null ? null : Library.ClawProfileDetails.For(game);
+            UIElement right = null;
             if (details != null)
             {
                 // Performance on the left, controller on the right - the side each one is on is the
                 // whole navigation here, so it is fixed rather than "whichever exists".
                 var left = BuildProfilePanel(Core.Loc.T("Performance"), details.Performance, 0);
                 if (left != null) sides.Children.Add(left);
-                var right = BuildProfilePanel(Core.Loc.T("Controller"), details.Controller, 2);
-                if (right != null) sides.Children.Add(right);
+                right = BuildProfilePanel(Core.Loc.T("Controller"), details.Controller, 2);
             }
 
+            if (right != null) sides.Children.Add(right);
+
             host.Children.Add(sides);
+
+            // The community pill, in the top right corner of the whole screen - clear of the controller
+            // panel (user, 2026-10-01). Confirm screen only.
+            if (_launchPrompt == LaunchPrompt.Confirm && game != null)
+                host.Children.Add(BuildCommunityBanner(game));
+
             LibraryRoot.Children.Add(host);
 
             ApplyLaunchFocusVisuals();
@@ -5406,6 +5422,9 @@ namespace ClawTweaksCenter
                 {
                     _libraryScanned = false;
                     _ = ScanLibraryAsync();
+                    // The community index too - a rescan is "show me what is new", and a rating posted
+                    // a minute ago is new (user, 2026-10-01).
+                    _ = Library.CommunityPresets.EnsureLoadedAsync(System.Threading.CancellationToken.None, forceRefresh: true);
                 };
                 //
                 // THE SAME IN EVERY TAB NOW (user, 2026-09-21): at most three chips, A, Menu and

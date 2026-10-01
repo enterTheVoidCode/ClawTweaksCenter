@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
@@ -61,10 +61,11 @@ namespace ClawTweaksCenter.Library
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ClawTweaks", "Center", "community-presets.json");
 
-        /// <summary>Six hours. The file changes when somebody posts, which is not often, and a
-        /// handheld should not spend a request per launch screen to find that out. Same figure the
-        /// widget uses, for the same reason.</summary>
-        private static readonly TimeSpan MaxAge = TimeSpan.FromHours(6);
+        /// <summary>Fifteen minutes. Was six hours like the widget's, but the widget has a refresh
+        /// button and the Library had none - a rating posted a minute ago stayed invisible here for
+        /// the rest of the afternoon (user, 2026-10-01). Opening the overlay and Y in the library now
+        /// also force a network read; this only bounds how stale the launch-screen banner can be.</summary>
+        private static readonly TimeSpan MaxAge = TimeSpan.FromMinutes(15);
 
         private static List<Preset> _all;
         private static Task _loading;
@@ -85,18 +86,29 @@ namespace ClawTweaksCenter.Library
             lock (Gate)
             {
                 if (_all != null && !forceRefresh) return Task.CompletedTask;
-                if (forceRefresh) { _all = null; _loading = null; }
-                return _loading ?? (_loading = Task.Run(() => LoadAsync(ct), ct));
+                // A forced refresh does NOT clear what is loaded: the screen keeps showing the last
+                // list until the new one has parsed, instead of flashing "Loading…" over it.
+                if (forceRefresh)
+                {
+                    if (_loading != null && !_loading.IsCompleted && _loadingIsForced) return _loading;
+                    _loadingIsForced = true;
+                    return _loading = Task.Run(() => LoadAsync(ct, skipCache: true), ct);
+                }
+                if (_loading != null) return _loading;
+                _loadingIsForced = false;
+                return _loading = Task.Run(() => LoadAsync(ct, skipCache: false), ct);
             }
         }
 
-        private static async Task LoadAsync(CancellationToken ct)
+        private static bool _loadingIsForced;
+
+        private static async Task LoadAsync(CancellationToken ct, bool skipCache)
         {
             string json = null;
 
             try
             {
-                if (File.Exists(CachePath) && DateTime.UtcNow - File.GetLastWriteTimeUtc(CachePath) < MaxAge)
+                if (!skipCache && File.Exists(CachePath) && DateTime.UtcNow - File.GetLastWriteTimeUtc(CachePath) < MaxAge)
                     json = File.ReadAllText(CachePath);
             }
             catch { }
@@ -109,7 +121,10 @@ namespace ClawTweaksCenter.Library
                     using (var http = new HttpClient { Timeout = TimeSpan.FromSeconds(15) })
                     {
                         http.DefaultRequestHeaders.UserAgent.ParseAdd("ClawTweaksCenter");
-                        json = await http.GetStringAsync(IndexUrl, ct).ConfigureAwait(false);
+                        // A forced read asks past raw.githubusercontent's CDN cache (minutes old
+                        // otherwise), so a rating the widget already shows is not missing here.
+                        string url = skipCache ? IndexUrl + "?t=" + DateTime.UtcNow.Ticks : IndexUrl;
+                        json = await http.GetStringAsync(url, ct).ConfigureAwait(false);
                     }
                     fromNetwork = true;
 
@@ -219,7 +234,13 @@ namespace ClawTweaksCenter.Library
                 bool sameTitle = !string.IsNullOrEmpty(title)
                     && NormalizeTitle(p.Get("gameTitle")).Equals(title, StringComparison.Ordinal);
 
-                if (sameKey || sameTitle) result.Add(p);
+                // A widget post for a game the helper only knew by its process carries
+                // gameStore=local and the EXE NAME as gameId (Brotato: "brotato.exe", titled
+                // "Brotato.exe"). A Steam library entry has neither - its id is the AppID - so the
+                // exe has to be looked for where the game is installed.
+                bool sameExe = !sameKey && !sameTitle && HasExe(game, p.Get("gameId"));
+
+                if (sameKey || sameTitle || sameExe) result.Add(p);
             }
 
             SortBestFirst(result);
@@ -299,6 +320,60 @@ namespace ClawTweaksCenter.Library
             }
         }
 
+        /// <summary>
+        /// Whether a preset was measured on this machine's KIND of Claw. Compared by family, not by
+        /// exact code: Center cannot tell Claw 7 from Claw 8 (both "a2vm"), and a post says "a2vm7" or
+        /// "a2vm8" - the same chip and the same power envelope. An unidentified machine matches
+        /// nothing, and the list then shows everything rather than nothing.
+        /// </summary>
+        public static bool SameDeviceFamily(Preset p, string myDevice)
+        {
+            string mine = DeviceFamily(myDevice);
+            if (mine.Length == 0) return true;
+            return DeviceFamily(p.Get("device")) == mine;
+        }
+
+        private static string DeviceFamily(string code)
+        {
+            code = (code ?? "").Trim().ToLowerInvariant();
+            return code.StartsWith("a2vm") ? "a2vm" : code;
+        }
+
+        /// <summary>
+        /// The executable a profile for this game has to be keyed on, for adopting a preset: the
+        /// store's own ExePath, else the exe of an existing ClawTweaks profile in the install folder,
+        /// else an exe a shared post named that really exists in the install folder. Null when none
+        /// is known - then the game has to have been started once.
+        /// </summary>
+        public static string ResolveExe(GameEntry game, IEnumerable<Preset> hints)
+        {
+            if (game == null) return null;
+            if (!string.IsNullOrEmpty(game.ExePath) && File.Exists(game.ExePath)) return game.ExePath;
+
+            string fromProfile = ClawProfiles.PerformanceExeFor(game);
+            if (!string.IsNullOrEmpty(fromProfile)) return fromProfile;
+
+            if (string.IsNullOrEmpty(game.InstallDir) || !Directory.Exists(game.InstallDir)) return null;
+            foreach (var p in hints ?? Enumerable.Empty<Preset>())
+            {
+                string exe = p.Get("gameId");
+                if (!exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                    exe.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) continue;
+                try
+                {
+                    string direct = Path.Combine(game.InstallDir, exe);
+                    if (File.Exists(direct)) return direct;
+                    foreach (var sub in Directory.EnumerateDirectories(game.InstallDir))
+                    {
+                        string nested = Path.Combine(sub, exe);
+                        if (File.Exists(nested)) return nested;
+                    }
+                }
+                catch { }
+            }
+            return null;
+        }
+
         public static string StoreCode(GameStore store)
         {
             switch (store)
@@ -338,22 +413,24 @@ namespace ClawTweaksCenter.Library
             {
                 switch (value)
                 {
-                    case "0": return "0 (Disabled)";
-                    case "1": return "1 (Enabled)";
-                    case "2": return "2 (Aggressive)";
-                    case "3": return "3 (Efficient Enabled)";
-                    case "4": return "4 (Efficient Aggressive)";
-                    case "5": return "5 (Aggressive At Guaranteed)";
-                    case "6": return "6 (Efficient Aggressive At Guaranteed)";
+                    case "0": return "0 (" + Core.Loc.T("Disabled") + ")";
+                    case "1": return "1 (" + Core.Loc.T("Enabled") + ")";
+                    case "2": return "2 (" + Core.Loc.T("Aggressive") + ")";
+                    case "3": return "3 (" + Core.Loc.T("Efficient Enabled") + ")";
+                    case "4": return "4 (" + Core.Loc.T("Efficient Aggressive") + ")";
+                    case "5": return "5 (" + Core.Loc.T("Aggressive At Guaranteed") + ")";
+                    case "6": return "6 (" + Core.Loc.T("Efficient Aggressive At Guaranteed") + ")";
                 }
             }
+            if (key == "fpsCapMode")
+                return value == "intel" ? "Intel" : value == "rtss" ? "RTSS" : value;
             if (key == "upscalerSource")
             {
                 switch (value)
                 {
-                    case "optiscaler-opticlick": return "OptiScaler (via OptiClick)";
-                    case "optiscaler-manual":    return "OptiScaler (manual)";
-                    case "ingame":               return "in-game";
+                    case "optiscaler-opticlick": return Core.Loc.T("OptiScaler (via OptiClick)");
+                    case "optiscaler-manual":    return Core.Loc.T("OptiScaler (manual)");
+                    case "ingame":               return Core.Loc.T("in-game");
                 }
             }
             return value;
@@ -364,17 +441,20 @@ namespace ClawTweaksCenter.Library
         public readonly struct RatingOption
         {
             public readonly string Value;
-            public readonly string Text;
-            public RatingOption(string value, string text) { Value = value; Text = text; }
+            private readonly string _text;
+            /// <summary>Translated when READ - the canonical Value is what gets posted.</summary>
+            public string Text => Core.Loc.T(_text);
+            public RatingOption(string value, string text) { Value = value; _text = text; }
         }
 
         public readonly struct RatingCategory
         {
             public readonly string Key;
-            public readonly string Label;
+            private readonly string _label;
+            public string Label => Core.Loc.T(_label);
             public readonly RatingOption[] Options;
             public RatingCategory(string key, string label, RatingOption[] options)
-            { Key = key; Label = label; Options = options; }
+            { Key = key; _label = label; Options = options; }
         }
 
         /// <summary>The categories a rating can answer, in the order they are asked. Each option is
@@ -481,9 +561,53 @@ namespace ClawTweaksCenter.Library
         /// <summary>Letters and digits only, lower case — the same rule GamePresets.Normalize and
         /// PlayniteSource use, so a title matches the same way everywhere and against a file written
         /// by somebody else.</summary>
+        /// <summary>
+        /// Whether a preset's gameId names an executable of this library game. Only ids that ARE an
+        /// exe name are tried, and only by file name - the known ExePath first, then the install
+        /// folder and its direct subfolders (Unreal games keep theirs one level down at least, the
+        /// rest at the root). Answers are cached per game and exe, because ForGame runs on every
+        /// launch-screen render and a folder probe is disk I/O.
+        /// </summary>
+        private static bool HasExe(GameEntry game, string exe)
+        {
+            if (string.IsNullOrWhiteSpace(exe) || !exe.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) return false;
+            if (exe.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return false;
+
+            if (!string.IsNullOrEmpty(game.ExePath) &&
+                Path.GetFileName(game.ExePath).Equals(exe, StringComparison.OrdinalIgnoreCase)) return true;
+
+            string dir = game.InstallDir;
+            if (string.IsNullOrEmpty(dir)) return false;
+
+            string key = dir + "|" + exe.ToLowerInvariant();
+            lock (ExeProbeCache)
+                if (ExeProbeCache.TryGetValue(key, out bool known)) return known;
+
+            bool found = false;
+            try
+            {
+                if (Directory.Exists(dir))
+                {
+                    found = File.Exists(Path.Combine(dir, exe));
+                    if (!found)
+                        foreach (var sub in Directory.EnumerateDirectories(dir))
+                            if (File.Exists(Path.Combine(sub, exe))) { found = true; break; }
+                }
+            }
+            catch { }
+
+            lock (ExeProbeCache) ExeProbeCache[key] = found;
+            return found;
+        }
+
+        private static readonly Dictionary<string, bool> ExeProbeCache =
+            new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
         private static string NormalizeTitle(string title)
         {
             if (string.IsNullOrEmpty(title)) return string.Empty;
+            // A title that is really a file name ("Brotato.exe") is the game's name plus an extension.
+            if (title.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) title = title.Substring(0, title.Length - 4);
             var sb = new StringBuilder(title.Length);
             foreach (char c in title)
                 if (char.IsLetterOrDigit(c)) sb.Append(char.ToLowerInvariant(c));

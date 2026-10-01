@@ -129,6 +129,10 @@ namespace ClawTweaksCenter.Library
             return null;
         }
 
+        /// <summary>The exe path of this game's active performance profile, or null - the key a
+        /// helper-side profile write has to use so it lands in the existing profile.</summary>
+        public static string PerformanceExeFor(GameEntry game) => MatchedPath(_perfPaths, game);
+
         /// <summary>The performance profile XML for this game, or null. READ ONLY - see the class
         /// warning: the helper rewrites this file from memory on its next save.</summary>
         public static string PerformanceFileFor(GameEntry game)
