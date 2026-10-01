@@ -415,6 +415,19 @@ namespace ClawTweaksCenter
         private int _cwFps;
         private int _cwPowerState;          // 0 battery, 1 plugged
         private int _cwResolution;
+
+        /// <summary>CPU boost and OS power mode on the share form (user, 2026-10-01: the boost mode was
+        /// sent silently from the profile and could not be seen or changed). All seven boost modes, as
+        /// the helper supports them (user: granular, not on/off). Index 0 = "Not set", which posts
+        /// nothing; the rest are the canonical values the helper's validator allows.</summary>
+        private static readonly string[] CwBoostModes = { "", "0", "1", "2", "3", "4", "5", "6" };
+        private static readonly string[] CwBoostLabels =
+            { "Not set", "Disabled", "Enabled", "Aggressive", "Efficient Enabled", "Efficient Aggressive",
+              "Aggressive At Guaranteed", "Efficient Aggressive At Guaranteed" };
+        private int _cwBoost;
+        private static readonly string[] CwOsPowerModes = { "", "efficiency", "balanced", "performance" };
+        private static readonly string[] CwOsPowerLabels = { "Not set", "Efficiency", "Balanced", "Performance" };
+        private int _cwOsPower;
         private int _cwGraphics = 2;        // high
         private int _cwUpscaler;            // off
         private int _cwUpscalerPreset = 2;  // balanced
@@ -457,6 +470,8 @@ namespace ClawTweaksCenter
             // charger being in while sharing says nothing about how the game was measured.
             _cwPowerState = 0;
             _cwResolution = Math.Max(0, Array.IndexOf(CwResolutions, _cwFacts.Resolution));
+            _cwBoost = Math.Max(0, Array.IndexOf(CwBoostModes, _cwFacts.CpuBoostMode ?? ""));
+            _cwOsPower = Math.Max(0, Array.IndexOf(CwOsPowerModes, _cwFacts.OsPowerMode ?? ""));
             _cwGraphics = 2; _cwUpscaler = 0; _cwUpscalerPreset = 2; _cwUpscalerSource = 0;
             _cwFrameGen = 0; _cwFrameGenFactor = 0; _cwDetail = false;
             SeedDetailFromPreset();
@@ -526,6 +541,14 @@ namespace ClawTweaksCenter
                 () => _cwPowerState, v => _cwPowerState = v);
             panel.Children.Add(CommunityPair(tdpRow, powerRow));
 
+
+            // Above the resolution, side by side: the two CPU/OS settings a preset applies. They show
+            // Both show ONE value with arrows - seven boost modes do not fit as chips in half a row.
+            var boostRow = AddCommunityStepRow(Core.Loc.T("CPU boost"),
+                CwBoostLabels.Select(l => Core.Loc.T(l)).ToArray(), () => _cwBoost, v => _cwBoost = v);
+            var osRow = AddCommunityStepRow(Core.Loc.T("OS power mode"),
+                CwOsPowerLabels.Select(l => Core.Loc.T(l)).ToArray(), () => _cwOsPower, v => _cwOsPower = v);
+            panel.Children.Add(CommunityPair(boostRow, osRow));
 
             panel.Children.Add(AddCommunityChipRow(Core.Loc.T("Resolution"),
                 CwResolutions, null, () => _cwResolution, v => _cwResolution = v));
@@ -644,9 +667,9 @@ namespace ClawTweaksCenter
             Put("fpsNative", _cwFps.ToString(CultureInfo.InvariantCulture));
             Put("author", _communityNickname);
 
-            // Extras taken from the game's saved profile — nice to have, not required.
-            Put("cpuBoostMode", _cwFacts.CpuBoostMode);
-            Put("osPowerMode", _cwFacts.OsPowerMode);
+            // Prefilled from the game's profile, changeable on the form; "Not set" posts nothing.
+            Put("cpuBoostMode", CwBoostModes[_cwBoost]);
+            Put("osPowerMode", CwOsPowerModes[_cwOsPower]);
             // The cap as set on this form (prefilled from the profile), and which limiter it is on.
             // CAPPED = the native FPS IS the cap: one number, not two (user, 2026-10-01).
             if (_cwCapMode > 0)

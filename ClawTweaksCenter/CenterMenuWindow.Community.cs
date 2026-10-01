@@ -686,6 +686,35 @@ namespace ClawTweaksCenter
                 chip: new CommunityChipRow { Count = labels.Length, Get = get, Set = set }, actionLabel: actionLabel);
         }
 
+        /// <summary>
+        /// A choice that shows only the CURRENT value between arrows - for lists too long for chips
+        /// (the seven CPU boost modes). It is a chip row underneath: same Get/Set, same rule that a
+        /// row inside a pair needs A before Left/Right step through it.
+        /// </summary>
+        private Border AddCommunityStepRow(string title, string[] labels, Func<int> get, Action<int> set)
+        {
+            var stack = new StackPanel();
+            stack.Children.Add(new TextBlock
+            {
+                Text = title,
+                FontSize = 16,
+                Foreground = UiHelpers.Text,
+                TextWrapping = TextWrapping.Wrap,
+            });
+            int current = Math.Max(0, Math.Min(labels.Length - 1, get()));
+            stack.Children.Add(new TextBlock
+            {
+                Text = "‹  " + labels[current] + "  ›",
+                FontSize = 14,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = UiHelpers.Accent,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 4, 0, 0),
+            });
+            return RegisterCommunityRow(stack, run: null, live: true, topMargin: 0, bottomMargin: 10,
+                chip: new CommunityChipRow { Count = labels.Length, Get = get, Set = set }, actionLabel: null);
+        }
+
         private static Border CommunityChip(string text, bool active, bool enabled) => new Border
         {
             CornerRadius = new CornerRadius(8),
