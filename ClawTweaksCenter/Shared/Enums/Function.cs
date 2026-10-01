@@ -985,5 +985,19 @@
         // package's own settings hive. "1" = always Home, "0" = reopens the last widget,
         // "" = could not tell. In ClawTweaks Essential this replaces the auto-jump.
         Setup_GameBarOpensOnHome,       // string: "1" / "0" / ""
+
+        // ── Community presets in the Library (Center → helper round-trips) ─────────────
+        // The signing key and the device-derived authorId live in the HELPER, and Center is a public
+        // repo, so sharing and rating a preset go over the Center pipe and the helper answers on these
+        // Functions via PushCenterResult (same shape as DriverUpdateResult). Mirrored ordinally from
+        // the helper's Function.cs — append only, never reorder. Whole feature:
+        // Doku/HANDOVER_2026-10-01_Community_Presets_Library.md.
+        //
+        // Reply to Extra "CommunityRequestIdentity": "device=<code>;nickname=<nick>;authorId=<id>".
+        CommunityIdentityResult,        // string
+        // Reply to Extra "CommunitySubmit": "" on success, otherwise the refusal reason.
+        CommunitySubmitResult,          // string
+        // Reply to Extra "CommunityRate": "" on success, otherwise the refusal reason.
+        CommunityRateResult,            // string
     }
 }

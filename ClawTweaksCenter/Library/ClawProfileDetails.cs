@@ -69,6 +69,67 @@ namespace ClawTweaksCenter.Library
             return d;
         }
 
+        /// <summary>
+        /// The handful of raw profile values a community post carries, read from the game's saved
+        /// performance profile the way the helper's CommunityPrefill reads them from the running
+        /// profile — so a preset shared from the Library states the same numbers the widget would
+        /// have. Empty string for anything the profile does not set; tdpW empty means the game has no
+        /// saved TDP and the sharer has to type one (it is a required field).
+        ///
+        /// Effective for the CURRENT power line, honouring the profile's AC/DC split — a handheld plays
+        /// mostly on battery, and publishing the plugged numbers next to a battery frame rate is a
+        /// preset that is wrong about itself (unplugged-is-the-primary-state).
+        /// </summary>
+        public sealed class CommunityFacts
+        {
+            public string TdpW = "";
+            public string CpuBoostMode = "";   // "0".."6"
+            public string OsPowerMode = "";    // "efficiency" / "balanced" / "performance"
+            public string FpsLimit = "";       // the RTSS cap, the schema's fpsLimit
+            public string Resolution = "";
+        }
+
+        public static CommunityFacts CommunityFactsFor(GameEntry game)
+        {
+            var f = new CommunityFacts();
+            string file = ClawProfiles.PerformanceFileFor(game);
+            if (file == null) return f;
+
+            XElement root;
+            try { root = XDocument.Load(file).Root; } catch { return f; }
+            if (root == null) return f;
+
+            var p = new Reader(root, Core.PowerLine.OnMains());
+
+            int tdp = p.Int("TDP");
+            if (tdp > 0) f.TdpW = tdp.ToString(CultureInfo.InvariantCulture);
+
+            // Mirror the helper's EffectiveCPUBoostMode fallback: a missing mode resolves through the
+            // old CPUBoost bool, and true meant "1" (Enabled), which is what the switch always wrote.
+            int boost = p.Int("CPUBoostMode");
+            if (boost < 0 && p.Bool("CPUBoost") == true) boost = 1;
+            if (boost >= 0 && boost <= 6) f.CpuBoostMode = boost.ToString(CultureInfo.InvariantCulture);
+
+            switch (p.Int("OSPowerMode"))
+            {
+                case 0: f.OsPowerMode = "efficiency"; break;
+                case 1: f.OsPowerMode = "balanced"; break;
+                case 2: f.OsPowerMode = "performance"; break;
+            }
+
+            // The schema's fpsLimit is the RTSS cap specifically (FpsCapMode 1 is the Intel axis and
+            // lives in IntelFpsTier, which the post does not carry). Same split as FpsCap above.
+            if (p.Int("FpsCapMode") != 1)
+            {
+                int limit = p.Int("FPSLimit");
+                if (limit > 0) f.FpsLimit = limit.ToString(CultureInfo.InvariantCulture);
+            }
+
+            string res = p.Text("Resolution");
+            if (!string.IsNullOrWhiteSpace(res)) f.Resolution = res.Trim();
+            return f;
+        }
+
         // ── Performance ─────────────────────────────────────────────────────────────────────────
 
         private static void BuildPerformance(Reader p, List<ProfileLine> lines)

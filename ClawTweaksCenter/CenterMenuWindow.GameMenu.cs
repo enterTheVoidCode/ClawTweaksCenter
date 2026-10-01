@@ -44,6 +44,9 @@ namespace ClawTweaksCenter
             /// <summary>The backgrounds published in the Center repo, one Y away from the user's own
             /// pictures - see CenterMenuWindow.CtwWallpapers.cs.</summary>
             CtwWallpapers,
+            /// <summary>Community presets for the game the launch screen is on: browse, rate, share.
+            /// Has its own small screen machine inside - see CenterMenuWindow.Community.cs.</summary>
+            Community,
         }
 
         // Fixed column count for the art picker grid - unlike the library's own grid it does not need
@@ -202,6 +205,11 @@ namespace ClawTweaksCenter
                 RefreshActionBar();
                 return;
             }
+            if (_gameMenuOverlay == GameMenuOverlay.Community)
+            {
+                CommunityBack();
+                return;
+            }
             CloseGameMenuOverlay();
         }
         #endregion
@@ -254,6 +262,7 @@ namespace ClawTweaksCenter
                 case GameMenuOverlay.UserArtFolder: RenderUserArtFolder(); break;
                 case GameMenuOverlay.Achievements: RenderAchievements(); break;
                 case GameMenuOverlay.CtwWallpapers: RenderCtwWallpapers(); break;
+                case GameMenuOverlay.Community: RenderCommunityOverlay(); break;
             }
         }
 
@@ -663,6 +672,7 @@ namespace ClawTweaksCenter
             if (_gameMenuOverlay == GameMenuOverlay.UserArtFolder) { MoveUserArtFolderSelection(dir); return; }
             if (_gameMenuOverlay == GameMenuOverlay.Achievements) { MoveAchievementSelection(dir); return; }
             if (_gameMenuOverlay == GameMenuOverlay.CtwWallpapers) { MoveCtwWallpaperSelection(dir); return; }
+            if (_gameMenuOverlay == GameMenuOverlay.Community) { MoveCommunitySelection(dir); return; }
             if (_gameMenuOverlay == GameMenuOverlay.Rename) { MoveRenameField(dir); return; }
             if (_gameMenuRows.Count == 0) return;
 
@@ -1356,6 +1366,12 @@ namespace ClawTweaksCenter
                     // the D-pad scrolls it. An A that does nothing is worse than an A that is not
                     // offered, which is the same reason the disabled-control rule exists elsewhere.
                     AddAction(PadButton.B, "Back", true, GameMenuBack);
+                    return true;
+
+                case GameMenuOverlay.Community:
+                    // The footer is per screen (list / rate / share / keyboard) and lives next to the
+                    // state it reads, in CenterMenuWindow.Community.cs.
+                    AddCommunityActions();
                     return true;
 
                 default:

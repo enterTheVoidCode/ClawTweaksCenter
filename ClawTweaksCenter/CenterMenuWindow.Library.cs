@@ -3587,6 +3587,8 @@ namespace ClawTweaksCenter
             _launchTarget = null;
             _optiWikiOpen = false;
             _optiWikiScroller = null;
+            _launchCommunityBanner = null;
+            StopCommunitySlideshow();
             RenderLibrary();
             RefreshActionBar();
         }
@@ -3653,6 +3655,10 @@ namespace ClawTweaksCenter
         #region The one thing on the launch screen that takes focus
         private const int LaunchFocusPlay = 0;
         private const int LaunchFocusAchievements = 1;
+        // Above Play: the community-presets banner (CenterMenuWindow.Community.Forms.cs). Up from Play
+        // reaches it, down returns to Play; it is present on the confirm screen even with no presets,
+        // because sharing the first one is why it is there.
+        private const int LaunchFocusCommunity = 2;
 
         /// <summary>
         /// Which of the two the A button is currently about.
@@ -3669,19 +3675,28 @@ namespace ClawTweaksCenter
         /// </summary>
         private int _launchFocus;
 
-        /// <summary>Down and up between Play and the achievements row. Left and right do nothing -
-        /// there is nothing beside either of them, and on a launch screen a stray direction that
-        /// moves the answer is worse than one that is ignored.</summary>
+        /// <summary>Up and down through the stack that takes focus: the community banner above the
+        /// cover, Play, then the achievements row below it. Left and right do nothing - there is
+        /// nothing beside any of them, and on a launch screen a stray direction that moves the answer
+        /// is worse than one that is ignored.</summary>
         private void MoveLaunchSelection(PadButton dir)
         {
-            if (_launchPrompt != LaunchPrompt.Confirm || !LaunchAchievementsRowLive) return;
+            if (_launchPrompt != LaunchPrompt.Confirm) return;
+            if (dir != PadButton.Up && dir != PadButton.Down) return;
 
-            int next = dir == PadButton.Down ? LaunchFocusAchievements
-                     : dir == PadButton.Up ? LaunchFocusPlay
-                     : _launchFocus;
-            if (next == _launchFocus) return;
+            // The reachable targets, top to bottom. Built from what is actually on screen so a game
+            // with no achievements - or, later, a prompt with no banner - simply has fewer stops.
+            var order = new List<int>();
+            if (LaunchCommunityBannerLive) order.Add(LaunchFocusCommunity);
+            order.Add(LaunchFocusPlay);
+            if (LaunchAchievementsRowLive) order.Add(LaunchFocusAchievements);
 
-            _launchFocus = next;
+            int cur = order.IndexOf(_launchFocus);
+            if (cur < 0) cur = order.IndexOf(LaunchFocusPlay);
+            int next = cur + (dir == PadButton.Down ? 1 : -1);
+            if (next < 0 || next >= order.Count || order[next] == _launchFocus) return;
+
+            _launchFocus = order[next];
             ApplyLaunchFocusVisuals();
             RefreshActionBar();
         }
@@ -3696,17 +3711,28 @@ namespace ClawTweaksCenter
         /// </summary>
         private void ApplyLaunchFocusVisuals()
         {
-            if (_launchAchRow == null) return;
-            if (!LaunchAchievementsRowLive) { _launchFocus = LaunchFocusPlay; return; }
+            // Focus that has nowhere to land falls back to Play - a game can lose its achievements row
+            // or (not today, but by construction) its banner between renders.
+            if (_launchFocus == LaunchFocusCommunity && !LaunchCommunityBannerLive) _launchFocus = LaunchFocusPlay;
+            if (_launchFocus == LaunchFocusAchievements && !LaunchAchievementsRowLive) _launchFocus = LaunchFocusPlay;
 
-            _launchAchRow.BorderBrush = _launchFocus == LaunchFocusAchievements
-                ? UiHelpers.Accent
-                : Brushes.Transparent;
+            if (_launchCommunityBanner != null)
+                _launchCommunityBanner.BorderBrush = _launchFocus == LaunchFocusCommunity
+                    ? UiHelpers.Accent : Brushes.Transparent;
+
+            if (_launchAchRow != null)
+                _launchAchRow.BorderBrush = _launchFocus == LaunchFocusAchievements
+                    ? UiHelpers.Accent : Brushes.Transparent;
         }
 
         /// <summary>A on the launch screen, sent wherever the focus is.</summary>
         private void ActivateLaunchSelection()
         {
+            if (_launchFocus == LaunchFocusCommunity && LaunchCommunityBannerLive)
+            {
+                OpenCommunityFromLaunch(_launchTarget);
+                return;
+            }
             if (_launchFocus == LaunchFocusAchievements && LaunchAchievementsRowLive)
             {
                 OpenAchievements(_launchTarget, true);
@@ -3834,6 +3860,10 @@ namespace ClawTweaksCenter
             // its usual 46 % would push the row at the bottom of that block off a short window, and
             // an unreachable row is worse than a smaller picture.
             _launchAchRow = null;
+            // The community banner belongs to the confirm screen only; everywhere else it is gone and
+            // its slideshow timer with it.
+            _launchCommunityBanner = null;
+            StopCommunitySlideshow();
             UIElement achBlock = _launchPrompt == LaunchPrompt.Confirm && game != null
                 ? BuildLaunchAchievementsBlock(game)
                 : null;
@@ -3849,6 +3879,11 @@ namespace ClawTweaksCenter
                 VerticalAlignment = VerticalAlignment.Center,
                 MaxWidth = 720,
             };
+
+            // ABOVE THE COVER: the community-presets banner, reached with up from Play. Built first so
+            // it is the top child of the stack; on the confirm screen only.
+            if (_launchPrompt == LaunchPrompt.Confirm && game != null)
+                stack.Children.Add(BuildCommunityBanner(game));
 
             var cover = new Image
             {
@@ -5246,10 +5281,13 @@ namespace ClawTweaksCenter
                 {
                     case LaunchPrompt.Confirm:
                         // The label follows the focus, because A does. "Play" over a highlighted
-                        // achievements row would be the footer contradicting the screen.
-                        bool onAch = _launchFocus == LaunchFocusAchievements && LaunchAchievementsRowLive;
-                        AddAction(PadButton.A, onAch ? "All achievements…" : "Play", true,
-                                  ActivateLaunchSelection);
+                        // achievements row - or community banner - would be the footer contradicting
+                        // the screen.
+                        string aLabel =
+                            (_launchFocus == LaunchFocusCommunity && LaunchCommunityBannerLive) ? "Community presets"
+                            : (_launchFocus == LaunchFocusAchievements && LaunchAchievementsRowLive) ? "All achievements…"
+                            : "Play";
+                        AddAction(PadButton.A, aLabel, true, ActivateLaunchSelection);
                         AddAction(PadButton.B, "Cancel", true, ClearLaunchOverlay);
                         AddLaunchOptiActions();
                         break;
