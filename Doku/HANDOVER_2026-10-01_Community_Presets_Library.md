@@ -1,5 +1,66 @@
 # Handover 2026-10-01 — Community presets in the Library
 
+> ## ⚠️ STAND 2026-10-01 ABENDS — THIS BLOCK OVERRIDES THE REST OF THE FILE
+>
+> Everything below §0 is the state from the morning port and is partly **outdated** (banner above the
+> cover, "applying is not built", "nothing committed"). What is true now:
+>
+> | | |
+> |---|---|
+> | **Committed & pushed** | Center `a8c3024` + `5cdff52` (master), dev repo `d34ad25c` (release/v0.3.98.0) |
+> | **Center version** | 0.4.38. Setup 0.4.1.16 still carries Center **0.4.36** - a new full build (package + Velopack + Inno `-CenterVelopack`) is needed before the release. A build at 0.4.1.17 was started and **aborted on request**; `Package.appxmanifest` was restored, `internal_build.txt` is still 16. |
+> | **Schema** | v2 adds `fpsCapMode`. Plan for the next field: dev repo `Doku/PLAN_Community_Preset_Schema_Versions.md` (versions sign over a prefix of the field order - read it before touching the order). |
+>
+> **Launch screen.** A round **pill in the top right corner** (one line, drawn D-pad-right glyph, count
+> for this kind of Claw + "N in all"). **D-pad right opens the overlay directly**; Up from Play focuses
+> it, A opens it. Achievements stay one column under the cover. The controller panel lists every remap
+> from `ControllerGamepadMapping`, not only M1/M2.
+>
+> **List.** Opens on presets of this Claw family (`SameDeviceFamily`: a2vm7/a2vm8 = a2vm); **X** toggles
+> all devices. The card IS the row: **A = Use this preset**, **Y = Rate** (bound, no footer chip; the
+> glyph hints show only on the focused card). Share is a green filled button. Matching also finds widget
+> posts that name only the exe (`HasExe` probes the install folder; title ".exe" stripped). The index is
+> force-refreshed (past the CDN cache) when the overlay opens and on Y in the library; `MaxAge` 15 min.
+>
+> **Apply.** Center → helper `CommunityApplyPreset` → `Program.CommunityApply.cs` finds/creates the
+> profile **by exe path**, writes power fields only (TDP, boost mode, OS power mode, cap), turns the
+> profile on, syncs the RTSS whitelist. v2 `fpsCapMode` switches the game to that limiter and clears the
+> other. Exe comes from `CommunityPresets.ResolveExe` (store ExePath → existing profile → a post's exe in
+> the install folder); none → "Start the game once, then try again." Reply `CommunityApplyResult`.
+>
+> **Share form.** `Native FPS | FPS Limiter` (Off/Intel/RTSS - "FPS Limiter" untranslated on purpose),
+> `TDP | Power`. FPS/TDP open the keyboard with **quick values** on top (FPS 30/40/60/90/120; TDP
+> 8/12/15/17/20/25/30 capped at the PL1 max: A2VM 30, EX 35, A1M 43). Capped ⇒ the native FPS IS
+> `fpsLimit`. Power starts on battery. Detailed graphics is an expander row (chevron, outline) and seeds
+> from the overall preset. After a successful share: **back to the game**, and the game is remembered in
+> `%LOCALAPPDATA%\ClawTweaks\Center\community-pending.tsv` until the index has this machine's preset (or
+> 14 days) - the list shows a note instead of Share meanwhile.
+>
+> **Navigation rules (user-set).** Up/Down move row to row, a side-by-side pair counts as one row;
+> Left/Right cross a pair. A chip row INSIDE a pair needs **A first** (amber outline, Left/Right pick, A/B
+> done); full-width chip rows pick directly. Scroll offset survives re-renders per screen.
+>
+> **Rating.** Stars `1★…5★` beside an optional comment (50 chars, keyboard with Space - only there).
+>
+> **Widget (dev repo).** The wizard asks "Was the frame rate capped?" (No/Intel/RTSS) instead of taking
+> the cap from the profile; `PerfFromCommunity` honours `fpsCapMode`.
+>
+> **Janitor.** `Diagnostics/Probe-CommunityPost.ps1` knows v2 (`FieldCountByVersion`) and the embed label
+> **"Limiter type"** - no alias for the old "FPS cap type" (user removed it; the only such posts were
+> tests). All 9 real/older posts verified after the change.
+>
+> **Open.**
+> - Delete the test posts in Discord (Brotato by billy ×2 - one carries the old label and is rejected
+>   until deleted; Witcher 3 by billy if it was a test). Then `Publish-CommunityIndex.ps1 -DryRun`.
+> - Full build + release planning (next session).
+> - The pending-share memory is Center-only; widget posts do not write it.
+> - Translations were done by the model, not reviewed by native speakers.
+> - Dev tool: `ClawTweaksCenter\Deploy-CenterDev.ps1` swaps a fresh publish into the installed Velopack
+>   copy (no feed, no setup) - for testing only.
+
+## 0. The morning port (outdated where the block above says so)
+
+
 **Who continues here starts at §9 (what is left).** Above it is what was built and why it looks the way
 it does. This is a port of the Game Bar widget's community-presets feature into Center's Library.
 
