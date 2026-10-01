@@ -166,6 +166,8 @@ namespace ClawTweaksCenter
                 case CommunityScreen.Rate:
                 case CommunityScreen.Create:
                 case CommunityScreen.Message:
+                    if (_communityMessageToLaunch && _communityFromLaunch) { CloseCommunityToLaunch(); return; }
+                    goto case CommunityScreen.Apply;
                 case CommunityScreen.Apply:
                     _communityScreen = CommunityScreen.List;
                     _communityIndex = 0;
@@ -344,10 +346,13 @@ namespace ClawTweaksCenter
             // that is already there (the widget does the same).
             bool haveOwn = !string.IsNullOrEmpty(_communityAuthorId)
                            && _communityListAll.Any(p => p.IsOwn(_communityAuthorId));
-            if (haveOwn)
+            bool pending = !haveOwn && CommunityPresets.IsPending(_communityGame, _communityAuthorId);
+            if (haveOwn || pending)
                 panel.Children.Add(new Border
                 {
-                    Child = CommunityLine(Core.Loc.T("You already shared a preset for this game — it is marked below."),
+                    Child = CommunityLine(haveOwn
+                            ? Core.Loc.T("You already shared a preset for this game — it is marked below.")
+                            : Core.Loc.T("You shared a preset for this game. It appears here within a few hours."),
                                           UiHelpers.Subtle, 13),
                     Background = UiHelpers.Card,
                     CornerRadius = new CornerRadius(10),

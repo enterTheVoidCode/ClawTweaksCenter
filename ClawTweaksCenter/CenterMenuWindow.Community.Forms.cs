@@ -453,7 +453,9 @@ namespace ClawTweaksCenter
             // A cap in the profile prefills "capped, with that limiter"; the number is the FPS chip.
             _cwCapMode = string.IsNullOrEmpty(_cwFacts.FpsLimit) ? 0 : _cwFacts.FpsCapMode == "rtss" ? 2 : 1;
             _cwFps = 0;
-            _cwPowerState = Core.PowerLine.OnMains() ? 1 : 0;
+            // Always "on battery" to start (user, 2026-10-01): a handheld is played unplugged, and the
+            // charger being in while sharing says nothing about how the game was measured.
+            _cwPowerState = 0;
             _cwResolution = Math.Max(0, Array.IndexOf(CwResolutions, _cwFacts.Resolution));
             _cwGraphics = 2; _cwUpscaler = 0; _cwUpscalerPreset = 2; _cwUpscalerSource = 0;
             _cwFrameGen = 0; _cwFrameGenFactor = 0; _cwDetail = false;
@@ -687,8 +689,9 @@ namespace ClawTweaksCenter
 
             if (string.IsNullOrEmpty(error))
             {
+                CommunityPresets.MarkShared(game);
                 ShowCommunityMessage(Core.Loc.T("Shared — thank you."),
-                    Core.Loc.T("It can take a few hours until your preset appears here."));
+                    Core.Loc.T("It can take a few hours until your preset appears here."), toLaunch: true);
                 EnsureCommunityIndexThenRedraw(forceRefresh: true);
             }
             else
@@ -864,11 +867,16 @@ namespace ClawTweaksCenter
 
         private string _communityMessageHead;
         private string _communityMessageBody;
+        /// <summary>The message closes the whole overlay back to the game's launch screen instead of
+        /// returning to the list - after a share (user, 2026-10-01): the list does not show the new
+        /// preset yet and is often empty.</summary>
+        private bool _communityMessageToLaunch;
 
-        private void ShowCommunityMessage(string head, string body)
+        private void ShowCommunityMessage(string head, string body, bool toLaunch = false)
         {
             _communityMessageHead = head;
             _communityMessageBody = body;
+            _communityMessageToLaunch = toLaunch;
             ResetCommunityScroll(CommunityScreen.Message);
             _communityScreen = CommunityScreen.Message;
             _communityIndex = 0;
@@ -911,8 +919,14 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 12, 0, 0),
             });
 
-            var done = AddCommunityActionRow("", Core.Loc.T("Back to the list"), null, Core.Loc.T("OK"),
-                () => { _communityScreen = CommunityScreen.List; _communityIndex = 0; RenderGameMenuOverlay(); RefreshActionBar(); },
+            bool toLaunch = _communityMessageToLaunch && _communityFromLaunch;
+            var done = AddCommunityActionRow("", toLaunch ? Core.Loc.T("Back to the game") : Core.Loc.T("Back to the list"),
+                null, Core.Loc.T("OK"),
+                () =>
+                {
+                    if (toLaunch) { CloseCommunityToLaunch(); return; }
+                    _communityScreen = CommunityScreen.List; _communityIndex = 0; RenderGameMenuOverlay(); RefreshActionBar();
+                },
                 live: true, topMargin: 24);
             stack.Children.Add(done);
 

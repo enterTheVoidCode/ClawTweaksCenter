@@ -1226,6 +1226,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "Setze einen TDP zwischen 5 und {0} W.",
             ["Use"] = "W\u00E4hlen",
             ["Textures, shadows, lighting and more"] = "Texturen, Schatten, Beleuchtung und mehr",
+            ["Back to the game"] = "Zur\u00FCck zum Spiel",
+            ["You shared a preset for this game. It appears here within a few hours."] = "Du hast f\u00FCr dieses Spiel ein Preset geteilt. Es erscheint hier in ein paar Stunden.",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2423,6 +2425,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "D\u00E9finissez un TDP entre 5 et {0} W.",
             ["Use"] = "Utiliser",
             ["Textures, shadows, lighting and more"] = "Textures, ombres, \u00E9clairage et plus",
+            ["Back to the game"] = "Retour au jeu",
+            ["You shared a preset for this game. It appears here within a few hours."] = "Vous avez partag\u00E9 un pr\u00E9r\u00E9glage pour ce jeu. Il appara\u00EEtra ici d'ici quelques heures.",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3625,6 +3629,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "TDP\uB97C 5~{0} W\uB85C \uC124\uC815\uD558\uC138\uC694.",
             ["Use"] = "\uC0AC\uC6A9",
             ["Textures, shadows, lighting and more"] = "\uD14D\uC2A4\uCC98, \uADF8\uB9BC\uC790, \uC870\uBA85 \uB4F1",
+            ["Back to the game"] = "\uAC8C\uC784\uC73C\uB85C \uB3CC\uC544\uAC00\uAE30",
+            ["You shared a preset for this game. It appears here within a few hours."] = "\uC774 \uAC8C\uC784\uC758 \uD504\uB9AC\uC14B\uC744 \uACF5\uC720\uD588\uC2B5\uB2C8\uB2E4. \uBA87 \uC2DC\uAC04 \uC548\uC5D0 \uC5EC\uAE30\uC5D0 \uD45C\uC2DC\uB429\uB2C8\uB2E4.",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4824,6 +4830,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "Define un TDP entre 5 y {0} W.",
             ["Use"] = "Usar",
             ["Textures, shadows, lighting and more"] = "Texturas, sombras, iluminaci\u00F3n y m\u00E1s",
+            ["Back to the game"] = "Volver al juego",
+            ["You shared a preset for this game. It appears here within a few hours."] = "Compartiste un preajuste para este juego. Aparecer\u00E1 aqu\u00ED en unas horas.",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -6027,6 +6035,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "\u0423\u043A\u0430\u0436\u0438\u0442\u0435 TDP \u043E\u0442 5 \u0434\u043E {0} \u0412\u0442.",
             ["Use"] = "\u0412\u044B\u0431\u0440\u0430\u0442\u044C",
             ["Textures, shadows, lighting and more"] = "\u0422\u0435\u043A\u0441\u0442\u0443\u0440\u044B, \u0442\u0435\u043D\u0438, \u043E\u0441\u0432\u0435\u0449\u0435\u043D\u0438\u0435 \u0438 \u0434\u0440.",
+            ["Back to the game"] = "\u041D\u0430\u0437\u0430\u0434 \u043A \u0438\u0433\u0440\u0435",
+            ["You shared a preset for this game. It appears here within a few hours."] = "\u0412\u044B \u043F\u043E\u0434\u0435\u043B\u0438\u043B\u0438\u0441\u044C \u043F\u0440\u0435\u0441\u0435\u0442\u043E\u043C \u0434\u043B\u044F \u044D\u0442\u043E\u0439 \u0438\u0433\u0440\u044B. \u041E\u043D \u043F\u043E\u044F\u0432\u0438\u0442\u0441\u044F \u0437\u0434\u0435\u0441\u044C \u0432 \u0442\u0435\u0447\u0435\u043D\u0438\u0435 \u043D\u0435\u0441\u043A\u043E\u043B\u044C\u043A\u0438\u0445 \u0447\u0430\u0441\u043E\u0432.",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -7221,6 +7231,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "\u039F\u03C1\u03AF\u03C3\u03C4\u03B5 TDP \u03BC\u03B5\u03C4\u03B1\u03BE\u03CD 5 \u03BA\u03B1\u03B9 {0} W.",
             ["Use"] = "\u03A7\u03C1\u03AE\u03C3\u03B7",
             ["Textures, shadows, lighting and more"] = "\u03A5\u03C6\u03AD\u03C2, \u03C3\u03BA\u03B9\u03AD\u03C2, \u03C6\u03C9\u03C4\u03B9\u03C3\u03BC\u03CC\u03C2 \u03BA\u03B1\u03B9 \u03AC\u03BB\u03BB\u03B1",
+            ["Back to the game"] = "\u03A0\u03AF\u03C3\u03C9 \u03C3\u03C4\u03BF \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9",
+            ["You shared a preset for this game. It appears here within a few hours."] = "\u039C\u03BF\u03B9\u03C1\u03B1\u03C3\u03C4\u03AE\u03BA\u03B1\u03C4\u03B5 \u03C0\u03C1\u03BF\u03B5\u03C0\u03B9\u03BB\u03BF\u03B3\u03AE \u03B3\u03B9\u03B1 \u03B1\u03C5\u03C4\u03CC \u03C4\u03BF \u03C0\u03B1\u03B9\u03C7\u03BD\u03AF\u03B4\u03B9. \u0398\u03B1 \u03B5\u03BC\u03C6\u03B1\u03BD\u03B9\u03C3\u03C4\u03B5\u03AF \u03B5\u03B4\u03CE \u03C3\u03B5 \u03BB\u03AF\u03B3\u03B5\u03C2 \u03CE\u03C1\u03B5\u03C2.",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -8420,6 +8432,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "\u8BF7\u5C06 TDP \u8BBE\u4E3A 5 \u5230 {0} W\u3002",
             ["Use"] = "\u4F7F\u7528",
             ["Textures, shadows, lighting and more"] = "\u7EB9\u7406\u3001\u9634\u5F71\u3001\u5149\u7167\u7B49",
+            ["Back to the game"] = "\u8FD4\u56DE\u6E38\u620F",
+            ["You shared a preset for this game. It appears here within a few hours."] = "\u4F60\u5DF2\u5206\u4EAB\u6B64\u6E38\u620F\u7684\u9884\u8BBE\uFF0C\u51E0\u5C0F\u65F6\u5185\u4F1A\u663E\u793A\u5728\u8FD9\u91CC\u3002",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -9619,6 +9633,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "\u8ACB\u5C07 TDP \u8A2D\u70BA 5 \u5230 {0} W\u3002",
             ["Use"] = "\u4F7F\u7528",
             ["Textures, shadows, lighting and more"] = "\u7D0B\u7406\u3001\u9670\u5F71\u3001\u5149\u5F71\u7B49",
+            ["Back to the game"] = "\u8FD4\u56DE\u904A\u6232",
+            ["You shared a preset for this game. It appears here within a few hours."] = "\u4F60\u5DF2\u5206\u4EAB\u6B64\u904A\u6232\u7684\u9810\u8A2D\uFF0C\u5E7E\u5C0F\u6642\u5167\u6703\u986F\u793A\u5728\u9019\u88E1\u3002",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -10816,6 +10832,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "Imposta un TDP tra 5 e {0} W.",
             ["Use"] = "Usa",
             ["Textures, shadows, lighting and more"] = "Texture, ombre, illuminazione e altro",
+            ["Back to the game"] = "Torna al gioco",
+            ["You shared a preset for this game. It appears here within a few hours."] = "Hai condiviso un preset per questo gioco. Comparir\u00E0 qui entro qualche ora.",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -12001,6 +12019,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "Defina um TDP entre 5 e {0} W.",
             ["Use"] = "Usar",
             ["Textures, shadows, lighting and more"] = "Texturas, sombras, ilumina\u00E7\u00E3o e mais",
+            ["Back to the game"] = "Voltar ao jogo",
+            ["You shared a preset for this game. It appears here within a few hours."] = "Voc\u00EA compartilhou uma predefini\u00E7\u00E3o para este jogo. Ela aparece aqui em algumas horas.",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -13202,6 +13222,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "TDP \u3092 5\u301C{0} W \u306B\u8A2D\u5B9A\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
             ["Use"] = "\u4F7F\u3046",
             ["Textures, shadows, lighting and more"] = "\u30C6\u30AF\u30B9\u30C1\u30E3\u30FB\u5F71\u30FB\u30E9\u30A4\u30C6\u30A3\u30F3\u30B0\u306A\u3069",
+            ["Back to the game"] = "\u30B2\u30FC\u30E0\u306B\u623B\u308B",
+            ["You shared a preset for this game. It appears here within a few hours."] = "\u3053\u306E\u30B2\u30FC\u30E0\u306E\u30D7\u30EA\u30BB\u30C3\u30C8\u3092\u5171\u6709\u3057\u307E\u3057\u305F\u3002\u6570\u6642\u9593\u4EE5\u5185\u306B\u3053\u3053\u306B\u8868\u793A\u3055\u308C\u307E\u3059\u3002",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -14394,6 +14416,8 @@ namespace ClawTweaksCenter.Core
             ["Set a TDP between 5 and {0} W."] = "Ustaw TDP od 5 do {0} W.",
             ["Use"] = "U\u017Cyj",
             ["Textures, shadows, lighting and more"] = "Tekstury, cienie, o\u015Bwietlenie i wi\u0119cej",
+            ["Back to the game"] = "Wr\u00F3\u0107 do gry",
+            ["You shared a preset for this game. It appears here within a few hours."] = "Udost\u0119pni\u0142e\u015B preset dla tej gry. Pojawi si\u0119 tutaj w ci\u0105gu kilku godzin.",
         };
 
     }

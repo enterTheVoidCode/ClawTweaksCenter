@@ -298,6 +298,97 @@ namespace ClawTweaksCenter.Library
             return (RatingPriorWeight * RatingPriorMean + avg * n) / (RatingPriorWeight + n);
         }
 
+        // ─────────────────────────────── shared, not published yet ───────────────────────────────
+
+        /// <summary>
+        /// Games this machine shared a preset for that the janitor has not published yet (user,
+        /// 2026-10-01). Between the post and the next janitor round the index does not know the
+        /// preset, so "you already shared one" could not be said and the Share button came back -
+        /// inviting a second post for the same game. One line per game:
+        /// <c>sharedAtUtc \t store \t id \t title</c>, beside the index cache.
+        ///
+        /// It ends on its own: once the index carries a preset by this machine for the game the line
+        /// is dropped, and after <see cref="PendingMaxAge"/> it is ignored (a rejected or deleted post
+        /// must not block sharing for ever). Center only - a post from the widget is not seen here.
+        /// </summary>
+        private static string PendingPath => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+            "ClawTweaks", "Center", "community-pending.tsv");
+
+        private static readonly TimeSpan PendingMaxAge = TimeSpan.FromDays(14);
+
+        public static void MarkShared(GameEntry game)
+        {
+            if (game == null) return;
+            try
+            {
+                var lines = ReadPending().Where(l => !SameGame(l, game)).Select(l => l.Raw).ToList();
+                lines.Add(string.Join("\t", DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture),
+                    StoreCode(game.Store), Clean(game.Id), Clean(game.Title)));
+                Directory.CreateDirectory(Path.GetDirectoryName(PendingPath));
+                string tmp = PendingPath + ".tmp";
+                File.WriteAllLines(tmp, lines);
+                File.Move(tmp, PendingPath, overwrite: true);
+            }
+            catch (Exception ex) { Core.InstallLog.Write("Community pending write failed: " + ex.Message); }
+        }
+
+        /// <summary>True while this machine shared a preset for the game that the published index
+        /// does not carry yet.</summary>
+        public static bool IsPending(GameEntry game, string myAuthorId)
+        {
+            if (game == null) return false;
+            var hit = ReadPending().FirstOrDefault(l => SameGame(l, game));
+            if (hit == null || DateTime.UtcNow - hit.SharedAt > PendingMaxAge) return false;
+            // Published now: the index has this machine's preset for the game - the memory is done.
+            if (!string.IsNullOrEmpty(myAuthorId) && ForGame(game).Any(p => p.IsOwn(myAuthorId)))
+            {
+                Forget(game);
+                return false;
+            }
+            return true;
+        }
+
+        private static void Forget(GameEntry game)
+        {
+            try
+            {
+                var keep = ReadPending().Where(l => !SameGame(l, game)).Select(l => l.Raw).ToList();
+                File.WriteAllLines(PendingPath, keep);
+            }
+            catch { }
+        }
+
+        private sealed class PendingLine
+        {
+            public string Raw; public DateTime SharedAt; public string Store, Id, Title;
+        }
+
+        private static List<PendingLine> ReadPending()
+        {
+            var list = new List<PendingLine>();
+            try
+            {
+                if (!File.Exists(PendingPath)) return list;
+                foreach (string raw in File.ReadAllLines(PendingPath))
+                {
+                    var c = raw.Split('\t');
+                    if (c.Length < 4) continue;
+                    if (!DateTime.TryParse(c[0], CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var at)) continue;
+                    list.Add(new PendingLine { Raw = raw, SharedAt = at, Store = c[1], Id = c[2], Title = c[3] });
+                }
+            }
+            catch { }
+            return list;
+        }
+
+        private static bool SameGame(PendingLine l, GameEntry g)
+            => (!string.IsNullOrEmpty(g.Id) && l.Id.Equals(g.Id, StringComparison.OrdinalIgnoreCase)
+                && l.Store.Equals(StoreCode(g.Store), StringComparison.OrdinalIgnoreCase))
+               || (!string.IsNullOrEmpty(g.Title) && NormalizeTitle(l.Title) == NormalizeTitle(g.Title));
+
+        private static string Clean(string s) => (s ?? "").Replace('\t', ' ').Replace('\n', ' ').Replace('\r', ' ');
+
         // ─────────────────────────────── identity ───────────────────────────────
 
         /// <summary>
