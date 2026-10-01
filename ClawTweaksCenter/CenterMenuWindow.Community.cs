@@ -176,7 +176,8 @@ namespace ClawTweaksCenter
                     RefreshActionBar();
                     return;
                 default:
-                    if (_communityFromLaunch) CloseCommunityToLaunch();
+                    if (_communityGlobal) CloseCommunityBrowseToHome();
+                    else if (_communityFromLaunch) CloseCommunityToLaunch();
                     else CloseGameMenuOverlay();
                     return;
             }
@@ -327,6 +328,7 @@ namespace ClawTweaksCenter
 
         private void RenderCommunityList()
         {
+            if (_communityGlobal) { RenderCommunityBrowse(); return; }
             ClearCommunityRows();
             LibraryRoot.Children.Clear();
             LibraryRoot.RowDefinitions.Clear();
@@ -414,7 +416,7 @@ namespace ClawTweaksCenter
         /// every card ("Be the first to rate this") and outweighed the preset it belonged to - it is a
         /// small line inside the card now, with the two buttons spelled out.
         /// </summary>
-        private FrameworkElement BuildCommunityCard(CommunityPresets.Preset p)
+        private FrameworkElement BuildCommunityCard(CommunityPresets.Preset p, bool browse = false)
         {
             bool own = p.IsOwn(_communityAuthorId);
             // ⚠ NOT ON YOUR OWN PRESET, and not on a published-only entry with no thread to rate against.
@@ -422,6 +424,18 @@ namespace ClawTweaksCenter
             // first rating on every preset is five stars from its author.
             bool canRate = !own && HasThread(p);
             var stack = new StackPanel();
+
+            // The browse list mixes games, so each card names its game first.
+            if (browse)
+                stack.Children.Add(new TextBlock
+                {
+                    Text = p.Get("gameTitle"),
+                    FontSize = 18,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = UiHelpers.Text,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 2),
+                });
 
             // The two figures the whole feature exists for: how fast it ran and what it cost.
             stack.Children.Add(new TextBlock
@@ -466,6 +480,19 @@ namespace ClawTweaksCenter
             // card (user, 2026-10-01: "[A] …" written out on every card was hard to read). Hidden, not
             // collapsed, so moving the cursor does not make the list below it jump.
             var hints = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 8, 0, 0) };
+            if (browse)
+            {
+                // From Home there is no game to apply to - A rates. A card that cannot be rated still
+                // takes the cursor (an empty action), or the D-pad would skip over it.
+                if (canRate) hints.Children.Add(CommunityPadHint(PadButton.A, Core.Loc.T("Rate")));
+                hints.Visibility = Visibility.Hidden;
+                stack.Children.Add(hints);
+                var browseRow = RegisterCommunityRow(stack, canRate ? () => OpenCommunityRate(p) : (Action)(() => { }),
+                    live: true, topMargin: 0, bottomMargin: 10, chip: null,
+                    actionLabel: canRate ? Core.Loc.T("Rate") : null);
+                _communityRowHints[_communityRows.Count - 1] = hints;
+                return browseRow;
+            }
             hints.Children.Add(CommunityPadHint(PadButton.A, Core.Loc.T("Use this preset")));
             if (canRate) hints.Children.Add(CommunityPadHint(PadButton.Y, Core.Loc.T("Rate")));
             hints.Visibility = Visibility.Hidden;
@@ -749,6 +776,14 @@ namespace ClawTweaksCenter
                 if (next < 0 || next >= chip.Count) return;
                 chip.Set(next);
                 RenderGameMenuOverlay();   // cheap re-render keeps the chips and the cursor in step
+                // The re-render clears the choosing state with the rows (ClearCommunityRows). Without
+                // putting it back, a chip row in a pair took ONE step and then needed A again (user,
+                // 2026-10-01).
+                if (editingHere)
+                {
+                    _communityChipEditIndex = _communityIndex;
+                    ApplyCommunitySelection();
+                }
                 RefreshActionBar();
                 return;
             }
@@ -846,7 +881,7 @@ namespace ClawTweaksCenter
                 .ContinueWith(_ => Dispatcher.Invoke(() =>
                 {
                     // Only if the overlay is still the Community list on this same game.
-                    if (_gameMenuOverlay != GameMenuOverlay.Community || _communityGame == null) return;
+                    if (_gameMenuOverlay != GameMenuOverlay.Community || (_communityGame == null && !_communityGlobal)) return;
                     RefreshCommunityList();
                     if (_communityScreen == CommunityScreen.List) { RenderGameMenuOverlay(); RefreshActionBar(); }
                 }), System.Threading.Tasks.TaskScheduler.Default);

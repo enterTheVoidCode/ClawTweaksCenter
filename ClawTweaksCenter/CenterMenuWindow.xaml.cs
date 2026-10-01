@@ -878,7 +878,7 @@ namespace ClawTweaksCenter
                 case HomeCenterSettingsIndex: OpenCenterSettings(); break;
                 case HomeLibrarySettingsIndex: OpenLibrarySettingsFromHome(); break;
                 case HomeFaqIndex: OpenFaq(); break;
-                case HomeLeaveIndex: OpenLeave(); break;
+                case HomeCommunityIndex: OpenCommunityBrowseFromHome(); break;
                 case HomeDriversIndex: OpenDrivers(); break;
             }
         }
@@ -915,13 +915,13 @@ namespace ClawTweaksCenter
 
         /// <summary>Highest selectable Home tile: the library settings when there is a library,
         /// otherwise Center's own settings - in both cases the last tile of the second row.</summary>
-        /// <summary>The third row: the FAQ, then the way out.
+        /// <summary>The third row: the FAQ, then the community presets.
         ///
         /// Constants again. They were properties for exactly one release, while two of the tiles
         /// above them could be absent - now every tile is always drawn, the grid is always eight
         /// cells, and the row navigation below can stay plain division.</summary>
         private const int HomeFaqIndex = 6;
-        private const int HomeLeaveIndex = 7;
+        private const int HomeCommunityIndex = 7;
 
         /// <summary>Last cell of the third row. Backup and restore is the least frequent of the
         /// nine and the one nobody hunts for in a hurry, so it took the cell drivers &amp; updates
@@ -1164,20 +1164,22 @@ namespace ClawTweaksCenter
                 clickable: true,
                 onClick: () => { _homeSelectedIndex = HomeLibrarySettingsIndex; OpenLibrarySettingsFromHome(); },
                 selected: _homeSelectedIndex == HomeLibrarySettingsIndex));
-            // The last two, both present whether or not ClawTweaks is installed: the FAQ answers
-            // questions about software that is not there yet, and the uninstall tile is the one that
-            // still has something to do when everything else here is gone.
+            // Both present whether or not ClawTweaks is installed: the FAQ answers questions about
+            // software that is not there yet, and the shared presets need no install either.
             tiles.Children.Add(BuildHomeTile(
                 "", "FAQ", "Answers to the questions that come up most.",
                 clickable: true,
                 onClick: () => { _homeSelectedIndex = HomeFaqIndex; OpenFaq(); },
                 selected: _homeSelectedIndex == HomeFaqIndex));
 
+            // The uninstall tile left Home on 2026-10-01 (user): the way out is the Inno setup's entry
+            // in Windows Settings > Apps, which opens the guided Leave screen itself (OpenLeave stays
+            // reachable through --uninstall). Its cell now holds every shared community preset.
             tiles.Children.Add(BuildHomeTile(
-                "", "Uninstall ClawTweaks", "Restore the device and remove everything.",
+                "", "Community Presets", "Browse and rate presets other players shared.",
                 clickable: true,
-                onClick: () => { _homeSelectedIndex = HomeLeaveIndex; OpenLeave(); },
-                selected: _homeSelectedIndex == HomeLeaveIndex));
+                onClick: () => { _homeSelectedIndex = HomeCommunityIndex; OpenCommunityBrowseFromHome(); },
+                selected: _homeSelectedIndex == HomeCommunityIndex));
 
             // Ninth cell: three columns, so this one completes the third row instead of
             // leaving a hole at the end of it.

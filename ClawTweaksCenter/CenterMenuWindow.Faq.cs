@@ -42,9 +42,15 @@ namespace ClawTweaksCenter
             new FaqEntry("What is the virtual controller for?",
                 "It is the standard mode in ClawTweaks.",
                 "Your Claw's own gamepad is hidden and replaced by a virtual one.",
-                "That is what makes the extra controller features possible.",
-                "Front and M back-button mapping, gyro with smoothing, per-game profiles.",
-                "Firmware button remapping is there too, and works without it."),
+                "The hardware controller has no gyro and no mouse with custom actions.",
+                "Shortcuts are more reliable with the virtual controller.",
+                "In hardware mode, firmware remaps can override shortcuts in games."),
+
+            new FaqEntry("What is the difference between ClawTweaks Essential and Full?",
+                "Essential installs no extra drivers and uses the hardware controller.",
+                "Full adds HidHide and usbip for the virtual controller.",
+                "Full also adds RTSS for its overlay and FPS limiter.",
+                "Run the setup again to add what is missing."),
 
             new FaqEntry("Do I have to switch MSI Center M off?",
                 "Yes, if ClawTweaks should control the controller, the fan and the LEDs.",
@@ -53,10 +59,10 @@ namespace ClawTweaksCenter
                 "One click in the widget or in Center brings Center M back."),
 
             new FaqEntry("How do I uninstall and go back to MSI Center M?",
-                "Do not remove ClawTweaks through the Windows app list.",
-                "Use Uninstall ClawTweaks here in Center instead.",
+                "Uninstall ClawTweaks Core in Windows Settings > Apps > Installed apps.",
+                "It walks you through every step.",
                 "It resets the charge limit, the fan and the controller first.",
-                "It walks you through every step."),
+                "MSI Center M is switched back on."),
 
             new FaqEntry("Why does ClawTweaks ask for admin rights?",
                 "Once, at the first install, to register its background task.",

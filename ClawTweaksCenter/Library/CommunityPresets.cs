@@ -215,6 +215,26 @@ namespace ClawTweaksCenter.Library
         /// one game, and refusing to show those to each other would empty the feature out for no
         /// reason a player could understand. The widget matches the same two ways.
         /// </summary>
+        /// <summary>Every published preset, for the browse screen on Home - a copy, so a background
+        /// refresh cannot change the list under the cursor.</summary>
+        public static List<Preset> All() => _all == null ? new List<Preset>() : new List<Preset>(_all);
+
+        /// <summary>
+        /// The browse keypad's bucket for a title: its first letter A-Z, '#' for anything else. A
+        /// leading "the"/"a"/"an" is dropped so The Witcher 3 sits under W - the widget's browse list
+        /// does the same (GamingWidget.CommunityBrowse.cs, BrowseBucketOf).
+        /// </summary>
+        public static char BrowseBucket(string title)
+        {
+            string t = (title ?? "").Trim();
+            if (t.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) t = t.Substring(0, t.Length - 4);
+            foreach (string article in new[] { "the ", "a ", "an " })
+                if (t.StartsWith(article, StringComparison.OrdinalIgnoreCase)) { t = t.Substring(article.Length).TrimStart(); break; }
+            if (t.Length == 0) return '#';
+            char c = char.ToUpperInvariant(t[0]);
+            return c >= 'A' && c <= 'Z' ? c : '#';
+        }
+
         public static List<Preset> ForGame(GameEntry game)
         {
             var result = new List<Preset>();
