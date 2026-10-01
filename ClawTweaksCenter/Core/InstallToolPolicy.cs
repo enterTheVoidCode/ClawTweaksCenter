@@ -29,6 +29,13 @@ namespace ClawTweaksCenter.Core
         {
             if (tool == null || tool.Installed) return false;
 
+            // An INSTALLED usbip the helper refuses to mount on (0.9.8.0 under the 0.9.8.1 pin) holds
+            // the install whatever the setup was told. Measured 2026-10-01: a machine whose setup said
+            // "no virtual controller" got usbip 0.9.8.0 from an older setup afterwards, the stale "no"
+            // let the 0.4.1 widget through, and the pad sat in hardware mode under an Essential banner.
+            // A driver that is on the machine is not a declined one.
+            if (tool.Outdated) return true;
+
             switch ((tool.Name ?? string.Empty).ToLowerInvariant())
             {
                 case "pawnio":
