@@ -1250,6 +1250,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "Ein neues Setup kann ClawTweaks Essential ohne usbip installieren.",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "Deinstalliere zuerst ClawTweaks, usbip und HidHide, dann starte das neue Setup.",
             ["Open the release page"] = "Release-Seite \u00F6ffnen",
+            ["End task?"] = "Task beenden?",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] Beenden \u00B7 [B] Abbrechen",
+            ["Cancelled"] = "Abgebrochen",
+            ["Task ended"] = "Task beendet",
+            ["Could not end the task"] = "Task konnte nicht beendet werden",
         };
 
         private static readonly Dictionary<string, string> French = new Dictionary<string, string>
@@ -2471,6 +2476,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "Une nouvelle installation peut installer ClawTweaks Essential sans usbip.",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "D\u00E9sinstallez d'abord ClawTweaks, usbip et HidHide, puis lancez la nouvelle installation.",
             ["Open the release page"] = "Ouvrir la page de la version",
+            ["End task?"] = "Terminer la t\u00E2che ?",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] Terminer \u00B7 [B] Annuler",
+            ["Cancelled"] = "Annul\u00E9",
+            ["Task ended"] = "T\u00E2che termin\u00E9e",
+            ["Could not end the task"] = "Impossible de terminer la t\u00E2che",
         };
 
         private static readonly Dictionary<string, string> Korean = new Dictionary<string, string>
@@ -3697,6 +3707,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "\uC0C8 \uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC73C\uB85C usbip \uC5C6\uC774 ClawTweaks Essential\uC744 \uC124\uCE58\uD560 \uC218 \uC788\uC2B5\uB2C8\uB2E4.",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\uBA3C\uC800 ClawTweaks, usbip, HidHide\uB97C \uC81C\uAC70\uD55C \uB4A4 \uC0C8 \uC124\uCE58 \uD504\uB85C\uADF8\uB7A8\uC744 \uC2E4\uD589\uD558\uC138\uC694.",
             ["Open the release page"] = "\uB9B4\uB9AC\uC2A4 \uD398\uC774\uC9C0 \uC5F4\uAE30",
+            ["End task?"] = "\uC791\uC5C5\uC744 \uC885\uB8CC\uD560\uAE4C\uC694?",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] \uC885\uB8CC \u00B7 [B] \uCDE8\uC18C",
+            ["Cancelled"] = "\uCDE8\uC18C\uB428",
+            ["Task ended"] = "\uC791\uC5C5 \uC885\uB8CC\uB428",
+            ["Could not end the task"] = "\uC791\uC5C5\uC744 \uC885\uB8CC\uD560 \uC218 \uC5C6\uC2B5\uB2C8\uB2E4",
         };
 
         private static readonly Dictionary<string, string> Spanish = new Dictionary<string, string>
@@ -4920,6 +4935,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "Una nueva instalaci\u00F3n puede instalar ClawTweaks Essential sin usbip.",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "Desinstala primero ClawTweaks, usbip y HidHide y luego ejecuta la nueva instalaci\u00F3n.",
             ["Open the release page"] = "Abrir la p\u00E1gina de la versi\u00F3n",
+            ["End task?"] = "\u00BFFinalizar la tarea?",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] Finalizar \u00B7 [B] Cancelar",
+            ["Cancelled"] = "Cancelado",
+            ["Task ended"] = "Tarea finalizada",
+            ["Could not end the task"] = "No se pudo finalizar la tarea",
         };
 
         private static readonly Dictionary<string, string> Russian = new Dictionary<string, string>
@@ -6147,6 +6167,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "\u041D\u043E\u0432\u044B\u0439 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0449\u0438\u043A \u043C\u043E\u0436\u0435\u0442 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0438\u0442\u044C ClawTweaks Essential \u0431\u0435\u0437 usbip.",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\u0421\u043D\u0430\u0447\u0430\u043B\u0430 \u0443\u0434\u0430\u043B\u0438 ClawTweaks, usbip \u0438 HidHide, \u0437\u0430\u0442\u0435\u043C \u0437\u0430\u043F\u0443\u0441\u0442\u0438 \u043D\u043E\u0432\u044B\u0439 \u0443\u0441\u0442\u0430\u043D\u043E\u0432\u0449\u0438\u043A.",
             ["Open the release page"] = "\u041E\u0442\u043A\u0440\u044B\u0442\u044C \u0441\u0442\u0440\u0430\u043D\u0438\u0446\u0443 \u0440\u0435\u043B\u0438\u0437\u0430",
+            ["End task?"] = "\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C \u0437\u0430\u0434\u0430\u0447\u0443?",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] \u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C \u00B7 [B] \u041E\u0442\u043C\u0435\u043D\u0430",
+            ["Cancelled"] = "\u041E\u0442\u043C\u0435\u043D\u0435\u043D\u043E",
+            ["Task ended"] = "\u0417\u0430\u0434\u0430\u0447\u0430 \u0437\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u0430",
+            ["Could not end the task"] = "\u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044C \u0437\u0430\u0434\u0430\u0447\u0443",
         };
 
         private static readonly Dictionary<string, string> Greek = new Dictionary<string, string>
@@ -7365,6 +7390,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "\u039C\u03B9\u03B1 \u03BD\u03AD\u03B1 \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7 \u03BC\u03C0\u03BF\u03C1\u03B5\u03AF \u03BD\u03B1 \u03B5\u03B3\u03BA\u03B1\u03C4\u03B1\u03C3\u03C4\u03AE\u03C3\u03B5\u03B9 \u03C4\u03BF ClawTweaks Essential \u03C7\u03C9\u03C1\u03AF\u03C2 usbip.",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\u0391\u03C0\u03B5\u03B3\u03BA\u03B1\u03C4\u03AD\u03C3\u03C4\u03B7\u03C3\u03B5 \u03C0\u03C1\u03CE\u03C4\u03B1 \u03C4\u03BF ClawTweaks, \u03C4\u03BF usbip \u03BA\u03B1\u03B9 \u03C4\u03BF HidHide \u03BA\u03B1\u03B9 \u03BC\u03B5\u03C4\u03AC \u03C4\u03C1\u03AD\u03BE\u03B5 \u03C4\u03B7 \u03BD\u03AD\u03B1 \u03B5\u03B3\u03BA\u03B1\u03C4\u03AC\u03C3\u03C4\u03B1\u03C3\u03B7.",
             ["Open the release page"] = "\u0386\u03BD\u03BF\u03B9\u03B3\u03BC\u03B1 \u03C3\u03B5\u03BB\u03AF\u03B4\u03B1\u03C2 \u03AD\u03BA\u03B4\u03BF\u03C3\u03B7\u03C2",
+            ["End task?"] = "\u03A4\u03B5\u03C1\u03BC\u03B1\u03C4\u03B9\u03C3\u03BC\u03CC\u03C2 \u03B5\u03C1\u03B3\u03B1\u03C3\u03AF\u03B1\u03C2;",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] \u03A4\u03B5\u03C1\u03BC\u03B1\u03C4\u03B9\u03C3\u03BC\u03CC\u03C2 \u00B7 [B] \u0386\u03BA\u03C5\u03C1\u03BF",
+            ["Cancelled"] = "\u0391\u03BA\u03C5\u03C1\u03CE\u03B8\u03B7\u03BA\u03B5",
+            ["Task ended"] = "\u0397 \u03B5\u03C1\u03B3\u03B1\u03C3\u03AF\u03B1 \u03C4\u03B5\u03C1\u03BC\u03B1\u03C4\u03AF\u03C3\u03C4\u03B7\u03BA\u03B5",
+            ["Could not end the task"] = "\u0394\u03B5\u03BD \u03AE\u03C4\u03B1\u03BD \u03B4\u03C5\u03BD\u03B1\u03C4\u03CC\u03C2 \u03BF \u03C4\u03B5\u03C1\u03BC\u03B1\u03C4\u03B9\u03C3\u03BC\u03CC\u03C2 \u03C4\u03B7\u03C2 \u03B5\u03C1\u03B3\u03B1\u03C3\u03AF\u03B1\u03C2",
         };
 
         private static readonly Dictionary<string, string> ChineseSimplified = new Dictionary<string, string>
@@ -8588,6 +8618,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "\u65B0\u7684\u5B89\u88C5\u7A0B\u5E8F\u53EF\u4EE5\u5728\u4E0D\u5B89\u88C5 usbip \u7684\u60C5\u51B5\u4E0B\u5B89\u88C5 ClawTweaks Essential\u3002",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\u5148\u5378\u8F7D ClawTweaks\u3001usbip \u548C HidHide\uFF0C\u518D\u8FD0\u884C\u65B0\u7684\u5B89\u88C5\u7A0B\u5E8F\u3002",
             ["Open the release page"] = "\u6253\u5F00\u53D1\u5E03\u9875\u9762",
+            ["End task?"] = "\u7ED3\u675F\u4EFB\u52A1\uFF1F",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] \u7ED3\u675F \u00B7 [B] \u53D6\u6D88",
+            ["Cancelled"] = "\u5DF2\u53D6\u6D88",
+            ["Task ended"] = "\u4EFB\u52A1\u5DF2\u7ED3\u675F",
+            ["Could not end the task"] = "\u65E0\u6CD5\u7ED3\u675F\u4EFB\u52A1",
         };
 
         private static readonly Dictionary<string, string> ChineseTraditional = new Dictionary<string, string>
@@ -9811,6 +9846,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "\u65B0\u7684\u5B89\u88DD\u7A0B\u5F0F\u53EF\u4EE5\u5728\u4E0D\u5B89\u88DD usbip \u7684\u60C5\u6CC1\u4E0B\u5B89\u88DD ClawTweaks Essential\u3002",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\u5148\u89E3\u9664\u5B89\u88DD ClawTweaks\u3001usbip \u548C HidHide\uFF0C\u518D\u57F7\u884C\u65B0\u7684\u5B89\u88DD\u7A0B\u5F0F\u3002",
             ["Open the release page"] = "\u958B\u555F\u767C\u5E03\u9801\u9762",
+            ["End task?"] = "\u7D50\u675F\u5DE5\u4F5C\uFF1F",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] \u7D50\u675F \u00B7 [B] \u53D6\u6D88",
+            ["Cancelled"] = "\u5DF2\u53D6\u6D88",
+            ["Task ended"] = "\u5DE5\u4F5C\u5DF2\u7D50\u675F",
+            ["Could not end the task"] = "\u7121\u6CD5\u7D50\u675F\u5DE5\u4F5C",
         };
 
         private static readonly Dictionary<string, string> Italian = new Dictionary<string, string>
@@ -11032,6 +11072,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "Un nuovo setup pu\u00F2 installare ClawTweaks Essential senza usbip.",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "Disinstalla prima ClawTweaks, usbip e HidHide, poi avvia il nuovo setup.",
             ["Open the release page"] = "Apri la pagina della release",
+            ["End task?"] = "Terminare l'attivit\u00E0?",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] Termina \u00B7 [B] Annulla",
+            ["Cancelled"] = "Annullato",
+            ["Task ended"] = "Attivit\u00E0 terminata",
+            ["Could not end the task"] = "Impossibile terminare l'attivit\u00E0",
         };
 
         private static readonly Dictionary<string, string> Portuguese = new Dictionary<string, string>
@@ -12241,6 +12286,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "Uma nova instala\u00E7\u00E3o pode instalar o ClawTweaks Essential sem usbip.",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "Desinstale primeiro o ClawTweaks, o usbip e o HidHide e depois execute a nova instala\u00E7\u00E3o.",
             ["Open the release page"] = "Abrir a p\u00E1gina da vers\u00E3o",
+            ["End task?"] = "Finalizar a tarefa?",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] Finalizar \u00B7 [B] Cancelar",
+            ["Cancelled"] = "Cancelado",
+            ["Task ended"] = "Tarefa finalizada",
+            ["Could not end the task"] = "N\u00E3o foi poss\u00EDvel finalizar a tarefa",
         };
 
         private static readonly Dictionary<string, string> Japanese = new Dictionary<string, string>
@@ -13466,6 +13516,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "\u65B0\u3057\u3044\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3067 usbip \u306A\u3057\u306E ClawTweaks Essential \u3092\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3067\u304D\u307E\u3059\u3002",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "\u5148\u306B ClawTweaks\u3001usbip\u3001HidHide \u3092\u30A2\u30F3\u30A4\u30F3\u30B9\u30C8\u30FC\u30EB\u3057\u3066\u304B\u3089\u3001\u65B0\u3057\u3044\u30BB\u30C3\u30C8\u30A2\u30C3\u30D7\u3092\u5B9F\u884C\u3057\u3066\u304F\u3060\u3055\u3044\u3002",
             ["Open the release page"] = "\u30EA\u30EA\u30FC\u30B9\u30DA\u30FC\u30B8\u3092\u958B\u304F",
+            ["End task?"] = "\u30BF\u30B9\u30AF\u3092\u7D42\u4E86\u3057\u307E\u3059\u304B\uFF1F",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] \u7D42\u4E86 \u00B7 [B] \u30AD\u30E3\u30F3\u30BB\u30EB",
+            ["Cancelled"] = "\u30AD\u30E3\u30F3\u30BB\u30EB\u3057\u307E\u3057\u305F",
+            ["Task ended"] = "\u30BF\u30B9\u30AF\u3092\u7D42\u4E86\u3057\u307E\u3057\u305F",
+            ["Could not end the task"] = "\u30BF\u30B9\u30AF\u3092\u7D42\u4E86\u3067\u304D\u307E\u305B\u3093\u3067\u3057\u305F",
         };
 
         private static readonly Dictionary<string, string> Polish = new Dictionary<string, string>
@@ -14682,6 +14737,11 @@ namespace ClawTweaksCenter.Core
             ["A new setup can install ClawTweaks Essential without usbip."] = "Nowy instalator mo\u017Ce zainstalowa\u0107 ClawTweaks Essential bez usbip.",
             ["Uninstall ClawTweaks, usbip and HidHide first, then run the new setup."] = "Najpierw odinstaluj ClawTweaks, usbip i HidHide, a potem uruchom nowy instalator.",
             ["Open the release page"] = "Otw\u00F3rz stron\u0119 wydania",
+            ["End task?"] = "Zako\u0144czy\u0107 zadanie?",
+            ["[A] End \u00B7 [B] Cancel"] = "[A] Zako\u0144cz \u00B7 [B] Anuluj",
+            ["Cancelled"] = "Anulowano",
+            ["Task ended"] = "Zadanie zako\u0144czone",
+            ["Could not end the task"] = "Nie uda\u0142o si\u0119 zako\u0144czy\u0107 zadania",
         };
 
     }

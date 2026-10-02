@@ -185,6 +185,13 @@ OSD_KEYS = [
     # Refused because the tool is absent, not because of where the value would land.
     'RTSS is not installed',
     'Run Setup again to install it.',
+    # The End Task tile's question and its two outcomes (2026-10-02). The process name sits on
+    # its own line between them, so it is never part of a key.
+    'End task?',
+    '[A] End \u00b7 [B] Cancel',
+    'Cancelled',
+    'Task ended',
+    'Could not end the task',
 ]
 
 # TSV column -> the C# field name for that language's dictionary. The order here is the order the
