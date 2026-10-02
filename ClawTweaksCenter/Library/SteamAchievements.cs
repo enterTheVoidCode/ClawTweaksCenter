@@ -167,16 +167,28 @@ namespace ClawTweaksCenter.Library
                 }
                 finally { _scanned = true; }
             }
+
+            // The account's table, in the background and at most every few minutes - see
+            // Accounts\SteamAccountAchievements. Signed out, this does nothing.
+            Accounts.SteamAccountAchievements.RefreshProgressInBackground();
         }
 
         /// <summary>
         /// Unlocked / total for a game, or null when this is not a Steam game or Steam knows nothing
         /// about it. Cheap after the first call per game.
+        ///
+        /// THE ACCOUNT FIRST (2026-10-02). Signed in, the number is the account's - every game,
+        /// whatever device it was played on, without Big Picture having to write anything. The
+        /// blobs below are what answers when nobody is signed in or the account has not been
+        /// asked about this game yet.
         /// </summary>
         public static AchievementSummary SummaryFor(GameEntry g)
         {
             string appId = AppIdOf(g);
             if (appId == null) return null;
+
+            var account = Accounts.SteamAccountAchievements.SummaryFor(appId);
+            if (account != null) return account;
 
             var list = ModelFor(appId);
             if (list != null && list.Count > 0)
@@ -264,8 +276,42 @@ namespace ClawTweaksCenter.Library
         private static string AppIdOf(GameEntry g)
             => g != null && g.Store == GameStore.Steam && !string.IsNullOrEmpty(g.Id) ? g.Id : null;
 
+        /// <summary>Asks the account for this game's full list now, so it is there by the time the
+        /// launch screen or the list opens. Cheap and repeatable; the library calls it when the
+        /// cursor rests on a game.</summary>
+        public static void Prefetch(GameEntry g) => Accounts.SteamAccountAchievements.RequestDetail(AppIdOf(g));
+
         #region Model
+        /// <summary>
+        /// The list every public method reads: the account's when it has been fetched, the blobs'
+        /// otherwise.
+        ///
+        /// The account's list knows WHICH are unlocked but not WHEN; the blob knows when, for games
+        /// played on this device. So the account's entries are stamped with the blob's date and
+        /// progress, joined on the API name - never on the display name, which is localised.
+        /// An unlocked entry the blob has no date for stays undated and sorts last, which is the
+        /// rule UnlockedFor already has.
+        /// </summary>
         private static List<AchievementEntry> ModelFor(string appId)
+        {
+            var account = Accounts.SteamAccountAchievements.EntriesFor(appId);
+            var local = LocalModelFor(appId);
+            if (account == null || account.Count == 0) return local;
+            if (local == null) return account;
+
+            var byId = new Dictionary<string, AchievementEntry>(StringComparer.Ordinal);
+            foreach (var e in local)
+                if (!string.IsNullOrEmpty(e.Id)) byId[e.Id] = e;
+            foreach (var e in account)
+            {
+                if (string.IsNullOrEmpty(e.Id) || !byId.TryGetValue(e.Id, out var l)) continue;
+                if (e.Unlocked && l.Unlocked) e.UnlockedAt = l.UnlockedAt;
+                if (e.ProgressMax <= 0 && l.ProgressMax > 0) { e.Progress = l.Progress; e.ProgressMax = l.ProgressMax; }
+            }
+            return account;
+        }
+
+        private static List<AchievementEntry> LocalModelFor(string appId)
         {
             if (appId == null) return null;
 
@@ -518,7 +564,7 @@ namespace ClawTweaksCenter.Library
         /// Center's language as STEAM spells it. Korean is "koreana" in every Steam schema, which is
         /// the one entry here that cannot be derived from a culture name.
         /// </summary>
-        private static string SteamLanguage()
+        internal static string SteamLanguage()
         {
             switch (Core.Loc.Current)
             {

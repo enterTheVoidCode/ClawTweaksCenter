@@ -1298,6 +1298,7 @@ namespace ClawTweaksCenter
                 return;
             }
             _libHeadline.Text = g.Title;
+            SchedulePrefetchAchievements(g);
             // The labels are translated, the store name and the date are not: one is a brand, and
             // the other is formatted by the CURRENT CULTURE so it already reads correctly for the
             // user. Splitting it this way is why the key is the label alone rather than the whole
@@ -1633,6 +1634,7 @@ namespace ClawTweaksCenter
             if (_soundSettingsOpen) { MoveSoundSettingsSelection(dir); return; }
             if (_tabEditorOpen) { MoveTabEditorSelection(dir); return; }
             if (_hiddenGamesOpen) { MoveHiddenGamesSelection(dir); return; }
+            if (_accountsOpen) { MoveAccountsSelection(dir); return; }
             if (_settingsOpen) { MoveSettingsSelection(dir); return; }
             if (MiscOverlayOpen) { MoveMiscSelection(dir); return; }
             if (GameMenuOverlayOpen) { MoveGameMenuSelection(dir); return; }
@@ -2422,9 +2424,14 @@ namespace ClawTweaksCenter
         /// pair count from this, so adding a switch above it needs no other change.</summary>
         private const int SettingsKeyRow = 15;
 
-        /// <summary>The library overview, beside the key row in the half it leaves free. It used to
-        /// be X on every shelf; the footer had no room for it (user, 2026-09-21).</summary>
-        private const int SettingsInfoRow = 16;
+        /// <summary>The store accounts achievements are read from (CenterMenuWindow.Accounts.cs).
+        /// In the bottom band between the key and the overview: the grid above is full, and a sixth
+        /// grid row would push the screen past the bottom of the panel again.</summary>
+        private const int SettingsAccountsRow = 16;
+
+        /// <summary>The library overview, last in the bottom band. It used to be X on every shelf;
+        /// the footer had no room for it (user, 2026-09-21).</summary>
+        private const int SettingsInfoRow = 17;
 
         // THREE, not two (user, 2026-09-05). Nine switches in two columns ran past the bottom of an
         // eight-inch panel again - the same reason this went from one column to two - and the rows are
@@ -2451,6 +2458,7 @@ namespace ClawTweaksCenter
             _settingsOpen = true;
             _soundSettingsOpen = false;
             _hiddenGamesOpen = false;
+            ResetAccountsState();
             _settingsIndex = 0;
             RenderLibrarySettings();
             RefreshActionBar();
@@ -2463,6 +2471,7 @@ namespace ClawTweaksCenter
             // open straight into sound settings with the grid's rows missing.
             _soundSettingsOpen = false;
             _hiddenGamesOpen = false;
+            ResetAccountsState();
             _artKeyBox = null;
             _artKeyStatus = null;
             _settingsRows.Clear();
@@ -2539,7 +2548,9 @@ namespace ClawTweaksCenter
             {
                 Text = Core.CenterSettings.SteamGridDbApiKey,
                 FontSize = 15,
-                Width = 260,
+                // 200, not 260: the band has three cells since Accounts joined it (2026-10-02),
+                // and a key is pasted once and never read back.
+                Width = 200,
                 Padding = new Thickness(8, 3, 8, 3),
                 Margin = new Thickness(12, 0, 0, 0),
                 VerticalAlignment = VerticalAlignment.Center,
@@ -2558,19 +2569,24 @@ namespace ClawTweaksCenter
                 Visibility = Visibility.Collapsed,
             };
 
-            // HALF THE WIDTH, on the left (user, 2026-09-12). It is still the last row and still its
-            // own line - it holds a text box, and a box shoulder to shoulder with a switch is a row
-            // that cannot be read at a glance - but across the full width it was the largest thing on
-            // a screen where it is the least used. Two star columns rather than a fixed width, so it
-            // stays half of whatever the grid above it measures.
+            // ONE CELL OF THREE, on the left (user, 2026-09-12: half; a third since 2026-10-02). It
+            // is still its own band - it holds a text box, and a box shoulder to shoulder with a
+            // switch is a row that cannot be read at a glance. Star columns rather than fixed widths,
+            // so the band lines up with the grid above whatever that measures, and the cursor moves
+            // straight up and down between the two.
             var keyHolder = new Grid();
-            keyHolder.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            keyHolder.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            for (int c = 0; c < SettingsColumns; c++)
+                keyHolder.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
             Grid.SetColumn(keyRow, 0);
             keyHolder.Children.Add(keyRow);
+            // BUILT IN INDEX ORDER - _settingsRows is indexed by row number.
+            var accountsRow = BuildSettingRow(SettingsAccountsRow, "Accounts", null, AccountsSummary());
+            accountsRow.VerticalAlignment = VerticalAlignment.Top;
+            Grid.SetColumn(accountsRow, 1);
+            keyHolder.Children.Add(accountsRow);
             var infoRow = BuildSettingRow(SettingsInfoRow, "Library overview", null, null);
             infoRow.VerticalAlignment = VerticalAlignment.Top;
-            Grid.SetColumn(infoRow, 1);
+            Grid.SetColumn(infoRow, 2);
             keyHolder.Children.Add(infoRow);
             stack.Children.Add(keyHolder);
 
@@ -2754,6 +2770,7 @@ namespace ClawTweaksCenter
                 case SettingsOwnAppsInRecentRow: return "Apps you added show up in Recent after you start them here.";
                 case SettingsHiddenGamesRow: return "Games you hid in the game menu. Show them again here.";
                 case SettingsKeyRow: return "Downloads covers for games that have none.";
+                case SettingsAccountsRow: return "Sign in to a store so achievements come from your account.";
                 case SettingsInfoRow: return "What the library shows and where its covers come from.";
                 default: return string.Empty;
             }
@@ -2769,28 +2786,33 @@ namespace ClawTweaksCenter
         {
             if (_settingsRows.Count == 0) return;
             int last = _settingsRows.Count - 1;
-            int pairs = SettingsKeyRow;           // the grid; below it the key row and the overview
+            int pairs = SettingsKeyRow;           // the grid; below it key, accounts and overview
             bool bottom = _settingsIndex >= pairs;
             int next = _settingsIndex;
 
             switch (dir)
             {
                 case PadButton.Left:
-                    if (bottom) { if (_settingsIndex == SettingsInfoRow) next = SettingsKeyRow; break; }
+                    if (bottom) { if (_settingsIndex > SettingsKeyRow) next = _settingsIndex - 1; break; }
                     if (_settingsIndex % SettingsColumns == 0) return;
                     next = _settingsIndex - 1;
                     break;
                 case PadButton.Right:
-                    if (bottom) { if (_settingsIndex == SettingsKeyRow) next = SettingsInfoRow; break; }
+                    if (bottom) { if (_settingsIndex < SettingsInfoRow) next = _settingsIndex + 1; break; }
                     if (_settingsIndex % SettingsColumns == SettingsColumns - 1) return;
                     next = _settingsIndex + 1;
                     if (next >= pairs) return;
                     break;
                 case PadButton.Up:
-                    // From the bottom band onto the LAST switch that exists rather than a fixed
-                    // index. With a part-filled last grid row, "one row up" can be a cell that is not
-                    // there, and "pairs - columns" would skip the switch the cursor came down past.
-                    if (bottom) { next = Math.Max(0, pairs - 1); break; }
+                    // The bottom band has one cell per grid column, so up goes to the same column in
+                    // the last grid row - clamped to the LAST switch that exists: with a part-filled
+                    // last row, that column can be a cell that is not there.
+                    if (bottom)
+                    {
+                        int lastRowStart = (pairs - 1) / SettingsColumns * SettingsColumns;
+                        next = Math.Min(pairs - 1, lastRowStart + (_settingsIndex - SettingsKeyRow));
+                        break;
+                    }
                     if (_settingsIndex < SettingsColumns) return;
                     next = _settingsIndex - SettingsColumns;
                     break;
@@ -2798,8 +2820,8 @@ namespace ClawTweaksCenter
                     if (bottom) return;
                     next = _settingsIndex + SettingsColumns;
                     if (next >= pairs)
-                        // The overview sits under the right half of the grid.
-                        next = _settingsIndex % SettingsColumns == SettingsColumns - 1 ? SettingsInfoRow : SettingsKeyRow;
+                        // Straight down into the band cell under this column.
+                        next = SettingsKeyRow + _settingsIndex % SettingsColumns;
                     break;
                 default: return;
             }
@@ -2883,6 +2905,9 @@ namespace ClawTweaksCenter
                     return;
                 case SettingsHiddenGamesRow:
                     OpenHiddenGames();
+                    return;
+                case SettingsAccountsRow:
+                    OpenAccounts();
                     return;
                 case SettingsKeyRow:
                     _artKeyBox?.Focus();
@@ -4551,6 +4576,7 @@ namespace ClawTweaksCenter
             _settingsOpen = false;
             _soundSettingsOpen = false;
             _hiddenGamesOpen = false;
+            ResetAccountsState();
             _settingsRows.Clear();
             _infoFromSettings = true;
             OpenLibraryInfo();
@@ -5357,6 +5383,12 @@ namespace ClawTweaksCenter
                 return;
             }
 
+            if (_accountsOpen)
+            {
+                AddAccountsActions();
+                return;
+            }
+
             if (_tabEditorOpen)
             {
                 bool hidden = _tabEditorIndex >= 0 && _tabEditorIndex < _tabEditorOrder.Count
@@ -5372,6 +5404,7 @@ namespace ClawTweaksCenter
                     : _settingsIndex == SettingsTabsRow ? "Open"
                     : _settingsIndex == SettingsSoundRow ? "Open"
                     : _settingsIndex == SettingsHiddenGamesRow ? "Open"
+                    : _settingsIndex == SettingsAccountsRow ? "Open"
                     : _settingsIndex == SettingsInfoRow ? "Open"
                     : _settingsIndex == SettingsUserImagesRow ? "Choose"
                     : _settingsIndex == SettingsBackgroundRow ? "Choose"

@@ -685,10 +685,18 @@ namespace ClawTweaksCenter
             };
             if (ach.Hidden || string.IsNullOrEmpty(ach.IconUrl))
             {
+                // A TILE, not a bare "?" (user, 2026-10-02: "looks like a bug"). The host's Card
+                // fill is the entry's own background, so without a fill and an edge of its own the
+                // square was invisible and the glyph floated in the row like a failed image. Same
+                // size and corners as a real icon, so a row of mixed ones lines up.
+                host.Background = new SolidColorBrush(Color.FromArgb(0x26, 0x80, 0x80, 0x80));
+                host.BorderBrush = new SolidColorBrush(Color.FromArgb(0x59, 0x80, 0x80, 0x80));
+                host.BorderThickness = new Thickness(1);
                 host.Child = new TextBlock
                 {
-                    Text = "?",
-                    FontSize = 18,
+                    Text = ach.Hidden ? "" : "", // Lock, or Unknown for a missing icon
+                    FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                    FontSize = 16,
                     Foreground = UiHelpers.Subtle,
                     HorizontalAlignment = HorizontalAlignment.Center,
                     VerticalAlignment = VerticalAlignment.Center,

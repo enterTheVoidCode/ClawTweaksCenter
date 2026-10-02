@@ -177,6 +177,13 @@
     <PackageReference Include="NAudio.Core" Version="2.2.1" />
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
     <PackageReference Include="NAudio.Vorbis" Version="1.5.0" />
+    <!-- Steam account sign-in by QR (Library\Accounts\SteamAccount.cs). LGPL-2.1, used as the
+         unmodified package. ONLY the auth-session handshake is used: an anonymous CM connection,
+         BeginAuthSessionViaQRAsync, then disconnect. SteamUser.LogOn is never sent - that is the
+         call that would throw the desktop client off (SteamKit #540). See Doku\ACHIEVEMENTS_Plan.md. -->
+    <PackageReference Include="SteamKit2" Version="3.4.0" />
+    <!-- Draws the Steam sign-in QR code. MIT. -->
+    <PackageReference Include="QRCoder" Version="1.8.0" />
     <!-- No package needed for Shared\Data\ClawHardwareId.cs's registry access: the private repo's
          Shared.csproj targets netstandard2.0 and has to reference Microsoft.Win32.Registry, but
          net10.0-windows ships it in the framework (adding it back produces NU1510). -->

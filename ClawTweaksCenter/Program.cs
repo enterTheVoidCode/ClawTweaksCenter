@@ -23,7 +23,7 @@ namespace ClawTweaksCenter
             // Ahead of the splash, Velopack's hook, the single-instance gate and every window: none
             // of them may run in a process that only exists to talk to steamclient64.dll for a second.
             if (Array.Exists(args, a => a.Equals(Library.SteamFriends.ChildArg, StringComparison.Ordinal)))
-                return Library.SteamFriends.RunChild();
+                return Library.SteamFriends.RunChild(args);
 
             // The same two lines WPF generates for a SplashScreen build item: shown before the App
             // instance exists, closed by itself once the first window appears.

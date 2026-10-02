@@ -114,6 +114,27 @@ namespace ClawTweaksCenter.Library
 
         private const int FriendFlagImmediate = 0x04;
 
+        /// <summary>Added to <see cref="ChildArg"/>, followed by a Steam language name: the reader
+        /// then also asks for the activity feed, as a second output line.</summary>
+        private const string NewsArg = "--news";
+        private const string UnifiedVersion = "STEAMUNIFIEDMESSAGES_INTERFACE_VERSION001";
+        private const string NewsMethod = "UserNews.GetUserNews#1";
+        private const string NewsPrefix = "news:";
+        private const string NewsError = "news-error:";
+        /// <summary>100 events reached back 16 days on the measuring machine; with 200 the window
+        /// below is what limits it.</summary>
+        private const uint NewsCount = 200;
+        private static readonly TimeSpan NewsWindow = TimeSpan.FromDays(21);
+        private static readonly TimeSpan NewsTimeout = TimeSpan.FromSeconds(4);
+
+        /// <summary>
+        /// The feed is not asked for on every friends refresh (every 10 s while the list is open):
+        /// Steam's own page asks once per visit. Between two asks the last answer stands.
+        /// </summary>
+        private static readonly TimeSpan NewsEvery = TimeSpan.FromSeconds(60);
+        private static DateTime _newsAskedUtc = DateTime.MinValue;
+        private static List<FriendActivity> _liveNews;
+
         #region Parent side
         private static readonly object NameCacheLock = new object();
         private static readonly Dictionary<int, string> NameCache = new Dictionary<int, string>();
@@ -140,8 +161,15 @@ namespace ClawTweaksCenter.Library
                 var snapshot = new SteamFriendsSnapshot { SteamRunning = SteamIsRunning() };
                 if (!snapshot.SteamRunning) return snapshot;
 
-                string json = RunChildProcess();
-                if (json == null) return snapshot;
+                bool askNews = DateTime.UtcNow - _newsAskedUtc >= NewsEvery;
+                string output = RunChildProcess(askNews ? SteamAchievements.SteamLanguage() : null);
+                if (output == null) return snapshot;
+                if (askNews) _newsAskedUtc = DateTime.UtcNow;
+
+                // Line one the friend list, line two (when asked for) the feed.
+                string[] lines = output.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                string json = lines.Length > 0 ? lines[0] : string.Empty;
+                if (askNews) TakeNews(lines.Length > 1 ? lines[1] : null);
 
                 try
                 {
@@ -165,7 +193,9 @@ namespace ClawTweaksCenter.Library
                     // Steam's feed, trimmed to the people in this list - a removed friend's events stay
                     // in the cache and would otherwise show up under a name nobody can chat with.
                     var ids = new HashSet<ulong>(snapshot.Friends.Select(f => f.SteamId));
-                    snapshot.Activity = SteamFriendActivity.Read().Where(a => ids.Contains(a.SteamId)).ToList();
+                    // Live from the client when that worked, Steam's stored copy otherwise.
+                    var feed = _liveNews ?? SteamFriendActivity.Read();
+                    snapshot.Activity = feed.Where(a => ids.Contains(a.SteamId)).ToList();
 
                     ResolveNames(snapshot.Friends.Where(f => f.AppId > 0).Select(f => f.AppId)
                                          .Concat(snapshot.Activity.Select(a => a.AppId)));
@@ -190,7 +220,52 @@ namespace ClawTweaksCenter.Library
             });
         }
 
-        private static string RunChildProcess()
+        /// <summary>
+        /// The feed line from the reader. A failure keeps the last live answer if there is one -
+        /// falling back to the older file would make entries disappear for a minute - and logs the
+        /// reason once.
+        /// </summary>
+        private static void TakeNews(string line)
+        {
+            if (line != null && line.StartsWith(NewsPrefix, StringComparison.Ordinal))
+            {
+                try
+                {
+                    byte[] bytes = Convert.FromBase64String(line.Substring(NewsPrefix.Length));
+                    _liveNews = SteamFriendActivity.FromLive(bytes, ReaderSelfId());
+                    if (!_loggedNewsLive)
+                    {
+                        _loggedNewsLive = true;
+                        _loggedNewsFailure = false;
+                        Core.InstallLog.Write("[SteamFriends] activity feed live from the client, " + _liveNews.Count + " entries");
+                    }
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    line = NewsError + "undecodable: " + ex.Message;
+                }
+            }
+            if (!_loggedNewsFailure)
+            {
+                _loggedNewsFailure = true;
+                _loggedNewsLive = false;
+                Core.InstallLog.Write("[SteamFriends] activity feed not live, " + (_liveNews != null ? "keeping the last answer" : "using librarycache\\0.json")
+                    + ": " + (line ?? "reader gave no second line"));
+            }
+        }
+
+        private static bool _loggedNewsLive;
+        private static bool _loggedNewsFailure;
+
+        /// <summary>The signed-in user's SteamID, to drop their own events - as the file reader does.</summary>
+        private static ulong ReaderSelfId()
+        {
+            string account = SteamPlaytime.ActiveAccountId();
+            return uint.TryParse(account, out uint acc) ? 76561197960265728UL + acc : 0;
+        }
+
+        private static string RunChildProcess(string newsLanguage)
         {
             try
             {
@@ -200,7 +275,7 @@ namespace ClawTweaksCenter.Library
                 var psi = new ProcessStartInfo
                 {
                     FileName = exe,
-                    Arguments = ChildArg,
+                    Arguments = newsLanguage == null ? ChildArg : ChildArg + " " + NewsArg + " " + newsLanguage,
                     UseShellExecute = false,
                     CreateNoWindow = true,
                     RedirectStandardOutput = true,
@@ -222,6 +297,13 @@ namespace ClawTweaksCenter.Library
                     }
 
                     string text = output.Wait(1000) ? output.Result : null;
+                    // A crash AFTER the first line is the feed call failing, and the friend list it
+                    // flushed first is still good - see RunChild.
+                    if (proc.ExitCode != 0 && newsLanguage != null && text != null && text.Contains('\n'))
+                    {
+                        LogOnce("[SteamFriends] the reader exited with " + proc.ExitCode + " after the friend list - the feed call failed");
+                        return text;
+                    }
                     if (proc.ExitCode != 0 || string.IsNullOrWhiteSpace(text))
                     {
                         string err = error.Wait(500) ? error.Result : null;
@@ -529,6 +611,18 @@ namespace ClawTweaksCenter.Library
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate byte GetFriendGamePlayedFn(IntPtr self, ulong id, [Out] byte[] info);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate IntPtr GetPlayerNicknameFn(IntPtr self, ulong id);
 
+        // ISteamUnifiedMessages (STEAMUNIFIEDMESSAGES_INTERFACE_VERSION001). Gone from the public SDK
+        // after 1.42, still served by the client; the 1.42 slot order is the shipped one (measured
+        // 2026-10-02, Doku/ACHIEVEMENTS_Plan.md "Route A measured").
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate ulong SendMethodFn(IntPtr self, [MarshalAs(UnmanagedType.LPStr)] string name, byte[] req, uint size, ulong context);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate byte GetMethodResponseInfoFn(IntPtr self, ulong handle, out uint size, out int result);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate byte GetMethodResponseDataFn(IntPtr self, ulong handle, byte[] buf, uint size, byte autoRelease);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate byte ReleaseMethodFn(IntPtr self, ulong handle);
+        // steamclient64's own callback pump - what SteamAPI_RunCallbacks does underneath. The method
+        // answer arrives through it. CallbackMsg_t is 24 bytes on x64.
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate byte BGetCallbackFn(int pipe, IntPtr msg, out int call);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)] private delegate byte FreeLastCallbackFn(int pipe);
+
         private static T Method<T>(IntPtr instance, int slot) where T : Delegate
         {
             IntPtr vtable = Marshal.ReadIntPtr(instance);
@@ -540,25 +634,33 @@ namespace ClawTweaksCenter.Library
         /// The child process's whole life: read, print one JSON object to stdout, return the exit code.
         /// Called from App.OnStartup before anything else runs.
         /// </summary>
-        public static int RunChild()
+        public static int RunChild(string[] args)
         {
-            string json;
-            try
-            {
-                json = ReadFromClient();
-            }
-            catch (Exception ex)
-            {
-                json = ErrorJson(ex.GetType().Name + ": " + ex.Message);
-            }
+            // "--news <language>" asks for the activity feed as well.
+            int at = Array.IndexOf(args, NewsArg);
+            string newsLanguage = at >= 0 && at + 1 < args.Length ? args[at + 1] : null;
 
             try
             {
                 using (var stdout = Console.OpenStandardOutput())
                 {
-                    byte[] bytes = Encoding.UTF8.GetBytes(json);
-                    stdout.Write(bytes, 0, bytes.Length);
-                    stdout.Flush();
+                    // LINE ONE IS WRITTEN AND FLUSHED BEFORE THE FEED IS ASKED FOR. The feed goes
+                    // through an interface Valve no longer documents; if it ever crashes this
+                    // process, the friend list has already reached the parent.
+                    Action<string> emit = line =>
+                    {
+                        byte[] bytes = Encoding.UTF8.GetBytes(line + "\n");
+                        stdout.Write(bytes, 0, bytes.Length);
+                        stdout.Flush();
+                    };
+                    try
+                    {
+                        ReadFromClient(newsLanguage, emit);
+                    }
+                    catch (Exception ex)
+                    {
+                        emit(ErrorJson(ex.GetType().Name + ": " + ex.Message));
+                    }
                 }
                 return 0;
             }
@@ -582,12 +684,12 @@ namespace ClawTweaksCenter.Library
             }
         }
 
-        private static string ReadFromClient()
+        private static void ReadFromClient(string newsLanguage, Action<string> emit)
         {
             string steam = SteamSource.SteamPath();
-            if (steam == null) return ErrorJson("Steam is not installed");
+            if (steam == null) { emit(ErrorJson("Steam is not installed")); return; }
             string dll = Path.Combine(steam, "steamclient64.dll");
-            if (!File.Exists(dll)) return ErrorJson("steamclient64.dll not found");
+            if (!File.Exists(dll)) { emit(ErrorJson("steamclient64.dll not found")); return; }
 
             // ⚠️ NO APP ID. See the class summary - an app id is what makes Steam report a game.
             Environment.SetEnvironmentVariable("SteamAppId", null);
@@ -599,19 +701,19 @@ namespace ClawTweaksCenter.Library
             var create = Marshal.GetDelegateForFunctionPointer<CreateInterfaceFn>(NativeLibrary.GetExport(lib, "CreateInterface"));
 
             IntPtr client = create(ClientVersion, IntPtr.Zero);
-            if (client == IntPtr.Zero) return ErrorJson(ClientVersion + " is not exported");
+            if (client == IntPtr.Zero) { emit(ErrorJson(ClientVersion + " is not exported")); return; }
 
             int pipe = Method<CreateSteamPipeFn>(client, 0)(client);
-            if (pipe == 0) return ErrorJson("no pipe to the Steam client");
+            if (pipe == 0) { emit(ErrorJson("no pipe to the Steam client")); return; }
 
             int user = 0;
             try
             {
                 user = Method<ConnectToGlobalUserFn>(client, 2)(client, pipe);
-                if (user == 0) return ErrorJson("no signed-in Steam user");
+                if (user == 0) { emit(ErrorJson("no signed-in Steam user")); return; }
 
                 IntPtr friends = Method<GetInterfaceFn>(client, 8)(client, user, pipe, FriendsVersion);
-                if (friends == IntPtr.Zero) return ErrorJson(FriendsVersion + " is not available");
+                if (friends == IntPtr.Zero) { emit(ErrorJson(FriendsVersion + " is not available")); return; }
 
                 var count = Method<GetFriendCountFn>(friends, 3);
                 var byIndex = Method<GetFriendByIndexFn>(friends, 4);
@@ -667,7 +769,15 @@ namespace ClawTweaksCenter.Library
                     w.WriteEndArray();
                     w.WriteEndObject();
                     w.Flush();
-                    return Encoding.UTF8.GetString(ms.ToArray());
+                    emit(Encoding.UTF8.GetString(ms.ToArray()));
+                }
+
+                if (newsLanguage != null)
+                {
+                    string news;
+                    try { news = ReadNews(lib, client, user, pipe, newsLanguage); }
+                    catch (Exception ex) { news = NewsError + ex.GetType().Name + ": " + ex.Message; }
+                    emit(news);
                 }
             }
             finally
@@ -678,6 +788,78 @@ namespace ClawTweaksCenter.Library
                     Method<ReleaseSteamPipeFn>(client, 1)(client, pipe);
                 }
                 catch { }
+            }
+        }
+        /// <summary>
+        /// Steam's friend activity feed, asked of the client: UserNews.GetUserNews#1, the call
+        /// Steam's own library page makes and whose stored answer is librarycache\0.json. Returns
+        /// the protobuf answer as one line, "news:" + base64, or NewsError + the reason.
+        ///
+        /// Measured 2026-10-02: ~350 ms, the same events the file holds for the same days, and newer
+        /// ones than the file. starttime is the OLDER bound; the other way round returns junk.
+        /// </summary>
+        private static string ReadNews(IntPtr lib, IntPtr client, int user, int pipe, string language)
+        {
+            IntPtr um = Method<GetInterfaceFn>(client, 12)(client, user, pipe, UnifiedVersion);
+            if (um == IntPtr.Zero) return NewsError + UnifiedVersion + " is not available";
+
+            var bget = NativeLibrary.TryGetExport(lib, "Steam_BGetCallback", out IntPtr p1)
+                ? Marshal.GetDelegateForFunctionPointer<BGetCallbackFn>(p1) : null;
+            var bfree = NativeLibrary.TryGetExport(lib, "Steam_FreeLastCallback", out IntPtr p2)
+                ? Marshal.GetDelegateForFunctionPointer<FreeLastCallbackFn>(p2) : null;
+
+            uint now = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var request = new SteamKit2.WebUI.Internal.CUserNews_GetUserNews_Request
+            {
+                count = NewsCount,
+                starttime = now - (uint)NewsWindow.TotalSeconds,
+                endtime = now,
+                language = language,
+            };
+            byte[] body;
+            using (var ms = new MemoryStream())
+            {
+                ProtoBuf.Serializer.Serialize(ms, request);
+                body = ms.ToArray();
+            }
+
+            ulong handle = Method<SendMethodFn>(um, 0)(um, NewsMethod, body, (uint)body.Length, 0);
+            if (handle == 0) return NewsError + "SendMethod returned 0";
+
+            var info = Method<GetMethodResponseInfoFn>(um, 1);
+            IntPtr msg = Marshal.AllocHGlobal(32);
+            try
+            {
+                var sw = Stopwatch.StartNew();
+                uint size = 0;
+                int result = 0;
+                bool ready = false;
+                while (sw.Elapsed < NewsTimeout)
+                {
+                    if (bget != null && bfree != null)
+                        while (bget(pipe, msg, out _) != 0) bfree(pipe);
+                    if (info(um, handle, out size, out result) != 0) { ready = true; break; }
+                    Thread.Sleep(30);
+                }
+                if (!ready)
+                {
+                    Method<ReleaseMethodFn>(um, 3)(um, handle);
+                    return NewsError + "no answer within " + NewsTimeout.TotalSeconds + " s";
+                }
+                if (result != 1)
+                {
+                    Method<ReleaseMethodFn>(um, 3)(um, handle);
+                    return NewsError + "EResult " + result;
+                }
+
+                var buf = new byte[Math.Max(size, 1)];
+                if (Method<GetMethodResponseDataFn>(um, 2)(um, handle, buf, size, 1) == 0)
+                    return NewsError + "GetMethodResponseData failed";
+                return NewsPrefix + Convert.ToBase64String(buf, 0, (int)size);
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(msg);
             }
         }
         #endregion

@@ -58,6 +58,12 @@ namespace ClawTweaksCenter.Library
     /// ⚠️ IT IS A CACHE. Steam writes it when its library home page loads the feed; how often that
     /// happens without the page being open is not measured. The file carries the user's OWN events
     /// too - they are dropped here. Entries in the file are not in time order.
+    ///
+    /// -- Live since 2026-10-02 ----------------------------------------------------------------------
+    /// The file is the FALLBACK now. While Steam runs, the friends reader asks the client for the
+    /// same feed (UserNews.GetUserNews#1, see SteamFriends.ReadNews) and <see cref="FromLive"/>
+    /// decodes the answer: the same message, field for field, with the achievement names and icons
+    /// in the answer itself instead of in achievementmap.
     /// </summary>
     public static class SteamFriendActivity
     {
@@ -229,6 +235,13 @@ namespace ClawTweaksCenter.Library
                 return null;
             }
 
+            return Build(type, time, actor, gameId, apiNames, achievements);
+        }
+
+        /// <summary>One feed entry from the message's fields - shared by the file and the live answer.</summary>
+        private static FriendActivity Build(ulong type, ulong time, ulong actor, ulong gameId, List<string> apiNames,
+                                            Dictionary<int, Dictionary<string, FriendAchievement>> achievements)
+        {
             FriendActivityKind kind;
             switch (type)
             {
@@ -260,6 +273,64 @@ namespace ClawTweaksCenter.Library
                 if (item.Achievements.Count == 0) return null;
             }
             return item;
+        }
+
+        /// <summary>
+        /// The client's own answer to UserNews.GetUserNews, decoded. Newest first, the user's own
+        /// events dropped - the same contract as <see cref="Read"/>.
+        /// </summary>
+        public static List<FriendActivity> FromLive(byte[] response, ulong self)
+        {
+            SteamKit2.WebUI.Internal.CUserNews_GetUserNews_Response resp;
+            using (var ms = new MemoryStream(response))
+                resp = ProtoBuf.Serializer.Deserialize<SteamKit2.WebUI.Internal.CUserNews_GetUserNews_Response>(ms);
+
+            var achievements = new Dictionary<int, Dictionary<string, FriendAchievement>>();
+            foreach (var app in resp.achievement_display_data ?? new List<SteamKit2.WebUI.Internal.CUserNewsAchievementDisplayData>())
+            {
+                // MERGED, NOT REPLACED: the answer lists one app several times, each entry with only
+                // the achievements of some of its events (measured 2026-10-02: 28 entries for 16
+                // apps). Replacing kept the last entry only, and the others showed as a raw API name
+                // with a "?" for an icon.
+                if (!achievements.TryGetValue((int)app.appid, out var map))
+                {
+                    map = new Dictionary<string, FriendAchievement>(StringComparer.Ordinal);
+                    achievements[(int)app.appid] = map;
+                }
+                foreach (var a in app.achievements ?? new List<SteamKit2.WebUI.Internal.CUserNewsAchievementDisplayData_CAchievement>())
+                {
+                    if (string.IsNullOrEmpty(a.name)) continue;
+                    map[a.name] = new FriendAchievement
+                    {
+                        Name = string.IsNullOrEmpty(a.display_name) ? a.name : a.display_name,
+                        Description = a.display_description,
+                        IconUrl = IconUrl((int)app.appid, a.icon),
+                        Hidden = a.hidden,
+                    };
+                }
+            }
+
+            var result = new List<FriendActivity>();
+            foreach (var e in resp.news ?? new List<SteamKit2.WebUI.Internal.CUserNews_Event>())
+            {
+                var item = Build(e.eventtype, e.eventtime, e.steamid_actor, e.gameid,
+                                 e.achievement_names ?? new List<string>(), achievements);
+                if (item == null || item.SteamId == 0 || item.SteamId == self) continue;
+                result.Add(item);
+            }
+            result.Sort((a, b) => b.When.CompareTo(a.When));
+            return result;
+        }
+
+        /// <summary>
+        /// The file carries a full URL; the live answer may carry only the file name. Both end up as
+        /// the URL achievementmap uses, which is the form Steam itself writes.
+        /// </summary>
+        private static string IconUrl(int appId, string icon)
+        {
+            if (string.IsNullOrEmpty(icon)) return null;
+            if (icon.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return icon;
+            return "https://shared.steamstatic.com/community_assets/images/apps/" + appId + "/" + icon;
         }
 
         private static ulong ReadVarint(byte[] b, ref int i)

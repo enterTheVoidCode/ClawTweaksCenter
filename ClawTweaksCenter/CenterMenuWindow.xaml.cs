@@ -176,6 +176,7 @@ namespace ClawTweaksCenter
             _leave = new LeaveRunner(_helperPipe);
 
             InitializeComponent();
+            HookAccountAchievements();
 
             // Native Windows 11 chrome plus a work-area clamp. This replaces the older
             // "size ourselves to the full work area" code that went with WindowStyle="None": the
