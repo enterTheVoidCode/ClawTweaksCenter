@@ -141,6 +141,11 @@ namespace ClawTweaksCenter.Core
         // couple of process/driver checks — designed to finish in ~1-2s.
         private const string Script = @"
 $ErrorActionPreference = 'SilentlyContinue'
+# Redirected powershell.exe writes output in the console OEM codepage (CP936 on zh-CN), but the
+# reader declares UTF8. This aligns the two so any non-ASCII value a check ever emits survives
+# the pipe. try/catch because a failed assignment is a TERMINATING error that no error
+# preference swallows; degrading to the old bytes beats aborting the checks.
+try { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8 } catch {}
 $pnp = @(Get-CimInstance Win32_PnPEntity)
 
 $claw = @($pnp | Where-Object { $_.PNPDeviceID -match 'VID_0DB0' })
