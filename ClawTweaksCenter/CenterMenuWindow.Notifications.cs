@@ -83,7 +83,7 @@ namespace ClawTweaksCenter
             {
                 Text = "",                    // Segoe MDL2 "Ringer"
                 FontFamily = new FontFamily("Segoe MDL2 Assets"),
-                FontSize = 12,
+                FontSize = 14,
                 Foreground = tone,
                 VerticalAlignment = VerticalAlignment.Center,
                 Margin = new Thickness(0, 0, unread > 0 ? 5 : 0, 0),
@@ -92,8 +92,8 @@ namespace ClawTweaksCenter
                 row.Children.Add(new TextBlock
                 {
                     Text = unread.ToString(),
-                    FontSize = 12,
-                    FontWeight = FontWeights.SemiBold,
+                    FontSize = 14,
+                    FontWeight = FontWeights.Bold,
                     Foreground = tone,
                     VerticalAlignment = VerticalAlignment.Center,
                 });
@@ -102,10 +102,15 @@ namespace ClawTweaksCenter
             {
                 _liveActions[PadButton.LT] = OpenNotifications;
                 var cap = BuildKeyCap("LT");
-                if (cap is FrameworkElement fe) fe.Margin = new Thickness(7, 0, 0, 0);
+                if (cap is FrameworkElement fe) fe.Margin = new Thickness(9, 0, 0, 0);
                 row.Children.Add(cap);
             }
 
+            // A PILL OF ITS OWN (user, 2026-10-03): bell, count and LT together on a card, so they
+            // read as one control and stand apart from the clock beside them.
+            FooterNotify.Background = FooterPillBrush;
+            FooterNotify.CornerRadius = new CornerRadius(14);
+            FooterNotify.Padding = new Thickness(11, 4, bindLeftTrigger ? 5 : 11, 4);
             FooterNotify.Child = row;
             FooterNotify.Visibility = Visibility.Visible;
             FooterNotify.MouseLeftButtonUp -= NotifyClicked;

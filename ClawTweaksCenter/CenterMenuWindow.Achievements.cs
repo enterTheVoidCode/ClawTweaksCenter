@@ -306,7 +306,7 @@ namespace ClawTweaksCenter
         /// exactly this state, so the difference is a colour rather than a layout - which is what
         /// keeps a list of eighty scannable when a third of it is still to go.
         /// </summary>
-        private Border BuildAchievementLine(AchievementEntry a, double iconSize, bool selectable)
+        private Border BuildAchievementLine(AchievementEntry a, double iconSize, bool selectable, string gameLine = null, ImageSource gameIcon = null)
         {
             bool locked = !a.Unlocked;
             var grid = new Grid();
@@ -354,6 +354,33 @@ namespace ClawTweaksCenter
             }
 
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            // The history's rows say which game first: there the list mixes every game, and the
+            // achievement's own name rarely says where it was earned.
+            if (!string.IsNullOrEmpty(gameLine))
+            {
+                var game = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 0, 2) };
+                // The store's own logo, the one its library tab carries (user, 2026-10-03).
+                if (gameIcon != null)
+                    game.Children.Add(new Image
+                    {
+                        Source = gameIcon,
+                        Width = 14,
+                        Height = 14,
+                        SnapsToDevicePixels = true,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Margin = new Thickness(0, 0, 6, 0),
+                    });
+                game.Children.Add(new TextBlock
+                {
+                    Text = gameLine,
+                    FontSize = 12,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = UiHelpers.Accent,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    VerticalAlignment = VerticalAlignment.Center,
+                });
+                text.Children.Add(game);
+            }
             text.Children.Add(new TextBlock
             {
                 Text = a.Name ?? string.Empty,

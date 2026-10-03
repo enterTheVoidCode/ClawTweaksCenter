@@ -2,6 +2,7 @@
 using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Threading;
 using Shared.Enums;
 
@@ -161,11 +162,19 @@ namespace ClawTweaksCenter
         }
 
         /// <summary>
-        /// Reads the four fields the footer needs out of the helper's bundle.
+        /// Reads the fields the footer needs out of the helper's bundle and draws the battery.
         ///
         /// Hand-rolled, like every other pipe payload on this side (HelperPipeClient's own parser is
         /// the precedent): the bundle is a flat object of numbers written by one printf-style line in
         /// PerformanceManager, and pulling a JSON dependency in for it would be the larger change.
+        ///
+        /// ── THE LAYOUT (user, 2026-10-03) ───────────────────────────────────────────────────────
+        ///   [cell] 85%   2:15 h left   [Charge limit 80%]
+        /// A drawn cell filled to the charge, the percentage large and bold beside it, the time in
+        /// the subtle colour after that, and the charge limit as a pill - only when a limit holds the
+        /// battery below 100 %, because that is the one case where "85 %, not charging" needs an
+        /// explanation. The limit comes from the helper's "chargeLimit" field; a helper too old to
+        /// send it simply draws no pill.
         /// </summary>
         private void ApplyPowerStatus(string json)
         {
@@ -174,6 +183,7 @@ namespace ClawTweaksCenter
             double level = ReadNumber(json, "batteryLevel");
             double remaining = ReadNumber(json, "timeRemaining");
             double toFull = ReadNumber(json, "timeToFull");
+            double limit = ReadNumber(json, "chargeLimit");
             bool charging = Regex.IsMatch(json, "\"isCharging\"\\s*:\\s*true", RegexOptions.IgnoreCase);
 
             // A level of -1 is the helper's "no reading", and 0 on a running machine is the same
@@ -184,7 +194,7 @@ namespace ClawTweaksCenter
                 return;
             }
 
-            string percent = ((int)Math.Round(level)).ToString(CultureInfo.CurrentCulture) + "%";
+            int percent = (int)Math.Round(Math.Min(100, level));
             double seconds = charging ? toFull : remaining;
 
             // Same shape as the widget's own tile: h:mm, seconds in, so the two surfaces agree to
@@ -195,31 +205,129 @@ namespace ClawTweaksCenter
                   + ":" + ((int)((seconds % 3600) / 60)).ToString("D2", CultureInfo.CurrentCulture)
                 : null;
 
-            string text;
-            if (charging)
-            {
-                text = clock != null
-                    ? Core.Loc.F("{0} · charging · {1} h", percent, clock)
-                    : Core.Loc.F("{0} · charging", percent);
-            }
-            else if (Core.PowerLine.OnMains())
-            {
-                // Plugged in and taking nothing. Two different reasons, and the line says which:
-                // a full battery, or a charge limit holding it below full - which ClawTweaks itself
-                // sets, so "fully charged" at 80% would be a sentence this very product made false.
-                text = level >= 99
-                    ? Core.Loc.F("{0} · AC power · fully charged", percent)
-                    : Core.Loc.F("{0} · AC power · not charging", percent);
-            }
-            else
-            {
-                text = clock != null
-                    ? Core.Loc.F("{0} · discharging · {1} h", percent, clock)
-                    : Core.Loc.F("{0} · discharging", percent);
-            }
+            bool onMains = !charging && Core.PowerLine.OnMains();
+            bool limited = limit > 0 && limit < 100;
 
-            FooterBattery.Text = text;
+            string state;
+            if (charging)
+                state = clock != null ? Core.Loc.F("Charging · {0} h to full", clock) : Core.Loc.T("Charging");
+            else if (onMains)
+                // Plugged in and taking nothing. Two different reasons, and the line says which: a
+                // full battery, or a charge limit holding it below full - which ClawTweaks itself
+                // sets, so "fully charged" at 80% would be a sentence this very product made false.
+                state = limited && percent >= limit - 1 ? Core.Loc.T("AC power · held at the limit")
+                      : percent >= 99 ? Core.Loc.T("AC power · fully charged")
+                      : Core.Loc.T("AC power · not charging");
+            else
+                state = clock != null ? Core.Loc.F("{0} h left", clock) : null;
+
+            var row = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            row.Children.Add(BuildBatteryCell(percent, charging || onMains));
+            row.Children.Add(new TextBlock
+            {
+                Text = percent.ToString(CultureInfo.CurrentCulture) + "%",
+                FontSize = 16,
+                FontWeight = FontWeights.Bold,
+                Foreground = Ui.UiHelpers.Text,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(8, 0, 0, 0),
+            });
+            if (state != null)
+                row.Children.Add(new TextBlock
+                {
+                    Text = state,
+                    FontSize = 13,
+                    FontWeight = FontWeights.SemiBold,
+                    Foreground = Ui.UiHelpers.Subtle,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(12, 1, 0, 0),
+                });
+            if (limited)
+                row.Children.Add(new Border
+                {
+                    Background = FooterPillBrush,
+                    CornerRadius = new CornerRadius(10),
+                    Padding = new Thickness(9, 2, 9, 2),
+                    Margin = new Thickness(12, 0, 0, 0),
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Child = new TextBlock
+                    {
+                        Text = Core.Loc.F("Charge limit {0}%", ((int)Math.Round(limit)).ToString(CultureInfo.CurrentCulture)),
+                        FontSize = 12,
+                        FontWeight = FontWeights.SemiBold,
+                        Foreground = Ui.UiHelpers.Subtle,
+                    },
+                });
+
+            FooterBattery.Child = row;
             FooterBattery.Visibility = Visibility.Visible;
+        }
+
+        /// <summary>
+        /// A battery drawn as a battery: an outlined cell with a terminal nub, filled from the left
+        /// to the charge. Green, amber at 20 % and below, red at 10 % and below. A lightning bolt
+        /// over the fill while power is connected.
+        /// </summary>
+        /// <summary>The footer's pills (notifications, charge limit). Lighter than the card colour:
+        /// on the footer bar a card-coloured pill all but disappeared (user, 2026-10-03).</summary>
+        private static System.Windows.Media.Brush FooterPillBrush
+        {
+            get
+            {
+                var b = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
+                b.Freeze();
+                return b;
+            }
+        }
+
+        private static UIElement BuildBatteryCell(int percent, bool powered)
+        {
+            const double bodyWidth = 30, bodyHeight = 15, stroke = 1.6, inset = 1.6;
+            var fillBrush = percent <= 10 ? Ui.UiHelpers.Error : percent <= 20 ? Ui.UiHelpers.Warn : Ui.UiHelpers.Ok;
+
+            double inner = bodyWidth - 2 * stroke - 2 * inset;
+            var inside = new Grid();
+            inside.Children.Add(new Border
+            {
+                Width = Math.Max(2, inner * percent / 100.0),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                CornerRadius = new CornerRadius(1.5),
+                Background = fillBrush,
+            });
+            var cell = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+            // The bolt BESIDE the cell, not inside it: the fill is under 9 px tall, and a glyph in
+            // there was cut off top and bottom (user, 2026-10-03).
+            if (powered)
+                cell.Children.Add(new TextBlock
+                {
+                    Text = "",                 // Segoe MDL2 "LightningBolt"
+                    FontFamily = new System.Windows.Media.FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                    FontSize = 13,
+                    Foreground = Ui.UiHelpers.Text,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(0, 0, 4, 0),
+                });
+            cell.Children.Add(new Border
+            {
+                Width = bodyWidth,
+                Height = bodyHeight,
+                BorderThickness = new Thickness(stroke),
+                BorderBrush = Ui.UiHelpers.Text,
+                CornerRadius = new CornerRadius(3.5),
+                Padding = new Thickness(inset),
+                Child = inside,
+                VerticalAlignment = VerticalAlignment.Center,
+            });
+            cell.Children.Add(new Border
+            {
+                Width = 2.5,
+                Height = 6,
+                CornerRadius = new CornerRadius(0, 1.5, 1.5, 0),
+                Background = Ui.UiHelpers.Text,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(1, 0, 0, 0),
+            });
+            return cell;
         }
 
         private static double ReadNumber(string json, string key)

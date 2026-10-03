@@ -160,10 +160,12 @@
                      collapsed, so these two are all that gives the footer its height, and without
                      the margin the text sat on the bottom edge of the window (user, 2026-09-16).
                      With the chips up they are centred in a taller row and the margin is slack. -->
-                <TextBlock x:Name="FooterBattery" Grid.Column="0"
-                           VerticalAlignment="Center" Margin="28,7,8,7"
-                           FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource SubtleTextBrush}"
-                           Visibility="Collapsed" />
+                <!-- The battery: a drawn cell with the charge in it, the percentage, the time left (or to
+                     full), and the charge limit as a pill when one holds the battery below 100 %.
+                     Built in code - see CenterMenuWindow.FooterStatus.cs. -->
+                <Border x:Name="FooterBattery" Grid.Column="0"
+                        VerticalAlignment="Center" Margin="28,7,8,7"
+                        Visibility="Collapsed" />
 
                 <!-- ONE line, never two (user, 2026-09-21): a chip that does not fit is left out
                      from the end instead of wrapping. See Ui/SingleLineBar.cs. -->
@@ -179,15 +181,17 @@
                      as a glyph plus a number: it is not free space, it is space the battery readout
                      pays for as well. -->
                 <StackPanel Grid.Column="2" Orientation="Horizontal"
-                            VerticalAlignment="Center" Margin="8,7,28,7">
+                            VerticalAlignment="Center" Margin="8,7,14,7">
                     <!-- 24 rather than 12: at 12 the count read as part of the clock. It is the
                          only gap on this side, so it has to do the whole job of separating two
                          unrelated readings (user, 2026-09-13). -->
                     <Border x:Name="FooterNotify" Visibility="Collapsed"
-                            VerticalAlignment="Center" Margin="0,0,24,0" />
+                            VerticalAlignment="Center" Margin="0,0,18,0" />
+                    <!-- Larger and bolder than the chips (user, 2026-10-03): it is read from across the
+                         room, the chips from up close. -->
                     <TextBlock x:Name="FooterClock"
                                VerticalAlignment="Center"
-                               FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource SubtleTextBrush}" />
+                               FontSize="16" FontWeight="Bold" Foreground="{StaticResource TextBrush}" />
                 </StackPanel>
             </Grid>
         </Border>

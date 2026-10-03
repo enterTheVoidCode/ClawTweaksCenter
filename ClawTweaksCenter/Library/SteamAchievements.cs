@@ -284,6 +284,35 @@ namespace ClawTweaksCenter.Library
         private static string AppIdOf(GameEntry g)
             => g != null && g.Store == GameStore.Steam && !string.IsNullOrEmpty(g.Id) ? g.Id : null;
 
+        /// <summary>
+        /// Every appid Steam has written this account's stats for on this disk - the only games
+        /// whose unlocks carry a DATE (the account knows which, not when). The achievement history
+        /// reads these. Empty when Steam or its stats folder is not there.
+        /// </summary>
+        public static List<string> LocallyDatedAppIds()
+        {
+            var ids = new List<string>();
+            string dir, account;
+            lock (Gate)
+            {
+                if (!_scanned) Refresh();
+                dir = _statsDir;
+                account = _accountId;
+            }
+            if (dir == null || string.IsNullOrEmpty(account)) return ids;
+            string prefix = "UserGameStats_" + account + "_";
+            try
+            {
+                foreach (string f in Directory.GetFiles(dir, prefix + "*.bin"))
+                {
+                    string id = Path.GetFileNameWithoutExtension(f).Substring(prefix.Length);
+                    if (id.Length > 0 && id.All(char.IsDigit)) ids.Add(id);
+                }
+            }
+            catch (Exception ex) { Core.InstallLog.Write("[Achievements] stats folder unreadable: " + ex.GetType().Name); }
+            return ids;
+        }
+
         /// <summary>Asks the account for this game's full list now, so it is there by the time the
         /// launch screen or the list opens. Cheap and repeatable; the library calls it when the
         /// cursor rests on a game.</summary>

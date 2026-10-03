@@ -223,52 +223,8 @@ namespace ClawTweaksCenter.Library.Accounts
             var entries = new List<AchievementEntry>();
             foreach (var a in list.EnumerateArray())
             {
-                // Revoked ones are not part of the game any more.
-                if (a.TryGetProperty("isRevoked", out var rv) && rv.ValueKind == JsonValueKind.True) continue;
-
-                bool unlocked = Str(a, "progressState") == "Achieved";
-                DateTime? at = null;
-                float progress = 0, max = 0;
-                if (a.TryGetProperty("progression", out var pr) && pr.ValueKind == JsonValueKind.Object)
-                {
-                    // An unlock without a time is 0001-01-01, not null (measured).
-                    if (unlocked && pr.TryGetProperty("timeUnlocked", out var tu) && tu.TryGetDateTime(out var dt) && dt.Year > 2000)
-                        at = dt.ToLocalTime();
-                    // A counted one ("100 of 100 km") carries one requirement with current/target.
-                    if (pr.TryGetProperty("requirements", out var req) && req.ValueKind == JsonValueKind.Array && req.GetArrayLength() == 1)
-                    {
-                        float.TryParse(Str(req[0], "current"), NumberStyles.Float, CultureInfo.InvariantCulture, out progress);
-                        float.TryParse(Str(req[0], "target"), NumberStyles.Float, CultureInfo.InvariantCulture, out max);
-                        if (max <= 1) { progress = 0; max = 0; }
-                    }
-                }
-
-                string icon = null;
-                if (a.TryGetProperty("mediaAssets", out var media) && media.ValueKind == JsonValueKind.Array)
-                    foreach (var m in media.EnumerateArray())
-                        if (Str(m, "type") == "Icon") { icon = Str(m, "url"); break; }
-
-                double? pct = null;
-                if (a.TryGetProperty("rarity", out var rar) && rar.ValueKind == JsonValueKind.Object
-                    && rar.TryGetProperty("currentPercentage", out var cp) && cp.TryGetDouble(out double cpv))
-                    pct = cpv;
-
-                bool secret = a.TryGetProperty("isSecret", out var sc) && sc.ValueKind == JsonValueKind.True;
-                entries.Add(new AchievementEntry
-                {
-                    Id = Str(a, "id"),
-                    Name = Str(a, "name"),
-                    // Xbox has a separate text for the locked state; that one is what a locked entry
-                    // shows, as on the console.
-                    Description = unlocked ? Str(a, "description") : (Str(a, "lockedDescription") ?? Str(a, "description")),
-                    IconUrl = icon,
-                    Unlocked = unlocked,
-                    UnlockedAt = at,
-                    Hidden = secret,
-                    GlobalPercent = pct,
-                    Progress = progress,
-                    ProgressMax = max,
-                });
+                var e = Parse(a);
+                if (e != null) entries.Add(e);
             }
             if (entries.Count == 0) return;
 
@@ -284,6 +240,117 @@ namespace ClawTweaksCenter.Library.Accounts
                 }
             }
             Changed?.Invoke(pfn);
+        }
+
+        /// <summary>One unlock from <see cref="RecentUnlocksAsync"/>: the achievement, and the game it
+        /// belongs to as Xbox names it - with the package family name when the title table knows it,
+        /// so the history can show Center's own title and art for it.</summary>
+        public sealed class RecentUnlock
+        {
+            public AchievementEntry Entry;
+            public string TitleName;
+            public string Pfn;
+        }
+
+        /// <summary>
+        /// The account's most recent unlocks across EVERY title, newest first, in one call - for the
+        /// achievement history. The per-title list above would need one call per played title.
+        /// Empty when signed out or when the service says no; logged either way.
+        /// </summary>
+        public static async Task<List<RecentUnlock>> RecentUnlocksAsync(int max, CancellationToken ct)
+        {
+            var result = new List<RecentUnlock>();
+            string auth = await XboxAccount.GetAuthHeaderAsync(ct).ConfigureAwait(false);
+            string xuid = XboxAccount.Xuid;
+            if (auth == null || string.IsNullOrEmpty(xuid)) return result;
+
+            using var doc = await GetAsync("https://achievements.xboxlive.com/users/xuid(" + xuid + ")/achievements?unlockedOnly=true&orderBy=UnlockTime&maxItems=" + max,
+                "2", auth, ct).ConfigureAwait(false);
+            if (doc == null || !doc.RootElement.TryGetProperty("achievements", out var list) || list.ValueKind != JsonValueKind.Array)
+            {
+                Core.InstallLog.Write("[Achievements] Xbox recent unlocks: no list");
+                return result;
+            }
+
+            Dictionary<string, string> pfnByTitle;
+            lock (Gate)
+            {
+                EnsureTitlesLoaded();
+                pfnByTitle = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var kv in _titles) pfnByTitle[kv.Value.TitleId] = kv.Key;
+            }
+
+            foreach (var a in list.EnumerateArray())
+            {
+                var e = Parse(a);
+                if (e == null || !e.Unlocked) continue;
+                string titleId = null, titleName = null;
+                if (a.TryGetProperty("titleAssociations", out var ta) && ta.ValueKind == JsonValueKind.Array && ta.GetArrayLength() > 0)
+                {
+                    titleName = Str(ta[0], "name");
+                    if (ta[0].TryGetProperty("id", out var tid)) titleId = tid.ToString();
+                }
+                result.Add(new RecentUnlock
+                {
+                    Entry = e,
+                    TitleName = titleName,
+                    Pfn = titleId != null && pfnByTitle.TryGetValue(titleId, out var pfn) ? pfn : null,
+                });
+            }
+            Core.InstallLog.Write("[Achievements] Xbox recent unlocks: " + result.Count + ", dated " + result.Count(r => r.Entry.UnlockedAt.HasValue));
+            return result;
+        }
+
+        /// <summary>One entry of the achievement service's answer (contract 2), or null for a
+        /// revoked one.</summary>
+        private static AchievementEntry Parse(JsonElement a)
+        {
+            // Revoked ones are not part of the game any more.
+            if (a.TryGetProperty("isRevoked", out var rv) && rv.ValueKind == JsonValueKind.True) return null;
+
+            bool unlocked = Str(a, "progressState") == "Achieved";
+            DateTime? at = null;
+            float progress = 0, max = 0;
+            if (a.TryGetProperty("progression", out var pr) && pr.ValueKind == JsonValueKind.Object)
+            {
+                // An unlock without a time is 0001-01-01, not null (measured).
+                if (unlocked && pr.TryGetProperty("timeUnlocked", out var tu) && tu.TryGetDateTime(out var dt) && dt.Year > 2000)
+                    at = dt.ToLocalTime();
+                // A counted one ("100 of 100 km") carries one requirement with current/target.
+                if (pr.TryGetProperty("requirements", out var req) && req.ValueKind == JsonValueKind.Array && req.GetArrayLength() == 1)
+                {
+                    float.TryParse(Str(req[0], "current"), NumberStyles.Float, CultureInfo.InvariantCulture, out progress);
+                    float.TryParse(Str(req[0], "target"), NumberStyles.Float, CultureInfo.InvariantCulture, out max);
+                    if (max <= 1) { progress = 0; max = 0; }
+                }
+            }
+
+            string icon = null;
+            if (a.TryGetProperty("mediaAssets", out var media) && media.ValueKind == JsonValueKind.Array)
+                foreach (var m in media.EnumerateArray())
+                    if (Str(m, "type") == "Icon") { icon = Str(m, "url"); break; }
+
+            double? pct = null;
+            if (a.TryGetProperty("rarity", out var rar) && rar.ValueKind == JsonValueKind.Object
+                && rar.TryGetProperty("currentPercentage", out var cp) && cp.TryGetDouble(out double cpv))
+                pct = cpv;
+
+            bool secret = a.TryGetProperty("isSecret", out var sc) && sc.ValueKind == JsonValueKind.True;
+            return new AchievementEntry
+            {
+                Id = Str(a, "id"),
+                Name = Str(a, "name"),
+                // Xbox has a separate text for the locked state; that one is what a locked entry
+                // shows, as on the console.
+                Description = unlocked ? Str(a, "description") : (Str(a, "lockedDescription") ?? Str(a, "description")),
+                IconUrl = icon,
+                Unlocked = unlocked,
+                UnlockedAt = at,
+                Hidden = secret,
+                GlobalPercent = pct,
+                Progress = progress,
+                ProgressMax = max,
+            };
         }
 
         private static string Str(JsonElement o, string name) =>
