@@ -5547,6 +5547,42 @@ namespace ClawTweaksCenter
             // Y opens the news there, on the pill left of it - in place of the silent rescan, which
             // stays on Y in every store's tab (Recent lists what was played, not a store's shelf).
             if (LibraryTabOffersHistory) _liveActions[PadButton.Y] = OpenNews;
+
+            // X opens the store's own app in its tab, WITH a chip (user, 2026-10-03 - a fourth chip
+            // on purpose: nobody looks for "open Steam" on an unlabelled button).
+            string storeApp = StoreAppLabel(_libraryGroup);
+            if (storeApp != null) AddAction(PadButton.X, storeApp, true, () => OpenStoreApp(_libraryGroup));
+        }
+
+        /// <summary>The chip for the Steam, Epic and Xbox tabs, or null in any other tab or when that
+        /// store's app is not installed (its link protocol is not registered).</summary>
+        private static string StoreAppLabel(LibraryGroup group)
+        {
+            string protocol = group == LibraryGroup.Steam ? "steam"
+                            : group == LibraryGroup.Epic ? "com.epicgames.launcher"
+                            : group == LibraryGroup.Xbox ? "msxbox" : null;
+            if (protocol == null) return null;
+            try { using var key = Microsoft.Win32.Registry.ClassesRoot.OpenSubKey(protocol); if (key == null) return null; }
+            catch { return null; }
+            return group == LibraryGroup.Steam ? Core.Loc.T("Open Steam (Big Picture)")
+                 : group == LibraryGroup.Epic ? Core.Loc.T("Open Epic Games")
+                 : Core.Loc.T("Open Xbox app");
+        }
+
+        /// <summary>Steam straight into Big Picture (it is a controller screen too), the Epic launcher
+        /// on its store, the Xbox app by its app id (msxbox:// alone does not open it).</summary>
+        private void OpenStoreApp(LibraryGroup group)
+        {
+            string target = group == LibraryGroup.Steam ? "steam://open/bigpicture"
+                          : group == LibraryGroup.Epic ? "com.epicgames.launcher://store"
+                          : group == LibraryGroup.Xbox ? @"shell:AppsFolder\Microsoft.GamingApp_8wekyb3d8bbwe!Microsoft.Xbox.App" : null;
+            if (target == null) return;
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(target) { UseShellExecute = true });
+                Core.InstallLog.Write("[Library] opened the " + group + " app");
+            }
+            catch (Exception ex) { Core.InstallLog.Write("[Library] could not open the " + group + " app: " + ex.GetType().Name); }
         }
         #endregion
     }
