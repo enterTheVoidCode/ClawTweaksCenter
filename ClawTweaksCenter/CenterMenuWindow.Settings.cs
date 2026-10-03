@@ -82,7 +82,7 @@ namespace ClawTweaksCenter
             new SettingsTopic { Group = SettingsGroupLibrary, Title = "Tabs and games", Rows = new[] {
                 SettingsTabsRow, SettingsHiddenGamesRow, SettingsOwnAppsInRecentRow, SettingsInfoRow } },
             new SettingsTopic { Group = SettingsGroupLibrary, Title = "Appearance", Rows = new[] {
-                SettingsDenseGridRow, SettingsImmersiveRow, SettingsReflectionsRow, SettingsSquareRomArtRow,
+                SettingsDenseGridRow, SettingsImmersiveRow, SettingsReflectionsRow, SettingsGameBackdropRow, SettingsSquareRomArtRow,
                 SettingsBackgroundRow, SettingsUserImagesRow } },
             new SettingsTopic { Group = SettingsGroupLibrary, Title = "Accounts and services", Rows = new[] { SettingsAccountsRow, SettingsKeyRow } },
         };
@@ -271,6 +271,7 @@ namespace ClawTweaksCenter
                 case SettingsDenseGridRow: row = BuildSettingRow(id, "Denser grid", CenterSettings.DenseLibraryGrid, null); break;
                 case SettingsImmersiveRow: row = BuildSettingRow(id, "Recent immersive", CenterSettings.ImmersiveMode, null); break;
                 case SettingsReflectionsRow: row = BuildSettingRow(id, "Recent reflections", CenterSettings.RecentReflections, null); break;
+                case SettingsGameBackdropRow: row = BuildSettingRow(id, "Recent game backdrop", CenterSettings.RecentGameBackdrop, null); break;
                 case SettingsSquareRomArtRow: row = BuildSettingRow(id, "Square ROM art", _squareRomArt, null); break;
                 case SettingsUserImagesRow: row = BuildSettingRow(id, "Your images", null, UserImagesSummary()); break;
                 case SettingsBackgroundRow: row = BuildSettingRow(id, "Center background", null, BackgroundSummary()); break;
@@ -348,7 +349,8 @@ namespace ClawTweaksCenter
             keyGrid.Children.Add(_artKeyBox);
             _artKeyStatus = new TextBlock
             {
-                Text = Loc.T(Library.SteamGridDb.HasKey ? "Set. Covers are downloaded for games with none." : "Not set."),
+                Text = Loc.T(Library.SteamGridDb.UsingBuiltInKey ? "Built in. Your own key is optional."
+                    : Library.SteamGridDb.HasKey ? "Set. Covers are downloaded for games with none." : "Not set."),
                 FontSize = 14,
                 Foreground = UiHelpers.Subtle,
                 Margin = new Thickness(16, 0, 0, 0),

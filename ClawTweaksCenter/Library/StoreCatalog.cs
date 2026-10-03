@@ -321,7 +321,7 @@ namespace ClawTweaksCenter.Library
 
         /// <summary>The user's country for prices and the catalogue, from Windows' region. DE when
         /// Windows has none to give.</summary>
-        private static string Country()
+        internal static string Country()
         {
             try
             {
@@ -331,7 +331,7 @@ namespace ClawTweaksCenter.Library
             catch { return "DE"; }
         }
 
-        private static string GamePassLanguage()
+        internal static string GamePassLanguage()
         {
             switch (Core.Loc.Current)
             {

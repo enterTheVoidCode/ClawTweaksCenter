@@ -53,14 +53,17 @@ namespace ClawTweaksCenter
         /// <summary>The pill at the right end of Recent's title row.</summary>
         private UIElement BuildHistoryPill()
         {
-            var pill = BuildCornerChip("X", "", Core.Loc.T("Achievement history"), OpenAchievementHistory);
+            // The key and the trophy only, no words (user, 2026-10-03): the title row already names
+            // the game, and a label beside it competed with it. The name stays as a tooltip.
+            var pill = BuildCornerChip("X", "\uEB95", "", OpenAchievementHistory);
             if (pill is Border b)
             {
                 // A real pill here, not the corner's bare chip: it sits on the title row beside a
                 // 26 px headline and has to read as a control rather than as part of the subline.
                 b.Background = UiHelpers.Card;
                 b.CornerRadius = new CornerRadius(16);
-                b.Padding = new Thickness(6, 5, 14, 5);
+                b.Padding = new Thickness(6, 5, 4, 5);
+                b.ToolTip = Core.Loc.T("Achievement history");
             }
             return pill;
         }

@@ -119,10 +119,10 @@ namespace ClawTweaksCenter.Core
         /// <summary>
         /// The user's own SteamGridDB API key, or empty.
         ///
-        /// NEVER SHIPPED WITH ONE. A key in the repository is a credential in the repository, and it
-        /// would be extracted from the exe and burned through by strangers within a week - the quota
-        /// is per key, so the first person to abuse it takes the feature away from everybody else.
-        /// The user pastes their own, it lives in their own hive, and nothing here works without it.
+        /// Optional since 0.4.48: release builds carry ClawTweaks' own key (never in the repository -
+        /// see SteamGridDb.EffectiveKey and the csproj's ClawGenerateBuildSecrets). A key set here
+        /// wins over it: it is the user's own quota, and it keeps working if the shared one is ever
+        /// rate-limited or revoked.
         /// </summary>
         public static string SteamGridDbApiKey
         {
@@ -360,6 +360,14 @@ namespace ClawTweaksCenter.Core
         {
             get => ReadBool("LibraryGrouped", true);
             set => WriteBool("LibraryGrouped", value);
+        }
+
+        /// <summary>The selected game's backdrop behind the library on Recent, after the cursor
+        /// rests (user, 2026-10-03). OFF by default - see CenterMenuWindow.GameBackdrop.cs.</summary>
+        public static bool RecentGameBackdrop
+        {
+            get => ReadBool("RecentGameBackdrop", false);
+            set => WriteBool("RecentGameBackdrop", value);
         }
 
         public static bool ImmersiveMode

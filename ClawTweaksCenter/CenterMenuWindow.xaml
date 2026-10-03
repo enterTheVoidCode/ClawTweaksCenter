@@ -58,6 +58,16 @@
             </Image.OpacityMask>
         </Image>
 
+        <!-- The selected game's backdrop on Recent, over the user's background and under everything
+             else (CenterMenuWindow.GameBackdrop.cs). Its own scrim, so fading this one layer out
+             leaves the user's background exactly as it was. Off unless the setting is on. -->
+        <Grid x:Name="GameBackdropLayer" Grid.Row="0" Grid.RowSpan="4" Opacity="0"
+              Visibility="Collapsed" IsHitTestVisible="False" Focusable="False">
+            <Image x:Name="GameBackdropImage" Stretch="UniformToFill"
+                   RenderOptions.BitmapScalingMode="HighQuality" />
+            <Border Background="{StaticResource BgBrush}" Opacity="0.62" />
+        </Grid>
+
         <!-- Header: brand left, device banner right. The two columns are re-laid-out in code
              (UpdateShellLayout) below the narrow breakpoint, where side by side leaves neither
              enough room — hence the names on both children. -->

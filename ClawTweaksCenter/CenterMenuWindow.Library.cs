@@ -124,6 +124,8 @@ namespace ClawTweaksCenter
         private ListBox _libList;
         private TextBlock _libHeadline;
         private TextBlock _libSubline;
+        /// <summary>The achievement bar after the subline, beside its percentage (user, 2026-10-03).</summary>
+        private Border _libAchBar;
         private readonly HashSet<ILibrarySelectionHost> _liveRows = new HashSet<ILibrarySelectionHost>();
 
         // Pending close after a launch (see LaunchSelectedGame). Non-null only while the countdown
@@ -758,7 +760,10 @@ namespace ClawTweaksCenter
                 // Dimmed, not disabled. It still opens, and what it opens is the empty state that
                 // says why - which is the only place that explanation can reach the user, because a
                 // chip nobody can land on is a chip nobody can be told anything by.
-                Opacity = hasContent || active ? 1.0 : 0.4,
+                //
+                // The inactive ones a little greyed too (user, 2026-10-03), so the active tab stands
+                // out without immersive mode dimming the strip.
+                Opacity = active ? 1.0 : hasContent ? 0.6 : 0.3,
             };
             var captured = g;
             chip.MouseLeftButtonUp += (_, __) => SetLibraryGroup(captured);
@@ -817,6 +822,7 @@ namespace ClawTweaksCenter
         /// GoHome - the library is a tab, not a window, so leaving it is a visibility change.</summary>
         private void LeaveLibrary()
         {
+            HideGameBackdrop();
             StopFriendsPolling();
             if (_friendsOpen) ClearFriendsColumns();
             _friendsOpen = false;
@@ -1383,7 +1389,13 @@ namespace ClawTweaksCenter
                 Margin = new Thickness(0, 2, 0, 0),
             };
             stack.Children.Add(_libHeadline);
-            stack.Children.Add(_libSubline);
+            var subRow = new StackPanel { Orientation = Orientation.Horizontal };
+            subRow.Children.Add(_libSubline);
+            _libAchBar = BuildPercentBar(64, 5);
+            _libAchBar.Margin = new Thickness(8, 3, 0, 0);
+            _libAchBar.VerticalAlignment = VerticalAlignment.Center;
+            subRow.Children.Add(_libAchBar);
+            stack.Children.Add(subRow);
             UpdateSelectedTitle();
 
             // The right-stick readout rides along on this row, hard right. It is two short chips
@@ -1419,10 +1431,13 @@ namespace ClawTweaksCenter
             {
                 _libHeadline.Text = string.Empty;
                 _libSubline.Text = string.Empty;
+                SetPercentBar(_libAchBar, null);
+                ScheduleGameBackdrop(null);
                 return;
             }
             _libHeadline.Text = g.Title;
-            if (g.Offer != null) { _libSubline.Text = OfferLine(g); return; }
+            ScheduleGameBackdrop(g);
+            if (g.Offer != null) { _libSubline.Text = OfferLine(g); SetPercentBar(_libAchBar, null); return; }
             SchedulePrefetchAchievements(g);
             // The labels are translated, the store name and the date are not: one is a brand, and
             // the other is formatted by the CURRENT CULTURE so it already reads correctly for the
@@ -1470,6 +1485,8 @@ namespace ClawTweaksCenter
             var ach = Library.SteamAchievements.SummaryFor(g);
             if (ach != null && ach.Total > 0)
                 parts.Add(ach.Percent.ToString(System.Globalization.CultureInfo.CurrentCulture) + "%");
+            // The bar comes last on the line, right after the percentage it draws.
+            SetPercentBar(_libAchBar, ach);
 
             _libSubline.Text = string.Join("  ·  ", parts);
         }
@@ -2582,6 +2599,9 @@ namespace ClawTweaksCenter
         /// the footer had no room for it (user, 2026-09-21).</summary>
         private const int SettingsInfoRow = 17;
 
+        /// <summary>The selected game's backdrop behind Recent (CenterMenuWindow.GameBackdrop.cs).</summary>
+        private const int SettingsGameBackdropRow = 18;
+
         // THREE, not two (user, 2026-09-05). Nine switches in two columns ran past the bottom of an
         // eight-inch panel again - the same reason this went from one column to two - and the rows are
         // a short label plus a switch, so the width was never carrying anything.
@@ -2781,6 +2801,7 @@ namespace ClawTweaksCenter
                 case SettingsDenseGridRow: return "More covers per row, and a smaller Recent reel.";
                 case SettingsImmersiveRow: return "Fades the tabs and the footer out on Recent while you idle.";
                 case SettingsReflectionsRow: return "Mirrors every cover in the Recent reel.";
+                case SettingsGameBackdropRow: return "Shows the selected game's picture behind the library on Recent once you stop on it.";
                 case SettingsSquareRomArtRow: return "ROM covers are square instead of upright.";
                 case SettingsUserImagesRow: return "The folder your own covers and backgrounds come from.";
                 case SettingsBackgroundRow: return "The picture behind the library.";
@@ -2863,6 +2884,11 @@ namespace ClawTweaksCenter
                 case SettingsBackgroundRow:
                     OpenUserArtPicker(UserArtPurpose.Background);
                     return;
+                case SettingsGameBackdropRow:
+                    Core.CenterSettings.RecentGameBackdrop = !Core.CenterSettings.RecentGameBackdrop;
+                    // Off takes it away now; on shows it with the next selection on Recent.
+                    if (!Core.CenterSettings.RecentGameBackdrop) HideGameBackdrop();
+                    break;
                 case SettingsReflectionsRow:
                     Core.CenterSettings.RecentReflections = !Core.CenterSettings.RecentReflections;
                     // No repaint from here - same as Square ROM art and Denser grid next to it.
@@ -3291,7 +3317,7 @@ namespace ClawTweaksCenter
 
         private void StartArtFetch()
         {
-            if (!Library.SteamGridDb.HasKey || !_libraryScanned) return;
+            if (!_libraryScanned) return;
 
             _artFetchCts?.Cancel();
             _artFetchCts = new CancellationTokenSource();
@@ -3302,10 +3328,14 @@ namespace ClawTweaksCenter
             {
                 try
                 {
-                    await Library.SteamGridDb.FetchMissingAsync(games, ct, () => Dispatcher.Invoke(() =>
+                    void Redraw() => Dispatcher.Invoke(() =>
                     {
                         if (_view == View.Library && !_settingsOpen && !LaunchOverlayOpen) RenderLibrary();
-                    }));
+                    });
+                    // Xbox first and without any key: Microsoft's catalogue has the official
+                    // picture by package name. SteamGridDB then fills whatever is still empty.
+                    await Library.XboxCatalogArt.FetchMissingAsync(games, ct, Redraw);
+                    if (Library.SteamGridDb.HasKey) await Library.SteamGridDb.FetchMissingAsync(games, ct, Redraw);
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception ex) { Core.InstallLog.Write("Cover art fetch failed: " + ex.Message); }

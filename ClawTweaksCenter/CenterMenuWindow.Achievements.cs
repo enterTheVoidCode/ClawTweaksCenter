@@ -148,12 +148,12 @@ namespace ClawTweaksCenter
             head.Children.Add(figures);
             panel.Children.Add(head);
 
-            panel.Children.Add(new Border
-            {
-                Height = 1,
-                Background = UiHelpers.Card,
-                Margin = new Thickness(0, 6, 0, 8),
-            });
+            // The progress as a bar where the divider used to be (user, 2026-10-03): the same line
+            // that separated the figures from the list now also shows how far along.
+            var bar = BuildPercentBar(double.NaN, 5);
+            SetPercentBar(bar, summary);
+            bar.Margin = new Thickness(0, 7, 0, 9);
+            panel.Children.Add(bar);
 
             var recent = SteamAchievements.RecentFor(game, RecentAchievementCount);
             if (recent.Count == 0)
@@ -169,6 +169,54 @@ namespace ClawTweaksCenter
 
             panel.Children.Add(BuildLaunchAchievementsRow(game));
             return panel;
+        }
+
+        /// <summary>
+        /// A thin progress bar for an achievement percentage: a track in the card colour with the
+        /// accent filling it, green when finished. Width NaN stretches. The fill is the track's only
+        /// child and is sized by <see cref="SetPercentBar"/> as a fraction of the track's width.
+        /// </summary>
+        private static Border BuildPercentBar(double width, double height)
+        {
+            var fill = new Border
+            {
+                CornerRadius = new CornerRadius(height / 2),
+                HorizontalAlignment = HorizontalAlignment.Left,
+                Background = UiHelpers.Accent,
+            };
+            var track = new Border
+            {
+                Width = width,
+                Height = height,
+                CornerRadius = new CornerRadius(height / 2),
+                Background = UiHelpers.Card,
+                ClipToBounds = true,
+                Child = fill,
+            };
+            // The fill follows the track's width, so a stretching bar is right at any size.
+            track.SizeChanged += (_, __) => SizeFill(track);
+            return track;
+        }
+
+        private static void SetPercentBar(Border track, AchievementSummary summary)
+        {
+            if (track == null) return;
+            bool show = summary != null && summary.Total > 0;
+            track.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
+            if (!show) return;
+            // The exact fraction, not the floored figure the text shows: a bar at 99 % of a 700
+            // achievement game is the same length either way, and only the text has to be careful.
+            track.Tag = Math.Min(1.0, (double)summary.Unlocked / summary.Total);
+            if (track.Child is Border fill)
+                fill.Background = summary.Unlocked >= summary.Total ? UiHelpers.Ok : UiHelpers.Accent;
+            SizeFill(track);
+        }
+
+        private static void SizeFill(Border track)
+        {
+            if (!(track.Child is Border fill) || !(track.Tag is double f)) return;
+            double w = double.IsNaN(track.Width) ? track.ActualWidth : track.Width;
+            fill.Width = Math.Max(0, w * f);
         }
 
         /// <summary>

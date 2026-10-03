@@ -30,7 +30,9 @@ param(
     # current version" - which is right for a release feed and in the way while developing, where the
     # same version gets packed again after changing a pack option. It removes only that version's own
     # packages, never the older ones the delta is built against.
-    [switch] $Replace
+    [switch] $Replace,
+    # Build even though %LOCALAPPDATA%\ClawTweaks\BuildSecrets\steamgriddb.key is missing.
+    [switch] $AllowMissingSecrets
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,6 +62,18 @@ if (-not $vpk) {
 Write-Host ""
 Write-Host "  Velopack release  $version" -ForegroundColor Cyan
 Write-Host ""
+
+# --- built-in keys: a release without them must be a decision, not an accident ---------------------
+# The csproj compiles ClawTweaks' SteamGridDB key in from this file (target ClawGenerateBuildSecrets).
+# A build without it still works, but ships Center without covers out of the box - so a RELEASE stops
+# here unless -AllowMissingSecrets says that is meant. The key is never printed.
+$sgdbKeyFile = Join-Path $env:LOCALAPPDATA 'ClawTweaks\BuildSecrets\steamgriddb.key'
+if (-not (Test-Path $sgdbKeyFile) -or ((Get-Content $sgdbKeyFile -Raw) -replace '\s', '').Length -ne 32) {
+    if (-not $AllowMissingSecrets) {
+        throw "No SteamGridDB key in $sgdbKeyFile (one line, 32 characters). Add it, or pass -AllowMissingSecrets to build without covers out of the box."
+    }
+    Write-Warning "Building WITHOUT the built-in SteamGridDB key (-AllowMissingSecrets)."
+}
 
 # --- publish ----------------------------------------------------------------------------------------
 Write-Host ">> Publishing..." -ForegroundColor Gray

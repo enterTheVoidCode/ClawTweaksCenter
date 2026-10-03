@@ -13,10 +13,17 @@ namespace ClawTweaksCenter.Library
     /// <summary>
     /// Vertical cover art from SteamGridDB, for the games nothing local has a picture of.
     ///
-    /// THE ONLY PART OF THE LIBRARY THAT USES THE NETWORK, and it does nothing at all until the user
-    /// pastes their own API key. There is no key in this repository and none in the exe: a shipped
-    /// key is a credential in a public binary, the quota is charged per key, and the first person to
-    /// extract and abuse it takes the feature away from everyone. See CenterSettings.SteamGridDbApiKey.
+    /// ── THE KEY: BUILT IN, THE USER'S OWN WINS (user, 2026-10-03) ──────────────────────────────
+    /// Until 0.4.47 this did nothing until the user pasted their own API key, on the argument that a
+    /// shipped key is a credential in a public binary. Reversed on purpose: Handheld Companion ships
+    /// one the same way (SecretKeys.cs, swapped in from %LocalAppData% at build time), and covers out
+    /// of the box are worth more to a handheld library than the risk. So:
+    ///   - ClawTweaks' own key is compiled in from a file OUTSIDE the repository
+    ///     (%LOCALAPPDATA%\ClawTweaks\BuildSecrets\steamgriddb.key, see the csproj). A build without
+    ///     that file simply has none and behaves as before. The key is never in git.
+    ///   - A key the user pastes in the settings still wins - it is their own quota.
+    /// The rules below about quota still hold, now for a key everyone shares: one request at a
+    /// time, every answer cached including the misses, backdrops only on demand.
     ///
     /// Every result is cached on disk, including the misses. Without caching the failures, a library
     /// with twenty unmatched games would re-ask for all twenty on every single start - which is how a
@@ -37,7 +44,23 @@ namespace ClawTweaksCenter.Library
     {
         private const string ApiBase = "https://www.steamgriddb.com/api/v2/";
 
-        public static bool HasKey => !string.IsNullOrWhiteSpace(Core.CenterSettings.SteamGridDbApiKey);
+        /// <summary>The key requests go out with: the user's own when set, else the built-in one.
+        /// Empty when there is neither.</summary>
+        internal static string EffectiveKey
+        {
+            get
+            {
+                string own = Core.CenterSettings.SteamGridDbApiKey;
+                if (!string.IsNullOrWhiteSpace(own)) return own.Trim();
+                return (BuildSecrets.SteamGridDbKey ?? string.Empty).Trim();
+            }
+        }
+
+        public static bool HasKey => EffectiveKey.Length > 0;
+
+        /// <summary>True when the built-in key is what is used - the settings row says so.</summary>
+        public static bool UsingBuiltInKey =>
+            string.IsNullOrWhiteSpace(Core.CenterSettings.SteamGridDbApiKey) && !string.IsNullOrWhiteSpace(BuildSecrets.SteamGridDbKey);
 
         // Internal so ArtOverrideStore can resolve its own filenames against the same folder,
         // without duplicating the LocalApplicationData\ClawTweaks\Center\artcache path in two places.
@@ -106,9 +129,9 @@ namespace ClawTweaksCenter.Library
         {
             if (!HasKey || games == null) return;
 
-            string key = Core.CenterSettings.SteamGridDbApiKey.Trim();
+            string key = EffectiveKey;
             bool changed = false;
-            int found = 0;
+            int found = 0, asked = 0, missed = 0, failed = 0;
 
             foreach (var game in games)
             {
@@ -130,10 +153,19 @@ namespace ClawTweaksCenter.Library
                 }
 
                 string file = null;
+                asked++;
                 try { file = await DownloadCoverAsync(key, game.Title, titleKey, ct).ConfigureAwait(false); }
                 catch (OperationCanceledException) { throw; }
-                catch { }
+                catch (Exception ex)
+                {
+                    // NOT cached as a miss: a timeout or a 5xx says nothing about the game, and an
+                    // entry here would keep its tile empty for good. Asked again next start.
+                    failed++;
+                    Core.InstallLog.Write("[Art] SteamGridDB cover failed: " + ex.GetType().Name);
+                    continue;
+                }
 
+                if (file == null) missed++;
                 lock (IndexLock) Index[titleKey] = file ?? string.Empty;
                 changed = true;
 
@@ -147,6 +179,9 @@ namespace ClawTweaksCenter.Library
 
             if (changed) SaveIndex();
             if (found > 0) onProgress?.Invoke();
+            if (asked > 0)
+                Core.InstallLog.Write("[Art] SteamGridDB: " + asked + " asked, " + (asked - missed - failed) + " covers, "
+                    + missed + " not found, " + failed + " failed" + (UsingBuiltInKey ? " (built-in key)" : ""));
         }
 
         #region Hero backdrops
@@ -229,7 +264,7 @@ namespace ClawTweaksCenter.Library
             }
 
             string file = null;
-            try { file = await DownloadHeroAsync(Core.CenterSettings.SteamGridDbApiKey.Trim(), game.Title, titleKey, ct).ConfigureAwait(false); }
+            try { file = await DownloadHeroAsync(EffectiveKey, game.Title, titleKey, ct).ConfigureAwait(false); }
             catch (OperationCanceledException) { return null; }   // NOT cached as a miss: nothing was learned
             catch { }
 
@@ -420,7 +455,7 @@ namespace ClawTweaksCenter.Library
                 return empty;
             }
             if (string.IsNullOrWhiteSpace(query)) return empty;
-            string key = Core.CenterSettings.SteamGridDbApiKey.Trim();
+            string key = EffectiveKey;
             LogArtSearch("search '" + query + "'");
 
             int? id;
@@ -441,7 +476,7 @@ namespace ClawTweaksCenter.Library
         public static async Task<ArtPage> MoreArtAsync(int gameId, int page, CancellationToken ct)
         {
             if (!HasKey || page <= 0) return new ArtPage { GameId = gameId };
-            string key = Core.CenterSettings.SteamGridDbApiKey.Trim();
+            string key = EffectiveKey;
             try { return await VerticalGridsAsync(key, gameId, page, ct).ConfigureAwait(false); }
             catch (OperationCanceledException) { throw; }
             catch (Exception ex) { LogArtSearch("grids page " + page + " threw: " + ex); return new ArtPage { GameId = gameId }; }
