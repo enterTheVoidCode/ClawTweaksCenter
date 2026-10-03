@@ -25,7 +25,13 @@
 - Der Tab **Nicht installiert heißt jetzt Store** und hat vier Bereiche, LT/RT wechselt:
 - **Steam - Nicht installiert**, **Steam Angebote**, **Steam Wunschliste** mit aktuellen Preisen und **Game Pass** mit allen PC-Spielen.
 
+### Cover und Bilder
+- **Cover ab Werk**: Spiele ohne Bild bekommen eines von SteamGridDB, ohne dass du einen eigenen Key brauchst. Ein eigener Key in den Einstellungen hat weiterhin Vorrang.
+- **Xbox-Spiele** bekommen Cover und Hintergrund direkt aus dem Microsoft Store - auch frisch installierte.
+- **Spielhintergrund in Recent** (Einstellungen, Darstellung): Bleibst du auf einem Spiel stehen, liegt sein Bild hinter der ganzen Bibliothek.
+
 ### Oberfläche
+- **Fortschrittsbalken** für Errungenschaften neben der Prozentzahl in Recent und im Startmenü eines Spiels.
 - **Neuer Footer** mit Akku-Anzeige, Restlaufzeit und Ladelimit.
 - **Startseite** im Fluent-Stil, **Einstellungen** in die Bereiche Allgemein und Bibliothek gegliedert.
 

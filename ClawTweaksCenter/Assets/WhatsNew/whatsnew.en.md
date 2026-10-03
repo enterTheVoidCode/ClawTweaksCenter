@@ -25,7 +25,13 @@
 - The **Not installed tab is now the Store**, with four sections LT/RT switch between:
 - **Steam - Not installed**, **Steam deals**, **Steam wishlist** with current prices, and **Game Pass** with every PC game.
 
+### Covers and pictures
+- **Covers out of the box**: games without a picture get one from SteamGridDB, no key of your own needed. Your own key in the settings still wins.
+- **Xbox games** get their cover and backdrop straight from the Microsoft Store - freshly installed ones too.
+- **Game backdrop on Recent** (Settings, Appearance): rest on a game and its picture fills the library behind it.
+
 ### Look and feel
+- **Progress bars** for achievements beside the percentage on Recent and in a game's start menu.
 - **New footer** with a battery gauge, time left and the charge limit.
 - **Start screen** in the Fluent style, **settings** grouped into General and Library.
 
