@@ -187,6 +187,10 @@
     <PackageReference Include="SteamKit2" Version="3.4.0" />
     <!-- Draws the Steam sign-in QR code. MIT. -->
     <PackageReference Include="QRCoder" Version="1.8.0" />
+    <!-- Reads PlayniteAchievements' achievement_cache.db, READ-ONLY, for the Playnite game ->
+         RetroAchievements game id mapping it made by hashing the ROMs
+         (Library\Accounts\RetroAchievementsAchievements.cs). MIT. Center hashes nothing itself. -->
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
     <!-- No package needed for Shared\Data\ClawHardwareId.cs's registry access: the private repo's
          Shared.csproj targets netstandard2.0 and has to reference Microsoft.Win32.Registry, but
          net10.0-windows ships it in the framework (adding it back produces NU1510). -->

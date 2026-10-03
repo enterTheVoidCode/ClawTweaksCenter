@@ -14,6 +14,10 @@
 ### Achievement history
 - **Your last 100 unlocks** from Steam, Xbox and Epic in one list. X in Recent.
 
+### RetroAchievements
+- **Achievements for your ROMs**: Center takes over the RetroAchievements account from PlayniteAchievements and shows the list for every matched game.
+- In the history RetroAchievements have **their own column** beside the PC stores, left and right switch.
+
 ### Friends
 - **Xbox friends** are in the friends list now, their unlocks in the feed beside it.
 

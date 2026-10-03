@@ -18,7 +18,7 @@ namespace ClawTweaksCenter
     /// games list, and it lives inside the settings screen the same way: _accountsOpen implies
     /// _settingsOpen. See Doku\ACHIEVEMENTS_Plan.md.
     ///
-    /// One row per store that is BUILT - Steam, Xbox and Epic today. A store appears here the day it works, not
+    /// One row per store that is BUILT - Steam, Xbox, Epic and RetroAchievements today. A store appears here the day it works, not
     /// before: a row that says "coming soon" is a promise on a screen people open to get something
     /// done.
     ///
@@ -44,6 +44,10 @@ namespace ClawTweaksCenter
         private const int AccountsSteamRow = 0;
         private const int AccountsXboxRow = 1;
         private const int AccountsEpicRow = 2;
+        private const int AccountsRetroRow = 3;
+
+        /// <summary>The RetroAchievements takeover is running (one request); A does nothing meanwhile.</summary>
+        private bool _retroSignInRunning;
 
         /// <summary>The big code beside the QR on the Xbox screen - Microsoft's page asks for it
         /// when the QR is not used.</summary>
@@ -110,7 +114,7 @@ namespace ClawTweaksCenter
             heading.Children.Add(BuildAccountsInfoBox("Your sign-in stays yours",
                 "ClawTweaks never sees your password. You only grant access to selected areas such as friends, achievements and purchased games."));
             heading.Children.Add(BuildAccountsInfoBox("How to sign in",
-                "Steam and Xbox take seconds with a QR code on your phone. Epic asks for your user name and password in the browser."));
+                "Steam and Xbox take seconds with a QR code on your phone. Epic asks for your user name and password in the browser. RetroAchievements takes over the user name and API key PlayniteAchievements already has."));
             Grid.SetColumn(heading, 0);
             columns.Children.Add(heading);
 
@@ -128,6 +132,11 @@ namespace ClawTweaksCenter
                 ? (string.IsNullOrEmpty(EpicAccount.DisplayName) ? Core.Loc.T("Signed in") : EpicAccount.DisplayName)
                 : Core.Loc.T("Not signed in");
             list.Children.Add(BuildAccountRow(AccountsEpicRow, "Epic Games", epic, EpicAccount.IsSignedIn));
+            // ROMs only, and only those PlayniteAchievements matched - so the row says from where.
+            string retro = RetroAchievementsAccount.IsSignedIn
+                ? (string.IsNullOrEmpty(RetroAchievementsAccount.UserName) ? Core.Loc.T("Signed in") : RetroAchievementsAccount.UserName)
+                : _retroSignInRunning ? Core.Loc.T("Checking...") : Core.Loc.T("Not signed in");
+            list.Children.Add(BuildAccountRow(AccountsRetroRow, "RetroAchievements", retro, RetroAchievementsAccount.IsSignedIn));
             if (!string.IsNullOrEmpty(_accountsNote))
             {
                 list.Children.Add(new TextBlock
@@ -243,12 +252,55 @@ namespace ClawTweaksCenter
             if (_accountsIndex == AccountsSteamRow) StartSteamQr();
             else if (_accountsIndex == AccountsXboxRow) StartXboxSignIn();
             else if (_accountsIndex == AccountsEpicRow) StartEpicSignIn();
+            else if (_accountsIndex == AccountsRetroRow) StartRetroSignIn();
+        }
+
+        /// <summary>
+        /// RetroAchievements has no sign-in page to send anyone to: the user name and API key are
+        /// copied from PlayniteAchievements and checked once (see RetroAchievementsAccount). The
+        /// screen stays where it is and the note under the rows says how it went.
+        /// </summary>
+        private void StartRetroSignIn()
+        {
+            if (_retroSignInRunning) return;
+            _retroSignInRunning = true;
+            _accountsNote = null;
+            RenderAccounts();
+            RefreshActionBar();
+            _ = RetroAchievementsAccount.SignInFromPlayniteAchievementsAsync(CancellationToken.None).ContinueWith(t =>
+            {
+                var result = t.Status == TaskStatus.RanToCompletion ? t.Result : RetroAchievementsAccount.SignInResult.Unreachable;
+                Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    _retroSignInRunning = false;
+                    switch (result)
+                    {
+                        case RetroAchievementsAccount.SignInResult.Ok:
+                            _accountsNote = Core.Loc.F("Connected to RetroAchievements. PlayniteAchievements has matched {0} of your ROMs.",
+                                Library.Accounts.RetroAchievementsAchievements.MappedCount);
+                            break;
+                        case RetroAchievementsAccount.SignInResult.NotSetUp:
+                            _accountsNote = Core.Loc.T("Set up RetroAchievements in Playnite first: PlayniteAchievements settings, RetroAchievements, with your user name and the Web API key from retroachievements.org (Settings, Keys).");
+                            break;
+                        case RetroAchievementsAccount.SignInResult.Rejected:
+                            _accountsNote = Core.Loc.T("RetroAchievements did not accept the user name and key from PlayniteAchievements. Check them there.");
+                            break;
+                        default:
+                            _accountsNote = Core.Loc.T("RetroAchievements could not be reached. Try again later.");
+                            break;
+                    }
+                    if (!_accountsOpen || _steamQrCts != null) return;
+                    RenderAccounts();
+                    RefreshActionBar();
+                }));
+            }, TaskScheduler.Default);
         }
 
         private bool SelectedAccountSignedIn =>
             _accountsIndex == AccountsSteamRow ? SteamAccount.IsSignedIn
             : _accountsIndex == AccountsXboxRow ? XboxAccount.IsSignedIn
-            : _accountsIndex == AccountsEpicRow && EpicAccount.IsSignedIn;
+            : _accountsIndex == AccountsEpicRow ? EpicAccount.IsSignedIn
+            : _accountsIndex == AccountsRetroRow && RetroAchievementsAccount.IsSignedIn;
 
         private void SignOutSelectedAccount()
         {
@@ -264,6 +316,13 @@ namespace ClawTweaksCenter
                 EpicAccount.SignOut();
                 Core.InstallLog.Write("[Accounts] Epic signed out by the user");
                 _accountsNote = Core.Loc.T("Signed out of Epic Games.");
+            }
+            else if (_accountsIndex == AccountsRetroRow)
+            {
+                // Center's copy only - PlayniteAchievements keeps its own and is not touched.
+                RetroAchievementsAccount.SignOut();
+                Core.InstallLog.Write("[Accounts] RetroAchievements signed out by the user");
+                _accountsNote = Core.Loc.T("Signed out of RetroAchievements.");
             }
             else
             {
@@ -284,7 +343,7 @@ namespace ClawTweaksCenter
                 return;
             }
             bool signedIn = SelectedAccountSignedIn;
-            AddAction(PadButton.A, signedIn ? "Sign in again" : "Sign in", true, ActivateAccount);
+            AddAction(PadButton.A, signedIn ? "Sign in again" : "Sign in", !(_accountsIndex == AccountsRetroRow && _retroSignInRunning), ActivateAccount);
             // Y, not A: a sign-out that takes a phone to undo should not sit on the button that is
             // pressed most.
             if (signedIn) AddAction(PadButton.Y, "Sign out", true, SignOutSelectedAccount);
@@ -298,6 +357,7 @@ namespace ClawTweaksCenter
             if (SteamAccount.IsSignedIn) names.Add("Steam");
             if (XboxAccount.IsSignedIn) names.Add("Xbox");
             if (EpicAccount.IsSignedIn) names.Add("Epic Games");
+            if (RetroAchievementsAccount.IsSignedIn) names.Add("RetroAchievements");
             return names.Count > 0 ? string.Join(", ", names) : Core.Loc.T("None");
         }
 
@@ -308,8 +368,11 @@ namespace ClawTweaksCenter
         /// stores are connected - each store's logo with a green or grey dot - and X to go straight to
         /// the accounts screen. As compact as it gets: it answers "why is Xbox missing here" without
         /// becoming the subject of the screen.
+        ///
+        /// <paramref name="withRetro"/>: RetroAchievements too, after a gap - on the history, which
+        /// has a column for it. The friends screen has nothing from it.
         /// </summary>
-        private UIElement BuildAccountsCorner()
+        private UIElement BuildAccountsCorner(bool withRetro = false)
         {
             var row = new StackPanel
             {
@@ -340,6 +403,28 @@ namespace ClawTweaksCenter
             Add(Library.LibraryGroup.Steam, "Steam", SteamAccount.IsSignedIn);
             Add(Library.LibraryGroup.Xbox, "Xbox", XboxAccount.IsSignedIn);
             Add(Library.LibraryGroup.Epic, "Epic Games", EpicAccount.IsSignedIn);
+            if (withRetro)
+            {
+                bool on = RetroAchievementsAccount.IsSignedIn;
+                var item = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(6, 0, 12, 0), ToolTip = "RetroAchievements" };
+                if (Library.StoreIcons.VectorFor(Library.LibraryGroup.Roms, on ? UiHelpers.Text : UiHelpers.Subtle, 16) is FrameworkElement icon)
+                {
+                    icon.Width = 16;
+                    icon.Height = 16;
+                    icon.VerticalAlignment = VerticalAlignment.Center;
+                    item.Children.Add(icon);
+                }
+                item.Children.Add(new System.Windows.Shapes.Ellipse
+                {
+                    Width = 7,
+                    Height = 7,
+                    Fill = on ? UiHelpers.Ok : UiHelpers.Subtle,
+                    Opacity = on ? 1.0 : 0.6,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(5, 0, 0, 0),
+                });
+                row.Children.Add(item);
+            }
 
             row.Children.Add(BuildKeyCap("X"));
             row.Children.Add(new TextBlock
@@ -389,6 +474,8 @@ namespace ClawTweaksCenter
                 Dispatcher.BeginInvoke(new Action(() => OnAccountAchievementsChanged(Library.GameStore.Xbox, key)));
             Library.Accounts.EpicAccountAchievements.Changed += key =>
                 Dispatcher.BeginInvoke(new Action(() => OnAccountAchievementsChanged(Library.GameStore.Epic, key)));
+            Library.Accounts.RetroAchievementsAchievements.Changed += key =>
+                Dispatcher.BeginInvoke(new Action(() => OnAccountAchievementsChanged(Library.GameStore.Playnite, key)));
         }
 
         private void SchedulePrefetchAchievements(Library.GameEntry g)
@@ -396,7 +483,8 @@ namespace ClawTweaksCenter
             if (g == null) return;
             bool signedIn = g.Store == Library.GameStore.Steam ? SteamAccount.IsSignedIn
                           : g.Store == Library.GameStore.Xbox ? XboxAccount.IsSignedIn
-                          : g.Store == Library.GameStore.Epic && EpicAccount.IsSignedIn;
+                          : g.Store == Library.GameStore.Epic ? EpicAccount.IsSignedIn
+                          : g.Store == Library.GameStore.Playnite && RetroAchievementsAccount.IsSignedIn;
             if (!signedIn) return;
             _achPrefetchGame = g;
             if (_achPrefetchTimer == null)
@@ -420,8 +508,8 @@ namespace ClawTweaksCenter
         /// </summary>
         private void OnAccountAchievementsChanged(Library.GameStore store, string key)
         {
-            // key: the appid (Steam), package family name (Xbox) or AppName (Epic) of one game, null
-            // for a whole table.
+            // key: the appid (Steam), package family name (Xbox), AppName (Epic) or Playnite game id
+            // (RetroAchievements) of one game, null for a whole table.
             bool Concerns(Library.GameEntry g) => g != null && g.Store == store
                 && (key == null || string.Equals(key, Library.SteamAchievements.AccountKeyOf(g), StringComparison.OrdinalIgnoreCase));
 

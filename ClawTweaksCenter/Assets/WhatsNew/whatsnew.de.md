@@ -14,6 +14,10 @@
 ### Errungenschaften-Verlauf
 - **Deine letzten 100 Freischaltungen** aus Steam, Xbox und Epic auf einen Blick. In Recent mit X.
 
+### RetroAchievements
+- **Errungenschaften für deine ROMs**: Center übernimmt das RetroAchievements-Konto aus PlayniteAchievements und zeigt die Liste bei jedem zugeordneten Spiel.
+- Im Verlauf stehen RetroAchievements **in einer eigenen Spalte** neben den PC-Stores, links und rechts wechselt.
+
 ### Freunde
 - **Xbox-Freunde** stehen jetzt mit in der Freundesliste, ihre Freischaltungen im Feed daneben.
 

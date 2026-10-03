@@ -173,6 +173,7 @@ namespace ClawTweaksCenter.Library
             Accounts.SteamAccountAchievements.RefreshProgressInBackground();
             Accounts.XboxAccountAchievements.RefreshTitlesInBackground();
             Accounts.EpicAccountAchievements.RefreshInBackground();
+            Accounts.RetroAchievementsAchievements.RefreshInBackground();
         }
 
         /// <summary>
@@ -191,6 +192,8 @@ namespace ClawTweaksCenter.Library
             if (IsXbox(g)) return Accounts.XboxAccountAchievements.SummaryFor(Accounts.XboxAccountAchievements.PfnOf(g.Id));
             // Epic the same way, keyed by the AppName.
             if (IsEpic(g)) return Accounts.EpicAccountAchievements.SummaryFor(g.Id);
+            // ROMs from RetroAchievements, keyed by the Playnite game id PlayniteAchievements mapped.
+            if (IsRom(g)) return Accounts.RetroAchievementsAchievements.SummaryFor(g.Id);
 
             string appId = AppIdOf(g);
             if (appId == null) return null;
@@ -320,23 +323,27 @@ namespace ClawTweaksCenter.Library
         {
             if (IsXbox(g)) Accounts.XboxAccountAchievements.RequestDetail(Accounts.XboxAccountAchievements.PfnOf(g.Id));
             else if (IsEpic(g)) Accounts.EpicAccountAchievements.RequestDetail(g.Id);
+            else if (IsRom(g)) Accounts.RetroAchievementsAchievements.RequestDetail(g.Id);
             else Accounts.SteamAccountAchievements.RequestDetail(AppIdOf(g));
         }
 
         /// <summary>The key the account sources announce a change under: the appid for Steam, the
-        /// package family name for Xbox, the AppName for Epic. Null for anything else.</summary>
+        /// package family name for Xbox, the AppName for Epic, the Playnite game id for a ROM. Null
+        /// for anything else.</summary>
         public static string AccountKeyOf(GameEntry g) =>
             IsXbox(g) ? Accounts.XboxAccountAchievements.PfnOf(g.Id)
-            : IsEpic(g) ? g.Id
+            : IsEpic(g) || IsRom(g) ? g.Id
             : AppIdOf(g);
 
         private static bool IsXbox(GameEntry g) => g != null && g.Store == GameStore.Xbox && !string.IsNullOrEmpty(g.Id);
         private static bool IsEpic(GameEntry g) => g != null && g.Store == GameStore.Epic && !string.IsNullOrEmpty(g.Id);
+        private static bool IsRom(GameEntry g) => g != null && g.Store == GameStore.Playnite && !string.IsNullOrEmpty(g.Id);
 
         /// <summary>The list for any store: Xbox and Epic from their accounts, Steam from account + blobs.</summary>
         private static List<AchievementEntry> ListFor(GameEntry g) =>
             IsXbox(g) ? Accounts.XboxAccountAchievements.EntriesFor(Accounts.XboxAccountAchievements.PfnOf(g.Id))
             : IsEpic(g) ? Accounts.EpicAccountAchievements.EntriesFor(g.Id)
+            : IsRom(g) ? Accounts.RetroAchievementsAchievements.EntriesFor(g.Id)
             : ModelFor(AppIdOf(g));
 
         #region Model
