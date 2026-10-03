@@ -79,17 +79,35 @@ namespace ClawTweaksCenter.Ui
                 // Bullet.
                 if (line.StartsWith("- ") || line.StartsWith("* "))
                 {
-                    parent.Children.Add(BodyText("•  " + StripInline(line.Substring(2).Trim())));
+                    parent.Children.Add(RichText("•  " + line.Substring(2).Trim()));
                     any = true;
                     continue;
                 }
 
                 // Plain paragraph.
-                parent.Children.Add(BodyText(StripInline(line)));
+                parent.Children.Add(RichText(line));
                 any = true;
             }
 
             if (!any) parent.Children.Add(BodyText("No release notes."));
+        }
+
+        /// <summary>A body line with **bold** kept as bold - the "What's new" screen leads each point
+        /// with a bold phrase. Links and code marks are stripped as before.</summary>
+        private static TextBlock RichText(string markdown)
+        {
+            var block = BodyText(string.Empty);
+            string s = StripInline(markdown.Replace("**", "\u0001")).Trim();
+            var parts = s.Split('\u0001');
+            for (int i = 0; i < parts.Length; i++)
+            {
+                if (parts[i].Length == 0) continue;
+                var run = new System.Windows.Documents.Run(parts[i]);
+                // Odd segments sat between two ** marks.
+                if (i % 2 == 1) { run.FontWeight = FontWeights.SemiBold; run.Foreground = UiHelpers.Text; }
+                block.Inlines.Add(run);
+            }
+            return block;
         }
 
         private static TextBlock BodyText(string text) => new TextBlock

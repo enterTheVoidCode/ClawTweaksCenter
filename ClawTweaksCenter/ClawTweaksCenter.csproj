@@ -89,6 +89,9 @@
 
   <ItemGroup>
     <!-- Xbox controller glyphs shown in the footer action bar (embedded as WPF resources). -->
+    <!-- What's new, per version (Core\WhatsNew.cs). Embedded so the screen works offline and always
+         describes the build that is running. -->
+    <EmbeddedResource Include="Assets\WhatsNew\*.md" />
     <Resource Include="Assets\xbox\*.png" />
     <!-- Device photos (background removed) for the Center menu's device-detection banner. -->
     <Resource Include="Assets\devices\*.png" />

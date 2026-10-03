@@ -142,6 +142,11 @@ namespace ClawTweaksCenter
             Grid.SetRow(head, 0);
             LibraryRoot.Children.Add(head);
 
+            var corner = BuildAccountsCorner();
+            ((FrameworkElement)corner).Margin = new Thickness(0, 14, LibOuterMargin, 0);
+            Grid.SetRow(corner, 0);
+            LibraryRoot.Children.Add(corner);
+
             UIElement body;
             if (_achHistoryLoading)
             {
@@ -220,6 +225,7 @@ namespace ClawTweaksCenter
         private void AddAchievementHistoryActions()
         {
             AddAction(PadButton.B, "Back", true, CloseAchievementHistory);
+            _liveActions[PadButton.X] = OpenAccountsFromLibrary;
         }
     }
 }

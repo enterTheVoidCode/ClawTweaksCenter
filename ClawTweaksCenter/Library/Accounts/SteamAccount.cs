@@ -182,6 +182,7 @@ namespace ClawTweaksCenter.Library.Accounts
             }
             // What was fetched under this account goes with it.
             SteamAccountAchievements.Clear();
+            StoreCatalog.ForgetWishlist();
         }
 
         /// <summary>

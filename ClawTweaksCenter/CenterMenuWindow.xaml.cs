@@ -62,7 +62,7 @@ namespace ClawTweaksCenter
 
         /// <summary>Which idle screen ContentHost shows — Confirm/Install are transient overlays
         /// triggered from Browse and don't need their own value here.</summary>
-        private enum View { Home, Browse, Onboarding, Maintenance, Library, InstallDone, Leave, Faq, Drivers, Notifications }
+        private enum View { Home, Browse, Onboarding, Maintenance, Library, InstallDone, Leave, Faq, Drivers, Notifications, WhatsNew }
         private View _view = View.Home;
 
         private DeviceDetect.Model _deviceModel = DeviceDetect.Model.Unknown;
@@ -212,6 +212,7 @@ namespace ClawTweaksCenter
             // subscription that one exit path forgets to remove leaks a handler for the lifetime of
             // the window, and this store is written from background checks.
             HookNotifications();
+            Library.StoreCatalog.Changed += section => Dispatcher.BeginInvoke(new Action(() => OnStoreCatalogChanged(section)));
 
             SizeChanged += (_, __) => { UpdateShellLayout(); OnLibrarySizeChanged(); RefreshFooterBlurMask(); };
             // The footer changes height when the chips wrap, and the blur mask is a fraction of the
@@ -400,6 +401,12 @@ namespace ClawTweaksCenter
                 // does not wait on the GitHub/Drive fetches sourcesTask is awaiting below). The guard
                 // inside it makes a second call here harmless either way.
                 else TryEnterLibraryOnceKnown();
+
+                // Once after an update: what is new in it (user, 2026-10-03). Not over the three
+                // screens this window can be opened ON - those are a job the user came to do.
+                if (!_startLeaveOnLoad && !_startInstallDoneOnLoad && !_startOnboardingOnLoad
+                    && Core.WhatsNew.TakeUpdateToAnnounce(out _))
+                    OpenWhatsNew(afterUpdate: true);
             }
         }
 
@@ -700,6 +707,7 @@ namespace ClawTweaksCenter
                 case View.Faq: RenderFaq(); break;
                 case View.Drivers: RenderDrivers(); break;
                 case View.Notifications: RenderNotifications(); break;
+                case View.WhatsNew: RenderWhatsNew(); break;
                 default: RenderBrowse(); break;
             }
         }
@@ -882,6 +890,7 @@ namespace ClawTweaksCenter
                 case HomeFaqIndex: OpenFaq(); break;
                 case HomeCommunityIndex: OpenCommunityBrowseFromHome(); break;
                 case HomeDriversIndex: OpenDrivers(); break;
+                case HomeWhatsNewIndex: OpenWhatsNew(afterUpdate: false); break;
             }
         }
 
@@ -936,7 +945,11 @@ namespace ClawTweaksCenter
         // from the FAQ lands on this one (the clamp in MoveHomeSelection).
         private const int HomeMaintenanceIndex = 7;
 
-        private const int HomeMaxIndex = HomeMaintenanceIndex;
+        /// <summary>The ninth cell, completing the third row: the notes of the last updates
+        /// (user, 2026-10-03).</summary>
+        private const int HomeWhatsNewIndex = 8;
+
+        private const int HomeMaxIndex = HomeWhatsNewIndex;
 
         /// <summary>True when a newer Center is offered — either as a notice from setup-manifest.json
         /// (SetupVersionCheck.IsUpdateOffered) or as something this installation can install itself
@@ -1186,6 +1199,11 @@ namespace ClawTweaksCenter
                 "", "Reset · Backup · Restore", "Reset the app, or back up your profiles.",
                 clickable: true, onClick: () => { _homeSelectedIndex = HomeMaintenanceIndex; OpenMaintenance(); },
                 selected: _homeSelectedIndex == HomeMaintenanceIndex));
+
+            tiles.Children.Add(BuildHomeTile(
+                "", "What's new", Core.Loc.F("What changed in the last updates. Running {0}.", Core.WhatsNew.Running.ToString()),
+                clickable: true, onClick: () => { _homeSelectedIndex = HomeWhatsNewIndex; OpenWhatsNew(afterUpdate: false); },
+                selected: _homeSelectedIndex == HomeWhatsNewIndex));
 
             ContentHost.Children.Add(tiles);
         }
@@ -2194,6 +2212,7 @@ namespace ClawTweaksCenter
             // nothing to move.
             if (_view == View.Drivers) { MoveDriversSelection(dir); return; }
             if (_view == View.Notifications) { MoveNotificationsSelection(dir); return; }
+            if (_view == View.WhatsNew) { MoveWhatsNew(dir); return; }
 
             // A hand-off screen (missing prerequisites / untrusted certificate) is up. _view is still
             // Browse — these screens replace the CONTENT without being their own view — so without this
@@ -2451,6 +2470,12 @@ namespace ClawTweaksCenter
             if (_view == View.Notifications)
             {
                 RefreshNotificationsActionBar();
+                return;
+            }
+
+            if (_view == View.WhatsNew)
+            {
+                RefreshWhatsNewActionBar();
                 return;
             }
 

@@ -294,7 +294,7 @@ namespace ClawTweaksCenter.Library
                 case LibraryGroup.All: return "\uE71D";           // AllApps
                 case LibraryGroup.OtherStores: return "\uE719";   // Shop
                 case LibraryGroup.Misc: return "\uE8B7";          // Folder
-                case LibraryGroup.NotInstalled: return "\uE896";  // Download
+                case LibraryGroup.NotInstalled: return "\uE7BF";  // ShoppingCart (the Store tab)
                 default: return "\uE7FC";                              // Game (Steam, Epic, Xbox, ROMs)
             }
         }

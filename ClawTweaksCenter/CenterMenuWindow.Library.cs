@@ -72,10 +72,23 @@ namespace ClawTweaksCenter
         /// rather than how many ROMs it holds. A tab that hid itself until it was loaded could never
         /// be opened, and opening it is what loads it.
         /// </summary>
-        private bool HasNotInstalledGames =>
-            _libraryScanned && (_library.NotInstalledLoaded
-                ? _library.ForGroup(LibraryGroup.NotInstalled).Count > 0
-                : Library.SteamSource.IsPresent);
+        private bool HasNotInstalledGames => _libraryScanned;
+
+        /// <summary>
+        /// THE STORE TAB (user, 2026-10-03). The former Not Installed tab, with sections LT/RT walk:
+        /// the account's uninstalled Steam games (what the tab always showed), Steam's current deals,
+        /// the Steam wishlist with its prices, and the Game Pass catalogue. Always offered - Game
+        /// Pass and the deals need no Steam on the machine. See Library\StoreCatalog.cs.
+        /// </summary>
+        private Library.StoreSection _storeSection = Library.StoreSection.NotInstalled;
+
+        private static readonly Library.StoreSection[] StoreSections =
+        {
+            Library.StoreSection.NotInstalled, Library.StoreSection.SteamDeals,
+            Library.StoreSection.Wishlist, Library.StoreSection.GamePass,
+        };
+
+        private bool InStoreCatalog => _libraryGroup == LibraryGroup.NotInstalled && _storeSection != Library.StoreSection.NotInstalled;
         // Second-level grouping, ROMs only. Null = every system, which is how the tab opens.
         private string _romSystem;
         // Square ROM tiles. Remembered across launches - it describes the user's collection, not a
@@ -727,7 +740,7 @@ namespace ClawTweaksCenter
             // A count of zero for a list nobody has read yet is a lie the strip would tell every
             // session. No number until it is known - the chip already draws without one while the
             // scan is running.
-            bool counted = _libraryScanned && (g != LibraryGroup.NotInstalled || _library.NotInstalledLoaded);
+            bool counted = _libraryScanned && g != LibraryGroup.NotInstalled;
             int count = counted ? _library.ForGroup(g).Count : 0;
             bool hasContent = GroupHasContent(g);
 
@@ -957,15 +970,19 @@ namespace ClawTweaksCenter
             // different tile shapes side by side looks like a rendering fault rather than a setting.
             _libSquareTiles = _squareRomArt && _libraryGroup == LibraryGroup.Roms;
             _libGroupBreaks.Clear();
-            _libraryGames = _libraryScanned
-                ? ArrangeForDisplay(ApplyLetterFilter(_library.ForGroup(_libraryGroup, _romSystem)))
-                : (IReadOnlyList<GameEntry>)Array.Empty<GameEntry>();
+            _libraryGames = !_libraryScanned ? (IReadOnlyList<GameEntry>)Array.Empty<GameEntry>()
+                // A store section is the store's own order (best sellers, wishlist priority), not
+                // the alphabet - ArrangeForDisplay would sort it.
+                : InStoreCatalog ? (IReadOnlyList<GameEntry>)(Library.StoreCatalog.ItemsOf(_storeSection) ?? new List<GameEntry>())
+                : ArrangeForDisplay(ApplyLetterFilter(_library.ForGroup(_libraryGroup, _romSystem)));
 
             if (_libraryGroup == LibraryGroup.NotInstalled && _libraryScanned)
             {
-                var note = BuildNotInstalledNote();
-                Grid.SetRow(note, 0);
-                LibraryRoot.Children.Add(note);
+                var head = new StackPanel();
+                head.Children.Add(BuildStoreSectionStrip());
+                if (_storeSection == Library.StoreSection.NotInstalled) head.Children.Add(BuildNotInstalledNote());
+                Grid.SetRow(head, 0);
+                LibraryRoot.Children.Add(head);
             }
             else if (_libraryGroup == LibraryGroup.Roms && _libraryScanned)
             {
@@ -988,7 +1005,11 @@ namespace ClawTweaksCenter
             if (_libraryScanning && !_libraryScanned) body = BuildLibraryMessage("Reading your stores…", working: true);
             // Its own line rather than the empty state: "No Steam library found" would be a wrong
             // answer to a question nobody has asked yet.
-            else if (_libraryGroup == LibraryGroup.NotInstalled && _libraryScanned && !_library.NotInstalledLoaded)
+            else if (InStoreCatalog && _storeSection == Library.StoreSection.Wishlist && !Library.Accounts.SteamAccount.IsSignedIn)
+                body = BuildLibraryMessage("Sign in to Steam under Settings, Accounts to see your wishlist.", working: false);
+            else if (InStoreCatalog && Library.StoreCatalog.ItemsOf(_storeSection) == null)
+                body = BuildLibraryMessage("Loading the store…", working: true);
+            else if (_libraryGroup == LibraryGroup.NotInstalled && !InStoreCatalog && _libraryScanned && !_library.NotInstalledLoaded)
                 body = BuildLibraryMessage("Reading your Steam library…", working: true);
             else if (_libraryGames.Count == 0) body = BuildLibraryMessage(EmptyMessage(), working: false);
             else body = _libReelMode ? BuildReel() : BuildGrid();
@@ -1061,6 +1082,99 @@ namespace ClawTweaksCenter
             }
 
             return stack;
+        }
+
+        /// <summary>The Store tab's sections, drawn and driven like the ROM systems: text chips with
+        /// an accent rule under the active one, LT and RT at the two ends.</summary>
+        private UIElement BuildStoreSectionStrip()
+        {
+            // LT, the four sections, RT - in ONE row, RT right after the last section (user,
+            // 2026-10-03). Four short chips always fit; pinned to the far edge the way the ROM
+            // strip's is, RT sat a screen's width away from what it moves to.
+            var panel = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(LibOuterMargin, 8, LibOuterMargin, 0),
+            };
+            var lt = (FrameworkElement)BuildKeyCap("LT");
+            lt.Margin = new Thickness(0, 0, 10, 0);
+            panel.Children.Add(lt);
+            foreach (var section in StoreSections)
+            {
+                bool active = section == _storeSection;
+                var chip = BuildSystemChip(StoreSectionLabel(section), null, active);
+                var captured = section;
+                chip.MouseLeftButtonUp += (_, __) => SetStoreSection(captured);
+                panel.Children.Add(chip);
+            }
+            var rt = (FrameworkElement)BuildKeyCap("RT");
+            rt.Margin = new Thickness(2, 0, 0, 0);
+            panel.Children.Add(rt);
+            return panel;
+        }
+
+        private static string StoreSectionLabel(Library.StoreSection section)
+        {
+            switch (section)
+            {
+                // The store in every label (user, 2026-10-03): three of the four are Steam's, and
+                // "Wishlist" alone does not say whose.
+                case Library.StoreSection.SteamDeals: return Core.Loc.T("Steam deals");
+                case Library.StoreSection.Wishlist: return Core.Loc.T("Steam wishlist");
+                case Library.StoreSection.GamePass: return "Game Pass";
+                default: return Core.Loc.T("Steam - Not installed");
+            }
+        }
+
+        private void SetStoreSection(Library.StoreSection section)
+        {
+            if (section == _storeSection) return;
+            _storeSection = section;
+            _libSelectedIndex = 0;
+            RenderLibrary();
+            RefreshActionBar();
+        }
+
+        private void CycleStoreSection(int delta)
+        {
+            int i = Array.IndexOf(StoreSections, _storeSection) + delta;
+            if (i < 0) i = StoreSections.Length - 1;
+            if (i >= StoreSections.Length) i = 0;
+            SetStoreSection(StoreSections[i]);
+        }
+
+        /// <summary>A section finished loading: redraw if the user is looking at it.</summary>
+        private void OnStoreCatalogChanged(Library.StoreSection section)
+        {
+            if (_view == View.Library && _libraryGroup == LibraryGroup.NotInstalled && _storeSection == section)
+            {
+                RenderLibraryIfNoOverlay();
+                RefreshActionBar();
+            }
+        }
+
+        /// <summary>A on a store entry: its store page - Steam's in the Steam client, Game Pass's in
+        /// the Xbox app (or the Microsoft Store without it). Buying and installing happen there;
+        /// Center only takes the user to the page.</summary>
+        private void OpenStoreOffer(GameEntry game)
+        {
+            var offer = game?.Offer;
+            if (offer?.StoreUri == null) return;
+            bool ok = offer.StoreUri.StartsWith("steam:", StringComparison.OrdinalIgnoreCase)
+                ? GameLibrary.OpenSteamUri(offer.StoreUri)
+                : OpenUri(offer.StoreUri) || (offer.FallbackUri != null && OpenUri(offer.FallbackUri));
+            Core.InstallLog.Write("[Store] opened " + (game.Store == GameStore.Steam ? "Steam" : "Game Pass") + " page: " + (ok ? "ok" : "failed"));
+        }
+
+        private static bool OpenUri(string uri)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(uri) { UseShellExecute = true });
+                return true;
+            }
+            catch { return false; }
         }
 
         /// <summary>
@@ -1308,6 +1422,7 @@ namespace ClawTweaksCenter
                 return;
             }
             _libHeadline.Text = g.Title;
+            if (g.Offer != null) { _libSubline.Text = OfferLine(g); return; }
             SchedulePrefetchAchievements(g);
             // The labels are translated, the store name and the date are not: one is a brand, and
             // the other is formatted by the CURRENT CULTURE so it already reads correctly for the
@@ -1357,6 +1472,27 @@ namespace ClawTweaksCenter
                 parts.Add(ach.Percent.ToString(System.Globalization.CultureInfo.CurrentCulture) + "%");
 
             _libSubline.Text = string.Join("  ·  ", parts);
+        }
+
+        /// <summary>"-70 %  ·  17,99€ instead of 59,99€  ·  until 12 Oct  ·  In your library", or for
+        /// Game Pass "Game Pass  ·  New".</summary>
+        private static string OfferLine(GameEntry g)
+        {
+            var o = g.Offer;
+            var parts = new List<string>();
+            if (g.Store == GameStore.Xbox) parts.Add("Game Pass");
+            else
+            {
+                if (o.DiscountPercent > 0) parts.Add("-" + o.DiscountPercent.ToString(System.Globalization.CultureInfo.CurrentCulture) + "%");
+                if (!string.IsNullOrEmpty(o.Price))
+                    parts.Add(o.DiscountPercent > 0 && !string.IsNullOrEmpty(o.OriginalPrice)
+                        ? Core.Loc.F("{0} instead of {1}", o.Price, o.OriginalPrice)
+                        : o.Price);
+                if (o.DiscountEnds.HasValue)
+                    parts.Add(Core.Loc.F("until {0}", o.DiscountEnds.Value.ToString("d MMM", System.Globalization.CultureInfo.CurrentCulture)));
+            }
+            if (!string.IsNullOrEmpty(o.Note)) parts.Add(o.Note);
+            return string.Join("  ·  ", parts);
         }
 
         private GameEntry SelectedGame =>
@@ -1905,7 +2041,9 @@ namespace ClawTweaksCenter
         /// </summary>
         private bool SortingAvailable =>
             _libraryGroup != LibraryGroup.Recent
-            && !(_libraryGroup == LibraryGroup.Roms && _romSystem == GameLibrary.RomRecentSystem);
+            && !(_libraryGroup == LibraryGroup.Roms && _romSystem == GameLibrary.RomRecentSystem)
+            // A store section keeps the store's order (best sellers, wishlist priority).
+            && !InStoreCatalog;
 
         private GroupingKind Grouping
         {
@@ -3201,6 +3339,7 @@ namespace ClawTweaksCenter
         {
             var game = SelectedGame;
             if (game == null || LaunchOverlayOpen) return;
+            if (game.Offer != null) { OpenStoreOffer(game); return; }
 
             _launchTarget = game;
             _launchFocus = LaunchFocusPlay;
@@ -5272,11 +5411,12 @@ namespace ClawTweaksCenter
 
             // "Play" would be a lie in the one tab where nothing can be played.
             bool notInstalled = _libraryGroup == LibraryGroup.NotInstalled;
-            AddAction(PadButton.A, notInstalled ? "Install" : "Play", SelectedGame != null, LaunchSelectedGame);
+            AddAction(PadButton.A, InStoreCatalog ? "Open in store" : notInstalled ? "Install" : "Play", SelectedGame != null, LaunchSelectedGame);
             // The per-game menu (favorite, cover art) - only makes sense with something selected, and
             // Start is free everywhere in the library: nothing else has claimed it since the
             // key-entry screen it used to open moved behind View (Select) instead.
-            AddAction(PadButton.Menu, "Menu", SelectedGame != null, OpenGameMenu);
+            // Not on a store entry: favourite, hide and cover art are for games the user has.
+            AddAction(PadButton.Menu, "Menu", SelectedGame != null && SelectedGame.Offer == null, OpenGameMenu);
 
             // The Misc tab is the one place with entries the user OWNS, so it is the one place with
             // add and edit. X is free everywhere; Y takes over from Rescan here because rescanning
@@ -5337,6 +5477,12 @@ namespace ClawTweaksCenter
             {
                 _liveActions[PadButton.LT] = () => CycleRomSystem(-1);
                 _liveActions[PadButton.RT] = () => CycleRomSystem(1);
+            }
+            else if (_libraryScanned && _libraryGroup == LibraryGroup.NotInstalled)
+            {
+                // The Store tab's sections, the same way - labelled in their strip, no chip.
+                _liveActions[PadButton.LT] = () => CycleStoreSection(-1);
+                _liveActions[PadButton.RT] = () => CycleStoreSection(1);
             }
             else if (LibraryTabOffersFriends)
             {
@@ -5434,6 +5580,7 @@ namespace ClawTweaksCenter
             var badge = BuildProfileBadge(game.Profiles);
             if (badge != null) content.Children.Add(badge);
             if (game.Downloading) content.Children.Add(BuildDownloadingBand());
+            if (game.Offer != null && game.Offer.DiscountPercent > 0) content.Children.Add(BuildDiscountBadge(game.Offer.DiscountPercent));
 
             if (glass)
             {
@@ -5482,6 +5629,26 @@ namespace ClawTweaksCenter
         /// it downloads (see GameEntry.Downloading), so a bar with a position would be invented.
         /// The band is what tells "downloading" from "not installed" on a shelf of covers.
         /// </summary>
+        /// <summary>"-70%" in Steam's green, top right of a deal's cover - the one figure somebody
+        /// scanning a shelf of deals is scanning for.</summary>
+        private static Border BuildDiscountBadge(int percent) => new Border
+        {
+            Background = new SolidColorBrush(Color.FromRgb(0x4C, 0x6B, 0x22)),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(6, 2, 6, 2),
+            Margin = new Thickness(0, 6, 6, 0),
+            HorizontalAlignment = HorizontalAlignment.Right,
+            VerticalAlignment = VerticalAlignment.Top,
+            IsHitTestVisible = false,
+            Child = new TextBlock
+            {
+                Text = "-" + percent.ToString(System.Globalization.CultureInfo.CurrentCulture) + "%",
+                FontSize = 13,
+                FontWeight = FontWeights.Bold,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xBE, 0xEE, 0x11)),
+            },
+        };
+
         private static Border BuildDownloadingBand()
         {
             var stack = new StackPanel();

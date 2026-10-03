@@ -162,6 +162,14 @@ namespace ClawTweaksCenter.Core
         /// part that would not get used. A standing folder turns it into a grid of pictures the
         /// D-pad already walks. See Library/UserImageLibrary.cs.
         /// </summary>
+        /// <summary>The last Center version whose "What's new" was shown - see Core\WhatsNew.cs.
+        /// Empty on a first install.</summary>
+        public static string WhatsNewSeenVersion
+        {
+            get => ReadString("WhatsNewSeenVersion", string.Empty);
+            set => WriteString("WhatsNewSeenVersion", value ?? string.Empty);
+        }
+
         public static string UserImageFolder
         {
             get => ReadString("UserImageFolder", string.Empty);

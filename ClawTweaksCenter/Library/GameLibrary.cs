@@ -467,7 +467,7 @@ namespace ClawTweaksCenter.Library
                 case LibraryGroup.OtherStores: return "Other Stores";
                 case LibraryGroup.Misc: return "My Apps";
                 case LibraryGroup.Roms: return "ROMs";
-                case LibraryGroup.NotInstalled: return "Not Installed";
+                case LibraryGroup.NotInstalled: return "Store";
                 default: return "All";
             }
         }

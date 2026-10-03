@@ -35,6 +35,26 @@ namespace ClawTweaksCenter.Library
     /// own DRM bootstrap, Epic needs its launcher, and an Xbox package cannot be started by path at
     /// all. It also means we never have to guess WHICH exe in an install folder is the game.
     /// </summary>
+    /// <summary>What the store says about an entry in the Store tab: price and discount for Steam,
+    /// a note for Game Pass ("new", "leaving soon"). Every field is optional.</summary>
+    public sealed class StoreOffer
+    {
+        public int DiscountPercent;
+        /// <summary>Formatted by the store for the user's country ("17,99€").</summary>
+        public string Price;
+        public string OriginalPrice;
+        /// <summary>When the discount ends, local time.</summary>
+        public DateTime? DiscountEnds;
+        /// <summary>A short word or two shown in front of the price, already translated.</summary>
+        public string Note;
+        /// <summary>The account already owns it (Steam).</summary>
+        public bool Owned;
+        /// <summary>What A opens: a steam:// store page or the Xbox app's page for the game.</summary>
+        public string StoreUri;
+        /// <summary>The second way in when the first has no handler (Microsoft Store for Game Pass).</summary>
+        public string FallbackUri;
+    }
+
     public sealed class GameEntry
     {
         /// <summary>Stable per-store id — Steam AppID, Epic AppName, Xbox PackageFamilyName. Used for
@@ -153,6 +173,13 @@ namespace ClawTweaksCenter.Library
         /// GameLibrary.Games - only ForGroup leaves it out - so bringing it back from Library settings
         /// needs no rescan.</summary>
         public bool IsHidden { get; set; }
+
+        /// <summary>
+        /// Set only on an entry from the STORE tab's sections (deals, wishlist, Game Pass - see
+        /// <see cref="StoreCatalog"/>): something to look at in a store, not a game on this machine.
+        /// A opens its store page instead of starting or installing anything. Null everywhere else.
+        /// </summary>
+        public StoreOffer Offer { get; set; }
 
         /// <summary>Stable cross-source identity for FavoritesStore and ArtOverrideStore: Store alone
         /// is not unique, Id alone collides between stores (a Steam AppID and an Epic AppName can be

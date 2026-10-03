@@ -83,20 +83,34 @@ namespace ClawTweaksCenter
             _accountsRows.Clear();
 
             var columns = new Grid { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-            columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(260) });
+            columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(360) });
             columns.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            columns.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            columns.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-            var heading = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 24, 0) };
-            heading.Children.Add(new TextBlock
+            // The title over BOTH columns, and the boxes and the store rows below it starting on the
+            // same line (user, 2026-10-03: the boxes sat lower than the stores).
+            var title = new TextBlock
             {
                 Text = Core.Loc.T("Accounts"),
                 FontSize = 22,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
-                TextWrapping = TextWrapping.Wrap,
-                Margin = new Thickness(0, 0, 0, 10),
-            });
-            heading.Children.Add(TabEditorHint("Achievements come from the account instead of what Steam last saved on this device."));
+                Margin = new Thickness(0, 0, 0, 12),
+            };
+            Grid.SetColumnSpan(title, 2);
+            columns.Children.Add(title);
+
+            var heading = new StackPanel { VerticalAlignment = VerticalAlignment.Top, Margin = new Thickness(0, 0, 28, 0) };
+            Grid.SetRow(heading, 1);
+            // Three small boxes rather than one sentence about Steam (user, 2026-10-03): what an
+            // account brings, what Center sees of it, and how each one signs in.
+            heading.Children.Add(BuildAccountsInfoBox("What an account brings",
+                "Achievements and friend activity, purchased games, the wishlist and deals can only be read through the stores' own interfaces. More features will follow."));
+            heading.Children.Add(BuildAccountsInfoBox("Your sign-in stays yours",
+                "ClawTweaks never sees your password. You only grant access to selected areas such as friends, achievements and purchased games."));
+            heading.Children.Add(BuildAccountsInfoBox("How to sign in",
+                "Steam and Xbox take seconds with a QR code on your phone. Epic asks for your user name and password in the browser."));
             Grid.SetColumn(heading, 0);
             columns.Children.Add(heading);
 
@@ -125,11 +139,44 @@ namespace ClawTweaksCenter
                     Margin = new Thickness(4, 0, 0, 0),
                 });
             }
+            list.VerticalAlignment = VerticalAlignment.Top;
+            Grid.SetRow(list, 1);
             Grid.SetColumn(list, 1);
             columns.Children.Add(list);
 
             LibraryRoot.Children.Add(columns);
             ApplyAccountsSelection();
+        }
+
+        private static Border BuildAccountsInfoBox(string title, string text)
+        {
+            var stack = new StackPanel();
+            stack.Children.Add(new TextBlock
+            {
+                Text = Core.Loc.T(title),
+                FontSize = 13,
+                FontWeight = FontWeights.SemiBold,
+                Foreground = UiHelpers.Text,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(0, 0, 0, 3),
+            });
+            stack.Children.Add(new TextBlock
+            {
+                Text = Core.Loc.T(text),
+                FontSize = 12,
+                Foreground = UiHelpers.Subtle,
+                TextWrapping = TextWrapping.Wrap,
+            });
+            return new Border
+            {
+                Child = stack,
+                Background = UiHelpers.Card,
+                BorderBrush = new SolidColorBrush(Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF)),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(6),
+                Padding = new Thickness(12, 9, 12, 10),
+                Margin = new Thickness(0, 0, 0, 8),
+            };
         }
 
         private Border BuildAccountRow(int index, string store, string value, bool signedIn)
@@ -252,6 +299,79 @@ namespace ClawTweaksCenter
             if (XboxAccount.IsSignedIn) names.Add("Xbox");
             if (EpicAccount.IsSignedIn) names.Add("Epic Games");
             return names.Count > 0 ? string.Join(", ", names) : Core.Loc.T("None");
+        }
+
+        // ── the accounts corner on the friends and history screens ──────────────────────────────
+
+        /// <summary>
+        /// Top right on the friends screen and the achievement history (user, 2026-10-03): which
+        /// stores are connected - each store's logo with a green or grey dot - and X to go straight to
+        /// the accounts screen. As compact as it gets: it answers "why is Xbox missing here" without
+        /// becoming the subject of the screen.
+        /// </summary>
+        private UIElement BuildAccountsCorner()
+        {
+            var row = new StackPanel
+            {
+                Orientation = Orientation.Horizontal,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+                Cursor = System.Windows.Input.Cursors.Hand,
+            };
+            void Add(Library.LibraryGroup group, string name, bool on)
+            {
+                var item = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0, 0, 12, 0), ToolTip = name };
+                var logo = Library.StoreIcons.For(group);
+                if (logo != null)
+                    item.Children.Add(new Image { Source = logo, Width = 16, Height = 16, SnapsToDevicePixels = true, Opacity = on ? 1.0 : 0.45, VerticalAlignment = VerticalAlignment.Center });
+                else
+                    item.Children.Add(new TextBlock { Text = name, FontSize = 12, Foreground = on ? UiHelpers.Text : UiHelpers.Subtle, VerticalAlignment = VerticalAlignment.Center });
+                item.Children.Add(new System.Windows.Shapes.Ellipse
+                {
+                    Width = 7,
+                    Height = 7,
+                    Fill = on ? UiHelpers.Ok : UiHelpers.Subtle,
+                    Opacity = on ? 1.0 : 0.6,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Margin = new Thickness(5, 0, 0, 0),
+                });
+                row.Children.Add(item);
+            }
+            Add(Library.LibraryGroup.Steam, "Steam", SteamAccount.IsSignedIn);
+            Add(Library.LibraryGroup.Xbox, "Xbox", XboxAccount.IsSignedIn);
+            Add(Library.LibraryGroup.Epic, "Epic Games", EpicAccount.IsSignedIn);
+
+            row.Children.Add(BuildKeyCap("X"));
+            row.Children.Add(new TextBlock
+            {
+                Text = Core.Loc.T("Accounts"),
+                FontSize = 13,
+                Foreground = UiHelpers.Subtle,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(6, 0, 0, 0),
+            });
+            row.MouseLeftButtonUp += (_, __) => OpenAccountsFromLibrary();
+
+            return new Border
+            {
+                Child = row,
+                Background = FooterPillBrush,
+                CornerRadius = new CornerRadius(14),
+                Padding = new Thickness(12, 5, 8, 5),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Top,
+            };
+        }
+
+        /// <summary>X on the friends screen or the history: close it and open the accounts screen
+        /// inside the settings. B from there walks back through the settings to the library.</summary>
+        private void OpenAccountsFromLibrary()
+        {
+            if (_friendsOpen) CloseFriends();
+            if (_achHistoryOpen) ResetAchievementHistoryState();
+            OpenLibrarySettings();
+            SelectSettingsRow(SettingsAccountsRow);
+            OpenAccounts();
         }
 
         // ── the account's achievements reaching the screen ──────────────────────────────────────

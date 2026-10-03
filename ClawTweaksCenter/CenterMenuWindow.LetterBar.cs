@@ -52,7 +52,8 @@ namespace ClawTweaksCenter
         /// <summary>Only where a shelf gets long enough to be worth jumping around in, and only where
         /// the corner is free: the friends chip owns it in Recent and the store tabs.</summary>
         private bool LibraryGroupTakesLetterBar =>
-            _libraryGroup == LibraryGroup.All || _libraryGroup == LibraryGroup.NotInstalled;
+            // Not the Store tab any more (2026-10-03): LT/RT walk its sections there.
+            _libraryGroup == LibraryGroup.All;
 
         private bool LetterBarAvailable =>
             _libraryScanned && LibraryGroupTakesLetterBar && !LibraryOverlayOwnsScreen;

@@ -183,6 +183,10 @@ namespace ClawTweaksCenter.Library
         public static Task<BitmapSource> LoadAsync(string path, int decodePixelWidth)
         {
             if (string.IsNullOrEmpty(path) || decodePixelWidth <= 0) return Task.FromResult<BitmapSource>(null);
+            // The Store tab's entries carry their cover as a URL (StoreCatalog). Routed to the remote
+            // loader here, once, so every caller - tile, launch screen, cache warm-up - can stay
+            // ignorant of where a cover lives. See LoadRemoteAsync for why it cannot go through Decode.
+            if (path.StartsWith("http", StringComparison.OrdinalIgnoreCase)) return LoadRemoteAsync(path, decodePixelWidth);
             string key = decodePixelWidth.ToString() + "|" + path;
             return Cache.GetOrAdd(key, _ => Task.Run(() => Decode(path, decodePixelWidth)));
         }

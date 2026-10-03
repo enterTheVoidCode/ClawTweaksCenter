@@ -346,6 +346,12 @@ namespace ClawTweaksCenter
             RenderFriendList();
             RenderFriendFeed();
 
+            var corner = BuildAccountsCorner();
+            ((FrameworkElement)corner).Margin = new Thickness(0, 14, LibOuterMargin, 0);
+            Grid.SetRow(corner, 0);
+            Grid.SetColumn(corner, 1);
+            LibraryRoot.Children.Add(corner);
+
             // An empty feed has nothing to stand on.
             if (_friendsColumn == FriendsColumnFeed && _feedRows.Count == 0) _friendsColumn = FriendsColumnList;
 
@@ -574,7 +580,11 @@ namespace ClawTweaksCenter
             var feed = (_friends?.Activity ?? new List<FriendActivity>())
                        .Where(a => byId.ContainsKey(a.SteamId)).Take(FeedMaxEntries).ToList();
 
-            AddColumnHead(FriendsColumnFeed, Core.Loc.T("Friend activity"), null);
+            // Which networks the feed holds, in brackets (user, 2026-10-03): Steam always - its feed
+            // is read whether or not an account is signed in - and Xbox once Xbox friends are in.
+            var networks = new List<string> { "Steam" };
+            if ((_friends?.Friends ?? new List<SteamFriend>()).Any(f => f.Store == GameStore.Xbox)) networks.Add("Xbox");
+            AddColumnHead(FriendsColumnFeed, Core.Loc.T("Friend activity") + " (" + string.Join(", ", networks) + ")", null);
 
             var stack = new StackPanel();
             if (feed.Count == 0)
@@ -978,6 +988,8 @@ namespace ClawTweaksCenter
             // Only with a known own state: a Status button on an account the reader could not see
             // would offer a list with nothing marked.
             AddAction(PadButton.Y, "Status", OwnStatusKnown, OpenStatusPicker);
+            // The accounts corner's key - bound without a chip, its cap is on the corner itself.
+            _liveActions[PadButton.X] = OpenAccountsFromLibrary;
         }
 
         #region Own status
