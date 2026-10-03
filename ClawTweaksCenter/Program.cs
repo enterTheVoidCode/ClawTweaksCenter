@@ -29,6 +29,11 @@ namespace ClawTweaksCenter
             // instance exists, closed by itself once the first window appears.
             new SplashScreen("assets/branding/splash.png").Show(true);
 
+            // Before anything writes a setting: whether Center was used on this machine before this
+            // start. "What's new" needs it to tell an update from an older version apart from a
+            // first install - see Core\WhatsNew.cs.
+            Core.WhatsNew.CaptureStartState();
+
             var app = new App();
             app.InitializeComponent();
             return app.Run();

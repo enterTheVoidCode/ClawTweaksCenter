@@ -170,6 +170,22 @@ namespace ClawTweaksCenter.Core
             set => WriteString("WhatsNewSeenVersion", value ?? string.Empty);
         }
 
+        /// <summary>True when Center's settings key holds anything besides "What's new"'s own value -
+        /// i.e. Center has run on this machine before. Neither the Inno installer nor Velopack writes
+        /// to this key, so only Center itself can have put something there.</summary>
+        public static bool HasSettingsBesidesWhatsNew()
+        {
+            try
+            {
+                using var key = Registry.CurrentUser.OpenSubKey(KeyPath);
+                if (key == null) return false;
+                foreach (string name in key.GetValueNames())
+                    if (!string.Equals(name, "WhatsNewSeenVersion", StringComparison.OrdinalIgnoreCase)) return true;
+                return key.SubKeyCount > 0;
+            }
+            catch { return false; }
+        }
+
         public static string UserImageFolder
         {
             get => ReadString("UserImageFolder", string.Empty);

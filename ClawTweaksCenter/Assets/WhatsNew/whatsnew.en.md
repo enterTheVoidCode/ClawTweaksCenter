@@ -8,32 +8,31 @@
 ## 0.4.48 · 3 October 2026
 
 ### Accounts
-- **Steam, Xbox and Epic** can be connected under Settings, Accounts. Steam and Xbox with a QR code on your phone, Epic in the browser.
-- **Achievements come from your account**, not only from this device - with rarity, and dated on Xbox and Epic.
+- **Connect Steam, Xbox, Epic and RetroAchievements**: Settings → Accounts
+- Steam and Xbox with a QR code on your phone, Epic in the browser, RetroAchievements from PlayniteAchievements
 
-### Achievement history
-- **Your last 100 unlocks** from Steam, Xbox and Epic in one list. X in Recent.
+### Achievements
+- **Steam always up to date**: without an account Center only knew what Steam had stored on this device – often out of date
+- **New for Xbox, Epic and ROMs** (RetroAchievements), with rarity
+- **History** of your last 100 unlocks, ROMs in their own column – X in Recent
+- Progress bars in Recent and in the game menu
 
-### RetroAchievements
-- **Achievements for your ROMs**: Center takes over the RetroAchievements account from PlayniteAchievements and shows the list for every matched game.
-- In the history RetroAchievements have **their own column** beside the PC stores, left and right switch.
+### Recent
+- **Gaming news** from the last 7 days with Y: This Week in Video Games, PC Gamer, VideoCardz
+- Optional: the selected game's picture as the background (Settings → Appearance)
 
 ### Friends
-- **Xbox friends** are in the friends list now, their unlocks in the feed beside it.
+- Xbox friends in the friends list, their unlocks in the feed
 
 ### Store
-- The **Not installed tab is now the Store**, with four sections LT/RT switch between:
-- **Steam - Not installed**, **Steam deals**, **Steam wishlist** with current prices, and **Game Pass** with every PC game.
+- The Not installed tab is now the **Store**: Steam deals, Steam wishlist with prices, Game Pass
 
-### Covers and pictures
-- **Covers out of the box**: games without a picture get one from SteamGridDB, no key of your own needed. Your own key in the settings still wins.
-- **Xbox games** get their cover and backdrop straight from the Microsoft Store - freshly installed ones too.
-- **Game backdrop on Recent** (Settings, Appearance): rest on a game and its picture fills the library behind it.
+### Covers
+- Covers without a SteamGridDB key of your own
+- Xbox games get their cover and backdrop from the Microsoft Store
 
-### Look and feel
-- **Progress bars** for achievements beside the percentage on Recent and in a game's start menu.
-- **New footer** with a battery gauge, time left and the charge limit.
-- **Start screen** in the Fluent style, **settings** grouped into General and Library.
+### Footer
+- Battery with time left and charge limit
 
 ## 0.4.45 · 2 October 2026
 

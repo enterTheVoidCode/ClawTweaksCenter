@@ -291,7 +291,7 @@ namespace ClawTweaksCenter
         private void OpenFriends()
         {
             if (_launchPrompt != LaunchPrompt.None || _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen) return;
-            if (_friendsOpen || _infoOpen || _exitPromptOpen || !FriendsReadable) return;
+            if (_friendsOpen || _achHistoryOpen || _newsOpen || _infoOpen || _exitPromptOpen || !FriendsReadable) return;
 
             _friendsOpen = true;
             _friendsColumn = FriendsColumnList;

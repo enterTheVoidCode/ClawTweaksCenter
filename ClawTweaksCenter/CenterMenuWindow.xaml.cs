@@ -308,6 +308,10 @@ namespace ClawTweaksCenter
 
                 _nav = new XInputNavigator(this);
                 _nav.ButtonPressed += b => Dispatcher.Invoke(() => Invoke(b));
+                // The left stick and the D-pad as a continuous rate: only the news reader reads it,
+                // to scroll its page smoothly (CenterMenuWindow.NewsReader.cs). Everywhere else the
+                // same input arrives as discrete presses and repeats.
+                _nav.ScrollRequested += d => Dispatcher.BeginInvoke(new Action(() => ScrollNewsReader(d)));
                 _nav.RightStickScrollRequested += d => Dispatcher.Invoke(() =>
                 {
                     // The library takes its right stick from RightStickFlicked instead - one raise
@@ -510,7 +514,9 @@ namespace ClawTweaksCenter
                 MoveSelection(b);
                 // On every press, also against the edge of a list. MoveSelection does not report
                 // whether it moved, and forty screens would have to learn to say so first.
-                if (librarySounds && Audio.UiSounds.PlayCount == soundsBefore) Audio.UiSounds.Play(Audio.UiSound.Navigate);
+                // Not in the news reader (user, 2026-10-03): there the stick scrolls a page, and a
+                // click per repeat under smooth scrolling is noise.
+                if (librarySounds && !_newsReaderOpen && Audio.UiSounds.PlayCount == soundsBefore) Audio.UiSounds.Play(Audio.UiSound.Navigate);
             }
         }
 

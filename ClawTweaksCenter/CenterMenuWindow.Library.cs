@@ -262,7 +262,7 @@ namespace ClawTweaksCenter
 
         /// <summary>True while one of the launch screens is up. Everything that navigates the grid
         /// checks this - the launch screens own the whole library area while they are on it.</summary>
-        private bool LaunchOverlayOpen => _launchPrompt != LaunchPrompt.None || _exitPromptOpen || _infoOpen || _friendsOpen || _achHistoryOpen;
+        private bool LaunchOverlayOpen => _launchPrompt != LaunchPrompt.None || _exitPromptOpen || _infoOpen || _friendsOpen || _achHistoryOpen || _newsOpen;
 
         // The background watcher for "restore Center once this game ends" (see GameRunTracker /
         // StartTrackingForRestore). Held so a second launch can cancel a stale watch instead of
@@ -314,7 +314,7 @@ namespace ClawTweaksCenter
             // The friends screen too (user, 2026-09-11): LB/RB are blocked there, so the strip showed
             // navigation that does not apply, and the two columns replace the shelf as fully as a
             // prompt does. CloseFriends calls RefreshTabStrip, which brings it back with its count.
-            if (inLibrary && (LaunchPromptOwnsScreen || _friendsOpen || _achHistoryOpen))
+            if (inLibrary && (LaunchPromptOwnsScreen || _friendsOpen || _achHistoryOpen || _newsOpen))
             {
                 TabStrip.Visibility = Visibility.Collapsed;
                 return;
@@ -828,6 +828,7 @@ namespace ClawTweaksCenter
             _friendsOpen = false;
             _friendRows.Clear();
             ResetAchievementHistoryState();
+            ResetNewsState();
             StopImmersive();
             CancelPendingClose();
             if (LibraryRoot != null) LibraryRoot.Visibility = Visibility.Collapsed;
@@ -957,6 +958,7 @@ namespace ClawTweaksCenter
             if (GameMenuOverlayOpen) { RenderGameMenuOverlay(); return; }
             if (_friendsOpen) { RenderFriends(); return; }
             if (_achHistoryOpen) { RenderAchievementHistory(); return; }
+            if (_newsOpen) { RenderNews(); return; }
 
             _liveRows.Clear();
             LibraryRoot.Children.Clear();
@@ -1418,6 +1420,11 @@ namespace ClawTweaksCenter
                 var history = BuildHistoryPill();
                 DockPanel.SetDock(history, Dock.Right);
                 row.Children.Insert(0, history);
+                // The news pill to its left (user, 2026-10-03). Docked after it, so it lands left.
+                var news = BuildNewsPill();
+                ((FrameworkElement)news).Margin = new Thickness(18, 0, 0, 0);
+                DockPanel.SetDock(news, Dock.Right);
+                row.Children.Insert(1, news);
             }
             row.Children.Add(stack);
             return row;
@@ -1807,6 +1814,7 @@ namespace ClawTweaksCenter
             // Before the empty-grid check too: the friends list has nothing to do with the games.
             if (_friendsOpen) { MoveFriendSelection(dir); return; }
             if (_achHistoryOpen) { MoveAchievementHistorySelection(dir); return; }
+            if (_newsOpen) { MoveNewsSelection(dir); return; }
             // And before it as well: the letter bar is how an empty-looking shelf gets its games
             // back, so it has to be steerable from one.
             if (_letterBarOpen) { MoveLetterBar(dir); return; }
@@ -4565,7 +4573,7 @@ namespace ClawTweaksCenter
             if (_launchPrompt != LaunchPrompt.None || _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen) return;
             if (_infoOpen) return;
 
-            if (_friendsOpen || _achHistoryOpen) return;
+            if (_friendsOpen || _achHistoryOpen || _newsOpen) return;
 
             _exitPromptOpen = false;
             _infoOpen = true;
@@ -5295,6 +5303,12 @@ namespace ClawTweaksCenter
                 return;
             }
 
+            if (_newsOpen)
+            {
+                AddNewsActions();
+                return;
+            }
+
             if (_exitPromptOpen)
             {
                 string confirmLabel = _exitPromptColumn == ExitPromptColumnTray ? "Open"
@@ -5530,6 +5544,9 @@ namespace ClawTweaksCenter
             // X opens the achievement history in Recent. Bound without a footer chip: the key cap
             // is on the pill itself, which is where somebody looking for it looks.
             if (LibraryTabOffersHistory) _liveActions[PadButton.X] = OpenAchievementHistory;
+            // Y opens the news there, on the pill left of it - in place of the silent rescan, which
+            // stays on Y in every store's tab (Recent lists what was played, not a store's shelf).
+            if (LibraryTabOffersHistory) _liveActions[PadButton.Y] = OpenNews;
         }
         #endregion
     }

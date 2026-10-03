@@ -91,7 +91,10 @@
     <!-- Xbox controller glyphs shown in the footer action bar (embedded as WPF resources). -->
     <!-- What's new, per version (Core\WhatsNew.cs). Embedded so the screen works offline and always
          describes the build that is running. -->
-    <EmbeddedResource Include="Assets\WhatsNew\*.md" />
+    <!-- WithCulture="false" IS REQUIRED: MSBuild reads the ".de." and ".en." in the file names as
+         cultures and moves the files into satellite assemblies, which SatelliteResourceLanguages and
+         the single-file publish then drop - the screen came up empty (measured 2026-10-03). -->
+    <EmbeddedResource Include="Assets\WhatsNew\*.md" WithCulture="false" LogicalName="ClawTweaksCenter.WhatsNew.%(Filename)%(Extension)" />
     <Resource Include="Assets\xbox\*.png" />
     <!-- Device photos (background removed) for the Center menu's device-detection banner. -->
     <Resource Include="Assets\devices\*.png" />
@@ -191,6 +194,13 @@
          RetroAchievements game id mapping it made by hashing the ROMs
          (Library\Accounts\RetroAchievementsAchievements.cs). MIT. Center hashes nothing itself. -->
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
+    <!-- The news reader (CenterMenuWindow.NewsReader.cs, Library\NewsReader.cs). SmartReader (MIT,
+         a C# port of Mozilla's Readability, on AngleSharp, MIT) pulls the article out of the page;
+         WebView2 (BSD-style, the Edge runtime Windows 11 ships) shows it in Center's own layout,
+         scripts off, or the original page on request. WebView2 was in once before for the Epic
+         sign-in and taken out again; this is a different use. -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <PackageReference Include="SmartReader" Version="0.11.1" />
     <!-- No package needed for Shared\Data\ClawHardwareId.cs's registry access: the private repo's
          Shared.csproj targets netstandard2.0 and has to reference Microsoft.Win32.Registry, but
          net10.0-windows ships it in the framework (adding it back produces NU1510). -->

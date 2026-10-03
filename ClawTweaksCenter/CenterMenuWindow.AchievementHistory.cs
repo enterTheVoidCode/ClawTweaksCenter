@@ -71,7 +71,7 @@ namespace ClawTweaksCenter
         private void OpenAchievementHistory()
         {
             if (_launchPrompt != LaunchPrompt.None || _settingsOpen || MiscOverlayOpen || GameMenuOverlayOpen) return;
-            if (_achHistoryOpen || _friendsOpen || _infoOpen || _exitPromptOpen || _letterBarOpen) return;
+            if (_achHistoryOpen || _newsOpen || _friendsOpen || _infoOpen || _exitPromptOpen || _letterBarOpen) return;
 
             _achHistoryOpen = true;
             _achHistoryLoading = true;

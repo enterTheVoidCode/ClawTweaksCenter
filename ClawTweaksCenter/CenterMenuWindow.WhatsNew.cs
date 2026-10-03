@@ -48,8 +48,10 @@ namespace ClawTweaksCenter
             var running = Core.WhatsNew.Running;
 
             var column = new StackPanel { MaxWidth = 900, Margin = new Thickness(8, 0, 24, 16) };
+            // The announced version is the newest entry: the running one after a real update, the
+            // next release in a debug build's preview.
             column.Children.Add(UiHelpers.Title(_whatsNewAfterUpdate
-                ? Core.Loc.F("New in Center {0}", running.ToString())
+                ? Core.Loc.F("New in Center {0}", (entries.Count > 0 ? entries[0].Version : running).ToString())
                 : Core.Loc.T("What's new in Center")));
 
             if (entries.Count == 0)

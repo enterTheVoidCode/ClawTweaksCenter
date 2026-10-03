@@ -8,32 +8,31 @@
 ## 0.4.48 · 3. Oktober 2026
 
 ### Konten
-- **Steam, Xbox und Epic** lassen sich unter Einstellungen, Konten verbinden. Steam und Xbox per QR-Code mit dem Handy, Epic im Browser.
-- **Errungenschaften kommen vom Konto**, nicht mehr nur von diesem Gerät - mit Seltenheit, und bei Xbox und Epic mit Datum.
+- **Steam, Xbox, Epic und RetroAchievements** verbinden: Einstellungen → Konten
+- Steam und Xbox per QR-Code am Handy, Epic im Browser, RetroAchievements aus PlayniteAchievements
 
-### Errungenschaften-Verlauf
-- **Deine letzten 100 Freischaltungen** aus Steam, Xbox und Epic auf einen Blick. In Recent mit X.
+### Errungenschaften
+- **Steam immer aktuell**: Ohne Konto zeigte Center nur, was Steam auf diesem Gerät gespeichert hatte – oft veraltet
+- **Neu für Xbox, Epic und ROMs** (RetroAchievements), mit Seltenheit
+- **Verlauf** der letzten 100 Freischaltungen, ROMs in eigener Spalte – in Recent mit X
+- Fortschrittsbalken in Recent und im Spielmenü
 
-### RetroAchievements
-- **Errungenschaften für deine ROMs**: Center übernimmt das RetroAchievements-Konto aus PlayniteAchievements und zeigt die Liste bei jedem zugeordneten Spiel.
-- Im Verlauf stehen RetroAchievements **in einer eigenen Spalte** neben den PC-Stores, links und rechts wechselt.
+### Recent
+- **Gaming-News** der letzten 7 Tage mit Y: This Week in Video Games, PC Gamer, VideoCardz
+- Optional: Hintergrundbild des ausgewählten Spiels (Einstellungen → Darstellung)
 
 ### Freunde
-- **Xbox-Freunde** stehen jetzt mit in der Freundesliste, ihre Freischaltungen im Feed daneben.
+- Xbox-Freunde in der Freundesliste, ihre Erfolge im Feed
 
 ### Store
-- Der Tab **Nicht installiert heißt jetzt Store** und hat vier Bereiche, LT/RT wechselt:
-- **Steam - Nicht installiert**, **Steam Angebote**, **Steam Wunschliste** mit aktuellen Preisen und **Game Pass** mit allen PC-Spielen.
+- Tab „Nicht installiert“ heißt jetzt **Store**: Steam-Angebote, Steam-Wunschliste mit Preisen, Game Pass
 
-### Cover und Bilder
-- **Cover ab Werk**: Spiele ohne Bild bekommen eines von SteamGridDB, ohne dass du einen eigenen Key brauchst. Ein eigener Key in den Einstellungen hat weiterhin Vorrang.
-- **Xbox-Spiele** bekommen Cover und Hintergrund direkt aus dem Microsoft Store - auch frisch installierte.
-- **Spielhintergrund in Recent** (Einstellungen, Darstellung): Bleibst du auf einem Spiel stehen, liegt sein Bild hinter der ganzen Bibliothek.
+### Cover
+- Cover ohne eigenen SteamGridDB-Key
+- Xbox-Spiele bekommen Cover und Hintergrund aus dem Microsoft Store
 
-### Oberfläche
-- **Fortschrittsbalken** für Errungenschaften neben der Prozentzahl in Recent und im Startmenü eines Spiels.
-- **Neuer Footer** mit Akku-Anzeige, Restlaufzeit und Ladelimit.
-- **Startseite** im Fluent-Stil, **Einstellungen** in die Bereiche Allgemein und Bibliothek gegliedert.
+### Footer
+- Akku mit Restlaufzeit und Ladelimit
 
 ## 0.4.45 · 2. Oktober 2026
 
