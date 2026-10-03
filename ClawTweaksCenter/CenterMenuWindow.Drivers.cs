@@ -202,7 +202,7 @@ namespace ClawTweaksCenter
             if (!Dispatcher.CheckAccess()) { Dispatcher.Invoke(RenderDriversIfStillOpen); return; }
             // Center settings shows the helper's two driver opt-ins out of the same result, so an
             // answer that lands while THAT screen is up redraws it as well.
-            if (_view == View.CenterSettings) { RenderCenterSettings(); return; }
+            if (_view == View.Library && SettingsTopLevelOpen) { RenderLibrarySettings(); return; }
             if (_view != View.Drivers) return;
             RenderDrivers();
             RefreshActionBar();

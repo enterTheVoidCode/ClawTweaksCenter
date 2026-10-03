@@ -26,7 +26,6 @@ namespace ClawTweaksCenter
     /// </summary>
     public partial class CenterMenuWindow
     {
-        private readonly List<Border> _centerSettingsRows = new List<Border>();
         private int _centerSettingsIndex;
 
         /// <summary>The language list is unfolded. While it is, the D-pad and A belong to IT and not
@@ -84,118 +83,6 @@ namespace ClawTweaksCenter
         // activation case at the bottom of this file is commented out.
         //
         // Row numbers 0..5 above are unchanged, so nothing that remembers an index moves.
-
-        private void OpenCenterSettings()
-        {
-            LeaveLibrary();
-            _view = View.CenterSettings;
-            _centerSettingsIndex = 0;
-            _languageListOpen = false;
-            RenderCenterSettings();
-            RefreshTabStrip();
-            RefreshActionBar();
-        }
-
-        private void RenderCenterSettings()
-        {
-            BeginContent(centred: false);
-            _centerSettingsRows.Clear();
-
-            var stack = new StackPanel { MaxWidth = 940 };
-            stack.Children.Add(new TextBlock
-            {
-                Text = Loc.T("Center settings"),
-                FontSize = 26,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = UiHelpers.Text,
-                Margin = new Thickness(0, 0, 16, 16),
-            });
-
-            // Two columns, the same shape as the library's settings - two screens that do the same
-            // job and look different are two screens to learn.
-            var pairs = new UniformGrid { Columns = 2 };
-            pairs.Children.Add(BuildCenterSettingRow(CenterSettingsLanguageRow, Loc.T("Language"),
-                Loc.NameOf(Loc.Preference)));
-            pairs.Children.Add(BuildCenterSettingRow(CenterSettingsFullscreenRow, Loc.T("Fullscreen"),
-                null, WindowMode.IsFullscreen(this)));
-            stack.Children.Add(pairs);
-
-            // RIGHT HERE, under the row it belongs to, and that is the whole fix (user, 2026-09-15).
-            //
-            // This block used to be appended at the END of the screen, which was correct while
-            // Language and Fullscreen were the only rows: the end of the screen WAS under the
-            // language row. Then the update intervals and the experimental band arrived between
-            // them, and the list kept unfolding at the bottom - far below the row that opened it,
-            // past the bottom of the viewport, and therefore not operable with a pad at all: the
-            // selection moved through something the user could not see.
-            //
-            // The lesson generalises: a control that belongs UNDER another one has to be added next
-            // to it, not at the end of the builder. "Last" is only "below" until somebody appends
-            // the next section.
-            if (_languageListOpen) stack.Children.Add(BuildLanguageList());
-
-            // Under the language row, and ONLY while the preference is "System": it is the one entry
-            // whose result is not written on it. "System language" does not say which language that
-            // turned out to be, and on a machine where the answer is English - which is every machine
-            // we do not translate - the setting otherwise looks like it is not working.
-            else if (Loc.Preference == UiLanguage.System)
-                stack.Children.Add(new TextBlock
-                {
-                    Text = "→ " + Loc.NameOf(Loc.Current),
-                    FontSize = 13,
-                    Foreground = UiHelpers.Subtle,
-                    Margin = new Thickness(2, 2, 0, 10),
-                });
-
-            stack.Children.Add(new TextBlock
-            {
-                Text = Loc.T("Check for updates and notify"),
-                FontSize = 15,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = UiHelpers.Subtle,
-                Margin = new Thickness(2, 18, 0, 8),
-            });
-
-            var checks = new UniformGrid { Columns = 2 };
-            checks.Children.Add(BuildCenterSettingRow(CenterSettingsDriverCheckRow, Loc.T("Device drivers"),
-                IntervalLabel(CenterSettings.DriverCheckIntervalWeeks)));
-            checks.Children.Add(BuildCenterSettingRow(CenterSettingsWindowsCheckRow, Loc.T("Windows Update"),
-                IntervalLabel(CenterSettings.WindowsUpdateCheckIntervalWeeks)));
-
-            // The two opt-ins sit UNDER the driver row, one column, with the empty cell doing the
-            // pushing - the same shape as "Include test versions" under the widget row below. Their
-            // value comes from the helper's last answer; until one has arrived the row says so.
-            bool haveHelper = _driverResult != null && string.IsNullOrEmpty(_driverResult.Message);
-            if (_driverResult == null && !_driversBusy) _ = RequestDriversAsync(force: false);
-            checks.Children.Add(BuildCenterSettingRow(CenterSettingsDriverBetaRow, Loc.T("Also non-WHQL graphics drivers"),
-                haveHelper ? null : Loc.T("ClawTweaks is not running."), haveHelper ? _driverResult.UseIntelBeta : (bool?)null));
-            checks.Children.Add(new Border());
-            checks.Children.Add(BuildCenterSettingRow(CenterSettingsDriverWifiRow, Loc.T("Modded Wi-Fi driver instead of stock (download only)"),
-                haveHelper ? null : Loc.T("ClawTweaks is not running."), haveHelper ? _driverResult.UseModdedWifi : (bool?)null));
-            checks.Children.Add(new Border());
-            checks.Children.Add(BuildCenterSettingRow(CenterSettingsDriverTestRow, Loc.T("Offer every driver as an update"),
-                haveHelper ? null : Loc.T("ClawTweaks is not running."), haveHelper ? _driverResult.DriverTestMode : (bool?)null));
-            checks.Children.Add(new Border());
-
-            checks.Children.Add(BuildCenterSettingRow(CenterSettingsWidgetCheckRow, Loc.T("Gamebar Widget Releases"),
-                IntervalLabel(CenterSettings.WidgetUpdateNotifyIntervalWeeks)));
-            // "Include test versions" belongs UNDER the widget row, not beside it (user, 2026-09-15):
-            // it is a sub-setting of that one check, and in the cell to the right it read as a
-            // fourth, unrelated check. The empty cell is what pushes it down a row.
-            checks.Children.Add(new Border());
-            checks.Children.Add(BuildCenterSettingRow(CenterSettingsWidgetTestRow, Loc.T("Include test versions"),
-                null, CenterSettings.WidgetNotifyTestBuilds));
-            stack.Children.Add(checks);
-
-            // The "read at every start" hint that stood here is gone (user, 2026-09-15).
-
-            // "Experimental" was a band of its own here. REMOVED 2026-09-15 - see the note where
-            // CenterSettingsFseStartRow used to be declared. It held one switch, it measured as
-            // doing nothing, and the speed-up it was aiming at came from the scheduled task instead.
-
-            ContentHost.Children.Add(stack);
-            ApplyCenterSettingsSelection();
-        }
 
         /// <summary>
         /// The unfolded language list.
@@ -338,58 +225,9 @@ namespace ClawTweaksCenter
             // goes BEFORE RenderCenterSettings so this screen is the last thing rendered.
             if (_lastDeviceDetect != null) RenderDeviceBanner(_lastDeviceDetect);
 
-            RenderCenterSettings();
+            RenderSettingsAfterCenterChange();
             RefreshTabStrip();
             RefreshActionBar();
-        }
-
-        /// <summary>One row: title on the left, a switch or the current value on the right. Same
-        /// shape as the library's BuildSettingRow, kept separate because that one owns the library
-        /// screen's row list and index.</summary>
-        private Border BuildCenterSettingRow(int index, string title, string valueText, bool? on = null)
-        {
-            var grid = new Grid();
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            grid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-
-            grid.Children.Add(new TextBlock
-            {
-                Text = title,
-                FontSize = 17,
-                Foreground = UiHelpers.Text,
-                TextWrapping = TextWrapping.Wrap,
-                VerticalAlignment = VerticalAlignment.Center,
-            });
-
-            UIElement state = on.HasValue
-                ? BuildToggle(on.Value)
-                : new TextBlock
-                {
-                    Text = valueText ?? string.Empty,
-                    FontSize = 16,
-                    FontWeight = FontWeights.SemiBold,
-                    Foreground = UiHelpers.Subtle,
-                    VerticalAlignment = VerticalAlignment.Center,
-                    Margin = new Thickness(12, 0, 0, 0),
-                };
-            Grid.SetColumn(state, 1);
-            grid.Children.Add(state);
-
-            var row = new Border
-            {
-                Child = grid,
-                Background = UiHelpers.Card,
-                CornerRadius = new CornerRadius(10),
-                Padding = new Thickness(16, 12, 16, 12),
-                Margin = new Thickness(0, 0, 10, 10),
-                BorderThickness = new Thickness(2),
-                BorderBrush = Brushes.Transparent,
-                Cursor = System.Windows.Input.Cursors.Hand,
-                Tag = index,
-            };
-            row.MouseLeftButtonUp += (_, __) => { _centerSettingsIndex = index; ActivateCenterSetting(); };
-            _centerSettingsRows.Add(row);
-            return row;
         }
 
         /// <summary>
@@ -416,65 +254,6 @@ namespace ClawTweaksCenter
             }), System.Windows.Threading.DispatcherPriority.Loaded);
         }
 
-        private void ApplyCenterSettingsSelection()
-        {
-            foreach (var row in _centerSettingsRows)
-                row.BorderBrush = row.Tag is int i && i == _centerSettingsIndex
-                    ? UiHelpers.Accent : Brushes.Transparent;
-        }
-
-        private void MoveCenterSettingsSelection(PadButton dir)
-        {
-            // While the list is unfolded it owns the D-pad. Up/Down walk it and nothing reaches the
-            // two settings rows behind it, which is what an open drop-down does everywhere else.
-            if (_languageListOpen)
-            {
-                int count = LanguageOrder().Length;
-                int move = dir == PadButton.Up ? -1 : dir == PadButton.Down ? 1 : 0;
-                if (move == 0) return;
-
-                int target = _languageIndex + move;
-                if (target < 0 || target >= count) return;
-
-                _languageIndex = target;
-                RenderCenterSettings();
-                ScrollLanguageRowIntoView();
-                return;
-            }
-
-            if (_centerSettingsRows.Count == 0) return;
-
-            int last = _centerSettingsRows.Count - 1;
-            int next = _centerSettingsIndex;
-
-            // A two-column GRID since the update intervals moved in: Left/Right step one cell,
-            // Up/Down a whole row. Both UniformGrids on this screen are two wide, so one stride
-            // covers them - if a third grid ever arrives with a different width, this is the line
-            // that has to know.
-            const int stride = 2;
-            // The tail from the widget row down is ONE column (the test toggle sits under the widget
-            // row, its right-hand cell is empty), so there Up/Down step one and Left/Right nothing.
-            bool inTail = _centerSettingsIndex >= CenterSettingsTailStart;
-            if (dir == PadButton.Left) { if (inTail) return; next--; }
-            else if (dir == PadButton.Right) { if (inTail) return; next++; }
-            else if (dir == PadButton.Up) next -= (_centerSettingsIndex > CenterSettingsTailStart) ? 1 : stride;
-            else if (dir == PadButton.Down) next += inTail ? 1 : stride;
-            else return;
-
-            // Down from the right-hand cell above the tail lands on the tail's first row, not past it.
-            if (dir == PadButton.Down && !inTail && next > CenterSettingsTailStart) next = CenterSettingsTailStart;
-
-            // Down from the last row lands on the last cell rather than nowhere: with an odd number
-            // of rows the cell below is missing, and refusing the press reads as a dead d-pad.
-            if (next > last && dir == PadButton.Down) next = last;
-
-            if (next < 0 || next > last || next == _centerSettingsIndex) return;
-
-            _centerSettingsIndex = next;
-            ApplyCenterSettingsSelection();
-            RefreshActionBar();
-        }
-
         private void ActivateCenterSetting()
         {
             switch (_centerSettingsIndex)
@@ -487,7 +266,7 @@ namespace ClawTweaksCenter
                     // is find where they already are.
                     _languageIndex = Math.Max(0, Array.IndexOf(LanguageOrder(), Loc.Preference));
                     _languageListOpen = true;
-                    RenderCenterSettings();
+                    RenderSettingsAfterCenterChange();
                     ScrollLanguageRowIntoView();
                     RefreshActionBar();
                     return;
@@ -536,7 +315,7 @@ namespace ClawTweaksCenter
 
             }
 
-            RenderCenterSettings();
+            RenderSettingsAfterCenterChange();
             RefreshActionBar();
         }
     }

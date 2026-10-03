@@ -62,7 +62,7 @@ namespace ClawTweaksCenter
 
         /// <summary>Which idle screen ContentHost shows — Confirm/Install are transient overlays
         /// triggered from Browse and don't need their own value here.</summary>
-        private enum View { Home, Browse, Onboarding, Maintenance, Library, InstallDone, CenterSettings, Leave, Faq, Drivers, Notifications }
+        private enum View { Home, Browse, Onboarding, Maintenance, Library, InstallDone, Leave, Faq, Drivers, Notifications }
         private View _view = View.Home;
 
         private DeviceDetect.Model _deviceModel = DeviceDetect.Model.Unknown;
@@ -475,6 +475,9 @@ namespace ClawTweaksCenter
                     // tabs. It is the one screen that is about the strip rather than in it, and the
                     // shoulders are the gesture that already means "along the strip" on this pad.
                     if (_tabEditorOpen) { MoveTabInOrder(b == PadButton.LB ? -1 : 1); Audio.UiSounds.Play(Audio.UiSound.Navigate); return; }
+                    // On the settings screen the shoulders step through its topics.
+                    if (SettingsTopLevelOpen) { CycleSettingsTopic(b == PadButton.LB ? -1 : 1); Audio.UiSounds.Play(Audio.UiSound.Navigate); return; }
+                    if (_settingsOpen) return;
 
                     CycleLibraryGroup(b == PadButton.LB ? -1 : 1);
                     NoteTabChange();
@@ -693,7 +696,6 @@ namespace ClawTweaksCenter
                 case View.Onboarding: RenderOnboarding(); break;
                 case View.Maintenance: RenderMaintenance(); break;
                 case View.InstallDone: RenderInstallDone(); break;
-                case View.CenterSettings: RenderCenterSettings(); break;
                 case View.Leave: RenderLeave(); break;
                 case View.Faq: RenderFaq(); break;
                 case View.Drivers: RenderDrivers(); break;
@@ -876,8 +878,7 @@ namespace ClawTweaksCenter
                 case HomeBrowseIndex: OpenBrowse(); break;
                 case HomeMaintenanceIndex: OpenMaintenance(); break;
                 case HomeOnboardingIndex: OpenOnboarding(); break;
-                case HomeCenterSettingsIndex: OpenCenterSettings(); break;
-                case HomeLibrarySettingsIndex: OpenLibrarySettingsFromHome(); break;
+                case HomeSettingsIndex: OpenSettingsFromHome(SettingsTopicGeneral); break;
                 case HomeFaqIndex: OpenFaq(); break;
                 case HomeCommunityIndex: OpenCommunityBrowseFromHome(); break;
                 case HomeDriversIndex: OpenDrivers(); break;
@@ -903,16 +904,16 @@ namespace ClawTweaksCenter
         private const int HomeBrowseIndex = 1;
         private const int HomeDriversIndex = 2;
 
-        /// <summary>Second row: onboarding, then the two settings screens.</summary>
+        /// <summary>Second row: onboarding, the settings, the FAQ.</summary>
         private const int HomeOnboardingIndex = 3;
 
         /// <summary>
-        /// Center's own settings. ALWAYS on the screen - the language lives behind it, and a machine
-        /// where ClawTweaks is not installed yet is exactly the machine whose owner is reading
-        /// install instructions they may not be able to read.
+        /// The settings - one screen since 2026-10-03, Center's own and the library's together.
+        /// ALWAYS on the screen: the language lives behind it, and a machine where ClawTweaks is not
+        /// installed yet is exactly the machine whose owner is reading install instructions they may
+        /// not be able to read.
         /// </summary>
-        private const int HomeCenterSettingsIndex = 4;
-        private const int HomeLibrarySettingsIndex = 5;
+        private const int HomeSettingsIndex = 4;
 
         /// <summary>Highest selectable Home tile: the library settings when there is a library,
         /// otherwise Center's own settings - in both cases the last tile of the second row.</summary>
@@ -921,8 +922,8 @@ namespace ClawTweaksCenter
         /// Constants again. They were properties for exactly one release, while two of the tiles
         /// above them could be absent - now every tile is always drawn, the grid is always eight
         /// cells, and the row navigation below can stay plain division.</summary>
-        private const int HomeFaqIndex = 6;
-        private const int HomeCommunityIndex = 7;
+        private const int HomeFaqIndex = 5;
+        private const int HomeCommunityIndex = 6;
 
         /// <summary>Last cell of the third row. Backup and restore is the least frequent of the
         /// nine and the one nobody hunts for in a hurry, so it took the cell drivers &amp; updates
@@ -931,7 +932,9 @@ namespace ClawTweaksCenter
         /// ⚠️ ONLY THE NUMBERS MOVED. Every reader uses these names, the switch in ActivateHomeTile
         /// included, so swapping two values here moves two tiles and nothing else has to be found.
         /// The order of the Add calls below is the other half of the pair and has to match.</summary>
-        private const int HomeMaintenanceIndex = 8;
+        // EIGHT tiles since the settings merged: the last cell of the third row is empty, and Down
+        // from the FAQ lands on this one (the clamp in MoveHomeSelection).
+        private const int HomeMaintenanceIndex = 7;
 
         private const int HomeMaxIndex = HomeMaintenanceIndex;
 
@@ -1154,17 +1157,12 @@ namespace ClawTweaksCenter
                 clickable: true, onClick: () => { _homeSelectedIndex = HomeOnboardingIndex; OpenOnboarding(); },
                 selected: _homeSelectedIndex == HomeOnboardingIndex));
 
+            // ONE settings tile since the two screens became one (user, 2026-10-03).
             tiles.Children.Add(BuildHomeTile(
-                "", "Center Settings", "Choose the language and how the window opens.",
+                "", "Settings", "Language, library, accounts and updates.",
                 clickable: true,
-                onClick: () => { _homeSelectedIndex = HomeCenterSettingsIndex; OpenCenterSettings(); },
-                selected: _homeSelectedIndex == HomeCenterSettingsIndex));
-
-            tiles.Children.Add(BuildHomeTile(
-                "", "Library Settings", "Choose how the library starts and looks.",
-                clickable: true,
-                onClick: () => { _homeSelectedIndex = HomeLibrarySettingsIndex; OpenLibrarySettingsFromHome(); },
-                selected: _homeSelectedIndex == HomeLibrarySettingsIndex));
+                onClick: () => { _homeSelectedIndex = HomeSettingsIndex; OpenSettingsFromHome(SettingsTopicGeneral); },
+                selected: _homeSelectedIndex == HomeSettingsIndex));
             // Both present whether or not ClawTweaks is installed: the FAQ answers questions about
             // software that is not there yet, and the shared presets need no install either.
             tiles.Children.Add(BuildHomeTile(
@@ -1190,15 +1188,6 @@ namespace ClawTweaksCenter
                 selected: _homeSelectedIndex == HomeMaintenanceIndex));
 
             ContentHost.Children.Add(tiles);
-        }
-
-        /// <summary>Home's Library Settings tile. The settings screen draws into the library host and
-        /// its Back goes to the grid, so the library is opened first - the user lands in the library
-        /// afterwards, which is where those settings apply.</summary>
-        private void OpenLibrarySettingsFromHome()
-        {
-            OpenLibrary();
-            OpenLibrarySettings();
         }
 
         /// <summary>Highest GitHub release/test-build version above what's currently installed, or
@@ -2183,7 +2172,6 @@ namespace ClawTweaksCenter
             if (_view == View.Onboarding) { MoveOnboardingSelection(dir); return; }
             if (_view == View.Maintenance) { MoveMaintenanceSelection(dir); return; }
             if (_view == View.InstallDone) { MoveInstallDoneSelection(dir); return; }
-            if (_view == View.CenterSettings) { MoveCenterSettingsSelection(dir); return; }
             if (_view == View.Leave) { MoveLeaveSelection(dir); return; }
             if (_view == View.Faq) { MoveFaqSelection(dir); return; }
             // Read-only and nothing selectable on it: the right stick scrolls, the d-pad has
@@ -2395,13 +2383,6 @@ namespace ClawTweaksCenter
                 if (!Core.CenterSettings.FseMode)
                     AddAction(PadButton.B, Core.CenterSettings.RunInBackground ? "Minimize" : "Exit",
                         true, () => Application.Current.Shutdown());
-                return;
-            }
-
-            if (_view == View.CenterSettings)
-            {
-                AddAction(PadButton.A, "Choose", true, ActivateCenterSetting);
-                AddAction(PadButton.B, "Back", true, GoHome);
                 return;
             }
 

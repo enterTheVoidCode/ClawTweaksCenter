@@ -2459,13 +2459,34 @@ namespace ClawTweaksCenter
             _soundSettingsOpen = false;
             _hiddenGamesOpen = false;
             ResetAccountsState();
-            _settingsIndex = 0;
+            // Opens on the topic it was left on, with the cursor in the sidebar.
+            _settingsInSidebar = true;
+            _settingsFromHome = false;
+            _languageListOpen = false;
+            if (_settingsTopic < 0 || _settingsTopic >= SettingsTopics.Length) _settingsTopic = SettingsTopicGeneral;
+            _settingsIndex = SettingsTopics[_settingsTopic].Rows[0];
             RenderLibrarySettings();
             RefreshActionBar();
         }
 
         private void CloseLibrarySettings()
         {
+            bool toHome = _settingsFromHome;
+            _settingsFromHome = false;
+            _languageListOpen = false;
+            if (toHome)
+            {
+                // Opened from a Home tile: back there, not into a library nobody asked for.
+                _settingsOpen = false;
+                _soundSettingsOpen = false;
+                _hiddenGamesOpen = false;
+                ResetAccountsState();
+                _artKeyBox = null;
+                _artKeyStatus = null;
+                _settingsRows.Clear();
+                GoHome();
+                return;
+            }
             _settingsOpen = false;
             // The sub-screen implies the screen: closed together, or the next settings visit would
             // open straight into sound settings with the grid's rows missing.
@@ -2478,144 +2499,6 @@ namespace ClawTweaksCenter
             RenderLibrary();
             RefreshTabStrip();
             RefreshActionBar();
-        }
-
-        private void RenderLibrarySettings()
-        {
-            LibraryRoot.Children.Clear();
-            LibraryRoot.RowDefinitions.Clear();
-            _settingsRows.Clear();
-            _artKeyStatusPinned = false;
-
-            var stack = new StackPanel
-            {
-                HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                MaxWidth = 1320,
-            };
-            stack.Children.Add(new TextBlock
-            {
-                Text = Core.Loc.T("Library settings"),
-                // 22 and 10, not 26 and 16 (user, 2026-09-29): the screen ran out of height and the
-                // vertical centring clipped this title and the hint line at the bottom evenly.
-                FontSize = 22,
-                FontWeight = FontWeights.SemiBold,
-                Foreground = UiHelpers.Text,
-                Margin = new Thickness(0, 0, 0, 10),
-            });
-
-            // Columns, because stacked rows ran off the bottom of an eight-inch panel and the key row
-            // - the one people are sent here for - was the one below the fold.
-            var pairs = new UniformGrid { Columns = SettingsColumns };
-            // IN THE ORDER OF THE CONSTANTS ABOVE. One band per grid row - see the comment there.
-            pairs.Children.Add(BuildSettingRow(SettingsStartInLibraryRow, "Start in the library",
-                Core.CenterSettings.OpenLibraryAtStartup, null));
-            pairs.Children.Add(BuildSettingRow(SettingsStartWithClawTweaksRow, "Start Center with ClawTweaks",
-                Core.CenterSettings.StartCenterWithClawTweaks, null));
-            pairs.Children.Add(BuildSettingRow(SettingsStartSteamRow, "Start Steam with the library",
-                Core.CenterSettings.StartSteamWithLibrary, null));
-
-            pairs.Children.Add(BuildSettingRow(SettingsRunInBackgroundRow, "Run in background",
-                Core.CenterSettings.RunInBackground, null));
-            pairs.Children.Add(BuildSettingRow(SettingsLaunchBehaviorRow, "After starting a game",
-                null, LaunchBehaviorLabel(Core.CenterSettings.LaunchBehavior)));
-            pairs.Children.Add(BuildSettingRow(SettingsTabsRow, "Tabs order and visibility", null, TabsSummary()));
-
-            pairs.Children.Add(BuildSettingRow(SettingsDenseGridRow, "Denser grid",
-                Core.CenterSettings.DenseLibraryGrid, null));
-            pairs.Children.Add(BuildSettingRow(SettingsImmersiveRow, "Recent immersive",
-                Core.CenterSettings.ImmersiveMode, null));
-            pairs.Children.Add(BuildSettingRow(SettingsReflectionsRow, "Recent reflections",
-                Core.CenterSettings.RecentReflections, null));
-
-            pairs.Children.Add(BuildSettingRow(SettingsSquareRomArtRow, "Square ROM art",
-                _squareRomArt, null));
-            pairs.Children.Add(BuildSettingRow(SettingsUserImagesRow, "Your images", null, UserImagesSummary()));
-            pairs.Children.Add(BuildSettingRow(SettingsBackgroundRow, "Center background", null, BackgroundSummary()));
-
-            pairs.Children.Add(BuildSettingRow(SettingsSoundRow, "Sound settings", null, null));
-            pairs.Children.Add(BuildSettingRow(SettingsOwnAppsInRecentRow, "Show own apps in Recent",
-                Core.CenterSettings.ShowOwnAppsInRecent, null));
-            pairs.Children.Add(BuildSettingRow(SettingsHiddenGamesRow, "Hidden games", null, HiddenGamesSummary()));
-            stack.Children.Add(pairs);
-
-            // ONE LINE (user, 2026-09-29): the box sits to the RIGHT of the title instead of under it,
-            // and the status moved to the hint line at the bottom. Stacked, this row was three lines
-            // tall and the reason the screen no longer fit.
-            var keyRow = BuildSettingRow(SettingsKeyRow, "SteamGridDB key", null, null);
-            var keyGrid = (Grid)keyRow.Child;
-            _artKeyBox = new TextBox
-            {
-                Text = Core.CenterSettings.SteamGridDbApiKey,
-                FontSize = 15,
-                // 200, not 260: the band has three cells since Accounts joined it (2026-10-02),
-                // and a key is pasted once and never read back.
-                Width = 200,
-                Padding = new Thickness(8, 3, 8, 3),
-                Margin = new Thickness(12, 0, 0, 0),
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            Grid.SetColumn(_artKeyBox, 1);
-            keyGrid.Children.Add(_artKeyBox);
-            _artKeyStatus = new TextBlock
-            {
-                Text = Core.Loc.T(Library.SteamGridDb.HasKey
-                    ? "Set. Covers are downloaded for games with none." : "Not set."),
-                FontSize = 14,
-                Foreground = UiHelpers.Subtle,
-                Margin = new Thickness(16, 0, 0, 0),
-                TextWrapping = TextWrapping.Wrap,
-                MaxWidth = 420,
-                Visibility = Visibility.Collapsed,
-            };
-
-            // ONE CELL OF THREE, on the left (user, 2026-09-12: half; a third since 2026-10-02). It
-            // is still its own band - it holds a text box, and a box shoulder to shoulder with a
-            // switch is a row that cannot be read at a glance. Star columns rather than fixed widths,
-            // so the band lines up with the grid above whatever that measures, and the cursor moves
-            // straight up and down between the two.
-            var keyHolder = new Grid();
-            for (int c = 0; c < SettingsColumns; c++)
-                keyHolder.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            Grid.SetColumn(keyRow, 0);
-            keyHolder.Children.Add(keyRow);
-            // BUILT IN INDEX ORDER - _settingsRows is indexed by row number.
-            var accountsRow = BuildSettingRow(SettingsAccountsRow, "Accounts", null, AccountsSummary());
-            accountsRow.VerticalAlignment = VerticalAlignment.Top;
-            Grid.SetColumn(accountsRow, 1);
-            keyHolder.Children.Add(accountsRow);
-            var infoRow = BuildSettingRow(SettingsInfoRow, "Library overview", null, null);
-            infoRow.VerticalAlignment = VerticalAlignment.Top;
-            Grid.SetColumn(infoRow, 2);
-            keyHolder.Children.Add(infoRow);
-            stack.Children.Add(keyHolder);
-
-            // ONE LINE FOR THE SELECTED ROW, at the bottom (user, 2026-09-12). The rows are two or
-            // three words each - enough to find a setting again, not enough to say what it does the
-            // first time. Under the grid rather than inside the row: a row that grows a second line
-            // when the cursor lands on it moves every row beside it.
-            //
-            // The height is reserved whether or not there is anything to say, so walking the grid
-            // does not shift the screen underneath the cursor.
-            //
-            // The SteamGridDB key status shares this line, on the right: shown while the key row is
-            // selected, and always while a check is running or a key was rejected.
-            _settingsHint = new TextBlock
-            {
-                FontSize = 14,
-                Foreground = UiHelpers.Subtle,
-                TextWrapping = TextWrapping.Wrap,
-            };
-            var hintLine = new Grid { MinHeight = 36, Margin = new Thickness(0, 6, 0, 0) };
-            hintLine.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            hintLine.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            hintLine.Children.Add(_settingsHint);
-            Grid.SetColumn(_artKeyStatus, 1);
-            hintLine.Children.Add(_artKeyStatus);
-            stack.Children.Add(hintLine);
-
-            LibraryRoot.Children.Add(stack);
-            ApplySettingsSelection();
         }
 
         /// <summary>
@@ -2715,20 +2598,6 @@ namespace ClawTweaksCenter
             };
         }
 
-        private void ApplySettingsSelection()
-        {
-            foreach (var row in _settingsRows)
-                row.BorderBrush = row.Tag is int i && i == _settingsIndex ? UiHelpers.Accent : Brushes.Transparent;
-
-            if (_settingsHint != null)
-                _settingsHint.Text = IsSettingLockedInFse(_settingsIndex)
-                    ? Core.Loc.T("Fixed while Center is the Windows full-screen start app.")
-                    : Core.Loc.T(SettingDescription(_settingsIndex));
-
-            if (_artKeyStatus != null && !_artKeyStatusPinned)
-                _artKeyStatus.Visibility = _settingsIndex == SettingsKeyRow ? Visibility.Visible : Visibility.Collapsed;
-        }
-
         /// <summary>
         /// Key check result on the hint line. Pinned visible, whatever row is selected: it answers
         /// something the user just did, and a rejected key keeps the screen open to say so.
@@ -2772,64 +2641,18 @@ namespace ClawTweaksCenter
                 case SettingsKeyRow: return "Downloads covers for games that have none.";
                 case SettingsAccountsRow: return "Sign in to a store so achievements come from your account.";
                 case SettingsInfoRow: return "What the library shows and where its covers come from.";
+                // Center's own rows, since they share this screen (2026-10-03).
+                case SettingsLanguageRow: return "The language of every screen in Center.";
+                case SettingsFullscreenRow: return "Center fills the whole screen without a window frame.";
+                case SettingsDriverCheckRow: return "How often Center looks for new device drivers.";
+                case SettingsDriverBetaRow: return "Offers Intel graphics drivers that are not WHQL-certified yet.";
+                case SettingsDriverWifiRow: return "Downloads the modded Wi-Fi driver instead of the stock one.";
+                case SettingsDriverTestRow: return "For testing: offers every driver as an update, even a current one.";
+                case SettingsWindowsCheckRow: return "How often Center looks for Windows updates.";
+                case SettingsWidgetCheckRow: return "How often Center tells you about new Game Bar widget releases.";
+                case SettingsWidgetTestRow: return "Also tells you about test versions of the widget.";
                 default: return string.Empty;
             }
-        }
-
-        /// <summary>
-        /// Two columns of switches with one full-width row underneath.
-        ///
-        /// The pair count comes from the row list rather than from a constant: the key row is always
-        /// the last one, so everything above it is a pair. Adding a switch shifts the maths by itself.
-        /// </summary>
-        private void MoveSettingsSelection(PadButton dir)
-        {
-            if (_settingsRows.Count == 0) return;
-            int last = _settingsRows.Count - 1;
-            int pairs = SettingsKeyRow;           // the grid; below it key, accounts and overview
-            bool bottom = _settingsIndex >= pairs;
-            int next = _settingsIndex;
-
-            switch (dir)
-            {
-                case PadButton.Left:
-                    if (bottom) { if (_settingsIndex > SettingsKeyRow) next = _settingsIndex - 1; break; }
-                    if (_settingsIndex % SettingsColumns == 0) return;
-                    next = _settingsIndex - 1;
-                    break;
-                case PadButton.Right:
-                    if (bottom) { if (_settingsIndex < SettingsInfoRow) next = _settingsIndex + 1; break; }
-                    if (_settingsIndex % SettingsColumns == SettingsColumns - 1) return;
-                    next = _settingsIndex + 1;
-                    if (next >= pairs) return;
-                    break;
-                case PadButton.Up:
-                    // The bottom band has one cell per grid column, so up goes to the same column in
-                    // the last grid row - clamped to the LAST switch that exists: with a part-filled
-                    // last row, that column can be a cell that is not there.
-                    if (bottom)
-                    {
-                        int lastRowStart = (pairs - 1) / SettingsColumns * SettingsColumns;
-                        next = Math.Min(pairs - 1, lastRowStart + (_settingsIndex - SettingsKeyRow));
-                        break;
-                    }
-                    if (_settingsIndex < SettingsColumns) return;
-                    next = _settingsIndex - SettingsColumns;
-                    break;
-                case PadButton.Down:
-                    if (bottom) return;
-                    next = _settingsIndex + SettingsColumns;
-                    if (next >= pairs)
-                        // Straight down into the band cell under this column.
-                        next = SettingsKeyRow + _settingsIndex % SettingsColumns;
-                    break;
-                default: return;
-            }
-
-            if (next == _settingsIndex || next < 0 || next > last) return;
-            _settingsIndex = next;
-            ApplySettingsSelection();
-            RefreshActionBar();
         }
 
         private void ActivateSetting()
@@ -2837,6 +2660,9 @@ namespace ClawTweaksCenter
             // Forced in FSE; the hint line says so. Toggling the stored value underneath would be
             // invisible now and a surprise the day the user leaves FSE.
             if (IsSettingLockedInFse(_settingsIndex)) return;
+
+            // Center's rows keep their own activation (CenterMenuWindow.CenterSettings.cs).
+            if (IsCenterSettingRow(_settingsIndex)) { ActivateCenterSettingRow(_settingsIndex); RefreshActionBar(); return; }
 
             switch (_settingsIndex)
             {
@@ -4589,8 +4415,8 @@ namespace ClawTweaksCenter
             {
                 _infoFromSettings = false;
                 OpenLibrarySettings();
-                _settingsIndex = SettingsInfoRow;
-                ApplySettingsSelection();
+                SelectSettingsRow(SettingsInfoRow);
+                RenderLibrarySettings();
                 RefreshActionBar();
                 return;
             }
@@ -5400,7 +5226,11 @@ namespace ClawTweaksCenter
 
             if (_settingsOpen)
             {
-                string label = _settingsIndex == SettingsKeyRow ? "Edit"
+                string label = _settingsInSidebar ? "Open"
+                    : _settingsIndex == SettingsKeyRow ? "Edit"
+                    : _settingsIndex == SettingsLanguageRow ? (_languageListOpen ? "Choose" : "Open")
+                    : _settingsIndex == SettingsDriverCheckRow || _settingsIndex == SettingsWindowsCheckRow
+                      || _settingsIndex == SettingsWidgetCheckRow ? "Cycle"
                     : _settingsIndex == SettingsTabsRow ? "Open"
                     : _settingsIndex == SettingsSoundRow ? "Open"
                     : _settingsIndex == SettingsHiddenGamesRow ? "Open"
@@ -5410,8 +5240,8 @@ namespace ClawTweaksCenter
                     : _settingsIndex == SettingsBackgroundRow ? "Choose"
                     : _settingsIndex == SettingsLaunchBehaviorRow ? "Cycle"
                     : "Toggle";
-                AddAction(PadButton.A, label, true, ActivateSetting);
-                AddAction(PadButton.B, "Back", true, SaveArtKeyAndClose);
+                AddAction(PadButton.A, label, true, ActivateSettingsSelection);
+                AddAction(PadButton.B, _settingsInSidebar && !_languageListOpen ? "Close" : "Back", true, SettingsBack);
                 return;
             }
 
