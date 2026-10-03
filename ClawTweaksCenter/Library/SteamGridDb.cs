@@ -131,8 +131,8 @@ namespace ClawTweaksCenter.Library
 
                 string file = null;
                 try { file = await DownloadCoverAsync(key, game.Title, titleKey, ct).ConfigureAwait(false); }
-                catch (OperationCanceledException) { throw; }
-                catch { }
+                catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+                catch { continue; }
 
                 lock (IndexLock) Index[titleKey] = file ?? string.Empty;
                 changed = true;
@@ -292,10 +292,10 @@ namespace ClawTweaksCenter.Library
             byte[] bytes;
             using (var response = await Http.GetAsync(url, ct).ConfigureAwait(false))
             {
-                if (!response.IsSuccessStatusCode) return null;
+                response.EnsureSuccessStatusCode();
                 bytes = await response.Content.ReadAsByteArrayAsync(ct).ConfigureAwait(false);
             }
-            if (bytes.Length == 0) return null;
+            if (bytes.Length == 0) throw new InvalidDataException("SteamGridDB returned an empty cover image.");
 
             // Named after the title key, not after the remote file: two games can be served the same
             // image name, and the key is what we look it up by anyway.
@@ -328,16 +328,25 @@ namespace ClawTweaksCenter.Library
             // it did. This is the search that had "no results" with no visible reason.
             if (!strict) LogArtSearch("autocomplete '" + title + "' -> " + (int)response.StatusCode + " " + Truncate(body, 500));
 
-            if (!response.IsSuccessStatusCode) return null;
+            if (!response.IsSuccessStatusCode)
+            {
+                if (strict) response.EnsureSuccessStatusCode();
+                return null;
+            }
 
             JsonDocument doc;
             try { doc = JsonDocument.Parse(body); }
-            catch (Exception ex) { if (!strict) LogArtSearch("autocomplete JSON parse failed: " + ex.Message); return null; }
+            catch (Exception ex)
+            {
+                if (!strict) { LogArtSearch("autocomplete JSON parse failed: " + ex.Message); return null; }
+                throw;
+            }
             using (doc)
             {
                 if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
                 {
-                    if (!strict) LogArtSearch("autocomplete response has no 'data' array");
+                    if (strict) throw new JsonException("SteamGridDB search response did not contain an array data field.");
+                    LogArtSearch("autocomplete response has no 'data' array");
                     return null;
                 }
 
@@ -349,9 +358,15 @@ namespace ClawTweaksCenter.Library
                 foreach (var entry in data.EnumerateArray())
                 {
                     seen++;
-                    if (!entry.TryGetProperty("id", out var idProp) || !idProp.TryGetInt32(out int id)) continue;
+                    if (entry.ValueKind != JsonValueKind.Object ||
+                        !entry.TryGetProperty("id", out var idProp) || !idProp.TryGetInt32(out int id))
+                    {
+                        if (strict) throw new JsonException("SteamGridDB search response contained an unexpected entry.");
+                        continue;
+                    }
                     if (!strict) { LogArtSearch("autocomplete matched id=" + id + " (of " + seen + "+ candidates)"); return id; }
-                    if (!entry.TryGetProperty("name", out var nameProp)) continue;
+                    if (!entry.TryGetProperty("name", out var nameProp) || nameProp.ValueKind != JsonValueKind.String)
+                        throw new JsonException("SteamGridDB search response contained an unexpected entry.");
                     if (PlayniteSource.NormalizeTitle(nameProp.GetString()) == want) return id;
                 }
                 if (!strict) LogArtSearch("autocomplete returned " + seen + " candidate(s), none usable");
@@ -373,14 +388,23 @@ namespace ClawTweaksCenter.Library
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
 
             using var response = await Http.SendAsync(request, ct).ConfigureAwait(false);
-            if (!response.IsSuccessStatusCode) return null;
+            response.EnsureSuccessStatusCode();
 
             using var doc = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false));
-            if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array) return null;
+            if (!doc.RootElement.TryGetProperty("data", out var data) || data.ValueKind != JsonValueKind.Array)
+                throw new JsonException("SteamGridDB grid response did not contain an array data field.");
 
             foreach (var grid in data.EnumerateArray())
-                if (grid.TryGetProperty("url", out var url) && url.ValueKind == JsonValueKind.String)
-                    return url.GetString();
+            {
+                if (grid.ValueKind != JsonValueKind.Object ||
+                    !grid.TryGetProperty("url", out var url) || url.ValueKind != JsonValueKind.String)
+                    throw new JsonException("SteamGridDB grid response contained an unexpected entry.");
+
+                string value = url.GetString();
+                if (string.IsNullOrWhiteSpace(value))
+                    throw new JsonException("SteamGridDB grid response contained an empty URL.");
+                return value;
+            }
             return null;
         }
 
