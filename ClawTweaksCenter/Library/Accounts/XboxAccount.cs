@@ -117,7 +117,8 @@ namespace ClawTweaksCenter.Library.Accounts
                         _xstsHeader = header;
                         _xstsExpiresUtc = expiresUtc;
                     }
-                    Core.InstallLog.Write("[Accounts] Xbox signed in" + (string.IsNullOrEmpty(gamertag) ? "" : " as " + gamertag)
+                    // Never the gamertag: the log is attached to bug reports.
+                    Core.InstallLog.Write("[Accounts] Xbox signed in" + (string.IsNullOrEmpty(gamertag) ? ", no gamertag" : "")
                         + ", XSTS valid until " + expiresUtc.ToString("u"));
                     return gamertag;
                 }

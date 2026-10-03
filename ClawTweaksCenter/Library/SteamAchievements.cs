@@ -172,6 +172,7 @@ namespace ClawTweaksCenter.Library
             // Accounts\SteamAccountAchievements. Signed out, this does nothing.
             Accounts.SteamAccountAchievements.RefreshProgressInBackground();
             Accounts.XboxAccountAchievements.RefreshTitlesInBackground();
+            Accounts.EpicAccountAchievements.RefreshInBackground();
         }
 
         /// <summary>
@@ -188,6 +189,8 @@ namespace ClawTweaksCenter.Library
             // XBOX GAMES TOO, since 2026-10-03 - from the account only; there is nothing on disk.
             // Routed here so every screen asks one class whatever the store.
             if (IsXbox(g)) return Accounts.XboxAccountAchievements.SummaryFor(Accounts.XboxAccountAchievements.PfnOf(g.Id));
+            // Epic the same way, keyed by the AppName.
+            if (IsEpic(g)) return Accounts.EpicAccountAchievements.SummaryFor(g.Id);
 
             string appId = AppIdOf(g);
             if (appId == null) return null;
@@ -287,20 +290,25 @@ namespace ClawTweaksCenter.Library
         public static void Prefetch(GameEntry g)
         {
             if (IsXbox(g)) Accounts.XboxAccountAchievements.RequestDetail(Accounts.XboxAccountAchievements.PfnOf(g.Id));
+            else if (IsEpic(g)) Accounts.EpicAccountAchievements.RequestDetail(g.Id);
             else Accounts.SteamAccountAchievements.RequestDetail(AppIdOf(g));
         }
 
         /// <summary>The key the account sources announce a change under: the appid for Steam, the
-        /// package family name for Xbox. Null for anything else.</summary>
+        /// package family name for Xbox, the AppName for Epic. Null for anything else.</summary>
         public static string AccountKeyOf(GameEntry g) =>
-            IsXbox(g) ? Accounts.XboxAccountAchievements.PfnOf(g.Id) : AppIdOf(g);
+            IsXbox(g) ? Accounts.XboxAccountAchievements.PfnOf(g.Id)
+            : IsEpic(g) ? g.Id
+            : AppIdOf(g);
 
         private static bool IsXbox(GameEntry g) => g != null && g.Store == GameStore.Xbox && !string.IsNullOrEmpty(g.Id);
+        private static bool IsEpic(GameEntry g) => g != null && g.Store == GameStore.Epic && !string.IsNullOrEmpty(g.Id);
 
-        /// <summary>The list for any store: Xbox from its account, Steam from account + blobs.</summary>
+        /// <summary>The list for any store: Xbox and Epic from their accounts, Steam from account + blobs.</summary>
         private static List<AchievementEntry> ListFor(GameEntry g) =>
             IsXbox(g) ? Accounts.XboxAccountAchievements.EntriesFor(Accounts.XboxAccountAchievements.PfnOf(g.Id))
-                      : ModelFor(AppIdOf(g));
+            : IsEpic(g) ? Accounts.EpicAccountAchievements.EntriesFor(g.Id)
+            : ModelFor(AppIdOf(g));
 
         #region Model
         /// <summary>

@@ -107,7 +107,8 @@ namespace ClawTweaksCenter.Library.Accounts
                     AccessExpiresUtc = ReadExpiry(result.AccessToken) ?? DateTime.UtcNow.AddHours(1),
                 };
                 Save(stored);
-                Core.InstallLog.Write("[Accounts] Steam signed in as " + stored.AccountName
+                // Never the account name: the log is attached to bug reports.
+                Core.InstallLog.Write("[Accounts] Steam signed in"
                     + ", access token valid until " + stored.AccessExpiresUtc.ToString("u")
                     + ", refresh token until " + (ReadExpiry(result.RefreshToken)?.ToString("u") ?? "?"));
                 return stored.AccountName;

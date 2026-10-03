@@ -18,7 +18,7 @@ namespace ClawTweaksCenter
     /// games list, and it lives inside the settings screen the same way: _accountsOpen implies
     /// _settingsOpen. See Doku\ACHIEVEMENTS_Plan.md.
     ///
-    /// One row per store that is BUILT - Steam today. A store appears here the day it works, not
+    /// One row per store that is BUILT - Steam, Xbox and Epic today. A store appears here the day it works, not
     /// before: a row that says "coming soon" is a promise on a screen people open to get something
     /// done.
     ///
@@ -43,6 +43,7 @@ namespace ClawTweaksCenter
 
         private const int AccountsSteamRow = 0;
         private const int AccountsXboxRow = 1;
+        private const int AccountsEpicRow = 2;
 
         /// <summary>The big code beside the QR on the Xbox screen - Microsoft's page asks for it
         /// when the QR is not used.</summary>
@@ -109,6 +110,10 @@ namespace ClawTweaksCenter
                 ? (string.IsNullOrEmpty(XboxAccount.Gamertag) ? Core.Loc.T("Signed in") : XboxAccount.Gamertag)
                 : Core.Loc.T("Not signed in");
             list.Children.Add(BuildAccountRow(AccountsXboxRow, "Xbox", xbox, XboxAccount.IsSignedIn));
+            string epic = EpicAccount.IsSignedIn
+                ? (string.IsNullOrEmpty(EpicAccount.DisplayName) ? Core.Loc.T("Signed in") : EpicAccount.DisplayName)
+                : Core.Loc.T("Not signed in");
+            list.Children.Add(BuildAccountRow(AccountsEpicRow, "Epic Games", epic, EpicAccount.IsSignedIn));
             if (!string.IsNullOrEmpty(_accountsNote))
             {
                 list.Children.Add(new TextBlock
@@ -190,11 +195,13 @@ namespace ClawTweaksCenter
         {
             if (_accountsIndex == AccountsSteamRow) StartSteamQr();
             else if (_accountsIndex == AccountsXboxRow) StartXboxSignIn();
+            else if (_accountsIndex == AccountsEpicRow) StartEpicSignIn();
         }
 
         private bool SelectedAccountSignedIn =>
             _accountsIndex == AccountsSteamRow ? SteamAccount.IsSignedIn
-            : _accountsIndex == AccountsXboxRow && XboxAccount.IsSignedIn;
+            : _accountsIndex == AccountsXboxRow ? XboxAccount.IsSignedIn
+            : _accountsIndex == AccountsEpicRow && EpicAccount.IsSignedIn;
 
         private void SignOutSelectedAccount()
         {
@@ -204,6 +211,12 @@ namespace ClawTweaksCenter
                 SteamAccount.SignOut();
                 Core.InstallLog.Write("[Accounts] Steam signed out by the user");
                 _accountsNote = Core.Loc.T("Signed out. Achievements come from this device again.");
+            }
+            else if (_accountsIndex == AccountsEpicRow)
+            {
+                EpicAccount.SignOut();
+                Core.InstallLog.Write("[Accounts] Epic signed out by the user");
+                _accountsNote = Core.Loc.T("Signed out of Epic Games.");
             }
             else
             {
@@ -237,6 +250,7 @@ namespace ClawTweaksCenter
             var names = new System.Collections.Generic.List<string>();
             if (SteamAccount.IsSignedIn) names.Add("Steam");
             if (XboxAccount.IsSignedIn) names.Add("Xbox");
+            if (EpicAccount.IsSignedIn) names.Add("Epic Games");
             return names.Count > 0 ? string.Join(", ", names) : Core.Loc.T("None");
         }
 
@@ -253,13 +267,16 @@ namespace ClawTweaksCenter
                 Dispatcher.BeginInvoke(new Action(() => OnAccountAchievementsChanged(Library.GameStore.Steam, key)));
             Library.Accounts.XboxAccountAchievements.Changed += key =>
                 Dispatcher.BeginInvoke(new Action(() => OnAccountAchievementsChanged(Library.GameStore.Xbox, key)));
+            Library.Accounts.EpicAccountAchievements.Changed += key =>
+                Dispatcher.BeginInvoke(new Action(() => OnAccountAchievementsChanged(Library.GameStore.Epic, key)));
         }
 
         private void SchedulePrefetchAchievements(Library.GameEntry g)
         {
             if (g == null) return;
             bool signedIn = g.Store == Library.GameStore.Steam ? SteamAccount.IsSignedIn
-                          : g.Store == Library.GameStore.Xbox && XboxAccount.IsSignedIn;
+                          : g.Store == Library.GameStore.Xbox ? XboxAccount.IsSignedIn
+                          : g.Store == Library.GameStore.Epic && EpicAccount.IsSignedIn;
             if (!signedIn) return;
             _achPrefetchGame = g;
             if (_achPrefetchTimer == null)
@@ -283,7 +300,8 @@ namespace ClawTweaksCenter
         /// </summary>
         private void OnAccountAchievementsChanged(Library.GameStore store, string key)
         {
-            // key: the appid (Steam) or package family name (Xbox) of one game, null for a whole table.
+            // key: the appid (Steam), package family name (Xbox) or AppName (Epic) of one game, null
+            // for a whole table.
             bool Concerns(Library.GameEntry g) => g != null && g.Store == store
                 && (key == null || string.Equals(key, Library.SteamAchievements.AccountKeyOf(g), StringComparison.OrdinalIgnoreCase));
 
@@ -493,6 +511,7 @@ namespace ClawTweaksCenter
 
         private void CancelSteamQr()
         {
+            StopEpicClipboardWatch();
             _signInCode = null;
             var cts = _steamQrCts;
             _steamQrCts = null;
