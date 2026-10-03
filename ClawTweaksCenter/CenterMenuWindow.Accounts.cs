@@ -42,6 +42,11 @@ namespace ClawTweaksCenter
         private string _accountsNote;
 
         private const int AccountsSteamRow = 0;
+        private const int AccountsXboxRow = 1;
+
+        /// <summary>The big code beside the QR on the Xbox screen - Microsoft's page asks for it
+        /// when the QR is not used.</summary>
+        private TextBlock _signInCode;
 
         private void OpenAccounts()
         {
@@ -99,6 +104,11 @@ namespace ClawTweaksCenter
                 ? SteamAccount.AccountName
                 : Core.Loc.T("Not signed in");
             list.Children.Add(BuildAccountRow(AccountsSteamRow, "Steam", value, SteamAccount.IsSignedIn));
+            // The gamertag only when XSTS handed one out; signed in without it still says so.
+            string xbox = XboxAccount.IsSignedIn
+                ? (string.IsNullOrEmpty(XboxAccount.Gamertag) ? Core.Loc.T("Signed in") : XboxAccount.Gamertag)
+                : Core.Loc.T("Not signed in");
+            list.Children.Add(BuildAccountRow(AccountsXboxRow, "Xbox", xbox, XboxAccount.IsSignedIn));
             if (!string.IsNullOrEmpty(_accountsNote))
             {
                 list.Children.Add(new TextBlock
@@ -179,14 +189,29 @@ namespace ClawTweaksCenter
         private void ActivateAccount()
         {
             if (_accountsIndex == AccountsSteamRow) StartSteamQr();
+            else if (_accountsIndex == AccountsXboxRow) StartXboxSignIn();
         }
+
+        private bool SelectedAccountSignedIn =>
+            _accountsIndex == AccountsSteamRow ? SteamAccount.IsSignedIn
+            : _accountsIndex == AccountsXboxRow && XboxAccount.IsSignedIn;
 
         private void SignOutSelectedAccount()
         {
-            if (_accountsIndex != AccountsSteamRow || !SteamAccount.IsSignedIn) return;
-            SteamAccount.SignOut();
-            Core.InstallLog.Write("[Accounts] Steam signed out by the user");
-            _accountsNote = Core.Loc.T("Signed out. Achievements come from this device again.");
+            if (!SelectedAccountSignedIn) return;
+            if (_accountsIndex == AccountsSteamRow)
+            {
+                SteamAccount.SignOut();
+                Core.InstallLog.Write("[Accounts] Steam signed out by the user");
+                _accountsNote = Core.Loc.T("Signed out. Achievements come from this device again.");
+            }
+            else
+            {
+                XboxAccount.SignOut();
+                Core.InstallLog.Write("[Accounts] Xbox signed out by the user");
+                // Xbox has no local achievements to fall back on - say that, not "from this device".
+                _accountsNote = Core.Loc.T("Signed out of Xbox.");
+            }
             RenderAccounts();
             RefreshActionBar();
         }
@@ -198,7 +223,7 @@ namespace ClawTweaksCenter
                 AddAction(PadButton.B, "Cancel", true, CancelSteamQrAndReturn);
                 return;
             }
-            bool signedIn = _accountsIndex == AccountsSteamRow && SteamAccount.IsSignedIn;
+            bool signedIn = SelectedAccountSignedIn;
             AddAction(PadButton.A, signedIn ? "Sign in again" : "Sign in", true, ActivateAccount);
             // Y, not A: a sign-out that takes a phone to undo should not sit on the button that is
             // pressed most.
@@ -209,7 +234,10 @@ namespace ClawTweaksCenter
         /// <summary>What the settings row shows without opening the screen.</summary>
         private static string AccountsSummary()
         {
-            return SteamAccount.IsSignedIn ? "Steam" : Core.Loc.T("None");
+            var names = new System.Collections.Generic.List<string>();
+            if (SteamAccount.IsSignedIn) names.Add("Steam");
+            if (XboxAccount.IsSignedIn) names.Add("Xbox");
+            return names.Count > 0 ? string.Join(", ", names) : Core.Loc.T("None");
         }
 
         // ── the account's achievements reaching the screen ──────────────────────────────────────
@@ -221,13 +249,18 @@ namespace ClawTweaksCenter
 
         private void HookAccountAchievements()
         {
-            Library.Accounts.SteamAccountAchievements.Changed += appId =>
-                Dispatcher.BeginInvoke(new Action(() => OnAccountAchievementsChanged(appId)));
+            Library.Accounts.SteamAccountAchievements.Changed += key =>
+                Dispatcher.BeginInvoke(new Action(() => OnAccountAchievementsChanged(Library.GameStore.Steam, key)));
+            Library.Accounts.XboxAccountAchievements.Changed += key =>
+                Dispatcher.BeginInvoke(new Action(() => OnAccountAchievementsChanged(Library.GameStore.Xbox, key)));
         }
 
         private void SchedulePrefetchAchievements(Library.GameEntry g)
         {
-            if (g == null || g.Store != Library.GameStore.Steam || !SteamAccount.IsSignedIn) return;
+            if (g == null) return;
+            bool signedIn = g.Store == Library.GameStore.Steam ? SteamAccount.IsSignedIn
+                          : g.Store == Library.GameStore.Xbox && XboxAccount.IsSignedIn;
+            if (!signedIn) return;
             _achPrefetchGame = g;
             if (_achPrefetchTimer == null)
             {
@@ -248,16 +281,15 @@ namespace ClawTweaksCenter
         /// "Start X?" for that game. The open achievement list is left alone - it is a snapshot the
         /// user is scrolling, and it re-reads when it is opened again.
         /// </summary>
-        private void OnAccountAchievementsChanged(string appId)
+        private void OnAccountAchievementsChanged(Library.GameStore store, string key)
         {
-            var selected = SelectedGame;
-            bool forSelected = selected != null && selected.Store == Library.GameStore.Steam
-                               && (appId == null || appId == selected.Id);
-            if (forSelected && !LaunchOverlayOpen && !GameMenuOverlayOpen && !_settingsOpen) UpdateSelectedTitle();
+            // key: the appid (Steam) or package family name (Xbox) of one game, null for a whole table.
+            bool Concerns(Library.GameEntry g) => g != null && g.Store == store
+                && (key == null || string.Equals(key, Library.SteamAchievements.AccountKeyOf(g), StringComparison.OrdinalIgnoreCase));
 
-            var target = _launchTarget;
-            if (target != null && _launchPrompt == LaunchPrompt.Confirm && !GameMenuOverlayOpen
-                && target.Store == Library.GameStore.Steam && (appId == null || appId == target.Id))
+            if (Concerns(SelectedGame) && !LaunchOverlayOpen && !GameMenuOverlayOpen && !_settingsOpen) UpdateSelectedTitle();
+
+            if (Concerns(_launchTarget) && _launchPrompt == LaunchPrompt.Confirm && !GameMenuOverlayOpen)
                 RenderLaunchOverlay();
         }
 
@@ -268,12 +300,16 @@ namespace ClawTweaksCenter
             CancelSteamQr();
             var cts = new CancellationTokenSource();
             _steamQrCts = cts;
-            RenderSteamQr();
+            RenderSignInScreen("Sign in to Steam", "Open the Steam app on your phone, tap the shield, and scan this code.",
+                "Connecting to Steam...", showCode: false);
             RefreshActionBar();
             _ = RunSteamQrAsync(cts);
         }
 
-        private void RenderSteamQr()
+        /// <summary>The QR sign-in screen, for either store: heading and hint on the left, status
+        /// under them, the code on white on the right - with the typed code under it when the store
+        /// has one.</summary>
+        private void RenderSignInScreen(string title, string hint, string status, bool showCode)
         {
             LibraryRoot.Children.Clear();
             LibraryRoot.RowDefinitions.Clear();
@@ -286,17 +322,31 @@ namespace ClawTweaksCenter
             var heading = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 32, 0) };
             heading.Children.Add(new TextBlock
             {
-                Text = Core.Loc.T("Sign in to Steam"),
+                Text = Core.Loc.T(title),
                 FontSize = 22,
                 FontWeight = FontWeights.SemiBold,
                 Foreground = UiHelpers.Text,
                 TextWrapping = TextWrapping.Wrap,
                 Margin = new Thickness(0, 0, 0, 10),
             });
-            heading.Children.Add(TabEditorHint("Open the Steam app on your phone, tap the shield, and scan this code."));
+            heading.Children.Add(TabEditorHint(hint));
+            if (showCode)
+            {
+                // Big and spaced: it is read off the screen and typed on a phone.
+                _signInCode = new TextBlock
+                {
+                    Text = "········",
+                    FontSize = 34,
+                    FontWeight = FontWeights.SemiBold,
+                    FontFamily = new FontFamily("Consolas, Cascadia Mono, Segoe UI"),
+                    Foreground = UiHelpers.Text,
+                    Margin = new Thickness(0, 14, 0, 0),
+                };
+                heading.Children.Add(_signInCode);
+            }
             _steamQrStatus = new TextBlock
             {
-                Text = Core.Loc.T("Connecting to Steam..."),
+                Text = Core.Loc.T(status),
                 FontSize = 15,
                 Foreground = UiHelpers.Text,
                 TextWrapping = TextWrapping.Wrap,
@@ -375,8 +425,75 @@ namespace ClawTweaksCenter
             });
         }
 
+        // ── the Xbox sign-in screen ─────────────────────────────────────────────────────────────
+        // Same screen and the same fields as Steam's: one sign-in at a time, and every way off it
+        // goes through CancelSteamQr. The difference is the code: Microsoft's device flow shows a
+        // page and a code, so the QR carries the page with the code filled in, and the code stands
+        // beside it for whoever types instead of scanning.
+
+        private void StartXboxSignIn()
+        {
+            CancelSteamQr();
+            var cts = new CancellationTokenSource();
+            _steamQrCts = cts;
+            RenderSignInScreen("Sign in to Xbox",
+                "Scan the QR code with your phone or open microsoft.com/link, enter the code below there, then sign in with your Xbox account.",
+                "Asking Microsoft for a code...", showCode: true);
+            RefreshActionBar();
+            _ = RunXboxSignInAsync(cts);
+        }
+
+        private async Task RunXboxSignInAsync(CancellationTokenSource cts)
+        {
+            string note;
+            try
+            {
+                string gamertag = await XboxAccount.SignInAsync(code =>
+                {
+                    Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        if (_steamQrCts != cts || _steamQrImage == null) return;
+                        _steamQrImage.Source = BuildQr(code.VerificationUri);
+                        if (_signInCode != null) _signInCode.Text = code.UserCode;
+                        _steamQrStatus.Text = Core.Loc.T("Waiting for your phone...");
+                    }));
+                }, cts.Token);
+                note = string.IsNullOrEmpty(gamertag) ? Core.Loc.T("Signed in to Xbox.") : Core.Loc.F("Signed in as {0}.", gamertag);
+                XboxAccountAchievements.RefreshTitlesInBackground(force: true);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+            catch (Exception ex)
+            {
+                Core.InstallLog.Write("[Accounts] Xbox sign-in failed: " + ex.GetType().Name + ": " + ex.Message);
+                // "Not reachable" only for a real network failure. A service that ANSWERED with a
+                // refusal (XSTS 400 + XErr) was reachable, and saying otherwise sent the user
+                // looking at their Wi-Fi (2026-10-03).
+                bool answered = ex.Message.Contains(" answered ");
+                note = ex is TimeoutException || ex is InvalidOperationException || answered
+                    ? Core.Loc.T("Sign-in did not complete. Press A to get a new code.")
+                    : Core.Loc.T("Microsoft could not be reached. Check the connection and try again.");
+            }
+
+            await Dispatcher.InvokeAsync(() =>
+            {
+                if (_steamQrCts != cts) return;
+                _steamQrCts = null;
+                _steamQrImage = null;
+                _steamQrStatus = null;
+                _signInCode = null;
+                if (!_accountsOpen) return;
+                _accountsNote = note;
+                RenderAccounts();
+                RefreshActionBar();
+            });
+        }
+
         private void CancelSteamQr()
         {
+            _signInCode = null;
             var cts = _steamQrCts;
             _steamQrCts = null;
             _steamQrImage = null;

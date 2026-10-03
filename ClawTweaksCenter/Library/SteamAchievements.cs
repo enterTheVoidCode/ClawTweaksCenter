@@ -171,6 +171,7 @@ namespace ClawTweaksCenter.Library
             // The account's table, in the background and at most every few minutes - see
             // Accounts\SteamAccountAchievements. Signed out, this does nothing.
             Accounts.SteamAccountAchievements.RefreshProgressInBackground();
+            Accounts.XboxAccountAchievements.RefreshTitlesInBackground();
         }
 
         /// <summary>
@@ -184,6 +185,10 @@ namespace ClawTweaksCenter.Library
         /// </summary>
         public static AchievementSummary SummaryFor(GameEntry g)
         {
+            // XBOX GAMES TOO, since 2026-10-03 - from the account only; there is nothing on disk.
+            // Routed here so every screen asks one class whatever the store.
+            if (IsXbox(g)) return Accounts.XboxAccountAchievements.SummaryFor(Accounts.XboxAccountAchievements.PfnOf(g.Id));
+
             string appId = AppIdOf(g);
             if (appId == null) return null;
 
@@ -219,7 +224,7 @@ namespace ClawTweaksCenter.Library
         /// </summary>
         public static List<AchievementEntry> UnlockedFor(GameEntry g)
         {
-            var list = ModelFor(AppIdOf(g));
+            var list = ListFor(g);
             if (list == null) return new List<AchievementEntry>();
 
             return list.Where(e => e.Unlocked)
@@ -245,7 +250,7 @@ namespace ClawTweaksCenter.Library
         /// </summary>
         public static List<AchievementEntry> AllFor(GameEntry g)
         {
-            var list = ModelFor(AppIdOf(g));
+            var list = ListFor(g);
             if (list == null) return new List<AchievementEntry>();
 
             var ordered = list.Where(e => e.Unlocked)
@@ -260,7 +265,7 @@ namespace ClawTweaksCenter.Library
         /// list of what there is to go after, which is the more useful screen of the two.</summary>
         public static bool HasDetail(GameEntry g)
         {
-            var list = ModelFor(AppIdOf(g));
+            var list = ListFor(g);
             return list != null && list.Count > 0;
         }
 
@@ -279,7 +284,23 @@ namespace ClawTweaksCenter.Library
         /// <summary>Asks the account for this game's full list now, so it is there by the time the
         /// launch screen or the list opens. Cheap and repeatable; the library calls it when the
         /// cursor rests on a game.</summary>
-        public static void Prefetch(GameEntry g) => Accounts.SteamAccountAchievements.RequestDetail(AppIdOf(g));
+        public static void Prefetch(GameEntry g)
+        {
+            if (IsXbox(g)) Accounts.XboxAccountAchievements.RequestDetail(Accounts.XboxAccountAchievements.PfnOf(g.Id));
+            else Accounts.SteamAccountAchievements.RequestDetail(AppIdOf(g));
+        }
+
+        /// <summary>The key the account sources announce a change under: the appid for Steam, the
+        /// package family name for Xbox. Null for anything else.</summary>
+        public static string AccountKeyOf(GameEntry g) =>
+            IsXbox(g) ? Accounts.XboxAccountAchievements.PfnOf(g.Id) : AppIdOf(g);
+
+        private static bool IsXbox(GameEntry g) => g != null && g.Store == GameStore.Xbox && !string.IsNullOrEmpty(g.Id);
+
+        /// <summary>The list for any store: Xbox from its account, Steam from account + blobs.</summary>
+        private static List<AchievementEntry> ListFor(GameEntry g) =>
+            IsXbox(g) ? Accounts.XboxAccountAchievements.EntriesFor(Accounts.XboxAccountAchievements.PfnOf(g.Id))
+                      : ModelFor(AppIdOf(g));
 
         #region Model
         /// <summary>
