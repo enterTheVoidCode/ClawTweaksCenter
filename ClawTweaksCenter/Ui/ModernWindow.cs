@@ -29,7 +29,29 @@ namespace ClawTweaksCenter.Ui
         private const int DwmCaptionColor = 35;
         private const int DwmTextColor = 36;
         private const int DwmWindowCornerRound = 2;
+        private const int DwmWindowCornerDoNotRound = 1;
         private const uint MonitorDefaultToNearest = 2;
+
+        /// <summary>
+        /// Turns the DWM corner rounding on or off after the window exists. Fullscreen calls this
+        /// with <c>false</c>: the preference set once in <see cref="ApplyNativeChrome"/> survives
+        /// WindowStyle changes, and rounded compositor corners on a borderless window that covers a
+        /// rectangular screen show the desktop through all four of them.
+        /// </summary>
+        public static void SetRoundedCorners(Window window, bool rounded)
+        {
+            try
+            {
+                IntPtr hwnd = new WindowInteropHelper(window).Handle;
+                if (hwnd == IntPtr.Zero) return;
+                int corners = rounded ? DwmWindowCornerRound : DwmWindowCornerDoNotRound;
+                DwmSetWindowAttribute(hwnd, DwmWindowCornerPreference, ref corners, sizeof(int));
+            }
+            catch
+            {
+                // Best-effort, like ApplyNativeChrome.
+            }
+        }
 
         public static void Apply(Window window, double edgeMargin = 32)
         {
