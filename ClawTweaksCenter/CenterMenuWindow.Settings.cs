@@ -54,30 +54,37 @@ namespace ClawTweaksCenter
 
         private sealed class SettingsTopic
         {
+            /// <summary>The sidebar heading this topic sits under.</summary>
+            public string Group;
             public string Title;
             public int[] Rows;
         }
 
+        private const string SettingsGroupGeneral = "General";
+        private const string SettingsGroupLibrary = "Library";
+
         /// <summary>
-        /// The topics and what is in them, in order (agreed with the user 2026-10-03). General and
-        /// Updates are Center's former screen; the five between are the former library screen.
+        /// The topics and what is in them, in order (agreed with the user 2026-10-03), under two
+        /// headings: what is about Center as a whole, and what is about the game library - the
+        /// part that keeps growing (user, same day). Topics of one group stay together; the sidebar
+        /// draws a heading wherever the group changes.
         /// </summary>
         private static readonly SettingsTopic[] SettingsTopics =
         {
-            new SettingsTopic { Title = "General", Rows = new[] { SettingsLanguageRow, SettingsFullscreenRow } },
-            new SettingsTopic { Title = "Start and behaviour", Rows = new[] {
+            new SettingsTopic { Group = SettingsGroupGeneral, Title = "General", Rows = new[] { SettingsLanguageRow, SettingsFullscreenRow } },
+            new SettingsTopic { Group = SettingsGroupGeneral, Title = "Start and behaviour", Rows = new[] {
                 SettingsStartInLibraryRow, SettingsStartWithClawTweaksRow, SettingsStartSteamRow,
                 SettingsRunInBackgroundRow, SettingsLaunchBehaviorRow } },
-            new SettingsTopic { Title = "Library", Rows = new[] {
-                SettingsTabsRow, SettingsHiddenGamesRow, SettingsOwnAppsInRecentRow, SettingsInfoRow } },
-            new SettingsTopic { Title = "Appearance", Rows = new[] {
-                SettingsDenseGridRow, SettingsImmersiveRow, SettingsReflectionsRow, SettingsSquareRomArtRow,
-                SettingsBackgroundRow, SettingsUserImagesRow } },
-            new SettingsTopic { Title = "Sound", Rows = new[] { SettingsSoundRow } },
-            new SettingsTopic { Title = "Accounts and services", Rows = new[] { SettingsAccountsRow, SettingsKeyRow } },
-            new SettingsTopic { Title = "Updates and notifications", Rows = new[] {
+            new SettingsTopic { Group = SettingsGroupGeneral, Title = "Sound", Rows = new[] { SettingsSoundRow } },
+            new SettingsTopic { Group = SettingsGroupGeneral, Title = "Updates and notifications", Rows = new[] {
                 SettingsDriverCheckRow, SettingsDriverBetaRow, SettingsDriverWifiRow, SettingsDriverTestRow,
                 SettingsWindowsCheckRow, SettingsWidgetCheckRow, SettingsWidgetTestRow } },
+            new SettingsTopic { Group = SettingsGroupLibrary, Title = "Tabs and games", Rows = new[] {
+                SettingsTabsRow, SettingsHiddenGamesRow, SettingsOwnAppsInRecentRow, SettingsInfoRow } },
+            new SettingsTopic { Group = SettingsGroupLibrary, Title = "Appearance", Rows = new[] {
+                SettingsDenseGridRow, SettingsImmersiveRow, SettingsReflectionsRow, SettingsSquareRomArtRow,
+                SettingsBackgroundRow, SettingsUserImagesRow } },
+            new SettingsTopic { Group = SettingsGroupLibrary, Title = "Accounts and services", Rows = new[] { SettingsAccountsRow, SettingsKeyRow } },
         };
 
         private const int SettingsTopicGeneral = 0;
@@ -151,7 +158,25 @@ namespace ClawTweaksCenter
             // ── the sidebar ──
             var side = new StackPanel { Margin = new Thickness(0, 0, 22, 0) };
             for (int t = 0; t < SettingsTopics.Length; t++)
+            {
+                // The group heading: accent-coloured, bold, with a rule under it - a small grey
+                // caption was all but invisible on the handheld (user, 2026-10-03).
+                if (t == 0 || SettingsTopics[t].Group != SettingsTopics[t - 1].Group)
+                {
+                    var heading = new StackPanel { Margin = new Thickness(4, t == 0 ? 0 : 22, 0, 8) };
+                    heading.Children.Add(new TextBlock
+                    {
+                        Text = Loc.T(SettingsTopics[t].Group).ToUpper(System.Globalization.CultureInfo.CurrentCulture),
+                        FontSize = 14,
+                        FontWeight = FontWeights.Bold,
+                        Foreground = UiHelpers.Accent,
+                        Margin = new Thickness(10, 0, 0, 6),
+                    });
+                    heading.Children.Add(new Border { Height = 1, Background = UiHelpers.Accent, Opacity = 0.45 });
+                    side.Children.Add(heading);
+                }
                 side.Children.Add(BuildSettingsTopicRow(t));
+            }
             Grid.SetRow(side, 1);
             outer.Children.Add(side);
 

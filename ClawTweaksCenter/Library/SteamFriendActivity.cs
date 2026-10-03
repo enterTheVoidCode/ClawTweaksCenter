@@ -27,7 +27,9 @@ namespace ClawTweaksCenter.Library
 
     public sealed class FriendActivity
     {
+        /// <summary>The friend's key - see <see cref="SteamFriend.SteamId"/> (an XUID for Xbox).</summary>
         public ulong SteamId;
+        public GameStore Store = GameStore.Steam;
         public DateTime When;
         public FriendActivityKind Kind;
         public int AppId;

@@ -15,7 +15,11 @@ namespace ClawTweaksCenter.Library
     /// <summary>One friend as the library shows them.</summary>
     public sealed class SteamFriend
     {
+        /// <summary>The key the screen tracks a friend by. Steam: the SteamID. Xbox: the XUID, which
+        /// is a 64-bit number in a range no SteamID uses, so the two never collide.</summary>
         public ulong SteamId;
+        /// <summary>Which network this friend is from (Xbox since 2026-10-03). Steam unless set.</summary>
+        public GameStore Store = GameStore.Steam;
         /// <summary>The nickname the user gave them in Steam, else their persona name.</summary>
         public string Name;
         public SteamPersonaState State;
@@ -508,7 +512,7 @@ namespace ClawTweaksCenter.Library
         /// <summary>In a game first, then online, then away and busy, then offline - each by name.</summary>
         /// <summary>In a game, online, away, offline - and within a group the friend with the most
         /// recent activity first (user, 2026-09-15), not the alphabet. The name only breaks ties.</summary>
-        private static void Sort(List<SteamFriend> friends)
+        internal static void Sort(List<SteamFriend> friends)
         {
             friends.Sort((a, b) =>
             {

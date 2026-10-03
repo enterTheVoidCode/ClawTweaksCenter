@@ -203,6 +203,7 @@ namespace ClawTweaksCenter.Library.Accounts
                 try { if (File.Exists(FilePath)) File.Delete(FilePath); } catch { }
             }
             XboxAccountAchievements.Clear();
+            XboxFriends.Clear();
         }
 
         /// <summary>MSA access token -> Xbox Live user token -> XSTS. Returns the header, its expiry,

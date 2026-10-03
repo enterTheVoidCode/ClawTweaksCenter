@@ -142,6 +142,7 @@ namespace ClawTweaksCenter
             try
             {
                 var snapshot = await SteamFriends.ReadAsync().ConfigureAwait(true);
+                MergeXboxFriends(snapshot, await Library.Accounts.XboxFriends.ReadAsync(System.Threading.CancellationToken.None).ConfigureAwait(true));
                 string cornerBefore = CornerState();
                 _friends = snapshot;
 
@@ -172,6 +173,22 @@ namespace ClawTweaksCenter
             {
                 _friendsInFlight = false;
             }
+        }
+
+        /// <summary>
+        /// Xbox friends into the Steam snapshot: one list, sorted the Steam way (in a game, online,
+        /// away, offline; newest activity first), and one feed by date (user, 2026-10-03). The
+        /// screen then knows nothing about where a row came from beyond the logo it draws.
+        ///
+        /// Xbox friends make the list readable even with Steam closed - they do not need it.
+        /// </summary>
+        private static void MergeXboxFriends(SteamFriendsSnapshot snapshot, (List<SteamFriend> friends, List<FriendActivity> activity) xbox)
+        {
+            if (xbox.friends.Count == 0) return;
+            snapshot.Friends.AddRange(xbox.friends);
+            SteamFriends.Sort(snapshot.Friends);
+            snapshot.Activity = snapshot.Activity.Concat(xbox.activity).OrderByDescending(a => a.When).ToList();
+            snapshot.Available = true;
         }
 
         private string CornerState() =>
@@ -366,7 +383,7 @@ namespace ClawTweaksCenter
             if (_friendIndex >= list.Count) _friendIndex = list.Count - 1;
             if (_friendIndex < 0) _friendIndex = 0;
 
-            AddColumnHead(FriendsColumnList, Core.Loc.T("Steam friends"),
+            AddColumnHead(FriendsColumnList, Core.Loc.T("Friends"),
                 !FriendsReadable
                     ? Core.Loc.T("Steam is not running.")
                     : Core.Loc.F("{0} of {1} online", _friends.OnlineCount, list.Count),
@@ -412,13 +429,13 @@ namespace ClawTweaksCenter
             grid.Children.Add(avatar);
 
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            text.Children.Add(new TextBlock
+            text.Children.Add(NameWithStore(f, new TextBlock
             {
                 Text = f.Name,
                 FontSize = 16,
                 Foreground = f.IsOnline ? UiHelpers.Text : UiHelpers.Subtle,
                 TextTrimming = TextTrimming.CharacterEllipsis,
-            });
+            }));
             text.Children.Add(new TextBlock
             {
                 Text = StatusText(f),
@@ -623,13 +640,13 @@ namespace ClawTweaksCenter
             grid.Children.Add(avatar);
 
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            text.Children.Add(new TextBlock
+            text.Children.Add(NameWithStore(friend, new TextBlock
             {
                 Text = friend.Name,
                 FontSize = 15,
                 Foreground = StatusBrush(friend),
                 TextTrimming = TextTrimming.CharacterEllipsis,
-            });
+            }));
             text.Children.Add(new TextBlock
             {
                 Text = ActivityText(a),
@@ -728,6 +745,28 @@ namespace ClawTweaksCenter
         #endregion
 
         #region Shared pieces
+        /// <summary>The name with the friend's network in front of it: the store's own logo, the one
+        /// its library tab carries. Without a logo to show (launcher not installed) the name stands
+        /// alone rather than with a placeholder.</summary>
+        private static UIElement NameWithStore(SteamFriend f, TextBlock name)
+        {
+            var logo = Library.StoreIcons.For(f.Store == GameStore.Xbox ? LibraryGroup.Xbox : LibraryGroup.Steam);
+            if (logo == null) return name;
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            row.Children.Add(new Image
+            {
+                Source = logo,
+                Width = 14,
+                Height = 14,
+                SnapsToDevicePixels = true,
+                VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(0, 0, 6, 0),
+            });
+            name.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(name);
+            return row;
+        }
+
         private void AddColumnHead(int column, string title, string subtitle, UIElement subtitlePrefix = null)
         {
             var head = new StackPanel { Margin = ColumnMargin(column, 14, 10) };
@@ -913,9 +952,11 @@ namespace ClawTweaksCenter
         /// <summary>A chats with the selected friend - in the feed, with whoever the entry is about.</summary>
         private SteamFriend FriendForChat()
         {
-            if (_friendsColumn == FriendsColumnList) return SelectedFriend;
-            var entry = SelectedFeedEntry;
-            return entry == null ? null : _friends?.Friends.FirstOrDefault(f => f.SteamId == entry.SteamId);
+            var friend = _friendsColumn == FriendsColumnList
+                ? SelectedFriend
+                : SelectedFeedEntry is FriendActivity entry ? _friends?.Friends.FirstOrDefault(f => f.SteamId == entry.SteamId) : null;
+            // Chat is Steam's: an Xbox friend has no chat Center can open, so A is greyed there.
+            return friend != null && friend.Store == GameStore.Steam ? friend : null;
         }
 
         private void ChatWithSelectedFriend()

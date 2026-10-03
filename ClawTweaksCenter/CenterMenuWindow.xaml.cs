@@ -1549,14 +1549,27 @@ namespace ClawTweaksCenter
             Action onClick = null, bool selected = false,
             double glyphColumn = 46, Thickness? padding = null)
         {
-            var icon = new TextBlock
+            // FLUENT, 2026-10-03 (user: "less round, more Fluent, a thinner focus ring"). The glyph
+            // sits on a small accent-tinted plate - the way Windows 11 Settings draws its entries -
+            // rather than floating loose in the card.
+            var accent = (UiHelpers.Accent as SolidColorBrush)?.Color ?? Colors.DeepSkyBlue;
+            var plate = new Border
             {
-                Text = glyph,
-                FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
-                FontSize = 30,
-                Foreground = selected ? UiHelpers.Accent : UiHelpers.Text,
-                HorizontalAlignment = HorizontalAlignment.Center,
+                Width = 44,
+                Height = 44,
+                CornerRadius = new CornerRadius(6),
+                Background = new SolidColorBrush(Color.FromArgb(selected ? (byte)0x40 : (byte)0x22, accent.R, accent.G, accent.B)),
+                HorizontalAlignment = HorizontalAlignment.Left,
                 VerticalAlignment = VerticalAlignment.Center,
+                Child = new TextBlock
+                {
+                    Text = glyph,
+                    FontFamily = new FontFamily("Segoe Fluent Icons, Segoe MDL2 Assets"),
+                    FontSize = 22,
+                    Foreground = selected ? UiHelpers.Accent : UiHelpers.Text,
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                },
             };
 
             var text = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
@@ -1566,37 +1579,40 @@ namespace ClawTweaksCenter
             // data rather than as a rule somebody has to remember here.
             text.Children.Add(new TextBlock
             {
-                Text = Core.Loc.T(title), FontSize = 19, FontWeight = FontWeights.Bold, Foreground = UiHelpers.Text,
+                Text = Core.Loc.T(title), FontSize = 18, FontWeight = FontWeights.SemiBold, Foreground = UiHelpers.Text,
                 TextWrapping = TextWrapping.Wrap,
             });
             text.Children.Add(new TextBlock
             {
                 Text = Core.Loc.T(detail), FontSize = 14, Foreground = UiHelpers.Subtle,
-                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 4, 0, 0),
+                TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0, 3, 0, 0),
             });
             Grid.SetColumn(text, 1);
 
             var layout = new Grid();
-            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(glyphColumn) });
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(Math.Max(glyphColumn, 44) + 14) });
             layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            layout.Children.Add(icon);
+            layout.Children.Add(plate);
             layout.Children.Add(text);
 
-            // Focus model: the controller cursor highlights ONE tile with a thick accent outline; the
-            // others show only a thin subtle border so the selected one is unmistakable.
-            Brush borderBrush = selected ? UiHelpers.Accent : UiHelpers.Subtle;
-            double borderThickness = selected ? 3 : 1;
+            // Focus model: the cursor's tile gets a 2 px accent ring and a slightly lifted surface;
+            // the others a hairline stroke, as Fluent cards have. 2 rather than 3 (user, 2026-10-03).
+            Brush borderBrush = selected ? UiHelpers.Accent : new SolidColorBrush(Color.FromArgb(0x1F, 0xFF, 0xFF, 0xFF));
+            double borderThickness = selected ? 2 : 1;
+            Brush background = selected
+                ? new SolidColorBrush(Color.FromArgb(0xFF, 0x33, 0x33, 0x33))
+                : UiHelpers.Card;
 
             // The padding is derived from the ring thickness rather than written out per state, so
             // border + padding stays constant and a tile measures the same selected or not. Offset by
             // 1 because the unselected tile (1px) is the state the padding was authored against.
-            var tilePad = padding ?? new Thickness(18, 16, 18, 16);
+            var tilePad = padding ?? new Thickness(16, 14, 16, 14);
 
             var border = new Border
             {
-                Background = UiHelpers.Card,
-                CornerRadius = new CornerRadius(12),
-                Margin = new Thickness(0, 0, 10, 10),
+                Background = background,
+                CornerRadius = new CornerRadius(6),
+                Margin = new Thickness(0, 0, 8, 8),
                 BorderBrush = borderBrush,
                 BorderThickness = new Thickness(borderThickness),
                 Padding = Deflate(tilePad, borderThickness - 1),
