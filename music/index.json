@@ -1,0 +1,6 @@
+{
+  "_readme": "The background music Center offers besides the track in the exe (Settings > Sound > Music, group 'CTW Default'). Center reads this file from raw.githubusercontent.com/enterTheVoidCode/ClawTweaksCenter/master/music/index.json and downloads a 'file' from this same folder the first time it is chosen (Audio/MusicCatalog.cs), so adding one is a commit here and nothing else - no Center build, no release. raw.githubusercontent caches for about four minutes. 'name' is shown in the list and is NOT translated: it is a track name. .mp3 or .ogg; keep a track to a few megabytes, it is loaded whole into memory while it plays.",
+  "tracks": [
+    { "id": "atlasaudio-soundscape", "name": "Soundscape", "file": "atlasaudio-soundscape-587608.mp3" }
+  ]
+}

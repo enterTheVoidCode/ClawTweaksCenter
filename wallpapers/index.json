@@ -1,0 +1,13 @@
+{
+  "_readme": "The wallpapers Center offers under 'Download CTW wallpapers'. Center reads this file from raw.githubusercontent.com/enterTheVoidCode/ClawTweaksCenter/master/wallpapers/index.json and downloads each 'file' from this same folder, so adding one is a commit here and nothing else - no Center build, no release. raw.githubusercontent caches for about four minutes, so a new entry shows up a few minutes after the push. 'name' is shown under the tile and is NOT translated: these are picture names, not UI copy. Keep the files 16:10 - they are drawn behind the whole window with UniformToFill, so a different shape is cropped rather than letterboxed.",
+  "wallpapers": [
+    { "id": "redyellow",  "name": "Red / Yellow",       "file": "redyellow.png" },
+    { "id": "purpleblue", "name": "Purple / Blue",      "file": "purpleblue.png" },
+    { "id": "intelcore",  "name": "Intel Core",         "file": "intel-core.png" },
+    { "id": "msiclaw8ai",   "name": "MSI Claw 8 AI CPU",      "file": "msi-claw-8-ai-cpu.png" },
+    { "id": "msiclaw8ex",   "name": "MSI Claw 8 EX CPU",      "file": "msi-claw-8-ex-cpu.png" },
+    { "id": "msidragonred", "name": "MSI Dragon Red",         "file": "msi-dragon-red.png" },
+    { "id": "launcherblue", "name": "Launcher Backdrop Blue", "file": "Launcher Backdrop Blue.png" },
+    { "id": "launchergreen", "name": "Launcher Backdrop Green", "file": "Launcher Backdrop Green.png" }
+  ]
+}
