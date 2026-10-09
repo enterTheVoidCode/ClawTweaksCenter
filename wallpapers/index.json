@@ -8,6 +8,9 @@
     { "id": "msiclaw8ex",   "name": "MSI Claw 8 EX CPU",      "file": "msi-claw-8-ex-cpu.png" },
     { "id": "msidragonred", "name": "MSI Dragon Red",         "file": "msi-dragon-red.png" },
     { "id": "launcherblue", "name": "Launcher Backdrop Blue", "file": "Launcher Backdrop Blue.png" },
-    { "id": "launchergreen", "name": "Launcher Backdrop Green", "file": "Launcher Backdrop Green.png" }
+    { "id": "launchergreen", "name": "Launcher Backdrop Green", "file": "Launcher Backdrop Green.png" },
+    { "id": "launcherorange", "name": "Launcher Backdrop Orange", "file": "Launcher Backdrop Orange.PNG" },
+    { "id": "launcherpurple", "name": "Launcher Backdrop Purple", "file": "Launcher Backdrop Purple.PNG" },
+    { "id": "launcherred", "name": "Launcher Backdrop Red", "file": "Launcher Backdrop Red.PNG" }
   ]
 }
